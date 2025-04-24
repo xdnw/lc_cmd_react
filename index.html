@@ -1,18 +1,80 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- // add App.css? -->
-    <title>Locutus Commands</title>
-    <script type="module" crossorigin src="/assets/index-q9wZTprr.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/vendor-DjpfLJfn.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-B0PBUCuH.css">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script>
-    </script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locutus Commands</title>
+  <style>
+    #initial-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: black;
+      z-index: 9999;
+      transition: opacity 0.3s ease-out;
+    }
+
+    @keyframes w {
+
+      0%,
+      100% {
+        transform: scaleY(.3)
+      }
+
+      50% {
+        transform: scaleY(1)
+      }
+    }
+
+    .wave-bar {
+      background: #60a5fa;
+      height: 100%;
+      width: 4px;
+      margin: 0 2px;
+      opacity: .8;
+      animation: w 1.2s ease-in-out infinite;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-uWr0STWh.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-B2x8oTjw.css">
+<link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+
+<body style="background-color: black;">
+  <div id="root"></div>
+
+  <div id="initial-loader">
+    <div style="display:flex;justify-content:center;height:1.5rem;overflow:hidden">
+      <div class="wave-bar" style="animation-delay:0s"></div>
+      <div class="wave-bar" style="animation-delay:.1s"></div>
+      <div class="wave-bar" style="animation-delay:.2s"></div>
+      <div class="wave-bar" style="animation-delay:.3s"></div>
+      <div class="wave-bar" style="animation-delay:.4s"></div>
+      <div class="wave-bar" style="animation-delay:.5s"></div>
+    </div>
+  </div>
+
+  <script>
+    // Hide loader when React app loads
+    window.addEventListener('load', function () {
+      // Give React a moment to render
+      setTimeout(function () {
+        const loader = document.getElementById('initial-loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          setTimeout(function () {
+            loader.style.display = 'none';
+          }, 300);
+        }
+      }, 200);
+    });
+  </script>
+</body>
+
 </html>

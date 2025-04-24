@@ -9,8 +9,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/lc_web_test.git
-cd lc_web_test
+git clone https://github.com/yourusername/lc_cmd_react.git
+cd lc_cmd_react
 
 # Install dependencies
 npm install

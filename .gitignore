@@ -24,3 +24,4 @@ dist-ssr
 /dist
 .eslintcache
 pretty-ts-errors-hack.css
+lc_cmd_react.code-workspace

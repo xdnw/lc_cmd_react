@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button.tsx";
 import { SESSION, SET_OAUTH_CODE } from "@/lib/endpoints";
-import { CopoToClipboardTextArea } from "../../components/ui/copytoclipboard";
+import { CopyToClipboardTextArea } from "../../components/ui/copytoclipboard";
 import { useDialog } from "../../components/layout/DialogContext";
 import { useCallback, useEffect, useState } from "react";
 import EndpointWrapper from '@/components/api/bulkwrapper';
@@ -33,7 +33,7 @@ export function OAuth2Component() {
     const handleError = useCallback((error: Error) => {
         showDialog("Login Failed", <>Failed to set login OAuth2 Code. Please try again, try a different login method, or contact support.
             <div className="relative overflow-auto">
-                <CopoToClipboardTextArea text={error.message} />
+                <CopyToClipboardTextArea text={error.message} />
             </div>
         </>, false);
     }, [showDialog]);

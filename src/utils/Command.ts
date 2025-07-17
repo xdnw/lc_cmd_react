@@ -191,14 +191,16 @@ export function getTypeBreakdown(ref: CommandMap, type: string): TypeBreakdown {
 export class BaseCommand {
     command: ICommand;
     name: string;
+    path: string[];
     arguments: Argument[] | null = null;
     charFreq: { [key: string]: number } | null = null;
     descWordFreq: Set<string> | null = null;
     descShort: string | null = null;
 
-    constructor(name: string, commandData: ICommand) {
+    constructor(path: string[], commandData: ICommand) {
         this.command = commandData;
-        this.name = name;
+        this.name = path[path.length - 1];
+        this.path = path;
     }
 
     hasRequiredArgument(): boolean {
@@ -266,9 +268,8 @@ export class Command<P extends CommandPath<typeof COMMANDS.commands>> extends Ba
     data: Partial<CommandType<typeof COMMANDS.commands, P>>;
 
     constructor(path: P, data: Partial<CommandType<typeof COMMANDS.commands, P>>) {
-        const name = path[path.length - 1] as string;
         const commandData = data as ICommand; // Assume data is a valid ICommand structure
-        super(name, commandData);
+        super(path, commandData);
         this.path = path;
         this.data = data;
     }
@@ -283,9 +284,8 @@ export class Placeholder<T extends keyof typeof COMMANDS.placeholders, P extends
     data: Partial<CommandType<typeof COMMANDS.placeholders, P>>;
 
     constructor(type: T, path: P, data: Partial<CommandType<typeof COMMANDS.placeholders[T]['commands'], P>>) {
-        const name = path[path.length - 1] as string;
         const commandData = data as ICommand;
-        super(name, commandData);
+        super(path, commandData);
         this.path = path;
         this.data = data;
         this.type = type;
@@ -390,7 +390,7 @@ export class PlaceholderMap<T extends keyof typeof COMMANDS.placeholders> {
         if (!this.create) {
             const create = (this.data as IPlaceholder).create;
             if (create) {
-                this.create = new BaseCommand(this.name, create);
+                this.create = new BaseCommand([this.name], create);
             }
         }
         return this.create;

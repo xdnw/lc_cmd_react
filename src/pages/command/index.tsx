@@ -18,7 +18,7 @@ import { COMMANDS } from '@/lib/commands';
 export default function CommandPage() {
     const { command } = useParams();
     const [cmdObj, setCmdObj] = useState<BaseCommand | null>(CM.get(command?.split(" ") as CommandPath<typeof COMMANDS.commands>) ?? CM.buildTest());
-    // CM.cmdBuildTest()
+    const pathJoined = useMemo(() => cmdObj?.path.join(" ") ?? "", [cmdObj]);
 
     const [initialValues, setInitialValues] = useState<{ [key: string]: string }>(queryParamsToObject(getQueryParams()) as { [key: string]: string });
     const commandStore = useMemo(() => createCommandStoreWithDef(initialValues), [initialValues]);
@@ -35,7 +35,7 @@ export default function CommandPage() {
             <CommandComponent key={cmdObj.name} command={cmdObj} filterArguments={alwaysTrue} initialValues={initialValues}
                 setOutput={commandStore((state) => state.setOutput)}
             />
-            <OutputValuesDisplay name={cmdObj.name} store={commandStore} />
+            <OutputValuesDisplay name={pathJoined} store={commandStore} />
         </>
     );
 }

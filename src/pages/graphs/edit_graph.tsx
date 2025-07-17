@@ -89,7 +89,7 @@ function EditGraph<U extends { [key: string]: string | string[] | undefined }, V
 
     return (
         <div className="container bg-light/10 border border-light/10 p-2 mt-2">
-            <pre className="whitespace-pre-wrap">{endpoint.endpoint.desc}</pre>
+            <pre className="whitespace-pre-wrap break-all">{endpoint.endpoint.desc}</pre>
             {endpoint.endpoint.desc && <hr className="my-2" />}
             {formComponent}
             {chartComponent}

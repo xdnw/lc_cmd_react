@@ -6,7 +6,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle
 } from "@/components/ui/alert-dialog.tsx";
-import {CopoToClipboardTextArea} from "./copytoclipboard";
+import { CopyToClipboardTextArea } from "./copytoclipboard";
 
 export default function SimpleDialog({ title, message, quote, showDialog, setShowDialog }: { title: string, message: React.ReactNode, quote?: boolean, showDialog: boolean, setShowDialog: (show: boolean) => void }) {
     const hideDialog = useCallback(() => {
@@ -15,13 +15,13 @@ export default function SimpleDialog({ title, message, quote, showDialog, setSho
     return (
         <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
             <AlertDialogContent>
-                <AlertDialogHeader className='overflow-x-auto overflow-y-auto'  style={{maxHeight:"75vh"}}>
+                <AlertDialogHeader className='overflow-x-auto overflow-y-auto' style={{ maxHeight: "75vh" }}>
                     <AlertDialogTitle>{title}</AlertDialogTitle>
                     <AlertDialogDescription></AlertDialogDescription>
                     <div className="relative overflow-x-auto">
                         {quote ? (
                             <>
-                                <CopoToClipboardTextArea text={message} />
+                                <CopyToClipboardTextArea text={message} />
                             </>
                         ) : (
                             message

@@ -52,7 +52,6 @@ export default function AutoRoutePrefetcher({
 
         try {
             // Log the specific route being prefetched
-            console.log(`Prefetching route: ${route.key}`);
             route.element().finally(() => {
                 activePrefetches.current--;
                 processPrefetchQueue();

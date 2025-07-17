@@ -35,7 +35,7 @@ export default function Conflicts() {
         columns: builder.array(),
       }}>
         {({ data }) => {
-          return <pre>{JSON.stringify(data, null, 2)}</pre>;
+          return <pre className="whitespace-pre-wrap break-all">{JSON.stringify(data, null, 2)}</pre>;
         }}
       </EndpointWrapper> */}
 

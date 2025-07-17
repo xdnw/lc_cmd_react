@@ -1,7 +1,7 @@
 import React, { ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { TABLE } from "../../lib/endpoints";
 import { Button } from "../../components/ui/button";
-import { CopoToClipboardTextArea } from "../../components/ui/copytoclipboard";
+import { CopyToClipboardTextArea } from "../../components/ui/copytoclipboard";
 import { WebTable, WebTableError } from "../../lib/apitypes";
 import { useDialog } from "../../components/layout/DialogContext";
 import { Link } from "react-router-dom";
@@ -366,7 +366,7 @@ function DeferTable(
         console.error(e);
         const errorMessage = e instanceof Error ? <>
             {e.message}
-            <CopoToClipboardTextArea text={e.stack + ""} />
+            <CopyToClipboardTextArea text={e.stack + ""} />
         </> : e + "";
         showDialog("Failed to update table", errorMessage, true);
     }, [showDialog]);

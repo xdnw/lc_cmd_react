@@ -109,7 +109,7 @@ export function ErrorBoundaryFallback({
     return (
         <>
             <div role="alert" className="whitespace-pre-wrap bg-accent relative px-2 border-2 border-destructive">
-                <pre>{error.name}: {error.message}</pre>
+                <pre className="whitespace-pre-wrap break-all">{error.name}: {error.message}</pre>
             </div>
             <Button size="sm" variant="outline" onClick={handleRetry}>Try again</Button>
         </>

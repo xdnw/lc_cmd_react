@@ -1,6 +1,6 @@
 import "./App.css";
-import { HashRouter as Router, Route, Routes } from "react-router-dom";
-import { Suspense, ReactNode, lazy, JSX, ComponentType } from "react";
+import { createHashRouter, Outlet, RouterProvider, ScrollRestoration } from "react-router-dom";
+import { Suspense, ReactNode, lazy, ComponentType } from "react";
 import { hasToken } from "@/utils/Auth.ts";
 import ReactGA from "react-ga4";
 import "react-data-grid/lib/styles.css";
@@ -10,14 +10,11 @@ import AutoRoutePrefetcher from "./components/AutoRoutePrefetcher";
 ReactGA.initialize(process.env.GTAG_ID as string);
 // Lazy-loaded components
 
-
 const LoggedInRoute = ({ children }: { children: ReactNode }) => {
   const Picker = lazy(() => import("@/pages/login_picker"));
-  return hasToken() ? children : <Picker />;
+  return hasToken() ? <>{children}</> : <Picker />;
 };
 
-// Define routes as configuration objects to prevent ESLint jsx-in-jsx warnings
-// while maintaining performance (only created once at initialization)
 export interface AppRouteConfig {
   key: string;
   path: string;
@@ -81,46 +78,47 @@ const routeConfigs: AppRouteConfig[] = [
 
 const PageView = lazy(() => import("./components/layout/page-view"));
 const Splash = lazy(() => import("./pages/splash"));
-const splashRoute = <Route path="" element={<Splash />} />;
 
-// Generate routes from configuration
-const appRoutes = routeConfigs.map(config => {
-  // Call lazy() here with the importer function
-  const Element = lazy(config.element);
-  return (
-    <Route
-      key={config.key}
-      path={config.path}
-      element={config.protected ? <LoggedInRoute><Element /></LoggedInRoute> : <Element />}
-    />
-  );
-});
-
-// Wrap content in PageView
-const mainContentRoute = (
-  <Route
-    path="*"
-    element={
-      <PageView>
-        <Routes>
-          {appRoutes}
-        </Routes>
-      </PageView>
-    }
-  />
-);
+// Router is created once at module level
+const router = createHashRouter([
+  {
+    path: "/",
+    element: (
+      <>
+        <AutoRoutePrefetcher routeConfigs={routeConfigs} />
+        <ScrollRestoration />
+        <Suspense>
+          <Outlet />
+        </Suspense>
+      </>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Splash />
+      },
+      {
+        path: "*",
+        element: (
+          <PageView>
+            <Outlet />
+          </PageView>
+        ),
+        children: routeConfigs.map(config => {
+          const Element = lazy(config.element);
+          return {
+            path: config.path.replace(/^\//, ''), // remove leading slash
+            element: config.protected ?
+              <LoggedInRoute><Element /></LoggedInRoute> :
+              <Element />
+          };
+        })
+      }
+    ]
+  }
+]);
 
 export default function App() {
-  return (
-    <Router>
-      {/* Render the AutoRoutePrefetcher inside the Router */}
-      <AutoRoutePrefetcher routeConfigs={routeConfigs} />
-      <Suspense>
-        <Routes>
-          {splashRoute}
-          {mainContentRoute}
-        </Routes>
-      </Suspense>
-    </Router>
-  );
+  // The router is already memoized at module level
+  return <RouterProvider router={router} />;
 }

@@ -132,8 +132,8 @@ export function ChartWithButtons({ graph, endpointName, usedArgs }:
         // data-type
         const useClipboard = e.currentTarget.dataset.clipboard === "true";
         const typeKey = e.currentTarget.dataset.type as string;
-        const type = typeKey && (typeKey in ExportTypes) 
-            ? ExportTypes[typeKey as keyof typeof ExportTypes] 
+        const type = typeKey && (typeKey in ExportTypes)
+            ? ExportTypes[typeKey as keyof typeof ExportTypes]
             : ExportTypes.CSV; // Provide a default value
         const formatDates = true;
         const [title, content] = downloadGraph(graph, useClipboard, formatDates, type);
@@ -179,6 +179,8 @@ export function ChartWithButtons({ graph, endpointName, usedArgs }:
             Share
         </Button>}
         <div className="w-full pt mt-1">
+            <h1 className="relative text-2xl font-bold text-center bg-primary/10 border border-primary/20 rounded-t">
+                {graph.title}</h1>
             <ThemedChart graph={graph} />
         </div>
     </>

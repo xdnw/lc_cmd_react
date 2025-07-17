@@ -27,7 +27,7 @@ const ListItem = memo(
 
 export default function Footer() {
   return (
-    <footer className="border-top border-card mt-0 pt-3 bg-secondary">
+    <footer className="border-top border-red-500 mt-0 pt-3 bg-secondary">
       <div className="container mx-auto">
         <div className="flex flex-wrap mx-4">
           <div className="w-full md:w-1/3 px-4">

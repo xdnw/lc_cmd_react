@@ -59,7 +59,9 @@ export default defineConfig(({ mode }) => {
         name: envConfig['process.env.APPLICATION'] + ' Web Interface',
         short_name: envConfig['process.env.APPLICATION'],
         description: 'Discord bot web interface', // Replace with actual description
-        theme_color: '#ffffff',
+        background_color: '#1d293d',
+        theme_color: '#1d293d',
+        display: 'minimal-ui',
         icons: [
           {
             src: 'pwa-192x192.png',

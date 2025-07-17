@@ -40,6 +40,7 @@ export function StaticViewGraph
     // Cast the endpoint to a GraphEndpoint.
     const graphEndpoint = endpoint as GraphEndpoint;
     // Wrap the args in a mutable ref to match ViewGraph prop requirements.
+    console.log("ARGS", args);
     return <ViewGraph endpoint={graphEndpoint} args={args} />;
 }
 
@@ -48,7 +49,7 @@ export function ViewGraph<U extends { [key: string]: string | string[] | undefin
         endpoint: CommonEndpoint<WebGraph, U, V>,
         args: { [key: string]: string | string[] | undefined }
     }) {
-    return <EndpointWrapper<WebGraph, U, V> endpoint={endpoint} args={Object.fromEntries(Object.entries(args).filter(([key]) => key in endpoint.endpoint.argsLower)) as U}>
+    return <EndpointWrapper<WebGraph, U, V> endpoint={endpoint} args={Object.fromEntries(Object.entries(args).filter(([key]) => key.toLowerCase() in endpoint.endpoint.argsLower)) as U}>
         {({ data }) => {
             return <>
                 <Button variant="outline" size="sm" className="me-1 no-underline" asChild>

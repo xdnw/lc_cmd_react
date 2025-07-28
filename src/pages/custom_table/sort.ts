@@ -47,7 +47,6 @@ export function sortData(
         // Full resort needed
         sortFully(sortedData, comparators, columnMap);
         const timingEnd = performance.now();
-        console.log(`Full sort took ${timingEnd - timing} ms`);
     }
 
     // Update column config with new sort information

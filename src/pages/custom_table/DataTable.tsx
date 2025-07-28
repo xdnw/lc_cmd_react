@@ -93,7 +93,10 @@ export function DataTable({
         renderCell: renderer ? (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
           const value = props.row[dataIndex];
           return renderer(value);
-        } : undefined,
+        } : (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
+          const value = props.row[dataIndex];
+          return String(value);
+        },
         renderEditCell: textEditor,
         editable: true,
       });

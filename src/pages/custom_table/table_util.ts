@@ -27,8 +27,6 @@ export function createTableInfo(
         render: renderFuncNames ? getRenderer(renderFuncNames[index]) : undefined,
     }));
 
-    console.log("SORT ", sortColumns, columnsInfo);
-
     const sorted = (!sort || (Array.isArray(sort) && sort.length === 0) || data.length <= 1) ? undefined : sortData(data, sortColumns, columnsInfo);
     if (sorted) {
         data = sorted.data;

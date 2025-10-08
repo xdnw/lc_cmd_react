@@ -1,1 +1,0 @@
-import{h as s,j as o}from"./index-DK7pfVEl.js";import{L as t,S as r}from"./session-CgGfPTEd.js";import"./copytoclipboard-CFiLE7PK.js";import"./button-jLO7Q5x3.js";import"./endpoints-DntC7Iwe.js";import"./useQuery-CDiZ996I.js";function i(){return s()?o.jsx(r,{}):o.jsx(t,{})}export{i as default};

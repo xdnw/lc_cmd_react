@@ -1,1 +1,0 @@
-import{r as s,j as e}from"./index-Bhvu6niW.js";import{A as o}from"./AbstractTable-DDNsiBDp.js";function r({type:r,selection:t,columns:a,sort:l}){const n=s.useCallback((()=>({type:r,selection:t,columns:new Map(a.map((s=>Array.isArray(s)?[s[0],s[1]]:[s,null]))),sort:l})),[r,t,a,l]);return s.useMemo((()=>e.jsx(o,{getTableProps:n,load:!0})),[n])}export{r as S};

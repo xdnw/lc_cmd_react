@@ -203,7 +203,7 @@ export function DataTable({
         onSortColumnsChange={handleSort}
         onColumnsReorder={onColumnsReorder}
         rowClass={rowClass}
-        rowHeight={25}
+        rowHeight={24}
         renderers={{ noRowsFallback }}
         enableVirtualization={true}
         onRowsChange={setData}

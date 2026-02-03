@@ -11,8 +11,9 @@ import { Argument } from "@/utils/Command";
 import ArgInput from "../cmd/ArgInput";
 import { ArgDescComponent } from "../cmd/CommandComponent";
 import { singleQueryOptions } from "@/lib/queries";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Loading from "../ui/loading";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 const MemoizedArgInput = React.memo(({ arg, setOutputValue }: {
     arg: Argument,
@@ -31,7 +32,7 @@ const MemoizedArgInput = React.memo(({ arg, setOutputValue }: {
             />
         </div>
     </div>
-), (prev, next) => prev.arg.name === next.arg.name);
+), (prev, next) => prev.arg === next.arg && prev.setOutputValue === next.setOutputValue);
 
 export function ApiFormInputs<T, A extends { [key: string]: string | string[] | undefined }, B extends { [key: string]: string | string[] | undefined }>({
     endpoint, message, default_values, showArguments, label, handle_error, classes, handle_response, children
@@ -47,15 +48,17 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
     readonly children?: (data: Omit<QueryResult<T>, 'data'> & { data: NonNullable<QueryResult<T>['data']>; }) => ReactNode;
 }) {
     const { showDialog } = useDialog();
+    const stableDefaults = useDeepMemo(default_values ?
+        (Object.fromEntries(Object.entries(default_values).filter(([_, value]) => value !== undefined)) as { [k: string]: string | string[] }) : {});
     const required = useMemo(() => {
         const req: string[] = [];
         for (const [key, value] of Object.entries(endpoint.endpoint.args)) {
-            if (!value.arg.optional && (!default_values || !Object.prototype.hasOwnProperty.call(default_values, key))) {
+            if (!value.arg.optional && !Object.prototype.hasOwnProperty.call(stableDefaults, key)) {
                 req.push(key);
             }
         }
         return req;
-    }, [endpoint, default_values]);
+    }, [endpoint.endpoint.args, stableDefaults]);
 
     // use handleError unless not defined, then use showDialog
     const errorFinal = useCallback((error: Error) => {
@@ -68,18 +71,21 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
     }, [handle_error, showDialog]);
 
 
-    const stableDefaults = useDeepMemo(default_values ?
-        (Object.fromEntries(Object.entries(default_values).filter(([_, value]) => value !== undefined)) as { [k: string]: string | string[] }) : {});
+    const argNamesToShow = useMemo(() => {
+        const names = new Set<string>();
+        required.forEach((k) => names.add(k));
+        (showArguments ?? []).forEach((k) => names.add(String(k)));
+        return Array.from(names);
+    }, [required, showArguments]);
 
-    // Split the filtering logic into a useMemo
     const filteredArgs = useMemo(() => {
-        if ((!required || required.length === 0) && (!showArguments || showArguments.length === 0)) {
-            return [];
-        }
+        if (argNamesToShow.length === 0) return [];
 
-        return Object.values(endpoint.endpoint.args)
-            .filter(arg => !stableDefaults || !Object.prototype.hasOwnProperty.call(stableDefaults, arg.name));
-    }, [endpoint, stableDefaults, required, showArguments]);
+        return argNamesToShow
+            .map((name) => endpoint.endpoint.args[name])
+            .filter(Boolean)
+            .filter((arg) => !Object.prototype.hasOwnProperty.call(stableDefaults, arg.name));
+    }, [argNamesToShow, endpoint.endpoint.args, stableDefaults]);
 
     // Then simplify renderFormInputs to use it
     const renderFormInputs = useCallback((props: { setOutputValue: (name: string, value: string) => void }) => {
@@ -89,9 +95,9 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
 
         return (
             <>
-                {filteredArgs.map((arg, index) => (
+                {filteredArgs.map((arg) => (
                     <MemoizedArgInput
-                        key={index}
+                        key={arg.name}
                         arg={arg}
                         setOutputValue={props.setOutputValue}
                     />
@@ -113,7 +119,7 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
             handle_error={errorFinal}
             handle_response={handle_response}
             classes={classes}
-        >{(data) => children ? children(data) : null}
+        >{children}
         </ApiForm>
     );
 }
@@ -173,7 +179,7 @@ function ApiForm<T, A extends { [key: string]: string | string[] | undefined }, 
             handle_response={handle_response}
             classes={classes}
         >
-            {(data) => children ? children(data) : null}
+            {children}
         </ApiFormHandler>
     ), [endpoint, commandStore, label, required, handle_error, handle_response, classes, children]);
 
@@ -185,14 +191,17 @@ function ApiForm<T, A extends { [key: string]: string | string[] | undefined }, 
         </>
     }
 
+    const selectSetOutput = useCallback((state: { setOutput: (k: string, v: string) => void }) => state.setOutput, []);
+    const setOutputValue = commandStore(selectSetOutput);
+
     return <>
         {messageSection}
-        {FormInputs && <FormInputs setOutputValue={commandStore((state) => state.setOutput)} />}
+        {FormInputs ? <FormInputs setOutputValue={setOutputValue} /> : null}
         {apiHandlerSection}
     </>
 }
 
-export default React.memo(ApiForm, deepEqual) as typeof ApiForm;
+export default React.memo(ApiForm) as typeof ApiForm;
 
 export function ApiFormHandler<T, A extends { [key: string]: string | string[] | undefined }, B extends { [key: string]: string | string[] | undefined }>({
     store, endpoint, label, required, handle_error, classes, handle_response, children
@@ -206,85 +215,50 @@ export function ApiFormHandler<T, A extends { [key: string]: string | string[] |
     handle_response?: (data: Omit<QueryResult<T>, 'data'> & { data: NonNullable<QueryResult<T>['data']>; }) => void;
     readonly children?: (data: Omit<QueryResult<T>, 'data'> & { data: NonNullable<QueryResult<T>['data']>; }) => ReactNode;
 }) {
-    const [missing, setMissing] = useState<string[]>(() => {
-        const initialOutput = store.getState().output;
-        const result = required ? required.filter(field => !initialOutput[field]) : [];
-        console.log("Missing required fields:", result);
-        return result;
-    });
+    const selectMissing = useCallback(
+        (state: { output: Record<string, string | string[]> }) =>
+            (required ?? []).filter((field) => !state.output[field]),
+        [required]
+    );
+    const missing = useStoreWithEqualityFn(store, selectMissing, deepEqual);
 
-    const [queryArgs, setQueryArgs] = useState<{ readonly [key: string]: string | string[] } | null>(store.getState().output);
-    const [fetchTrigger, setFetchTrigger] = useState(0); // Counter to trigger fetches
-    const isInitialMount = useRef(true);
+    const queryClient = useQueryClient();
 
-    useEffect(() => {
-        const unsubscribe = store.subscribe(
-            state => state.output,
-            (currentOutput, previousOutput) => {
-                console.log('Outputs changed:', currentOutput);
-                if (required) {
-                    const missingFields = required.filter(field => !currentOutput[field]);
-                    setMissing(f => deepEqual(f, missingFields) ? f : missingFields);
-                }
-            }
-        );
+    const mutation = useMutation({
+    mutationFn: (args: { readonly [key: string]: string | string[] }) =>
+        queryClient.fetchQuery(singleQueryOptions(endpoint.endpoint, args, undefined, 10)),
+    onSuccess: (result) => {
+        const qr = result as QueryResult<T>;
 
-        return () => unsubscribe();
-    }, [store, required, setMissing]);
-
-    // Configure the query with manual control
-    const { data, isFetching, refetch } = useQuery({
-        ...singleQueryOptions(endpoint.endpoint, queryArgs || {}, undefined, 10),
-        enabled: false, // Prevent automatic fetching on mount
-    });
-
-    // Handle fetch triggering with proper state synchronization
-    useEffect(() => {
-        // Skip the initial mount
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
-            return;
+        if (qr.error) {
+        handle_error?.(new Error(qr.error));
+        return;
+        }
+        if (!qr.data) {
+        handle_error?.(new Error("No data returned"));
+        return;
         }
 
-        console.log("Query args:", queryArgs);
+        handle_response?.(qr as Omit<QueryResult<T>, "data"> & { data: NonNullable<QueryResult<T>["data"]> });
+    },
+    onError: (err) => {
+        handle_error?.(err as Error);
+    },
+    });
 
-        // Only proceed if we have queryArgs and a non-zero fetchTrigger
-        if (queryArgs && fetchTrigger > 0) {
-            console.log("Refetching with args:", queryArgs, "fetchTrigger:", fetchTrigger);
-            // Reset fetchTrigger to 0 after refetching
-            setFetchTrigger(0);
-            // Call refetch and handle the response
-            refetch().then((observer) => {
-                const queryResult = observer.data as QueryResult<T>;
-                const error = observer.error as Error ?? queryResult.error;
-                if (error) {
-                    if (handle_error) handle_error(typeof error === "string" ? new Error(error) : error);
-                } else if (!queryResult.data) {
-                    console.log(observer);
-                    if (handle_error) handle_error(new Error("No data returned"));
-                } else if (handle_response) {
-                    handle_response(observer.data as Omit<QueryResult<T>, 'data'> & { data: NonNullable<QueryResult<T>['data']>; });
-                }
-            }).catch((error) => {
-                console.log(error.stack);
-                if (handle_error) {
-                    handle_error(error);
-                }
-            });
-        }
-    }, [queryArgs, fetchTrigger, refetch, handle_error, handle_response]);
+    const data = mutation.data as QueryResult<T> | undefined;
+    const isFetching = mutation.isPending;
 
     const submitForm = useCallback(() => {
-        const args = store.getState().output as A;
-        setQueryArgs(args as { readonly [key: string]: string | string[] });
-        // Increment fetchTrigger to trigger useEffect after state update
-        setFetchTrigger(prev => prev + 1);
-    }, [store]);
+      const args = store.getState().output as { readonly [key: string]: string | string[] };
+      mutation.mutate(args);
+    }, [store, mutation]);
 
     // Memoize the children/data section
-    const renderedChildren = useMemo(() => (
-        data && children ? children(data as Omit<QueryResult<T>, 'data'> & { data: NonNullable<QueryResult<T>['data']>; }) : null
-    ), [data, children]);
+    const renderedChildren = useMemo(() => {
+      if (!children || !data?.data) return null;
+      return children(data as Omit<QueryResult<T>, "data"> & { data: NonNullable<QueryResult<T>["data"]> });
+    }, [data, children]);
 
 
     const submitButton = useMemo(() => {

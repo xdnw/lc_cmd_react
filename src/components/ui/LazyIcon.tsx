@@ -38,6 +38,9 @@ const IconComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   'listchecks': lazy(() => import('lucide-react/dist/esm/icons/list-checks.js')),
   'eyeoff': lazy(() => import('lucide-react/dist/esm/icons/eye-off.js')),
   'bug': lazy(() => import('lucide-react/dist/esm/icons/bug.js')),
+  'rotateccw': lazy(() => import('lucide-react/dist/esm/icons/rotate-ccw.js')),
+  'pause': lazy(() => import('lucide-react/dist/esm/icons/pause.js')),
+  'play': lazy(() => import('lucide-react/dist/esm/icons/play.js')),
 };
 type LazyIconProps = {
   name: string;

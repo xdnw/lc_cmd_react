@@ -79,7 +79,7 @@ export function singleQueryOptions<T>(
     };
 }
 
-class BackendError extends Error {
+export class BackendError extends Error {
     constructor(message: string) {
         super(message);
         this.name = "BackendError";

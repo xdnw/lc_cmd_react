@@ -28,9 +28,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@odiffey/discord-markdown/dist/types/HtmlOptions": [
-        "node_modules/@odiffey/discord-markdown/dist/types/HtmlOptions.d.ts"
       ]
     },
     "outDir": "./dist",

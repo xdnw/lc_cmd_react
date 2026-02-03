@@ -45,7 +45,7 @@ export default function ListComponent(
     { argName, options, isMulti, initialValue, setOutputValue }:
         {
             argName: string,
-            options: { label: string, value: string, subtext?: string, color?: string }[],
+            options: { label: string, value: string, subtext?: string, color?: string, icon?: string }[],
             isMulti: boolean,
             initialValue: string,
             setOutputValue: (name: string, value: string) => void
@@ -124,20 +124,33 @@ export default function ListComponent(
 
     useEffect(() => {
         if (scrollRef.current && contentRef.current && options) {
-            const filteredOptions: string[] = [];
+            const exactMatches: string[] = [];
+            const partialMatches: string[] = [];
             const inputLower = inputValue.toLowerCase();
+
             for (const option of options) {
                 const checkAgainst = option.label ? option.label : option.value;
-                if (checkAgainst.toLowerCase().includes(inputLower)) {
+                const checkLower = checkAgainst.toLowerCase();
+
+                if (checkLower.includes(inputLower)) {
+                    // Build an inline icon (lazy-loading) if option.icon is present.
+                    const iconHtml = option.icon ? `<img src="${option.icon}" loading="lazy" class="list-icon" alt="" />` : '';
                     let li;
                     if (selectedValueSet.has(option.value)) {
-                        li = "<li class='bg-input dark:bg-slate-700 p-0.5'>" + option.label + "</li>";
+                        li = `<li class='bg-input dark:bg-slate-700 p-0.5'>${iconHtml}${option.label}</li>`;
                     } else {
-                        li = "<li class='p-0.5'>" + option.label + "</li>";
+                        li = `<li class='p-0.5'>${iconHtml}${option.label}</li>`;
                     }
-                    filteredOptions.push(li);
+
+                    if (checkLower === inputLower) {
+                        exactMatches.push(li);
+                    } else {
+                        partialMatches.push(li);
+                    }
                 }
             }
+
+            const filteredOptions = exactMatches.concat(partialMatches);
 
             if (clusterize) {
                 clusterize.update(filteredOptions);
@@ -195,12 +208,12 @@ export default function ListComponent(
         const scrollElement = scrollRef.current;
         const selectElement = selectRef.current?.controlRef;
         scrollElement?.addEventListener('focus', handleFocus, true);
-        scrollElement?.addEventListener('blur-sm', handleBlur, true);
+        scrollElement?.addEventListener('blur', handleBlur, true);
         selectElement?.addEventListener('mousedown', handleClick);
 
         return () => {
             scrollElement?.removeEventListener('focus', handleFocus, true);
-            scrollElement?.removeEventListener('blur-sm', handleBlur, true);
+            scrollElement?.removeEventListener('blur', handleBlur, true);
             selectElement?.removeEventListener('mousedown', handleClick);
         };
     }, [scrollRef, selectRef, handleFocus, handleBlur, handleClick]);

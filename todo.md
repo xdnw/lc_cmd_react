@@ -1,5 +1,8 @@
 TODO:
 
+Fix paste into custom table not working unless edit text
+Make cumulative revenue/growth etc. prompt for num days
+
 - Shift things to nation list page
 - Add different views in nation list page (to determine which options get shown as primary buttons, and which are under a `More Options`)
 

@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2025-04-13 20:19:51.
+// Generated using typescript-generator version 3.2.1263 on 2026-02-02 16:40:15.
 
 export interface CoalitionGraph {
     name: string;
@@ -352,6 +352,56 @@ export interface AdvMultiRow {
     customization: number;
 }
 
+export interface RunHistorySnapshot {
+    startTimesMs: number[];
+    durationsMs: number[];
+    outcomeCodes: any;
+}
+
+export interface TaskSummary {
+    id: number;
+    name: string;
+    createdAtMs: number;
+    intervalMs: number;
+    running: boolean;
+    currentRunStartMs: number;
+    lastRunStartMs: number;
+    lastRunEndMs: number;
+    lastRunDurationMs: number;
+    lastOutcome: number;
+    totalRuns: number;
+    totalSuccess: number;
+    totalErrors: number;
+    totalInterrupts: number;
+    consecutiveFailures: number;
+    lastSuccessAtMs: number;
+    lastFailureAtMs: number;
+    lastErrorClass: string;
+    lastErrorMessage: string;
+}
+
+export interface ErrorSample {
+    fingerprint: number;
+    throwableClass: string;
+    message: string;
+    stackTrace: string;
+    firstSeenAtMs: number;
+    lastSeenAtMs: number;
+    count: number;
+}
+
+export interface TaskList {
+    values: TaskSummary[];
+}
+
+export interface TaskDetails {
+    found: boolean;
+    summary: TaskSummary;
+    errors: ErrorSample[];
+    sinceMs: number;
+    history: RunHistorySnapshot;
+}
+
 export interface WebTaxBracket {
     taxId: number;
     dateFetched: number;
@@ -365,7 +415,7 @@ export type CacheType = "None" | "Cookie" | "LocalStorage" | "SessionStorage" | 
 
 export type GraphType = "STACKED_BAR" | "SIDE_BY_SIDE_BAR" | "HORIZONTAL_BAR" | "LINE" | "STACKED_LINE" | "FILLED_LINE" | "SCATTER";
 
-export type NationColor = "AQUA" | "BEIGE" | "BLACK" | "BLUE" | "BROWN" | "GRAY" | "GREEN" | "LIME" | "MAROON" | "OLIVE" | "ORANGE" | "PINK" | "PURPLE" | "RED" | "WHITE" | "YELLOW";
+export type NationColor = "AQUA" | "BEIGE" | "BLACK" | "BLUE" | "BROWN" | "GRAY" | "GREEN" | "LIME" | "MAROON" | "OLIVE" | "ORANGE" | "PINK" | "PURPLE" | "RED" | "WHITE" | "YELLOW" | "MINT" | "LAVENDER" | "TURQUOISE" | "GOLD";
 
 export type TimeFormat = "NUMERIC" | "DECIMAL_ROUNDED" | "SI_UNIT" | "TURN_TO_DATE" | "DAYS_TO_DATE" | "MILLIS_TO_DATE" | "SECONDS_TO_DATE";
 

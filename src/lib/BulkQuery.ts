@@ -117,7 +117,7 @@ function cacheData({ cache, val }: { cache: { cache_type: CacheType; duration?: 
     const expirationTime = now + duration * 1000; // Convert to milliseconds
     const dataWithExpiration = { data: val, expirationTime: expirationTime };
     if (cache.cache_type === 'Cookie') {
-        Cookies.set(cache.cookie_id, JSON.stringify(val), { expires: duration });
+        Cookies.set(cache.cookie_id, JSON.stringify(val), { expires: new Date(expirationTime) });
     } else if (cache.cache_type === 'LocalStorage') {
         localStorage.setItem(cache.cookie_id, JSON.stringify(dataWithExpiration));
     } else if (cache.cache_type === 'SessionStorage') {
@@ -166,7 +166,7 @@ function dispatchBatch() {
     const queriesToFetch = pendingQueries.splice(0, pendingQueries.length);
     batchTimer = null;
 
-    if (queriesToFetch.length === 0) {
+    if (queriesToFetch.length === 1) {
         const single = queriesToFetch[0];
         const myPromise: Promise<unknown> = fetchSingle(single.endpoint, single.query, single.cache);
         myPromise.then((result: unknown) => {
@@ -207,8 +207,9 @@ function dispatchBatch() {
     // Build the URL for the batched endpoint.
     const url = `${process.env.API_URL}query`;
 
-    const headers: { 'Content-Type': string } = {
-        'Content-Type': 'application/msgpack',
+    const headers: { 'Content-Type': string, 'Accept': string } = {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        "Accept": "application/msgpack",
     };
 
     console.log("dispatchBatch", url, finalQueries);
@@ -297,7 +298,8 @@ export function fetchSingle<T>(endpoint: string, query: { [key: string]: string 
     return fetch(url, {
         method: "POST",
         headers: {
-            'Content-Type': 'application/msgpack',
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            "Accept": "application/msgpack",
         },
         body: urlParams.toString(),
         credentials: 'include',
@@ -350,30 +352,42 @@ export function fetchBulk<T>({ endpoint, query, cache, batch_wait_ms }: {
     cache?: { cache_type: CacheType; duration?: number; cookie_id: string };
     batch_wait_ms?: number;
 }): Promise<QueryResult<T>> {
-    console.log("fetchBulk", endpoint, query, cache, batch_wait_ms);
-    // check cache
     const cachedData = cache ? loadFromCache<T>({ cache }) : null;
+
+    let promise: Promise<QueryResult<T>>;
+
     if (cachedData != null) {
-        return Promise.resolve(new QueryResult<T>({
+        console.log("fetchBulk[cached]", endpoint, query, cache, batch_wait_ms);
+        promise = Promise.resolve(new QueryResult<T>({
             endpoint,
             query,
             update_ms: Date.now(),
             cache,
             data: cachedData
         }));
+    } else {
+        console.log("Queuing query", endpoint, query, cache, batch_wait_ms);
+        promise = new Promise((resolve, reject) => {
+            pendingQueries.push({
+                endpoint,
+                query,
+                cache,
+                resolve: resolve as unknown as (result: QueryResult<unknown>) => void,
+                reject
+            });
+            const waitTime = batch_wait_ms ?? 50;
+
+            // Clear and reset the timer if a new query is added.
+            if (batchTimer) {
+                clearTimeout(batchTimer);
+            }
+            batchTimer = setTimeout(dispatchBatch, waitTime);
+        }) as Promise<QueryResult<T>>;
     }
 
-    console.log("Queuing query", endpoint, query, cache, batch_wait_ms);
-
-    return new Promise((resolve, reject) => {
-        pendingQueries.push({ endpoint, query, cache, resolve: resolve as unknown as (result: QueryResult<unknown>) => void, reject });
-        const waitTime = batch_wait_ms ?? 50;
-
-        // Clear and reset the timer if a new query is added.
-        if (batchTimer) {
-            clearTimeout(batchTimer);
-        }
-        batchTimer = setTimeout(dispatchBatch, waitTime);
+    return promise.then(result => {
+        console.log("fetchBulk[result]", endpoint, query, cache, batch_wait_ms, result);
+        return result;
     });
 }
 

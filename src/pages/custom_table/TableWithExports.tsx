@@ -8,6 +8,8 @@ import LazyIcon from "@/components/ui/LazyIcon";
 import { JSONValue } from "@/lib/internaltypes";
 import { ConfigColumns } from "./DataTable";
 import { useCallback, useMemo } from "react";
+import { COMMANDS } from "@/lib/commands";
+import { commandMention, CommandPath } from "@/utils/Command";
 
 export function GoogleSheets({ type, selection, columns }: {
     readonly type: string
@@ -16,26 +18,37 @@ export function GoogleSheets({ type, selection, columns }: {
 }) {
     const { showDialog } = useDialog();
 
-    const dialogBody = useMemo(() => (
-        <ul className="list-decimal list-inside">
-            <li className="bg-accent/20 mb-1 p-1 border-primary/5 border-2 rounded">
-                Set the google sheet tab name as the selection:<br />
-                <CopyToClipboard
-                    text={toLegacySelection(type, selection)} />
-            </li>
-            <li className="bg-accent/20 mb-1 p-1 border-primary/5 border-2 rounded">
-                Set the columns as the first row of cells in the sheet tab:<br />
-                <CopyToClipboard
-                    text={`${Array.from(columns.keys()).join("\t")}`} />
-            </li>
-            <li className="bg-accent/20 mb-1 p-1 border-primary/5 border-2 rounded">
-                Run the discord command, with the sheet url, to autofill the remaining
-                cells:<br />
-                <CopyToClipboard
-                    text={`/sheet_custom auto`} />
-            </li>
-        </ul>
-    ), [type, selection, columns]);
+    const dialogBody = useMemo(() => {
+        const legacySel = toLegacySelection(type, selection);
+        const columnsArr = Array.from(columns.keys());
+        const json = JSON.stringify({ [legacySel]: columnsArr });
+        const mention: string = commandMention({ command: ['sheet_custom', 'import_json'], args: { sheet: "", json: json } });
+
+        return (
+            <>
+                {/* Option 1: Copy the Discord import command */}
+                <p className="font-semibold mb-1">Option 1: Run import in Discord</p>
+                <CopyToClipboard text={mention} />
+                <hr className="my-4" />
+                {/* Option 2: Your existing Google Sheets setup instructions */}
+                <p className="font-semibold mb-1">Option 2: Manually set up Google Sheets</p>
+                <ul className="list-decimal list-inside">
+                    <li className="bg-accent/20 mb-1 p-1 border-primary/5 border-2 rounded">
+                        Set the google sheet tab name as the selection:<br />
+                        <CopyToClipboard text={legacySel} />
+                    </li>
+                    <li className="bg-accent/20 mb-1 p-1 border-primary/5 border-2 rounded">
+                        Set the columns as the first row of cells in the sheet tab:<br />
+                        <CopyToClipboard text={columnsArr.join("\t")} />
+                    </li>
+                    <li className="bg-accent/20 mb-1 p-1 border-primary/5 border-2 rounded">
+                        Run the discord command, with the sheet url, to autofill the remaining cells:<br />
+                        <CopyToClipboard text="/sheet_custom auto" />
+                    </li>
+                </ul>
+            </>
+        )
+    }, [type, selection, columns]);
 
     const onClick = useCallback(() => {
         showDialog("Creating custom google sheets", dialogBody);

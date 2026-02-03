@@ -70,25 +70,25 @@ interface DataStore<T> {
 }
 
 export const createDataStore = <T>() => {
-  return create<DataStore<T>>((set) => ({
+  return create<DataStore<T>>()((set) => ({
     data: undefined,
     setData: (data) => set({ data }),
   }));
 };
 
 export const createDataStoreWithDef = <T>(default_data: T) => {
-  return create<DataStore<T>>((set) => ({
+  return create<DataStore<T>>()((set) => ({
     data: default_data,
     setData: (data) => set({ data }),
   }));
 }
-
+type CommandState = {
+  output: Record<string, string | string[]>;
+  setOutput: (key: string, value: string) => void;
+};
 export function createCommandStore() {
-  return create(
-    subscribeWithSelector<{
-      output: { [key: string]: string | string[] };
-      setOutput: (key: string, value: string) => void;
-    }>((set) => ({
+  return create<CommandState>()(
+    subscribeWithSelector((set) => ({
       output: {},
       setOutput: (key, value) => set((state) => {
         const copy = { ...state.output };
@@ -101,12 +101,9 @@ export function createCommandStore() {
 }
 
 export function createCommandStoreWithDef(default_values: { [key: string]: string | string[] }) {
-  return create(
-    subscribeWithSelector<{
-      output: { [key: string]: string | string[] };
-      setOutput: (key: string, value: string) => void;
-    }>((set) => ({
-      output: default_values,
+  return create<CommandState>()(
+    subscribeWithSelector((set) => ({
+      output: { ...default_values },
       setOutput: (key, value) => set((state) => {
         const copy = { ...state.output };
         if (value) copy[key] = value;

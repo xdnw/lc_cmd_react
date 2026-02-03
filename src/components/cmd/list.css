@@ -5,47 +5,63 @@
 }
 
 .dark .react-select-container .react-select__menu {
-background-color: rgb(51 65 85);
+    background-color: rgb(51 65 85);
 }
 
 .dark .react-select-container .react-select__option {
-background-color: rgb(51 65 85);
-color: white;
+    background-color: rgb(51 65 85);
+    color: white;
 }
 
 .dark .react-select-container .react-select__option--is-selected {
-background-color: rgb(15 23 42);
+    background-color: rgb(15 23 42);
 }
 
 .dark .react-select-container .react-select__option:hover {
-background-color: rgb(15 23 42);
+    background-color: rgb(15 23 42);
 }
 
 .dark .react-select-container .react-select__multi-value {
-background-color: rgb(15 23 42);
+    background-color: rgb(15 23 42);
 }
 
 .dark .react-select-container .react-select__multi-value__label {
-color: white;
+    color: white;
 }
 
 .dark .react-select-container .react-select__multi-value__remove {
-color: white;
+    color: white;
 }
 
 .dark .react-select-container .react-select__multi-value__remove:hover {
-background-color: #555;
-color: white;
+    background-color: #555;
+    color: white;
 }
 
 .dark .react-select-container .react-select__input {
-color: white !important;
+    color: white !important;
 }
 
 .dark .react-select-container .react-select__placeholder {
-color: #ccc;
+    color: #ccc;
 }
 
 .dark .react-select-container .react-select__single-value {
-color: white;
+    color: white;
+}
+
+/* Inline icon for list items — scales with text and stays inline */
+.list-icon {
+    width: 1em;
+    height: 1em;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 0.4rem;
+    display: inline-block;
+}
+
+/* Optional: keep li padding as-is, don't change line height — no flex so line height remains natural */
+.clusterize-content li {
+    /* ensure the text and icon remain vertically aligned */
+    vertical-align: middle;
 }

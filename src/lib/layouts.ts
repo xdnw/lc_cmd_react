@@ -1,5 +1,5 @@
 import { COMMANDS } from "./commands";
-import { CM } from "../utils/Command";
+import { CM, placeholderMention } from "../utils/Command";
 import { OrderIdx } from "@/pages/custom_table/DataTable";
 
 interface Columns {
@@ -194,23 +194,20 @@ export const DEFAULT_TABS: Partial<{ [K in keyof typeof COMMANDS.placeholders]: 
                 value: CM.placeholders('DBAlliance').array()
                     .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
                     .add({ cmd: 'countmembers', alias: 'Members' })
-                    .add({
-                        cmd: 'geteffectiveboughtassetcount',
-                        args: { assets: 'cities,projects,land', start: '30d', end: '0d' },
-                        alias: 'Cities/Member'
-                    })
+                    .addRaw(placeholderMention({ type: 'DBAlliance', command: ['geteffectiveboughtassetcount'], args: { assets: 'cities', start: '30d', end: '0d' } }) + "/{countmembers}", 'Cities/Member')
                     .add({
                         cmd: 'geteffectivespendingvalue',
                         args: { assets: 'cities,projects,land', start: '30d', end: '0d' },
                         alias: 'Invest/Member'
                     })
-                    .add({
-                        cmd: 'geteffectivespendingvalue',
-                        args: { assets: 'cities,projects,land', start: '30d', end: '0d' },
-                        alias: 'Invest/Revenue'
-                    })
+                    .addRaw(
+                        placeholderMention({ type: 'DBAlliance', command: ['geteffectivespendingvalue'], args: { assets: 'cities,projects,land', start: '30d', end: '0d' } }) +
+                        "/" +
+                        placeholderMention({ type: 'DBAlliance', command: ['getcumulativerevenuevalue'], args: { start: '30d', end: '0d' } }),
+                        'Invest/Revenue'
+                    )
                     .shorten().build2d(),
-                sort: { idx: 9, dir: 'desc' }
+                sort: { idx: 2, dir: 'desc' }
             },
             "Cumulative Revenue (30d)": {
                 value: CM.placeholders('DBAlliance').array()

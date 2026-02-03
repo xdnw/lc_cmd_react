@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
 
 import Cookies from 'js-cookie';
@@ -13,6 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export function LoginComponent() {
     const { token } = useParams<{ token: string }>();
+    const [searchParams] = useSearchParams();
+    const guild = searchParams.get("guild");
     const { showDialog } = useDialog();
     const { refetchSession } = useSession();
     const [loggedIn, setLoggedIn] = useState(false);
@@ -36,7 +38,8 @@ export function LoginComponent() {
         </>, false);
     }, [showDialog]);
 
-    return <EndpointWrapper endpoint={SET_TOKEN} args={{ token: token ?? "" }} handle_error={handleError}>
+    const args = guild ? { token: token ?? "", guild_id: guild } : { token: token ?? "" };
+    return <EndpointWrapper endpoint={SET_TOKEN} args={args} handle_error={handleError}>
         {({ data }) => {
             setLoggedIn(true);
             return <>Logged in Successfully!<br />

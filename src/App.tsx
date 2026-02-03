@@ -74,6 +74,9 @@ const routeConfigs: AppRouteConfig[] = [
   { key: "multi", path: "/multi/:nation", element: () => import("./pages/a2/nation/multi"), protected: false },
   { key: "multi_v2", path: "/multi_v2/:nation", element: () => import("./pages/a2/nation/multi_2"), protected: false },
   { key: "conflicts", path: "/conflicts", element: () => import("./pages/a2/conflict/conflicts"), protected: false },
+
+  // admin
+  { key: "tasks", path: "/tasks", element: () => import("./pages/a2/admin/tasks"), protected: true },
 ];
 
 const PageView = lazy(() => import("./components/layout/page-view"));

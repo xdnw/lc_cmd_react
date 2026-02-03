@@ -1,13 +1,26 @@
-import {DiscordEmbed} from "../components/ui/MarkupRenderer";
-import { toHTML } from '@odiffey/discord-markdown';
-import {ReactNode} from "react";
-import {HtmlOptions} from "@odiffey/discord-markdown/dist/types/HtmlOptions";
+import { DiscordEmbed } from "../components/ui/MarkupRenderer";
+import { ReactNode } from "react";
 
-function createOptions({embed, showDialog}:
-{
-    embed: DiscordEmbed,
-    showDialog?: (title: string, message: ReactNode, quote?: boolean) => void;
-}): HtmlOptions {
+export interface HtmlOptions {
+    escapeHTML: boolean;
+    discordCallback: {
+        user: (node: { id: string }) => string;
+        channel: (node: { id: string }) => string;
+        role: (node: { id: string }) => string;
+        everyone: () => string;
+        here: () => string;
+        timestamp: (node: { timestamp: number; style: string }) => string;
+        // You could also add other callbacks like `slash` if you plan to support them
+        // slash?: (node: { name: string; id: string }) => string;
+    };
+}
+
+export function createOptions({ embed, showDialog }:
+    {
+        embed: DiscordEmbed,
+        showDialog?: (title: string, message: ReactNode, quote?: boolean) => void;
+    }): HtmlOptions {
+    // Will add later, but should include in interface
     // users?: { [key: string]: string };
     // channels?: { [key: string]: string };
     // roles?: { [key: string]: string };
@@ -120,10 +133,10 @@ function formatTimestamp(timestamp: number, style: string): string {
     }
 }
 
-export function markup({txt, replaceEmoji, embed, showDialog}: {txt: string, replaceEmoji: boolean, embed?: DiscordEmbed, showDialog?: (title: string, message: ReactNode, quote?: boolean) => void}): string {
+export function markup({ txt, replaceEmoji, embed, showDialog }: { txt: string, replaceEmoji: boolean, embed?: DiscordEmbed, showDialog?: (title: string, message: ReactNode, quote?: boolean) => void }): string {
     if (replaceEmoji)
         txt = txt.replace(/(?<!code(?: \w+=".+")?>[^>]+)(?<!\/[^\s"]+?):((?!\/)\w+):/g, (match, p: string) => p && emojis[p] ? emojis[p] : match);
-    const options: HtmlOptions = embed ? createOptions({embed, showDialog}) : {escapeHTML: true} as HtmlOptions;
+    const options: HtmlOptions = embed ? createOptions({ embed, showDialog }) : { escapeHTML: true } as HtmlOptions;
     return toHTML(txt, options);
 }
 
@@ -4926,3 +4939,560 @@ const emojis: { [key: string]: string } = {
     "flag_um": "🇺🇲",
     "united_nations": "🇺🇳"
 };
+
+export function toHTML(txt: string, options: HtmlOptions): string {
+    const esc = options && options.escapeHTML !== false;
+    const cb = (options && (options as any).discordCallback) || {};
+    const text = normalizeNewlines(txt);
+
+    // State for block parsing
+    const lines = text.split('\n');
+    const out: string[] = [];
+    let para: string[] = [];
+
+    let inCodeBlock = false;
+    let codeLang = '';
+    let codeBuffer: string[] = [];
+
+    let inMultiQuote = false;
+    let multiQuoteBuffer: string[] = [];
+
+    function flushParagraph() {
+        if (para.length) {
+            out.push(para.join('<br/>'));
+            para = [];
+        }
+    }
+
+    function flushMultiQuote() {
+        if (inMultiQuote) {
+            const body = multiQuoteBuffer.join('<br/>');
+            out.push(`<blockquote class="quote">${body}</blockquote>`);
+            inMultiQuote = false;
+            multiQuoteBuffer = [];
+        }
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+        const raw = lines[i];
+
+        // Handle fenced code blocks
+        if (inCodeBlock) {
+            if (isFence(raw)) {
+                // close code block
+                const code = codeBuffer.join('\n');
+                out.push(renderCodeBlock(code, codeLang, esc));
+                codeBuffer = [];
+                codeLang = '';
+                inCodeBlock = false;
+            } else {
+                codeBuffer.push(raw);
+            }
+            continue;
+        }
+
+        // If we are not in code block:
+
+        // Start fenced code block
+        const fence = parseFence(raw);
+        if (fence) {
+            flushParagraph();
+            flushMultiQuote();
+            inCodeBlock = true;
+            codeLang = fence.lang;
+            continue;
+        }
+
+        // Multiline quote ">>> "
+        if (!inMultiQuote) {
+            const mq = tryStartMultiQuote(raw);
+            if (mq) {
+                flushParagraph();
+                inMultiQuote = true;
+                multiQuoteBuffer.push(parseInline(mq.text, cb, esc));
+                continue;
+            }
+        } else {
+            // Once in multiline quote, we continue to end of message (Discord behavior)
+            multiQuoteBuffer.push(parseInline(raw, cb, esc));
+            continue;
+        }
+
+        // Single line quote "> ..."
+        const sq = trySingleQuote(raw);
+        if (sq) {
+            flushParagraph();
+            out.push(`<blockquote class="quote">${parseInline(sq.text, cb, esc)}</blockquote>`);
+            continue;
+        }
+
+        // Subtext line "~# ..."
+        const st = trySubtext(raw);
+        if (st) {
+            flushParagraph();
+            out.push(`<div class="subtext">${parseInline(st.text, cb, esc)}</div>`);
+            continue;
+        }
+
+        // Normal line: part of a paragraph
+        para.push(parseInline(raw, cb, esc));
+    }
+
+    flushParagraph();
+    flushMultiQuote();
+    // In case of an unclosed code block, render whatever we collected
+    if (inCodeBlock) {
+        out.push(renderCodeBlock(codeBuffer.join('\n'), codeLang, esc));
+    }
+
+    return out.join('\n');
+}
+
+/* ========================= Helpers ========================= */
+
+function normalizeNewlines(s: string): string {
+    return s.replace(/\r\n?/g, '\n');
+}
+
+function isFence(line: string): boolean {
+    // ``` (no need to enforce language here)
+    return /^```/.test(line);
+}
+
+function parseFence(line: string): { lang: string } | null {
+    const m = /^```([\w+-]*)\s*$/.exec(line);
+    if (!m) return null;
+    return { lang: (m[1] || '').trim() };
+}
+
+function renderCodeBlock(code: string, lang: string, esc: boolean): string {
+    const cls = lang ? ` class="language-${safeAttr(lang)}"` : '';
+    // Always escape inside code
+    return `<pre><code${cls}>${escapeHtml(code)}</code></pre>`;
+}
+
+function tryStartMultiQuote(line: string): { text: string } | null {
+    // ">>> " starts a multiline quote till end of message in Discord
+    if (/^>>>\s?/.test(line)) {
+        return { text: line.replace(/^>>>\s?/, '') };
+    }
+    return null;
+}
+
+function trySingleQuote(line: string): { text: string } | null {
+    if (/^>\s?/.test(line)) {
+        return { text: line.replace(/^>\s?/, '') };
+    }
+    return null;
+}
+
+function trySubtext(line: string): { text: string } | null {
+    // supports subtext via ~# at the start of the line
+    if (/^~#\s?/.test(line)) {
+        return { text: line.replace(/^~#\s?/, '') };
+    }
+    return null;
+}
+
+/* =============== Inline parsing and rendering =============== */
+
+function parseInline(input: string, cb: any, esc: boolean): string {
+    // We build output by buffering plain text and emitting tags/mentions as we go.
+    let i = 0;
+    const n = input.length;
+    const out: string[] = [];
+    let textBuf = '';
+
+    // Stack for paired formatting
+    type Mark = { type: 'b' | 'i' | 'u' | 's' | 'sp'; delim: string };
+    const stack: Mark[] = [];
+
+    function flushText() {
+        if (!textBuf) return;
+        // linkify + escape plain text
+        out.push(linkifyAndEscape(textBuf, esc));
+        textBuf = '';
+    }
+
+    function openMark(m: Mark) {
+        flushText();
+        stack.push(m);
+        switch (m.type) {
+            case 'b': out.push('<strong>'); break;
+            case 'i': out.push('<em>'); break;
+            case 'u': out.push('<u>'); break;
+            case 's': out.push('<s>'); break;
+            case 'sp': out.push('<span class="spoiler">'); break;
+        }
+    }
+
+    function closeMark(type: Mark['type']) {
+        // Close the nearest matching mark; if not found, treat delimiter as literal
+        for (let si = stack.length - 1; si >= 0; si--) {
+            if (stack[si].type === type) {
+                flushText();
+                // close all opened marks above it in LIFO order but keep them
+                const toReopen: Mark[] = [];
+                while (stack.length - 1 > si) {
+                    const temp = stack.pop()!;
+                    out.push(closeTag(temp.type));
+                    toReopen.push(temp);
+                }
+                // close target
+                const target = stack.pop()!;
+                out.push(closeTag(target.type));
+                // reopen the previously closed ones
+                for (let ri = toReopen.length - 1; ri >= 0; ri--) {
+                    const m = toReopen[ri];
+                    out.push(openTag(m.type));
+                    stack.push(m);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function openTag(t: Mark['type']): string {
+        switch (t) {
+            case 'b': return '<strong>';
+            case 'i': return '<em>';
+            case 'u': return '<u>';
+            case 's': return '<s>';
+            case 'sp': return '<span class="spoiler">';
+        }
+    }
+    function closeTag(t: Mark['type']): string {
+        switch (t) {
+            case 'b': return '</strong>';
+            case 'i': return '</em>';
+            case 'u': return '</u>';
+            case 's': return '</s>';
+            case 'sp': return '</span>';
+        }
+    }
+
+    while (i < n) {
+        const ch = input[i];
+
+        // Backslash escapes for special characters
+        if (ch === '\\' && i + 1 < n) {
+            const next = input[i + 1];
+            if (isSpecialChar(next)) {
+                textBuf += next;
+                i += 2;
+                continue;
+            }
+        }
+
+        // Inline code span using backticks (support multiple ticks)
+        if (ch === '`') {
+            const tickLen = countRun(input, i, '`');
+            const end = findClosingBackticks(input, i + tickLen, tickLen);
+            if (end !== -1) {
+                // Emit buffered text and code
+                flushText();
+                const codeContent = input.slice(i + tickLen, end);
+                out.push(`<code>${escapeHtml(codeContent)}</code>`);
+                i = end + tickLen;
+                continue;
+            } else {
+                // treat the ticks literally
+                textBuf += repeat('`', tickLen);
+                i += tickLen;
+                continue;
+            }
+        }
+
+        // Angle-bracket things: mentions, channels, roles, timestamps, slash references
+        if (ch === '<') {
+            const close = input.indexOf('>', i + 1);
+            if (close !== -1) {
+                const payload = input.slice(i + 1, close);
+                const rendered = renderDiscordAngles(payload, cb);
+                if (rendered) {
+                    flushText();
+                    out.push(rendered);
+                    i = close + 1;
+                    continue;
+                }
+            }
+            // fall through literal '<' if not valid
+            textBuf += '<';
+            i++;
+            continue;
+        }
+
+        // @everyone / @here (not in angle brackets)
+        if (ch === '@') {
+            const here = matchWord(input, i + 1, 'here');
+            const everyone = matchWord(input, i + 1, 'everyone');
+            if (everyone && isBoundary(input, i, i + 1 + 'everyone'.length)) {
+                flushText();
+                const html = cb.everyone ? cb.everyone() : esc ? escapeHtml('@everyone') : '@everyone';
+                out.push(html);
+                i += 1 + 'everyone'.length;
+                continue;
+            }
+            if (here && isBoundary(input, i, i + 1 + 'here'.length)) {
+                flushText();
+                const html = cb.here ? cb.here() : esc ? escapeHtml('@here') : '@here';
+                out.push(html);
+                i += 1 + 'here'.length;
+                continue;
+            }
+        }
+
+        // Paired formatting. Prefer 2-char delimiters first.
+        // spoilers ||
+        if (input[i] === '|' && i + 1 < n && input[i + 1] === '|') {
+            const canToggle = canToggleDelim(input, i, 2);
+            if (canToggle) {
+                // if top stack type is 'sp' -> close, else open
+                if (!closeMark('sp')) {
+                    openMark({ type: 'sp', delim: '||' });
+                }
+                i += 2;
+                continue;
+            }
+        }
+        // bold **
+        if (input[i] === '*' && i + 1 < n && input[i + 1] === '*') {
+            const canToggle = canToggleDelim(input, i, 2);
+            if (canToggle) {
+                if (!closeMark('b')) {
+                    openMark({ type: 'b', delim: '**' });
+                }
+                i += 2;
+                continue;
+            }
+        }
+        // underline __
+        if (input[i] === '_' && i + 1 < n && input[i + 1] === '_') {
+            const canToggle = canToggleDelim(input, i, 2);
+            if (canToggle) {
+                if (!closeMark('u')) {
+                    openMark({ type: 'u', delim: '__' });
+                }
+                i += 2;
+                continue;
+            }
+        }
+        // strikethrough ~~
+        if (input[i] === '~' && i + 1 < n && input[i + 1] === '~') {
+            const canToggle = canToggleDelim(input, i, 2);
+            if (canToggle) {
+                if (!closeMark('s')) {
+                    openMark({ type: 's', delim: '~~' });
+                }
+                i += 2;
+                continue;
+            }
+        }
+        // italic * or _
+        if (input[i] === '*' || input[i] === '_') {
+            const canToggle = canToggleDelim(input, i, 1);
+            if (canToggle) {
+                if (!closeMark('i')) {
+                    openMark({ type: 'i', delim: input[i] });
+                }
+                i += 1;
+                continue;
+            }
+        }
+
+        // Everything else -> buffer
+        textBuf += input[i];
+        i++;
+    }
+
+    // Close any unclosed marks by treating their delimiters as literal (safest)
+    // We render their opening tags already; to ensure no broken HTML, we close them now.
+    // But to avoid changing semantics too much, we will close them:
+    while (stack.length) {
+        const m = stack.pop()!;
+        out.push(closeTag(m.type));
+    }
+
+    flushText();
+    return out.join('');
+}
+
+/* =============== Angle-bracket tokens =============== */
+
+function renderDiscordAngles(payload: string, cb: any): string | null {
+    // <@1234567890> or <@!123> user mention
+    let m = /^@!?(\d+)$/.exec(payload);
+    if (m) {
+        const id = m[1];
+        if (cb.user) return cb.user({ id });
+        return safeLtGt(`<@${id}>`);
+    }
+
+    // <#123> channel mention
+    m = /^#(\d+)$/.exec(payload);
+    if (m) {
+        const id = m[1];
+        if (cb.channel) return cb.channel({ id });
+        return safeLtGt(`<#${id}>`);
+    }
+
+    // <@&123> role mention
+    m = /^@&(\d+)$/.exec(payload);
+    if (m) {
+        const id = m[1];
+        if (cb.role) return cb.role({ id });
+        return safeLtGt(`<@&${id}>`);
+    }
+
+    // </somecommand:123456> slash command reference
+    m = /^\/([^:>]+):(\d+)$/.exec(payload);
+    if (m) {
+        const name = m[1];
+        const id = m[2];
+        if (cb.slash) return cb.slash(name, id);
+        return safeLtGt(`</${name}:${id}>`);
+    }
+
+    // <t:TIMESTAMP[:STYLE]>
+    m = /^t:(-?\d+)(?::([A-Za-z]))?$/.exec(payload);
+    if (m) {
+        const timestamp = Number(m[1]);
+        const style = m[2] || '';
+        if (cb.timestamp) return cb.timestamp({ timestamp, style });
+        return safeLtGt(`<t:${timestamp}${style ? ':' + style : ''}>`);
+    }
+
+    return null;
+}
+
+function safeLtGt(s: string): string {
+    // Render literally as text angle brackets if no callback
+    return escapeHtml(s);
+}
+
+/* =============== Utilities =============== */
+
+function escapeHtml(s: string): string {
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function safeAttr(s: string): string {
+    // very conservative attr escaping
+    return s.replace(/[^-a-zA-Z0-9_+.]/g, '');
+}
+
+function countRun(s: string, i: number, ch: string): number {
+    let k = 0;
+    while (i + k < s.length && s[i + k] === ch) k++;
+    return k;
+}
+
+function findClosingBackticks(s: string, start: number, count: number): number {
+    const needle = repeat('`', count);
+    let i = start;
+    while (i < s.length) {
+        const idx = s.indexOf(needle, i);
+        if (idx === -1) return -1;
+        // must not be escaped by backslash (commonmark allows, but for discord this is fine)
+        return idx;
+    }
+    return -1;
+}
+
+function repeat(ch: string, n: number): string {
+    return new Array(n + 1).join(ch);
+}
+
+function isSpecialChar(c: string): boolean {
+    return /[\\`*_\-~|<>]/.test(c);
+}
+
+function isWordChar(c: string): boolean {
+    return !!c && /[A-Za-z0-9_]/.test(c);
+}
+
+function isBoundary(s: string, atStart: number, afterEnd: number): boolean {
+    const before = atStart - 1 >= 0 ? s[atStart - 1] : '';
+    const after = afterEnd < s.length ? s[afterEnd] : '';
+    return (!isWordChar(before)) && (!isWordChar(after));
+}
+
+function matchWord(s: string, start: number, word: string): boolean {
+    return s.slice(start, start + word.length) === word;
+}
+
+function canToggleDelim(s: string, i: number, len: number): boolean {
+    const before = i - 1 >= 0 ? s[i - 1] : '';
+    const after = i + len < s.length ? s[i + len] : '';
+    // Simple left/right flanking rule: don't open/close if surrounded by whitespace only
+    const leftOk = !after || !/\s/.test(after);
+    const rightOk = !before || !/\s/.test(before);
+    return leftOk || rightOk;
+}
+
+/* =============== Linkify =============== */
+
+function linkifyAndEscape(text: string, esc: boolean): string {
+    // Escape first; we’ll output links as safe anchors with rel attrs.
+    // This keeps it robust and prevents injection.
+    // Then find http/https links in the raw text and wrap them.
+    // We need raw text for matching, but we already escaped, so we do a split pass with indexes.
+    // Simpler approach: match on the unescaped version and stitch with escaping for non-links.
+    if (!text) return '';
+    const segments: string[] = [];
+    const urlRe = /\bhttps?:\/\/[^\s<>'"]+/gi;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = urlRe.exec(text)) !== null) {
+        const start = m.index;
+        const end = start + m[0].length;
+        // Append preceding plain text
+        if (start > last) {
+            segments.push(escapeHtml(text.slice(last, start)));
+        }
+        const url = m[0];
+        segments.push(renderLink(url));
+        last = end;
+    }
+    if (last < text.length) {
+        segments.push(escapeHtml(text.slice(last)));
+    }
+    return segments.join('');
+}
+
+function renderLink(url: string): string {
+    // trim trailing punctuation that commonly sticks to URLs
+    const trimmed = trimUrlPunctuation(url);
+    const display = escapeHtml(trimmed);
+    const safeHref = escapeHref(trimmed);
+    return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer nofollow">${display}</a>` + escapeHtml(url.slice(trimmed.length));
+}
+
+function escapeHref(href: string): string {
+    // Only allow http/https
+    if (!/^https?:\/\//i.test(href)) return '#';
+    // basic escaping
+    return href.replace(/"/g, '%22');
+}
+
+function trimUrlPunctuation(url: string): string {
+    // Discord tends to exclude trailing ), ], ., , etc. We'll conservatively trim common trailing punctuations.
+    let end = url.length;
+    while (end > 0 && /[)\].,;!?:'"]/.test(url[end - 1])) {
+        end--;
+    }
+    // balance closing parenthesis vs opening within URL
+    const slice = url.slice(0, end);
+    const open = (slice.match(/\(/g) || []).length;
+    const close = (slice.match(/\)/g) || []).length;
+    if (close > open && end < url.length && url[end] === ')') {
+        // keep one ')'
+        end++;
+    }
+    return url.slice(0, end);
+}

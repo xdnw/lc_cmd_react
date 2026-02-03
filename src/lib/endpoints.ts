@@ -173,7 +173,7 @@ export const SET_TOKEN: CommonEndpoint<ApiTypes.WebSuccess, {token?: string}, {t
     endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
         "set_token",
         "set_token",
-        {"token":{"name":"token","type":"UUID"}},
+        {"token":{"name":"token","type":"UUID"},"guild_id":{"name":"guild_id","optional":true,"type":"Long"}},
         (data: unknown) => data as ApiTypes.WebSuccess,
         2592000,
         'None',
@@ -351,20 +351,6 @@ export const UNREGISTER: CommonEndpoint<ApiTypes.WebValue, {confirm?: string}, {
     )
 };
 
-export const RAID: CommonEndpoint<ApiTypes.WebTargets, {nation?: string, nations?: string, weak_ground?: string, vm_turns?: string, beige_turns?: string, ignore_dnr?: string, time_inactive?: string, min_loot?: string, num_results?: string}, {nation?: string, nations?: string, weak_ground?: string, vm_turns?: string, beige_turns?: string, ignore_dnr?: string, time_inactive?: string, min_loot?: string, num_results?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebTargets>(
-        "raid",
-        "raid",
-        {"nation":{"name":"nation","optional":true,"type":"DBNation"},"nations":{"name":"nations","optional":true,"type":"Set\u003cDBNation\u003e","def":"*,#position\u003c\u003d1"},"weak_ground":{"name":"weak_ground","optional":true,"type":"boolean","def":"false"},"vm_turns":{"name":"vm_turns","optional":true,"type":"int","def":"0"},"beige_turns":{"name":"beige_turns","optional":true,"type":"int","def":"0"},"ignore_dnr":{"name":"ignore_dnr","optional":true,"type":"boolean","def":"false"},"time_inactive":{"name":"time_inactive","optional":true,"type":"long[Timediff]","def":"7d"},"min_loot":{"name":"min_loot","optional":true,"type":"double","def":"-1"},"num_results":{"name":"num_results","optional":true,"type":"int","def":"8"}},
-        (data: unknown) => data as ApiTypes.WebTargets,
-        2592000,
-        'None',
-        "WebTargets",
-        ``,
-        false
-    )
-};
-
 export const READ_ANNOUNCEMENT: CommonEndpoint<ApiTypes.WebSuccess, {ann_id?: string}, {ann_id?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
         "read_announcement",
@@ -376,6 +362,20 @@ export const READ_ANNOUNCEMENT: CommonEndpoint<ApiTypes.WebSuccess, {ann_id?: st
         "WebSuccess",
         ``,
         true
+    )
+};
+
+export const RAID: CommonEndpoint<ApiTypes.WebTargets, {nation?: string, nations?: string, weak_ground?: string, vm_turns?: string, beige_turns?: string, ignore_dnr?: string, time_inactive?: string, min_loot?: string, num_results?: string}, {nation?: string, nations?: string, weak_ground?: string, vm_turns?: string, beige_turns?: string, ignore_dnr?: string, time_inactive?: string, min_loot?: string, num_results?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebTargets>(
+        "raid",
+        "raid",
+        {"nation":{"name":"nation","optional":true,"type":"DBNation"},"nations":{"name":"nations","optional":true,"type":"Set\u003cDBNation\u003e","def":"*,#position\u003c\u003d1"},"weak_ground":{"name":"weak_ground","optional":true,"type":"boolean","def":"false"},"vm_turns":{"name":"vm_turns","optional":true,"type":"int","def":"0"},"beige_turns":{"name":"beige_turns","optional":true,"type":"int","def":"0"},"ignore_dnr":{"name":"ignore_dnr","optional":true,"type":"boolean","def":"false"},"time_inactive":{"name":"time_inactive","optional":true,"type":"long[Timediff]","def":"7d"},"min_loot":{"name":"min_loot","optional":true,"type":"double","def":"-1"},"num_results":{"name":"num_results","optional":true,"type":"int","def":"8"}},
+        (data: unknown) => data as ApiTypes.WebTargets,
+        2592000,
+        'None',
+        "WebTargets",
+        ``,
+        false
     )
 };
 
@@ -514,6 +514,20 @@ export const MY_AUDITS: CommonEndpoint<ApiTypes.WebAudits, Record<string, never>
         30,
         'SessionStorage',
         "WebAudits",
+        ``,
+        false
+    )
+};
+
+export const LOCUTUS_TASK: CommonEndpoint<ApiTypes.TaskDetails, {id?: string}, {id?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.TaskDetails>(
+        "locutus_task",
+        "locutus_task",
+        {"id":{"name":"id","type":"int"}},
+        (data: unknown) => data as ApiTypes.TaskDetails,
+        15,
+        'SessionStorage',
+        "TaskDetails",
         ``,
         false
     )
@@ -732,6 +746,20 @@ export const MULTI_V2: CommonEndpoint<ApiTypes.AdvMultiReport, {nation?: string,
     )
 };
 
+export const LOCUTUS_TASKS: CommonEndpoint<ApiTypes.TaskList, Record<string, never>, Record<string, never>> = {
+    endpoint: new ApiEndpoint<ApiTypes.TaskList>(
+        "locutus_tasks",
+        "locutus_tasks",
+        {},
+        (data: unknown) => data as ApiTypes.TaskList,
+        15,
+        'SessionStorage',
+        "TaskList",
+        ``,
+        false
+    )
+};
+
 export const CITYTIERGRAPH: CommonEndpoint<ApiTypes.WebGraph, {coalition1?: string, coalition2?: string, includeInactives?: string, barGraph?: string, includeApplicants?: string, snapshotDate?: string}, {coalition1?: string, coalition2?: string, includeInactives?: string, barGraph?: string, includeApplicants?: string, snapshotDate?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
         "citytiergraph",
@@ -830,4 +858,4 @@ export const QUERY: CommonEndpoint<ApiTypes.WebBulkQuery, {queries?: string}, {q
     )
 };
 
-export const ENDPOINTS = [WARSCOSTRANKINGBYDAY, GLOBALSTATS, TABLE, COMPARESTATS, ALLIANCEMETRICAB, ALLIANCEMETRICBYTURN, NTHBEIGELOOTBYSCORERANGE, ALLIANCESDATABYDAY, MARK_ALL_READ, WARCOSTSBYDAY, ALLIANCESTATS, SESSION, SET_TOKEN, BALANCE, ORBISSTATBYDAY, UNREAD_ANNOUNCEMENT, REGISTER, COMPARETIERSTATS, RADIATIONBYTURN, GLOBALTIERSTATS, BANK_ACCESS, COMMAND, TRADEVOLUMEBYDAY, ANNOUNCEMENTS, UNREGISTER, RAID, READ_ANNOUNCEMENT, TAX_EXPENSE, PERMISSION, COMPARESTOCKPILEVALUEBYDAY, MILITARIZATIONTIME, INPUT_OPTIONS, TRADEPRICEBYDAY, LOGIN_MAIL, TRADEMARGINBYDAY, MY_WARS, MY_AUDITS, RECORDS, LOGOUT, SCORETIERGRAPH, SPYTIERGRAPH, STRENGTHTIERGRAPH, UNREAD_COUNT, SET_OAUTH_CODE, ANNOUNCEMENT_TITLES, WARATTACKSBYDAY, METRIC_COMPARE_BY_TURN, MULTI_BUSTER, VIEW_ANNOUNCEMENT, SET_GUILD, METRICBYGROUP, MULTI_V2, CITYTIERGRAPH, UNPROTECTED, TRADEPRICEBYDAYJSON, WITHDRAW, TRADETOTALBYDAY, UNSET_GUILD, QUERY];
+export const ENDPOINTS = [WARSCOSTRANKINGBYDAY, GLOBALSTATS, TABLE, COMPARESTATS, ALLIANCEMETRICAB, ALLIANCEMETRICBYTURN, NTHBEIGELOOTBYSCORERANGE, ALLIANCESDATABYDAY, MARK_ALL_READ, WARCOSTSBYDAY, ALLIANCESTATS, SESSION, SET_TOKEN, BALANCE, ORBISSTATBYDAY, UNREAD_ANNOUNCEMENT, REGISTER, COMPARETIERSTATS, RADIATIONBYTURN, GLOBALTIERSTATS, BANK_ACCESS, COMMAND, TRADEVOLUMEBYDAY, ANNOUNCEMENTS, UNREGISTER, READ_ANNOUNCEMENT, RAID, TAX_EXPENSE, PERMISSION, COMPARESTOCKPILEVALUEBYDAY, MILITARIZATIONTIME, INPUT_OPTIONS, TRADEPRICEBYDAY, LOGIN_MAIL, TRADEMARGINBYDAY, MY_WARS, MY_AUDITS, LOCUTUS_TASK, RECORDS, LOGOUT, SCORETIERGRAPH, SPYTIERGRAPH, STRENGTHTIERGRAPH, UNREAD_COUNT, SET_OAUTH_CODE, ANNOUNCEMENT_TITLES, WARATTACKSBYDAY, METRIC_COMPARE_BY_TURN, MULTI_BUSTER, VIEW_ANNOUNCEMENT, SET_GUILD, METRICBYGROUP, MULTI_V2, LOCUTUS_TASKS, CITYTIERGRAPH, UNPROTECTED, TRADEPRICEBYDAYJSON, WITHDRAW, TRADETOTALBYDAY, UNSET_GUILD, QUERY];

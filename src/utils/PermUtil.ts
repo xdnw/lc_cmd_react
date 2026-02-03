@@ -17,8 +17,14 @@ export function usePermission<P extends CommandPath<typeof COMMANDS.commands>>(p
     });
 
     const errorFinal = useMemo(() => {
-        return error ?? (data?.error ? new Error(data.error) : null);
-    }, [error, data?.error]);
+        if (error) return error;
+        if (data?.error) return new Error(data.error);
+        const payload = data?.data as WebPermission | null | undefined;
+        if (payload && payload.success === false && payload.message) {
+            return new Error(payload.message);
+        }
+        return null;
+    }, [error, data?.error, data?.data]);
 
     useEffect(() => {
         if (errorFinal) {

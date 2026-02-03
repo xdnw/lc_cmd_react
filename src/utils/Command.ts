@@ -6,9 +6,6 @@ import {
 } from "./StringUtil";
 import { COMMANDS } from "@/lib/commands.ts";
 import type { CommandBehavior, JSONValue } from "@/lib/internaltypes";
-import { bulkQueryOptions } from '@/lib/queries';
-import { useDialog } from '@/components/layout/DialogContext';
-import { useEffect, useMemo } from 'react';
 
 export type IArgument = {
     name: string;
@@ -300,6 +297,44 @@ export type Completion = {
         name: string,
         value: string
     }[]
+}
+
+export function commandMention<
+    P extends CommandPath<typeof COMMANDS.commands>
+>(
+    { command, args }: {
+        command: P,
+        args: Partial<CommandArguments<typeof COMMANDS.commands, P>>
+    }
+): string {
+    const cmdName = command.join(" ");
+    let mention = `/${cmdName}`;
+    for (const [argName, value] of Object.entries(args)) {
+        if (value != null) {
+            mention += ` ${argName}: ${value}`;
+        }
+    }
+    return mention;
+}
+
+export function placeholderMention<
+    T extends keyof typeof COMMANDS.placeholders,
+    P extends CommandPath<typeof COMMANDS.placeholders[T]['commands']>
+>(
+    { type, command, args }: {
+        type: T,
+        command: P,
+        args?: Partial<CommandArguments<typeof COMMANDS.placeholders[T]['commands'], P>>
+    }
+): string {
+    const cmdName = command.join(" ");
+    let mention = `{${cmdName}`;
+    const entries = args ? Object.entries(args).filter(([, v]) => v != null) : [];
+    if (entries.length > 0) {
+        mention += "(" + entries.map(([argName, value]) => `${argName}: ${value as string}`).join(" ") + ")";
+    }
+    mention += "}";
+    return mention;
 }
 
 export const STRIP_PREFIXES = ["get", "is", "can", "has"];
@@ -658,405 +693,7 @@ export class CommandMap {
         return builder.build();
 
     }
-
-    // getPlaceholderCommand(placeholder_type: string, functionString: string) {
-    //     const result = this.searchPlaceholders(placeholder_type, functionString);
-    //     return Object.keys(result.completeMatch).length > 0 ? result.completeMatch[Object.keys(result.completeMatch)[0]] : undefined;
-    // }
-
-    // getCurrentlyTypingCommand(parent: Command | null, content: string, token: string, caretPosition: number, placeholder_type: string): Completion {
-    //     // find the index of the first non valid function character
-    //     let endOfFunction = content.search(/[^a-zA-Z0-9_$]/);
-    //     if (endOfFunction == -1) endOfFunction = content.length;
-    //     let endOfFunctionAndArgs = endOfFunction;
-    //     const functionString = content.substring(0, endOfFunction);
-    //     // check if the next character is a bracket
-    //     const nextChar = content.charAt(endOfFunction);
-    //     let functionContent = "";
-    //     let hasFuncContent = false;
-
-    //     if (nextChar === "(") {
-    //         hasFuncContent = true;
-    //         // get the bracket end using the bracket matching function StringUtils.findMatchingBracket
-    //         const bracketEnd = findMatchingBracket(content, endOfFunction);
-    //         // if its not -1
-    //         if (bracketEnd !== -1) {
-    //             console.log("Bracket end " + bracketEnd);
-    //             functionContent = content.substring(endOfFunction + 1, bracketEnd);
-    //             endOfFunctionAndArgs = bracketEnd + 1;
-    //         } else {
-    //             // suggest arguments
-    //             console.log("No matching bracket found")
-    //         }
-    //     }
-    //     const search = this.searchPlaceholders(placeholder_type, functionString);
-    //     const command = Object.keys(search.completeMatch).length > 0 ? search.completeMatch[Object.keys(search.completeMatch)[0]] : undefined;
-
-    //     console.log("F: " + functionString + " | C:" + functionContent);
-
-    //     if (caretPosition > endOfFunctionAndArgs) {
-    //         const endChar = content.charAt(endOfFunctionAndArgs)
-    //         if (command && endChar == ".") {
-    //             if (command) {
-    //                 const type = command.return_type as string;
-    //                 const breakdown = getTypeBreakdown(this, type);
-    //                 if (breakdown.element === "Map") {
-    //                     // options
-    //                     return {
-    //                         placeholder_type: placeholder_type,
-    //                         options: [{
-    //                             name: "HANDLE MAP " + command.return_type,
-    //                             value: "HELLO WORLD"
-    //                         }]
-    //                     };
-    //                 }
-    //                 return {
-    //                     placeholder_type: placeholder_type,
-    //                     options: [{
-    //                         name: "HANDLE SUBCOMMAND " + command.return_type + " | " + breakdown.child?.[0].element,
-    //                         value: "HELLO WORLD"
-    //                     }]
-    //                 };
-    //             }
-    //         }
-    //         console.log("Caret past function " + caretPosition + " " + endOfFunctionAndArgs)
-    //         return {
-    //             placeholder_type: placeholder_type,
-    //             options: [{
-    //                 name: "CARET PAST FUNCTION",
-    //                 value: "HELLO WORLD"
-    //             }]
-    //         };
-    //     }
-
-    //     // if caret position is the bracket, suggest the arguments
-    //     if (hasFuncContent) {
-    //         if (caretPosition === endOfFunctionAndArgs) {
-    //             return {
-    //                 placeholder_type: placeholder_type,
-    //                 options: [{
-    //                     name: "END-BRACKET",
-    //                     value: "HELLO WORLD"
-    //                 }]
-    //             };
-    //             // is end bracket
-    //         } else if (caretPosition > endOfFunction) {
-    //             // get command
-    //             if (command) {
-    //                 return getCurrentlyTypingArg(command, functionContent, caretPosition - endOfFunction - 1, placeholder_type);
-    //             } else {
-    //                 return {
-    //                     command: command,
-    //                     placeholder_type: placeholder_type,
-    //                     options: [{
-    //                         name: "ARGS, UNKNOWN COMMAND " + functionString,
-    //                         value: "HELLO WORLD"
-    //                     }]
-    //                 };
-    //             }
-    //         } else if (caretPosition === endOfFunction) {
-    //             return {
-    //                 command: command,
-    //                 placeholder_type: placeholder_type,
-    //                 options: [{
-    //                     name: "START-BRACKET",
-    //                     value: "HELLO WORLD"
-    //                 }]
-    //             };
-    //         } else {
-    //             // is function part
-    //             return {
-    //                 command: command,
-    //                 placeholder_type: placeholder_type,
-    //                 options: [{
-    //                     name: "MID-FUNC-HAS-ARGS",
-    //                     value: "HELLO WORLD"
-    //                 }]
-    //             };
-    //         }
-    //     } else if (caretPosition == endOfFunction) {
-    //         if (command) {
-    //             return {
-    //                 placeholder_type: placeholder_type,
-    //                 command: command,
-    //                 options: [{
-    //                     name: "COMPLETE-MATCH",
-    //                     value: "HELLO WORLD"
-    //                 }]
-    //             };
-    //         } else if (Object.keys(search.startsWith).length > 0) {
-    //             let valPrefix = "#";
-    //             // if token contains # then prefix is all the characters up to and including the LAST #
-    //             if (token.indexOf("#") !== -1) {
-    //                 valPrefix = token.substring(0, token.lastIndexOf("#") + 1);
-    //             }
-    //             return {
-    //                 placeholder_type: placeholder_type,
-    //                 options: commandCompletions(search.startsWith, valPrefix)
-    //             };
-    //         } else {
-    //             return {
-    //                 placeholder_type: placeholder_type,
-    //                 options: [{
-    //                     name: "END-FUNC-NO-ARGS-NO-MATCH",
-    //                     value: "HELLO WORLD"
-    //                 }]
-    //             };
-    //         }
-    //     } else {
-    //         if (caretPosition <= endOfFunction) {
-    //             return {
-    //                 placeholder_type: placeholder_type,
-    //                 command: command,
-    //                 options: [{
-    //                     name: "MID-FUNC-NO_ARGS",
-    //                     value: "HELLO WORLD"
-    //                 }]
-    //             };
-    //         } else {
-    //             return {
-    //                 placeholder_type: placeholder_type,
-    //                 command: command,
-    //                 options: [{
-    //                     name: "AFTER-FUNC-NO-ARGS",
-    //                     value: "HELLO WORLD"
-    //                 }]
-    //             };
-    //         }
-    //     }
-    // }
-
-    // getCurrentlyTypingFunction(content: string, token: string, caretPosition: number, placeholder_type: string): Completion {
-    //     if (isQuoteOrBracket(content.charAt(0)) && findMatchingQuoteOrBracket(content, 0) == content.length - 1) {
-    //         console.log("Content is quote or bracket");
-    //         return this.getCurrentlyTypingFunction(content.substring(1, content.length - 1), token, caretPosition - 1, placeholder_type);
-    //     }
-    //     const components = splitCustom(content, (f, i) => {
-    //         if (f.startsWith(",", i)) return [1, 1];
-    //         if (f.startsWith("||", i)) return [2, 2];
-    //         if (f.startsWith("&&", i)) return [2, 2];
-    //         if (f.startsWith("|", i)) return [1, 2];
-    //         if (f.startsWith("&", i)) return [1, 2];
-
-    //         if (f.startsWith(">=", i)) return [2, 3];
-    //         if (f.startsWith("<=", i)) return [2, 3];
-    //         if (f.startsWith("!=", i)) return [2, 3];
-    //         if (f.startsWith("=", i)) return [1, 3];
-    //         if (f.startsWith(">", i)) return [1, 3];
-    //         if (f.startsWith("<", i)) return [1, 3];
-    //         return null;
-    //     }, Number.MAX_SAFE_INTEGER);
-
-    //     let lastIndex = 0;
-    //     let isNextValue = false;
-
-    //     for (let i = 0; i < components.length; i++) {
-    //         const item = components[i];
-    //         let substring = item.content.trim();
-    //         if (!substring) continue;
-    //         const isCurrentValue = isNextValue;
-    //         isNextValue = item.type == 3;
-
-    //         let start = content.indexOf(substring, lastIndex + item.offset + item.delimiter.length);
-    //         if (start == -1) {
-    //             throw new Error("Could not find component in content `" + item.content + "` `" + content + "` | " + lastIndex + " | " + item.offset + " | " + item.delimiter);
-    //         }
-    //         lastIndex = start + substring.length + item.offset;
-    //         const end = start + substring.length + item.offset;
-
-    //         if (isQuoteOrBracket(substring.charAt(0)) && findMatchingQuoteOrBracket(substring, 0) == substring.length - 1) {
-    //             return this.getCurrentlyTypingFunction(substring.substring(1, substring.length - 1), token, caretPosition - start - 1, placeholder_type);
-    //         }
-    //         if (substring.startsWith("#")) {
-    //             substring = substring.substring(1);
-    //             start++;
-    //         }
-    //         if (start > caretPosition) {
-    //             return {
-    //                 placeholder_type: placeholder_type,
-    //                 options: [{
-    //                     name: "NO-RESULT (2)",
-    //                     value: JSON.stringify(item) + " | " + start + " | " + end + " | " + substring
-    //                 }]
-    //             };
-    //         }
-    //         if (caretPosition > end) {
-    //             continue;
-    //         }
-    //         console.log("Find at " + substring + " | " + (caretPosition - start) + " | " + caretPosition + " | " + start)
-
-    //         if (isCurrentValue) {
-    //             const commandComp = components[i - 1];
-    //             return {
-    //                 // TODO get command type
-
-    //                 placeholder_type: placeholder_type,
-    //                 options: [{
-    //                     name: "VALUE OF PREVIOUS " + JSON.stringify(components[i - 1]),
-    //                     value: "TODO"
-    //                 }]
-    //             };
-    //         }
-
-    //         const completion = this.getCurrentlyTypingCommand(null, substring, token, caretPosition - start, placeholder_type);
-    //         if (completion != null) return completion;
-    //         return {
-    //             placeholder_type: placeholder_type,
-    //             options: [{
-    //                 name: "NO-RESULT (3)",
-    //                 value: "HELLO WORLD"
-    //             }]
-    //         };
-    //     }
-    //     return {
-    //         placeholder_type: placeholder_type,
-    //         options: [{
-    //             name: "NO-RESULT",
-    //             value: "HELLO WORLD"
-    //         }]
-    //     };
-    // }
 }
-
-// function getCurrentlyTypingArg(command: ICommand, functionContent: string, caretPosition: number, placeholder_type: string): Completion {
-//     // 1: typing an argument name
-//     // 2: typing an argument value
-//     // 3: space or comma (and optional space) and about to type an argument name
-//     const entries = command.arguments ? Object.entries(command.arguments) : [];
-//     let argCommaI = 0;
-//     let lastNamedArgI = 0;
-//     let lastUnnamedArgI = 0;
-//     let lastArg: IArgument | null = null;
-
-//     for (let j = 0; j < functionContent.length; j++) {
-//         const char = functionContent.charAt(j);
-//         if (isQuoteOrBracket(char)) {
-//             const jEnd = findMatchingQuoteOrBracket(functionContent, j);
-//             if (jEnd != -1) {
-//                 if (jEnd > caretPosition) {
-//                     // todo return
-//                 } else if (jEnd == caretPosition) {
-//                     // todo return
-//                 }
-//                 j = jEnd;
-//                 continue;
-//             }
-//         }
-//         switch (char) {
-//             case ":": {
-//                 for (const [key, value] of Object.entries(command.arguments ?? {})) {
-//                     if (functionContent.endsWith(key, j)) {
-//                         if (j >= caretPosition) {
-//                             if (j - key.length - 1 <= caretPosition) {
-//                                 return {
-//                                     placeholder_type: placeholder_type,
-//                                     argument: command.arguments?.[key],
-//                                     options: [{
-//                                         name: "ARG KEY " + key + " | " + j + " | " + caretPosition,
-//                                         value: "HELLO WORLD"
-//                                     }]
-//                                 };
-//                             } else {
-//                                 const argContent = functionContent.substring(lastNamedArgI, j - key.length - 1);
-//                                 if (lastArg) {
-//                                     return {
-//                                         placeholder_type: placeholder_type,
-//                                         argument: command.arguments?.[key],
-//                                         options: [{
-//                                             name: "Arg value, new arg specified " + lastArg.name + " | " + argContent,
-//                                             value: "HELLO WORLD"
-//                                         }]
-//                                     };
-//                                 } else {
-//                                     return {
-//                                         placeholder_type: placeholder_type,
-//                                         argument: command.arguments?.[key],
-//                                         options: [{
-//                                             name: "Arg value, new arg specified, previous arg invalid " + " | " + argContent,
-//                                             value: "HELLO WORLD"
-//                                         }]
-//                                     };
-//                                 }
-//                             }
-//                         } else if (j + 1 == caretPosition) {
-//                             return {
-//                                 placeholder_type: placeholder_type,
-//                                 argument: command.arguments?.[key],
-//                                 options: [{
-//                                     name: "Arg key end colon " + key + " | " + lastArg,
-//                                     value: "HELLO WORLD"
-//                                 }]
-//                             };
-//                         }
-//                         lastArg = value;
-//                         lastNamedArgI = j + 1;
-//                     }
-//                 }
-//                 break;
-//             }
-//             case ",": {
-//                 if (!lastArg && entries.length > 1) {
-//                     if (j >= caretPosition) {
-//                         const argContent = functionContent.substring(lastUnnamedArgI, j - 1);
-//                         // chec kif argCommaI is greater than number of args?
-//                         if (argCommaI >= entries.length) {
-//                             return {
-//                                 placeholder_type: placeholder_type,
-//                                 options: [{
-//                                     name: "NO MORE AVAILABLE ARGS " + argContent,
-//                                     value: "HELLO WORLD"
-//                                 }]
-//                             };
-//                         }
-//                         const arg = entries[argCommaI][1];
-//                         return {
-//                             placeholder_type: placeholder_type,
-//                             argument: arg,
-//                             options: [{
-//                                 name: "ARG value, comma " + arg.name + " | " + argContent,
-//                                 value: "HELLO WORLD"
-//                             }]
-//                         };
-
-//                     }
-//                     argCommaI++;
-//                     lastUnnamedArgI = j + 1;
-//                 }
-//                 break;
-//             }
-//         }
-//     }
-//     if (lastArg) {
-//         const argContent = functionContent.substring(lastNamedArgI);
-//         return {
-//             placeholder_type: placeholder_type,
-//             argument: lastArg,
-//             options: [{
-//                 name: "Arg value/end bracket " + lastArg.name + " | " + argContent,
-//                 value: "HELLO WORLD"
-//             }]
-//         };
-//     }
-//     const argContent = functionContent.substring(lastUnnamedArgI, functionContent.length);
-//     if (argCommaI < entries.length) {
-//         const arg = entries[argCommaI][1];
-//         return {
-//             placeholder_type: placeholder_type,
-//             argument: arg,
-//             options: [{
-//                 name: "Arg value/end bracket unnamed " + argContent,
-//                 value: "HELLO WORLD"
-//             }]
-//         };
-//     }
-//     return {
-//         placeholder_type: placeholder_type,
-//         options: [{
-//             name: "NO RESULTS?? " + functionContent,
-//             value: "HELLO WORLD"
-//         }]
-//     };
-// }
 
 export class CommandBuilder {
     command: ICommand;
@@ -1106,7 +743,7 @@ export class CommandBuilder {
     }
 
     build(): BaseCommand {
-        return new BaseCommand(this.name, this.command)
+        return new BaseCommand([this.name], this.command)
     }
 }
 

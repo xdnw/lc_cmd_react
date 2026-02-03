@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TABLE } from "../../lib/endpoints";
 import { Button } from "../../components/ui/button";
 import { CopyToClipboardTextArea } from "../../components/ui/copytoclipboard";
@@ -52,7 +52,6 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
         setSortState(props.sort);
         return props;
     }, [getTableProps, setType, setSelection, setColumns, setSortState]);
-
     const highlightRowOrColumn = useCallback((col?: number, row?: number) => {
         const tableElem = table.current?.element;
         // remove all bg-red-500 from table th and td

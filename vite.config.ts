@@ -142,9 +142,6 @@ export default defineConfig(({ mode }) => {
       //           id.includes('node_modules/msgpackr')) {
       //           return 'vendor-utils';
       //         }
-      //         if (id.includes('node_modules/@odiffey/discord-markdown')) {
-      //           return 'vendor-discord-markdown';
-      //         }
       //         // Consider removing manualChunks if default splitting is sufficient
       //       },
       //     },

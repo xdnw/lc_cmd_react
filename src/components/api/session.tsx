@@ -1,16 +1,126 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from '../ui/card';
+import { useDialog } from '../layout/DialogContext';
+import { Button } from '../ui/button';
 import CopyToClipboard from '../ui/copytoclipboard';
-import { getDiscordAuthUrl } from '@/utils/Auth';
-import { Button } from '../ui/button.tsx';
 import { Link } from 'react-router-dom';
-import { bulkQueryOptions } from '@/lib/queries.ts';
-import { SESSION } from '@/lib/endpoints.ts';
-import { QueryResult } from '@/lib/BulkQuery.ts';
-import { WebSession } from '@/lib/apitypes.js';
+import LazyIcon from '../ui/LazyIcon';
+import { getDiscordAuthUrl } from '@/utils/Auth';
+import React, { useCallback, useMemo } from 'react';
+import { WebSession } from '@/lib/apitypes';
+import { QueryResult } from '@/lib/BulkQuery';
+import { SESSION } from '@/lib/endpoints';
+import { bulkQueryOptions } from '@/lib/queries';
 import { useQuery } from '@tanstack/react-query';
-import LazyIcon from '../ui/LazyIcon.tsx';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
+import Timestamp from '../ui/timestamp';
 
 export function LoginPicker() {
+    const { showDialog } = useDialog();
+
+    const discordMessage = useMemo(
+        () => (
+            <div className="space-y-3">
+                <p className="text-sm text-foreground">
+                    <strong>Login (OAuth)</strong>: Clicking <em>Login with Discord</em> opens the OAuth flow in your browser to link your account immediately.
+                </p>
+
+                <p className="text-sm text-foreground">
+                    <strong>Request a web link</strong>:
+                    Use <CopyToClipboard text="/web" /> in a channel with the Locutus bot to request a web login link (the bot will DM you a link).
+                </p>
+
+                <div className="mt-2">
+                    <Button variant="outline" size="sm" asChild>
+                        <a href="https://discord.com/download" target="_blank" rel="noreferrer">Download Discord</a>
+                    </Button>
+                </div>
+            </div>
+        ),
+        []
+    );
+
+    const mailMessage = useMemo(
+        () => (
+            <div className="space-y-2">
+                <h3 className="font-semibold text-foreground">How to authenticate</h3>
+                <ol className="list-decimal list-inside text-sm text-foreground">
+                    <li>Select your nation</li>
+                    <li>Open your in-game mail</li>
+                    <li>Click the authentication link</li>
+                </ol>
+            </div>
+        ),
+        []
+    );
+
+    const openDiscordInfo = useCallback(
+        () => showDialog("Discord: Login vs `/web`", discordMessage),
+        [showDialog, discordMessage]
+    );
+
+    const openMailInfo = useCallback(
+        () => showDialog("In-Game Mail Authentication", mailMessage),
+        [showDialog, mailMessage]
+    );
+
+    return (
+        <div className="bg-light/10 border border-light/10 rounded p-2 mt-4">
+            <div className="pb-3 flex items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-bold">Sign in to access web features</h1>
+                    {/* <CardTitle>Sign in to access web features</CardTitle> */}
+                    <div className="text-sm text-foreground">Link your Discord or in-game nation.</div>
+                </div>
+                <LazyIcon name="KeyRound" size={28} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="rounded border p-4">
+                    <div className="mb-2 font-semibold text-lg flex items-center gap-2 text-foreground">
+                        <LazyIcon name="KeyRound" size={18} /> Login with Discord
+                    </div>
+
+                    <div className="text-sm mb-4 text-foreground">
+                        Click <strong>Login with Discord</strong> to open the OAuth flow and link your account.
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                            <a href={getDiscordAuthUrl()} aria-label="Login via Discord">
+                                <LazyIcon name="KeyRound" size={14} />&nbsp;Login with Discord
+                            </a>
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={openDiscordInfo}>What is Discord?</Button>
+                    </div>
+                </Card>
+
+                <Card className="rounded border p-4">
+                    <div className="mb-2 font-semibold text-lg flex items-center gap-2 text-foreground">
+                        <LazyIcon name="Mail" size={18} /> Authenticate via In-Game Mail
+                    </div>
+
+                    <div className="text-sm text-foreground mb-4 leading-relaxed">
+                        You will receive a login link via in-game mail.
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                            <Link to={`${process.env.BASE_PATH}nation_picker`}>Choose Nation</Link>
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={openMailInfo}>Help</Button>
+                    </div>
+                </Card>
+            </div>
+
+            {/* Footer: kept your copy + CopyToClipboard button */}
+            <div className="mt-3 text-sm text-foreground flex items-center gap-3">
+                <span>You can use a login link on Discord by using the command:</span>
+                <CopyToClipboard text="/web" /> <span className="text-foreground">(the bot will DM you a link)</span>
+            </div>
+        </div>
+    );
+}
+export function LoginPickerOld() {
     return (
         <div className="themeDiv p-2 ">
             <Tabs defaultValue="discord">
@@ -55,6 +165,8 @@ export function LoginPicker() {
 
 export default function SessionInfo() {
     const { data, error } = useQuery<QueryResult<WebSession>>(bulkQueryOptions(SESSION.endpoint, {}, true));
+    console.log("Session data:", data);
+
 
     if (!data?.data || data.error) {
         return <>
@@ -107,7 +219,8 @@ export default function SessionInfo() {
                     <td className="p-1">Expires</td>
                     <td className="p-1">
                         <div className="relative">
-                            {session.expires}
+                            {/* add 30 days */}
+                            {session.expires ? <Timestamp millis={session.expires} /> : "N/A"}
                             <Button variant="outline" size="sm" className='border-slate-600 absolute top-0 right-0'
                                 asChild>
                                 <Link to={`${process.env.BASE_PATH}logout`}>Logout</Link></Button>

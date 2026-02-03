@@ -337,8 +337,8 @@ export function WebTargetRow({ includeStrength, self, target, classes, now }: { 
             <td className="border border-gray-500/25 p-1">{commafy(target.spies)}</td>
             <td className="border border-gray-500/25 p-1">{commafy(target.missile)}</td>
             <td className="border border-gray-500/25 p-1">{commafy(target.nuke)}</td>
-            <td className="border border-gray-500/25 p-1">{commafy(Math.round(target.avg_infra))}</td>
             <td className="border border-gray-500/25 p-1">{commafy(target.score)}</td>
+            <td className="border border-gray-500/25 p-1">{commafy(Math.round(target.avg_infra))}</td>
         </tr>
     );
 }

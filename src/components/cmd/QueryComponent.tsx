@@ -31,7 +31,8 @@ export default function QueryComponent(
                 label: options.text ? options.text[i] : o + "",
                 value: o + "",
                 subtext: options.subtext ? options.subtext[i] : undefined,
-                color: options.color ? options.color[i] : undefined
+                color: options.color ? options.color[i] : undefined,
+                icon: options.icon ? options.icon[i] : undefined
             }));
             return <ListComponent argName={argName} options={labelled} isMulti={multi} initialValue={initialValue}
                                   setOutputValue={setOutputValue}/>

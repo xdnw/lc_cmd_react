@@ -32,20 +32,20 @@ const GuildPicker = () => {
             </Button>
             <div className="bg-light/10 border border-light/10 p-2 m-0 mt-2">
                 {session?.guild && <SelectedGuildInfo id={session.guild} name={session.guild_name} icon={session.guild_icon} />}
-                <GuildForm handleResponse={handleResponse} />
-                <hr className="my-2" />
                 <div className="bg-accent p-2 rounded relative">
                     <h1 className="text-lg font-bold">Don't see your server here? </h1>
                     <Link className="text-blue-600 hover:text-blue-800 underline" to={`${process.env.BOT_INVITE}`}>Invite {process.env.APPLICATION}</Link> to your server,
                     then see the <Link className="text-blue-600 hover:text-blue-800 underline" to={`${process.env.WIKI_URL}/initial_setup`}>Wiki</Link> for installation instructions.
                 </div>
+                <hr className="my-2" />
+                <GuildForm handleResponse={handleResponse} />
             </div>
         </>
     );
 };
 
 const GuildForm = (({ handleResponse }: { handleResponse: (data: SetGuild) => void }) => {
-    const handleResponseCallback = useCallback(({data}: {data: SetGuild}) => {
+    const handleResponseCallback = useCallback(({ data }: { data: SetGuild }) => {
         handleResponse(data);
     }, [handleResponse]);
     return <ApiFormInputs

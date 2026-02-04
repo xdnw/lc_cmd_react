@@ -187,6 +187,9 @@ export interface WebSuccess {
     success: boolean;
     message?: string;
 }
+export interface WebError {
+    error: string;
+}
 
 export interface WebTable {
     errors?: WebTableError[];

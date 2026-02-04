@@ -6,13 +6,14 @@ import { Link } from 'react-router-dom';
 import LazyIcon from '../ui/LazyIcon';
 import { getDiscordAuthUrl } from '@/utils/Auth';
 import React, { useCallback, useMemo } from 'react';
-import { WebSession } from '@/lib/apitypes';
+import { WebError, WebSession } from '@/lib/apitypes';
 import { QueryResult } from '@/lib/BulkQuery';
 import { SESSION } from '@/lib/endpoints';
 import { bulkQueryOptions } from '@/lib/queries';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import Timestamp from '../ui/timestamp';
+import Loading from '../ui/loading';
 
 export function LoginPicker() {
     const { showDialog } = useDialog();
@@ -164,92 +165,276 @@ export function LoginPickerOld() {
 }
 
 export default function SessionInfo() {
-    const { data, error } = useQuery<QueryResult<WebSession>>(bulkQueryOptions(SESSION.endpoint, {}, true));
-    console.log("Session data:", data, data?.error);
-    const session = data?.data;
+    const {
+        data: queryResult,
+        error,
+        isLoading,
+        isFetching,
+        refetch,
+    } = useQuery<QueryResult<WebSession>>(bulkQueryOptions(SESSION.endpoint, {}, true));
 
-    if (!session || session?.data?.errorr != null) {
-        return <>
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                <strong className="font-bold">Error2:&nbsp;</strong>
-                <span className="block sm:inline">Could not fetch login data. {error?.message ?? data?.error ?? "Unknown Error"}</span>
-            </div>
-            <LoginPicker />
-        </>
+    const session = queryResult?.data ?? null;
+    const errorOrNull = session as unknown as WebError;
+    const backendError =
+        errorOrNull?.error ?? queryResult?.error ?? (error instanceof Error ? error.message : null);
+
+    const basePath = process.env.BASE_PATH ?? "/";
+
+    if (isLoading) {
+        return (
+            <Card className="bg-light/10 border border-light/10">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <LazyIcon name="User" size={18} />
+                        Session
+                    </CardTitle>
+                    <CardDescription>Loading your login details…</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        <Loading variant="ripple" />
+                        Fetching session…
+                    </div>
+                </CardContent>
+            </Card>
+        );
     }
 
-    return <div className="bg-light/10 border border-light/10 p-2 rounded relative">
-        <table className="table-auto w-full border-separate border-spacing-y-1">
-            <tbody>
-                <tr className="bg-secondary">
-                    <td className="px-1 py-1 bg-secondary">User</td>
-                    <td className="px-1 py-1 bg-secondary">
-                        {session.user_icon && <img src={session.user_icon} alt={session.user_name}
-                            className="w-4 h-4 inline-block mr-1" />}
-                        {session.user_name ? session.user_name + " | " : ""}
-                        {session.user ? session.user : "N/A"}
-                    </td>
-                </tr>
-                <tr className="bg-secondary">
-                    <td className="p-1">Nation</td>
-                    <td className="p-1">
-                        <div className="relative">
-                            {session.nation ? <Link className="text-blue-600 hover:text-blue-800 underline"
-                                to={`https://politicsandwar.com/nation/id=${session.nation}`}>
-                                {session.nation_name ? session.nation_name : session.nation}
-                            </Link> : "N/A"}
-                            {session.alliance && " | "}
-                            {session.alliance ? <Link className="text-blue-600 hover:text-blue-800 underline"
-                                to={`https://politicsandwar.com/alliance/id=${session.alliance}`}>
-                                {session.alliance_name ? session.alliance_name : session.alliance}
-                            </Link> : ""}
-                            {(session.nation && session.user) &&
-                                <Button variant="outline" size="sm"
-                                    className='border-slate-600 absolute top-0 right-0'
-                                    asChild>
-                                    <Link to={`${process.env.BASE_PATH}unregister`}>
-                                        {session.registered ? session.registered_nation == session.nation ? "Unlink" : "!! Fix Invalid Registration !!" : "Link to Discord"}
-                                    </Link>
-                                </Button>
-                            }
+    if (!session || backendError) {
+        return (
+            <>
+                <Card className="border border-destructive/40 bg-destructive/5">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <LazyIcon name="TriangleAlert" size={18} />
+                            Could not load session
+                        </CardTitle>
+                        <CardDescription>
+                            {String(backendError ?? "Unknown error")}
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+
+                <LoginPicker />
+            </>
+        );
+    }
+
+    const nationUrl = session.nation ? `https://politicsandwar.com/nation/id=${session.nation}` : null;
+    const allianceUrl = session.alliance ? `https://politicsandwar.com/alliance/id=${session.alliance}` : null;
+
+    const linkLabel = session.registered
+        ? (session.registered_nation == session.nation ? "Unlink" : "Fix invalid registration")
+        : "Link to Discord";
+
+    const linkHintClass =
+        session.registered && session.registered_nation != session.nation
+            ? "border-destructive/60 text-destructive hover:text-destructive"
+            : "";
+
+    const refetchCallback = useCallback(() => refetch(), [refetch]);
+
+    return (
+        <Card className="bg-light/10 border border-light/10">
+            <CardHeader className="space-y-2">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <CardTitle className="flex items-center gap-2">
+                            <LazyIcon name="User" size={18} />
+                            Session
+                            {isFetching ? (
+                                <span className="ml-2 text-xs text-muted-foreground">Refreshing…</span>
+                            ) : null}
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                            Signed in as {session.user_name || session.user || "N/A"}
+                        </CardDescription>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={refetchCallback}
+                            disabled={isFetching}
+                        >
+                            <LazyIcon name="RotateCcw" className={isFetching ? "animate-spin" : ""} />
+                            <span className="ml-2">Refresh</span>
+                        </Button>
+                    </div>
+                </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-md border bg-background/20 p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Identity
                         </div>
-                    </td>
-                </tr>
-                <tr className="bg-secondary">
-                    <td className="p-1">Expires</td>
-                    <td className="p-1">
-                        <div className="relative">
-                            {/* add 30 days */}
-                            {session.expires ? <Timestamp millis={session.expires} /> : "N/A"}
-                            <Button variant="outline" size="sm" className='border-slate-600 absolute top-0 right-0'
-                                asChild>
-                                <Link to={`${process.env.BASE_PATH}logout`}>Logout</Link></Button>
+
+                        <div className="mt-3 space-y-3 text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="text-muted-foreground">User</div>
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {session.user_icon ? (
+                                        <img
+                                            src={session.user_icon}
+                                            alt={session.user_name || "User"}
+                                            className="h-6 w-6 rounded-sm"
+                                        />
+                                    ) : null}
+                                    <div className="truncate">
+                                        {session.user_name ? `${session.user_name} | ` : ""}
+                                        {session.user || "N/A"}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="text-muted-foreground">Nation</div>
+                                <div className="min-w-0 truncate text-right">
+                                    {nationUrl ? (
+                                        <a
+                                            href={nationUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="underline underline-offset-4 hover:text-blue-500"
+                                        >
+                                            {session.nation_name || session.nation}
+                                        </a>
+                                    ) : (
+                                        "N/A"
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="text-muted-foreground">Alliance</div>
+                                <div className="min-w-0 truncate text-right">
+                                    {allianceUrl ? (
+                                        <a
+                                            href={allianceUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="underline underline-offset-4 hover:text-blue-500"
+                                        >
+                                            {session.alliance_name || session.alliance}
+                                        </a>
+                                    ) : (
+                                        "N/A"
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </td>
-                </tr>
-                <tr className="bg-secondary">
-                    <td className="p-1">Guild</td>
-                    <td className="p-1">
-                        <div className="relative">
-                            {session.guild_icon && <img src={session.guild_icon} alt={session.guild_name}
-                                className="w-4 h-4 inline-block mr-1" />}
-                            {session.guild_name ? session.guild_name + " | " : ""}
-                            {session.guild ? session.guild : "N/A"}
-                            <Button variant="outline" size="sm" className='border-slate-600 absolute top-0 right-0'
-                                asChild>
-                                <Link
-                                    to={`${process.env.BASE_PATH}guild_select`}>{session.guild ? "Switch" : "Select"}</Link></Button>
+                    </div>
+
+                    <div className="rounded-md border bg-background/20 p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Session
                         </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        {session.guild && true &&
-            <Button variant="link" className='hover:text-blue-500 underline text-lg'
-                asChild>
-                <Link
-                    to={`${process.env.BASE_PATH}guild_member`}>View Guild Member
-                    Homepage<LazyIcon name="ChevronRight" /></Link></Button>
-        }
-    </div>
+
+                        <div className="mt-3 space-y-3 text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="text-muted-foreground">Expires</div>
+                                <div className="text-right">
+                                    {session.expires ? <Timestamp millis={session.expires} /> : "N/A"}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="text-muted-foreground">Discord link</div>
+                                <div className="text-right">
+                                    {session.registered ? "Linked" : "Not linked"}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Guild: make it the primary / centered panel */}
+                <div className="rounded-md border bg-background/20 p-4">
+                    <div className="flex flex-col items-center text-center gap-2">
+                        <div className="flex items-center gap-2">
+                            <LazyIcon name="Users" size={18} />
+                            <div className="text-base font-semibold">Guild context</div>
+                        </div>
+
+                        {session.guild ? (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    {session.guild_icon ? (
+                                        <img
+                                            src={session.guild_icon}
+                                            alt={session.guild_name || "Guild"}
+                                            className="h-8 w-8 rounded-sm"
+                                        />
+                                    ) : null}
+                                    <div className="text-sm">
+                                        <span className="font-medium">
+                                            {session.guild_name || "Guild"}
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                            {" "}
+                                            | {session.guild}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="text-sm text-muted-foreground max-w-xl">
+                                    Your selected guild determines which member pages and guild-specific features you can access.
+                                </div>
+
+                                <div className="flex flex-wrap justify-center gap-2 pt-1">
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link to={`${basePath}guild_select`}>Switch guild</Link>
+                                    </Button>
+                                    <Button variant="secondary" size="sm" asChild>
+                                        <Link to={`${basePath}guild_member`}>
+                                            View guild member homepage
+                                            <span className="ml-1">
+                                                <LazyIcon name="ChevronRight" />
+                                            </span>
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-sm text-muted-foreground max-w-xl">
+                                    Select a guild to unlock guild-specific pages (member home, permissions-based tools, and anything that depends on a guild context).
+                                </div>
+
+                                <div className="flex flex-wrap justify-center gap-2 pt-1">
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link to={`${basePath}guild_select`}>Select a guild</Link>
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+
+            <CardFooter className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    {session.nation && session.user ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className={linkHintClass}
+                            asChild
+                        >
+                            <Link to={`${basePath}unregister`}>{linkLabel}</Link>
+                        </Button>
+                    ) : null}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                        <Link to={`${basePath}logout`}>Logout</Link>
+                    </Button>
+                </div>
+            </CardFooter>
+        </Card>
+    );
 }

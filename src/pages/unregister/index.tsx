@@ -80,7 +80,7 @@ export function UnregisterValid() {
         showDialog("Unregistered", "Successfully unlinked your discord and nation. It is recommended to logout and log back in to register a new user or nation.", false);
     }, [queryClient, showDialog]);
     return <div>
-        return <ApiFormInputs
+        <ApiFormInputs
             endpoint={UNREGISTER}
             label="Unlink Accounts"
             message={<>
@@ -100,7 +100,7 @@ export function UnregisterInvalid({ session }: { session: WebSession }) {
         queryClient.removeQueries({ queryKey: [SESSION.endpoint.name] });
         showDialog("Unregistered", "Successfully unlinked your discord and nation. It is recommended to logout and log back in to register a new user or nation.", false);
     }
-    , [queryClient, showDialog]);
+        , [queryClient, showDialog]);
 
     return <div>
         <ApiFormInputs

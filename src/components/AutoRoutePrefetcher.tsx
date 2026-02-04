@@ -57,7 +57,7 @@ export default function AutoRoutePrefetcher({
                 processPrefetchQueue();
             });
         } catch (e) {
-            console.debug('Failed to prefetch route:', route.key);
+            console.log('Failed to prefetch route:', route.key);
             activePrefetches.current--;
             processPrefetchQueue();
         }

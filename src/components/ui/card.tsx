@@ -6,13 +6,13 @@ const CardComponent = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
   const classes = React.useMemo(
-    () => cn("border bg-card text-card-foreground shadow-xs", className),
+    () => cn("rounded-lg border bg-card text-card-foreground shadow-xs", className),
     [className]
   )
   return <div ref={ref} className={classes} {...props} />
 })
 CardComponent.displayName = "Card"
-const Card = CardComponent  // removed React.memo for potential first render gains
+const Card = CardComponent // removed React.memo for potential first render gains
 
 const CardHeaderComponent = React.forwardRef<
   HTMLDivElement,
@@ -28,7 +28,7 @@ CardHeaderComponent.displayName = "CardHeader"
 const CardHeader = CardHeaderComponent
 
 const CardTitleComponent = React.forwardRef<
-  HTMLParagraphElement,
+  HTMLHeadingElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => {
   const classes = React.useMemo(

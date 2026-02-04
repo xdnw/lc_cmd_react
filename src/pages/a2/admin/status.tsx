@@ -7,6 +7,8 @@ import { useSearchParams } from "react-router-dom";
 import { ErrorSample, TaskDetails, TaskList, TaskSummary } from "@/lib/apitypes";
 import { LOCUTUS_TASK, LOCUTUS_TASKS } from "@/lib/endpoints";
 import LazyIcon from "@/components/ui/LazyIcon";
+import { InstatusStatusCard } from "./instatus";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const Outcome = {
     EMPTY: 0,
@@ -880,11 +882,11 @@ const TasksDashboardView = memo(function TasksDashboardView({
     const expandedCount = expanded.size;
 
     return (
-        <div className="space-y-3">
-            <div className="space-y-2">
-                <div className="flex flex-wrap items-end justify-between gap-2">
+        <Card className="space-y-3">
+            <CardHeader className="space-y-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                        <div className="text-2xl font-semibold tracking-tight">Task Health</div>
+                        <CardTitle className="flex items-center gap-2 p-2">Task Health</CardTitle>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                             {HEALTH_ORDER.map((h) => (
                                 <HealthCountChip key={h} health={h} count={healthCounts[h]} />
@@ -994,27 +996,29 @@ const TasksDashboardView = memo(function TasksDashboardView({
                 </div>
 
                 <RefreshCountdownBar tick={tick} refreshMs={DASH_REFRESH_MS} active={autoRefresh && !isRefetching} loading={isRefetching} />
-            </div>
+            </CardHeader>
 
-            <div className="divide-y overflow-hidden rounded-md border bg-card/40">
-                {rows.length === 0 ? (
-                    <div className="px-3 py-6 text-sm text-muted-foreground">
-                        No tasks to show{query ? " (try clearing your search)" : ""}.
-                    </div>
-                ) : (
-                    rows.map(({ task, health }) => (
-                        <TaskRow
-                            key={task.id}
-                            task={task}
-                            health={health}
-                            now={now}
-                            open={expanded.has(task.id)}
-                            onToggleOpen={onToggleOpen}
-                        />
-                    ))
-                )}
-            </div>
-        </div>
+            <CardContent className="space-y-3">
+                <div className="divide-y overflow-hidden rounded-md border bg-card/40">
+                    {rows.length === 0 ? (
+                        <div className="px-3 py-6 text-sm text-muted-foreground">
+                            No tasks to show{query ? " (try clearing your search)" : ""}.
+                        </div>
+                    ) : (
+                        rows.map(({ task, health }) => (
+                            <TaskRow
+                                key={task.id}
+                                task={task}
+                                health={health}
+                                now={now}
+                                open={expanded.has(task.id)}
+                                onToggleOpen={onToggleOpen}
+                            />
+                        ))
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 });
 
@@ -1034,7 +1038,9 @@ export default function TasksDashboard() {
             data: TaskList;
             reload?: () => void;
             isRefetching?: boolean;
-        }) => (
+        }) => (<>
+
+            <InstatusStatusCard />
             <TasksDashboardView
                 data={data}
                 onlyUnhealthy={onlyUnhealthy}
@@ -1042,6 +1048,7 @@ export default function TasksDashboard() {
                 reload={reload}
                 isRefetching={isRefetching}
             />
+        </>
         ),
         [onlyUnhealthy, toggleOnlyUnhealthy]
     );

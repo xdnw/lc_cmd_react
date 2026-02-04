@@ -15,5 +15,5 @@ export default {
     'process.env.WIKI_URL': 'https://github.com/xdnw/locutus/wiki',
     'process.env.BASE_PATH': '/',
     'process.env.GTAG_ID': 'G-4J3KV26E2Z',
-    'process.env.instatus': 'locutus'
+    'process.env.instatus': ''
 };

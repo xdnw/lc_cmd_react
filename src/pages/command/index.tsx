@@ -79,60 +79,117 @@ export function commandButtonAction({ name, command, responseRef, showDialog }: 
     });
 }
 
-function runCommand({ command, values, onResponse }: {
-    command: string,
-    values: { [key: string]: string | string[] },
-    onResponse: (json: { [key: string]: string | object | object[] | number | number[] | string[] }) => void
+type Msg = { [key: string]: string | object | object[] | number | number[] | string[] };
+
+export function runCommand({
+    command,
+    values,
+    onResponse,
+}: {
+    command: string;
+    values: { [key: string]: string | string[] };
+    onResponse: (json: Msg) => void;
 }) {
     const url = new URL(`${process.env.BACKEND_URL}sse/${command}`);
+    for (const [k, v] of Object.entries(values)) {
+        if (Array.isArray(v)) v.forEach(x => url.searchParams.append(k, x));
+        else url.searchParams.append(k, v);
+    }
 
-    console.log("URL is", url.toString());
+    const controller = new AbortController();
 
-    Object.entries(values).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-            value.forEach(val => url.searchParams.append(key, val));
-        } else {
-            url.searchParams.append(key, value);
-        }
-    });
+    (async () => {
+        const res = await fetch(url.toString(), {
+            method: "GET",
+            credentials: "include", // Important since you are using cookies (lc_guild)
+            signal: controller.signal,
+            headers: { Accept: "application/x-msgpack" },
+        });
 
-    console.log("runCommand", command, values);
-
-    fetch(url.toString(), {
-        method: 'GET',
-        credentials: 'include', // Ensure cookies are included
-        headers: {
-            'Accept': 'text/event-stream'
-        }
-    }).then(response => {
-        if (!response.ok) {
-            onResponse({ error: response.statusText, title: "Error Fetching" });
+        if (!res.ok || !res.body) {
+            onResponse({ error: res.statusText, title: "Error Fetching" });
             return;
         }
-        const reader = response.body?.getReader();
-        function readStream() {
-            reader?.read().then(({ done, value }) => {
-                if (done) {
-                    console.log("Stream closed");
-                    return;
-                }
-                const json: { [key: string]: string | object | object[] | number | number[] | string[] } = UNPACKR.decode(value);
-                console.log("Message from server:", json);
-                onResponse(json);
-                readStream();
-            }).catch(error => {
-                onResponse({ error: error.toString(), title: "Error Reading Stream" });
-            });
-        }
 
-        readStream();
-    }).catch(error => {
-        onResponse({ error: error.toString(), title: "Error Fetching" });
+        const reader = res.body.getReader();
+
+        // 64KB initial buffer
+        let buf = new Uint8Array(64 * 1024);
+        let view = new DataView(buf.buffer);
+        let r = 0, w = 0;
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (!value?.length) continue;
+
+                // Ensure capacity
+                if (buf.length - w < value.length) {
+                    // Compact: move unread bytes to start
+                    if (r > 0) { 
+                        buf.copyWithin(0, r, w); 
+                        w -= r; 
+                        r = 0; 
+                    }
+                    // Grow: if still not enough space, resize
+                    if (buf.length - w < value.length) {
+                        const bigger = new Uint8Array(Math.max(buf.length * 2, w + value.length));
+                        bigger.set(buf.subarray(0, w));
+                        buf = bigger;
+                        view = new DataView(buf.buffer);
+                    }
+                }
+
+                buf.set(value, w);
+                w += value.length;
+
+                // Parse frames (Loop until we don't have enough bytes for the next frame)
+                while (w - r >= 4) {
+                    const len = view.getUint32(r, false); // Big-Endian (matches server)
+                    
+                    // Safety: Sanity check to prevent OOM on corrupted streams
+                    if (len > 50 * 1024 * 1024) { 
+                        throw new Error(`Frame too large: ${len} bytes`);
+                    }
+
+                    // If we don't have the full body yet, stop parsing and wait for next chunk
+                    if (w - r < 4 + len) break;
+
+                    const payload = buf.subarray(r + 4, r + 4 + len);
+                    
+                    // Decode
+                    const msg = UNPACKR.decode(payload) as Msg;
+                    onResponse(msg);
+
+                    r += 4 + len;
+                }
+
+                // Reset pointers if buffer is fully consumed to keep indices low
+                if (r === w) { r = 0; w = 0; }
+            }
+        } catch (e) {
+            if (!controller.signal.aborted) {
+                console.error("Stream error:", e);
+                onResponse({ error: String(e), title: "Stream Error" });
+                controller.abort(); // Ensure connection closes
+            }
+        } finally {
+            try { await reader.cancel(); } catch {}
+        }
+    })().catch(e => {
+        // Handle fetch setup errors
+        if (!controller.signal.aborted) {
+            onResponse({ error: String(e), title: "Fetch Error" });
+        }
     });
+
+    // Return the abort handle to the React component/Caller
+    return { abort: () => controller.abort() };
 }
 
 function handleDialog({ json, responseRef, showDialog }: {
-    json: { [key: string]: string | object | object[] | number | number[] | string[] },
+    json: Msg,
     responseRef?: React.RefObject<HTMLDivElement | null>,
     showDialog: (title: string, message: React.ReactNode, quote?: (boolean | undefined)) => void
 }): boolean {
@@ -146,7 +203,7 @@ function handleDialog({ json, responseRef, showDialog }: {
             const ids: string[] = json['value'] as string[];
             if (responseRef && responseRef.current) {
                 ids.forEach(id => {
-                    const element = responseRef.current?.querySelector(`#${id}`);
+                    const element = responseRef.current?.querySelector(`[id="${id}"]`);
                     if (element) {
                         element.remove();
                     }

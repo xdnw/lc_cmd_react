@@ -29,9 +29,9 @@ export function bulkQueryOptions<T>(
                 cache: undefined,
                 batch_wait_ms: batch_wait_ms ?? 200
             });
-            if (result.error) {
+            if (result.error || result?.data?.errorr != null) {
                 console.log("Error in query", result.error);
-                throw new BackendError(result.error);
+                throw new BackendError(result?.error ?? result.data?.errorr ?? "Unknown error");
             }
             return result;
         },

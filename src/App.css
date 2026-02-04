@@ -2,26 +2,51 @@
 
 pre,
 code {
-  white-space: pre-wrap !important;
-  word-break: break-all !important;
-  overflow-wrap: break-all !important;
-  max-width: 100% !important;
+    font-family: var(--font-mono,
+            ui-monospace,
+            SFMono-Regular,
+            Menlo,
+            Monaco,
+            Consolas,
+            "Liberation Mono",
+            "Courier New",
+            monospace);
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    max-width: 100% !important;
+    tab-size: 2;
 }
 
-html, body, #root {
-    font-family: 'Chakra Petch', sans-serif;
-    min-height:100vh;
+html,
+body,
+#root {
+    font-family: var(--font-sans, 'Chakra Petch', sans-serif);
+    min-height: 100vh;
+    min-height: 100dvh;
+
     --color-scheme: light;
     color-scheme: var(--color-scheme);
 }
+
 .dark {
     --color-scheme: dark;
 }
+
 .dark * {
     color-scheme: dark;
 }
-body, html {
+
+body,
+html {
     height: 100%;
+}
+
+/* App background (default = light). Keep `.light` selectors for backwards compatibility. */
+.themeBody {
+    background-image: linear-gradient(135deg, #ecf7ff 0%, #c6e6ff 25%, #e5f1ff 100%);
+    background-size: 100% 100vh;
+    background-attachment: fixed;
 }
 
 .dark .themeBody {
@@ -29,6 +54,7 @@ body, html {
     background-size: 100% 100vh;
     background-attachment: fixed;
 }
+
 .themeBody::before {
     position: fixed;
     content: "";
@@ -40,57 +66,85 @@ body, html {
     background-repeat: repeat;
     pointer-events: none;
 }
+
 .dark .themeBody::before {
     opacity: 0.3;
 }
+
 .light .themeBody::before {
     filter: invert(1) opacity(0.3);
 }
+
+/* Legacy compatibility: pages that still add `.light` explicitly */
 .light .themeBody {
     background-image: linear-gradient(135deg, #ecf7ff 0%, #c6e6ff 25%, #e5f1ff 100%);
     background-size: 100% 100vh;
     background-attachment: fixed;
 }
+
+/* Surface container (themeDiv) */
+.themeDiv {
+    border-radius: var(--radius-md, 4px);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
 .dark .themeDiv {
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    background-color: hsl(var(--foreground) / 0.08);
+    border: 1px solid hsl(var(--foreground) / 0.12);
 }
+
 .light .themeDiv {
-    background-color: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(0 0 0, 0.1);
-    border-radius: 4px;
+    background-color: hsl(var(--background) / 0.55);
+    border: 1px solid hsl(var(--foreground) / 0.12);
 }
+
 .clusterize-scroll {
-    height: 300px; /* adjust this value as needed */
+    height: 300px;
+    /* adjust this value as needed */
     overflow: auto;
 }
 
+/* Scrollbars */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
 ::-webkit-scrollbar-track {
-    background: transparent; /* Make the track transparent */
+    background: transparent;
+    /* Make the track transparent */
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.5); /* Customize the thumb color */
-    border-radius: 10px; /* Round the corners */
-    border: 3px solid transparent; /* Add space around the thumb */
-    background-clip: content-box; /* Clip the background to the content box */
+    background-color: hsl(var(--foreground) / 0.35);
+    border-radius: 999px;
+    /* Round the corners */
+    border: 3px solid transparent;
+    /* Add space around the thumb */
+    background-clip: content-box;
+    /* Clip the background to the content box */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--foreground) / 0.5);
 }
 
 /* For Firefox */
 .light * {
-    scrollbar-color: rgba(0, 0, 0, 0.5) transparent;
+    scrollbar-color: hsl(var(--foreground) / 0.45) transparent;
 }
 
 /* Dark mode */
 .dark ::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.5); /* Customize the thumb color for dark mode */
+    background-color: hsl(var(--foreground) / 0.35);
 }
 
 .dark * {
-    scrollbar-color: rgba(255, 255, 255, 0.5) transparent; /* Customize the thumb color for dark mode */
+    scrollbar-color: hsl(var(--foreground) / 0.45) transparent;
 }
+
 ol {
-    list-style-type: decimal!important;
-    list-style-position: inside!important;
+    list-style-type: decimal !important;
+    list-style-position: inside !important;
 }

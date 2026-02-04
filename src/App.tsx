@@ -24,27 +24,41 @@ export interface AppRouteConfig {
 }
 
 const routeConfigs: AppRouteConfig[] = [
-  // Home and user management
+  /*
+  protected = logged in
+  Guild is selected = logged in and having selected a guild
+  
+  */
+
+  // Homepage
   { key: "home", path: "/home", element: () => import("./pages/home"), protected: false },
-  { key: "guild_member", path: "/guild_member", element: () => import("@/pages/guild_member"), protected: true },
+  // Unlink game nation
   { key: "unregister", path: "/unregister", element: () => import("@/pages/unregister"), protected: true },
   { key: "guild_select", path: "/guild_select", element: () => import("@/pages/guild_picker"), protected: true },
 
-  // Announcements
+  // Requires guild selected
+  { key: "guild_member", path: "/guild_member", element: () => import("@/pages/guild_member"), protected: true },
+
+  // Announcements (only when a guild is selected)
   { key: "announcements", path: "/announcements", element: () => import("@/pages/announcements"), protected: true },
   { key: "announcement_id", path: "/announcement/:id", element: () => import("@/pages/announcement"), protected: true },
   { key: "announcement", path: "/announcement", element: () => import("@/pages/announcements"), protected: true },
 
-  // Commands
+  // Commands (accessible to anyone)
   { key: "commands", path: "/commands", element: () => import("./pages/commands"), protected: false },
   { key: "command", path: "/command", element: () => import("./pages/commands"), protected: false },
   { key: "command_detail", path: "/command/:command", element: () => import("./pages/command"), protected: false },
+  // Display command result (anyone - but only select commands support)
+  { key: "view_command", path: "/view_command/:command", element: () => import("./pages/command/view_command"), protected: false },
+  // List of placeholders for a type
   { key: "placeholders", path: "/placeholders/:placeholder", element: () => import("@/pages/ph_list"), protected: false },
 
-  // Balance and records
-  { key: "balance", path: "/balance", element: () => import("@/pages/balance"), protected: false },
-  { key: "balance_category", path: "/balance/:category", element: () => import("@/pages/balance"), protected: false },
-  { key: "records", path: "/records", element: () => import("@/pages/records"), protected: false },
+  // Balance and records (only when a guild is selected)
+  { key: "balance", path: "/balance", element: () => import("@/pages/balance"), protected: true },
+  { key: "balance_category", path: "/balance/:category", element: () => import("@/pages/balance"), protected: true },
+  { key: "records", path: "/records", element: () => import("@/pages/records"), protected: true },
+
+  // Raid Finder (anyone)
   { key: "raid_nation", path: "/raid/:nation", element: () => import("./pages/raid"), protected: false },
   { key: "raid", path: "/raid", element: () => import("./pages/raid"), protected: false },
 
@@ -56,11 +70,11 @@ const routeConfigs: AppRouteConfig[] = [
   { key: "nation_picker", path: "/nation_picker", element: () => import("@/pages/nation_picker"), protected: false },
   { key: "register", path: "/register", element: () => import("@/pages/unregister"), protected: false },
 
-  // Tables
+  // Tables (anyone)
   { key: "custom_table", path: "/custom_table", element: () => import("./pages/custom_table/TablePage"), protected: false },
   { key: "view_table", path: "/view_table", element: () => import("@/pages/view_table"), protected: false },
 
-  // Graphs
+  // Graphs (anyone)
   { key: "col_mil_graph", path: "/col_mil_graph", element: () => import("./pages/graphs/col_mil_graph"), protected: false },
   { key: "col_tier_graph", path: "/col_tier_graph", element: () => import("./pages/graphs/col_tier_graph"), protected: false },
   { key: "edit_graph_type", path: "/edit_graph/:type", element: () => import("./pages/graphs/edit_graph"), protected: false },
@@ -68,15 +82,18 @@ const routeConfigs: AppRouteConfig[] = [
   { key: "view_graph_type", path: "/view_graph/:type", element: () => import("./pages/graphs/view_graph"), protected: false },
   { key: "view_graph", path: "/view_graph", element: () => import("./pages/graphs/edit_graph"), protected: false },
 
-  // WIP commands
-  { key: "view_command", path: "/view_command/:command", element: () => import("./pages/command/view_command"), protected: false },
+  // WIP pages (maybe display more if logged in (not implemented yet))
   { key: "alliance", path: "/alliance/:alliance", element: () => import("./pages/a2/alliance/alliance"), protected: false },
+
+  // Nation multi-boxing (anyone)
   { key: "multi", path: "/multi/:nation", element: () => import("./pages/a2/nation/multi"), protected: false },
   { key: "multi_v2", path: "/multi_v2/:nation", element: () => import("./pages/a2/nation/multi_2"), protected: false },
+
+  // game conflict viewer (anyone)
   { key: "conflicts", path: "/conflicts", element: () => import("./pages/a2/conflict/conflicts"), protected: false },
 
-  // admin
-  { key: "tasks", path: "/tasks", element: () => import("./pages/a2/admin/tasks"), protected: true },
+  // tasks (anyone - though view is limited if not an admin)
+  { key: "status", path: "/status", element: () => import("./pages/a2/admin/status"), protected: false },
 ];
 
 const PageView = lazy(() => import("./components/layout/page-view"));

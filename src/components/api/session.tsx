@@ -165,19 +165,19 @@ export function LoginPickerOld() {
 
 export default function SessionInfo() {
     const { data, error } = useQuery<QueryResult<WebSession>>(bulkQueryOptions(SESSION.endpoint, {}, true));
-    console.log("Session data:", data);
+    console.log("Session data:", data, data?.error);
+    const session = data?.data;
 
-
-    if (!data?.data || data.error) {
+    if (!session || session?.data?.errorr != null) {
         return <>
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                <strong className="font-bold">Error:&nbsp;</strong>
+                <strong className="font-bold">Error2:&nbsp;</strong>
                 <span className="block sm:inline">Could not fetch login data. {error?.message ?? data?.error ?? "Unknown Error"}</span>
             </div>
             <LoginPicker />
         </>
     }
-    const session = data.data;
+
     return <div className="bg-light/10 border border-light/10 p-2 rounded relative">
         <table className="table-auto w-full border-separate border-spacing-y-1">
             <tbody>

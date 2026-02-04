@@ -25,6 +25,7 @@ export type IArgument = {
 export type ICommand = {
     help: string;
     desc: string;
+    viewable?: boolean;
     groups?: string[];
     group_descs?: string[];
     annotations?: { [key: string]: (object | number | boolean | string) };
@@ -193,6 +194,7 @@ export class BaseCommand {
     charFreq: { [key: string]: number } | null = null;
     descWordFreq: Set<string> | null = null;
     descShort: string | null = null;
+    pathStr: string | null = null;
 
     constructor(path: string[], commandData: ICommand) {
         this.command = commandData;
@@ -257,6 +259,12 @@ export class BaseCommand {
             }
         }
         return this.arguments;
+    }
+    getPathString(): string {
+        if (!this.pathStr) {
+            this.pathStr = this.path.join(" ");
+        }
+        return this.pathStr;
     }
 }
 
@@ -743,6 +751,7 @@ export class CommandBuilder {
     }
 
     build(): BaseCommand {
+        console.log("Building command:", this.name, this.command);
         return new BaseCommand([this.name], this.command)
     }
 }

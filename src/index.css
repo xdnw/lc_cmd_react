@@ -45,14 +45,17 @@
     from {
       height: 0;
     }
+
     to {
       height: var(--radix-accordion-content-height);
     }
   }
+
   @keyframes accordion-up {
     from {
       height: var(--radix-accordion-content-height);
     }
+
     to {
       height: 0;
     }
@@ -62,10 +65,12 @@
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;
-  @media (width >= --theme(--breakpoint-sm)) {
+
+  @media (width >=--theme(--breakpoint-sm)) {
     max-width: none;
   }
-  @media (width >= 1400px) {
+
+  @media (width >=1400px) {
     max-width: 1400px;
   }
 }
@@ -79,6 +84,7 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
+
   *,
   ::after,
   ::before,
@@ -90,32 +96,23 @@
 
 @layer base {
   :root {
-    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    /* Typography + rendering */
+    --font-sans: "Chakra Petch", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+      Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      "Liberation Mono", "Courier New", monospace;
+
+    font-family: var(--font-sans);
     line-height: 1.5;
     font-weight: 400;
-    color: rgba(255, 255, 255, 0.87);
-
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
     min-height: 100%;
-  }
-}
 
-@layer utilities {
-  .dark a {
-    @apply text-blue-400 visited:text-indigo-400 hover:text-blue-500 active:text-blue-600  underline  active:no-underline;
-  }
-
-  .light a {
-    @apply text-blue-700 visited:text-indigo-500 hover:text-blue-500 active:text-blue-600  underline  active:no-underline;
-  }
-}
-
-
-@layer base {
-  :root {
+    /* shadcn/ui design tokens */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
@@ -145,6 +142,8 @@
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
+
+    /* project-specific helpers (kept for compatibility) */
     --light: 0 0% 0%;
     --dark: 0 0% 100%;
   }
@@ -180,14 +179,86 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
   }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.25);
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 }
 
+@layer base {
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  .dark a {
+    @apply text-blue-400 visited:text-indigo-400 hover:text-blue-500 active:text-blue-600 underline active:no-underline;
+  }
+
+  .light a {
+    @apply text-blue-700 visited:text-indigo-500 hover:text-blue-500 active:text-blue-600 underline active:no-underline;
+  }
+
+  .dark a:focus-visible,
+  .light a:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background rounded-sm;
+  }
+
+  /* Opt-in: use on long-form content/markdown areas */
+  .content a {
+    @apply underline underline-offset-4 decoration-muted-foreground/40 hover:decoration-muted-foreground;
+  }
+
+  /* Opt-in scrollbar styling (kept separate from the global scrollbar rules in app.css) */
+  .scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--foreground) / 0.45) transparent;
+  }
+
+  .scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--foreground) / 0.35);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+}

@@ -41,6 +41,7 @@ const IconComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   'rotateccw': lazy(() => import('lucide-react/dist/esm/icons/rotate-ccw.js')),
   'pause': lazy(() => import('lucide-react/dist/esm/icons/pause.js')),
   'play': lazy(() => import('lucide-react/dist/esm/icons/play.js')),
+  'user': lazy(() => import('lucide-react/dist/esm/icons/user.js')),
 };
 type LazyIconProps = {
   name: string;

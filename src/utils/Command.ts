@@ -678,6 +678,7 @@ export class CommandMap {
     }
 
     buildTest(): BaseCommand {
+        console.log("Building test command with all arguments from all commands");
         const allArgs: { [key: string]: IArgument } = {};
         for (const path of this.getCommandPaths()) {
             const command = this.get(path);

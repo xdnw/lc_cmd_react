@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import Timestamp from '../ui/timestamp';
 import Loading from '../ui/loading';
+import Badge from '../ui/badge';
 
 export function LoginPicker() {
     const { showDialog } = useDialog();
@@ -76,7 +77,7 @@ export function LoginPicker() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="rounded border p-4">
+                <Card className="rounded border p-3">
                     <div className="mb-2 font-semibold text-lg flex items-center gap-2 text-foreground">
                         <LazyIcon name="KeyRound" size={18} /> Login with Discord
                     </div>
@@ -95,7 +96,7 @@ export function LoginPicker() {
                     </div>
                 </Card>
 
-                <Card className="rounded border p-4">
+                <Card className="rounded border p-3">
                     <div className="mb-2 font-semibold text-lg flex items-center gap-2 text-foreground">
                         <LazyIcon name="Mail" size={18} /> Authenticate via In-Game Mail
                     </div>
@@ -171,27 +172,33 @@ export default function SessionInfo() {
         isLoading,
         isFetching,
         refetch,
-    } = useQuery<QueryResult<WebSession>>(bulkQueryOptions(SESSION.endpoint, {}, true));
+    } = useQuery<QueryResult<WebSession>>(
+        bulkQueryOptions(SESSION.endpoint, {}, true)
+    );
 
     const session = queryResult?.data ?? null;
     const errorOrNull = session as unknown as WebError;
     const backendError =
-        errorOrNull?.error ?? queryResult?.error ?? (error instanceof Error ? error.message : null);
+        errorOrNull?.error ??
+        queryResult?.error ??
+        (error instanceof Error ? error.message : null);
 
     const basePath = process.env.BASE_PATH ?? "/";
+
+    const refetchCallback = useCallback(() => refetch(), [refetch]);
 
     if (isLoading) {
         return (
             <Card className="bg-light/10 border border-light/10">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                <CardHeader className="p-3 pb-1">
+                    <CardTitle className="flex items-center gap-2 text-base">
                         <LazyIcon name="User" size={18} />
                         Session
                     </CardTitle>
-                    <CardDescription>Loading your login details…</CardDescription>
+                    <CardDescription>Loading…</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <CardContent className="p-3 pt-0">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Loading variant="ripple" />
                         Fetching session…
                     </div>
@@ -204,12 +211,12 @@ export default function SessionInfo() {
         return (
             <>
                 <Card className="border border-destructive/40 bg-destructive/5">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                    <CardHeader className="p-3">
+                        <CardTitle className="flex items-center gap-2 text-base">
                             <LazyIcon name="TriangleAlert" size={18} />
                             Could not load session
                         </CardTitle>
-                        <CardDescription>
+                        <CardDescription className="break-words">
                             {String(backendError ?? "Unknown error")}
                         </CardDescription>
                     </CardHeader>
@@ -220,62 +227,151 @@ export default function SessionInfo() {
         );
     }
 
-    const nationUrl = session.nation ? `https://politicsandwar.com/nation/id=${session.nation}` : null;
-    const allianceUrl = session.alliance ? `https://politicsandwar.com/alliance/id=${session.alliance}` : null;
+    const nationUrl = session.nation
+        ? `https://politicsandwar.com/nation/id=${session.nation}`
+        : null;
+    const allianceUrl = session.alliance
+        ? `https://politicsandwar.com/alliance/id=${session.alliance}`
+        : null;
 
-    const linkLabel = session.registered
-        ? (session.registered_nation == session.nation ? "Unlink" : "Fix invalid registration")
-        : "Link to Discord";
+    const discordMismatch =
+        !!session.registered &&
+        !!session.registered_nation &&
+        session.registered_nation !== session.nation;
 
-    const linkHintClass =
-        session.registered && session.registered_nation != session.nation
-            ? "border-destructive/60 text-destructive hover:text-destructive"
-            : "";
+    const discordBadge = !session.registered
+        ? { label: "Not linked", variant: "secondary" as const }
+        : discordMismatch
+            ? { label: "Needs repair", variant: "destructive" as const }
+            : { label: "Linked", variant: "secondary" as const };
 
-    const refetchCallback = useCallback(() => refetch(), [refetch]);
+    const discordAction =
+        session.nation && session.user
+            ? !session.registered
+                ? { label: "Link Discord", danger: false }
+                : discordMismatch
+                    ? { label: "Repair Discord link", danger: true }
+                    : { label: "Unlink account", danger: true }
+            : null;
 
     return (
         <Card className="bg-light/10 border border-light/10">
-            <CardHeader className="space-y-2">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+            <CardHeader className="p-3 pb-1">
+                <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-lg">
                             <LazyIcon name="User" size={18} />
                             Session
-                            {isFetching ? (
-                                <span className="ml-2 text-xs text-muted-foreground">Refreshing…</span>
-                            ) : null}
                         </CardTitle>
-                        <CardDescription className="mt-1">
-                            Signed in as {session.user_name || session.user || "N/A"}
-                        </CardDescription>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={refetchCallback}
                             disabled={isFetching}
+                            aria-label="Refresh session"
                         >
-                            <LazyIcon name="RotateCcw" className={isFetching ? "animate-spin" : ""} />
-                            <span className="ml-2">Refresh</span>
+                            <LazyIcon
+                                name="RotateCcw"
+                                size={18}
+                                className={isFetching ? "animate-spin" : ""}
+                            />
+                        </Button>
+
+                        <Button variant="outline" size="sm" className="px-2" asChild>
+                            <Link
+                                to={`${basePath}logout`}
+                                className="flex items-center"
+                            >
+                                <LazyIcon name="X" size={18} />
+                                <span className="hidden sm:inline">Logout</span>
+                            </Link>
                         </Button>
                     </div>
                 </div>
             </CardHeader>
 
-            <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-md border bg-background/20 p-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <CardContent className="p-3 pt-0 space-y-2">
+                {/* Guild context (primary) */}
+                <div
+                    className={`rounded-md border p-2 ${session.guild ? "bg-background/20" : "border-primary/40 bg-primary/5"
+                        }`}
+                >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3 min-w-0">
+                            {session.guild_icon ? (
+                                <img
+                                    src={session.guild_icon}
+                                    alt={session.guild_name || "Guild"}
+                                    className="h-9 w-9 rounded-md"
+                                />
+                            ) : (
+                                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted">
+                                    <LazyIcon name="Users" size={18} />
+                                </div>
+                            )}
+
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <div className="truncate font-medium">
+                                        {session.guild
+                                            ? session.guild_name || "Guild"
+                                            : "No guild selected"}
+                                    </div>
+
+                                    {session.guild ? (
+                                        <span className="truncate text-xs text-muted-foreground">
+                                            {session.guild}
+                                        </span>
+                                    ) : (
+                                        <Badge className="h-5 px-2">Required</Badge>
+                                    )}
+                                </div>
+
+                                <div className="text-xs text-muted-foreground truncate">
+                                    {session.guild
+                                        ? "Guild context is selected."
+                                        : "Select a guild to unlock member pages and tools."}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                                <Link to={`${basePath}guild_select`}>
+                                    {session.guild ? "Switch guild" : "Select guild"}
+                                </Link>
+                            </Button>
+
+                            {session.guild ? (
+                                <Button variant="secondary" size="sm" asChild>
+                                    <Link to={`${basePath}guild_member`}>
+                                        Member home
+                                        <LazyIcon
+                                            name="ChevronRight"
+                                            className="ml-1"
+                                            size={16}
+                                        />
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid gap-2 md:grid-cols-2">
+                    {/* Identity */}
+                    <div className="rounded-md border bg-background/20 p-2">
+                        <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                             Identity
                         </div>
 
-                        <div className="mt-3 space-y-3 text-sm">
+                        <div className="space-y-1 text-sm">
                             <div className="flex items-center justify-between gap-3">
-                                <div className="text-muted-foreground">User</div>
-                                <div className="flex items-center gap-2 min-w-0">
+                                <div className="text-muted-foreground w-20">User</div>
+                                <div className="min-w-0 flex items-center justify-end gap-2">
                                     {session.user_icon ? (
                                         <img
                                             src={session.user_icon}
@@ -283,22 +379,25 @@ export default function SessionInfo() {
                                             className="h-6 w-6 rounded-sm"
                                         />
                                     ) : null}
-                                    <div className="truncate">
+                                    <span
+                                        className="truncate"
+                                        title={session.user_name || session.user || ""}
+                                    >
                                         {session.user_name ? `${session.user_name} | ` : ""}
                                         {session.user || "N/A"}
-                                    </div>
+                                    </span>
                                 </div>
                             </div>
 
                             <div className="flex items-center justify-between gap-3">
-                                <div className="text-muted-foreground">Nation</div>
-                                <div className="min-w-0 truncate text-right">
+                                <div className="text-muted-foreground w-20">Nation</div>
+                                <div className="min-w-0 text-right">
                                     {nationUrl ? (
                                         <a
                                             href={nationUrl}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="underline underline-offset-4 hover:text-blue-500"
+                                            className="hover:underline underline-offset-4"
                                         >
                                             {session.nation_name || session.nation}
                                         </a>
@@ -309,14 +408,14 @@ export default function SessionInfo() {
                             </div>
 
                             <div className="flex items-center justify-between gap-3">
-                                <div className="text-muted-foreground">Alliance</div>
-                                <div className="min-w-0 truncate text-right">
+                                <div className="text-muted-foreground w-20">Alliance</div>
+                                <div className="min-w-0 text-right">
                                     {allianceUrl ? (
                                         <a
                                             href={allianceUrl}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="underline underline-offset-4 hover:text-blue-500"
+                                            className="hover:underline underline-offset-4"
                                         >
                                             {session.alliance_name || session.alliance}
                                         </a>
@@ -328,113 +427,44 @@ export default function SessionInfo() {
                         </div>
                     </div>
 
-                    <div className="rounded-md border bg-background/20 p-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Session
+                    {/* Session */}
+                    <div className="rounded-md border bg-background/20 p-2">
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                Session
+                            </div>
+                            <Badge variant={discordBadge.variant}>{discordBadge.label}</Badge>
                         </div>
 
-                        <div className="mt-3 space-y-3 text-sm">
+                        <div className="space-y-1 text-sm">
                             <div className="flex items-center justify-between gap-3">
-                                <div className="text-muted-foreground">Expires</div>
-                                <div className="text-right">
+                                <div className="text-muted-foreground w-20">Expires</div>
+                                <div className="min-w-0 text-right">
                                     {session.expires ? <Timestamp millis={session.expires} /> : "N/A"}
                                 </div>
                             </div>
 
                             <div className="flex items-center justify-between gap-3">
-                                <div className="text-muted-foreground">Discord link</div>
-                                <div className="text-right">
-                                    {session.registered ? "Linked" : "Not linked"}
+                                <div className="text-muted-foreground w-20">Discord</div>
+                                <div className="min-w-0 flex items-center justify-end gap-2">
+                                    {discordAction ? (
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            className={`h-7 px-2 ${discordAction.danger ? "text-destructive hover:text-destructive" : ""}`}
+                                            asChild
+                                        >
+                                            <Link to={`${basePath}unregister`}>{discordAction.label}</Link>
+                                        </Button>
+                                    ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                {/* Guild: make it the primary / centered panel */}
-                <div className="rounded-md border bg-background/20 p-4">
-                    <div className="flex flex-col items-center text-center gap-2">
-                        <div className="flex items-center gap-2">
-                            <LazyIcon name="Users" size={18} />
-                            <div className="text-base font-semibold">Guild context</div>
-                        </div>
-
-                        {session.guild ? (
-                            <>
-                                <div className="flex items-center gap-2">
-                                    {session.guild_icon ? (
-                                        <img
-                                            src={session.guild_icon}
-                                            alt={session.guild_name || "Guild"}
-                                            className="h-8 w-8 rounded-sm"
-                                        />
-                                    ) : null}
-                                    <div className="text-sm">
-                                        <span className="font-medium">
-                                            {session.guild_name || "Guild"}
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                            {" "}
-                                            | {session.guild}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="text-sm text-muted-foreground max-w-xl">
-                                    Your selected guild determines which member pages and guild-specific features you can access.
-                                </div>
-
-                                <div className="flex flex-wrap justify-center gap-2 pt-1">
-                                    <Button variant="outline" size="sm" asChild>
-                                        <Link to={`${basePath}guild_select`}>Switch guild</Link>
-                                    </Button>
-                                    <Button variant="secondary" size="sm" asChild>
-                                        <Link to={`${basePath}guild_member`}>
-                                            View guild member homepage
-                                            <span className="ml-1">
-                                                <LazyIcon name="ChevronRight" />
-                                            </span>
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="text-sm text-muted-foreground max-w-xl">
-                                    Select a guild to unlock guild-specific pages (member home, permissions-based tools, and anything that depends on a guild context).
-                                </div>
-
-                                <div className="flex flex-wrap justify-center gap-2 pt-1">
-                                    <Button variant="outline" size="sm" asChild>
-                                        <Link to={`${basePath}guild_select`}>Select a guild</Link>
-                                    </Button>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
             </CardContent>
-
-            <CardFooter className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                    {session.nation && session.user ? (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className={linkHintClass}
-                            asChild
-                        >
-                            <Link to={`${basePath}unregister`}>{linkLabel}</Link>
-                        </Button>
-                    ) : null}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                        <Link to={`${basePath}logout`}>Logout</Link>
-                    </Button>
-                </div>
-            </CardFooter>
         </Card>
     );
 }

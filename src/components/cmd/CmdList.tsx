@@ -505,9 +505,6 @@ export default function CmdList({
                     <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
                             <div className="text-sm font-semibold">Filters</div>
-                            <div className="text-xs text-muted-foreground">
-                                Tri-state toggles: Any / Yes / No
-                            </div>
                         </div>
 
                         <Button

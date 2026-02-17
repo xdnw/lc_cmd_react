@@ -129,7 +129,7 @@ export class BulkQueryClient {
     private readonly defaultCacheDurationMs: number;
     private readonly credentials: RequestCredentials;
     private readonly extraHeaders?: HeadersInit;
-    private readonly fetchFn: typeof fetch;
+    private readonly fetchFn: (input: string, init?: RequestInit) => Promise<Response>;
     private readonly unpackFn: (data: Uint8Array) => unknown;
     private readonly debug: boolean;
 
@@ -233,9 +233,14 @@ export class BulkQueryClient {
         const queryHash = this.hashQuery(query);
         const cacheConfig = useCache ? this.normalizeCache(endpoint, queryHash, cache!) : undefined;
 
+        console.log("fetchSingle", endpoint);
+
         if (cacheConfig) {
             const cached = this.loadFromCache<T>(cacheConfig);
-            if (cached != null) return cached;
+            if (cached != null) {
+                console.log("cache hit for fetchSingle", endpoint);
+                return cached;
+            }
         }
 
         const url = this.buildUrl(endpoint);
@@ -248,6 +253,7 @@ export class BulkQueryClient {
             },
             this.extraHeaders,
         );
+
 
         const res = await this.fetchFn(url, {
             method: "POST",
@@ -395,6 +401,8 @@ export class BulkQueryClient {
             this.extraHeaders,
         );
 
+        console.log("URL ", url, this.batchEndpoint, this.apiUrl)
+
         const res = await this.fetchFn(url, {
             method: "POST",
             headers,
@@ -468,7 +476,7 @@ export class BulkQueryClient {
     // cache internals
     // ----------------------------
 
-    private normalizeCache(endpoint: string, queryHash: string, cache: CacheInput): CacheConfig {
+    private normalizeCache(endpoint: string, queryHash: number, cache: CacheInput): CacheConfig {
         const cache_type = cache.cache_type ?? this.defaultCacheType;
         const duration_ms =
             cache.duration_ms ??
@@ -680,11 +688,11 @@ export class BulkQueryClient {
         return null;
     }
 
-    private hashQuery(query: QueryParams): string {
+    private hashQuery(query: QueryParams): number {
         return hashString(stableSerializeQuery(query));
     }
 
-    private makeGroupKey(endpoint: string, queryHash: string, useCache: boolean): string {
+    private makeGroupKey(endpoint: string, queryHash: number, useCache: boolean): string {
         return `${endpoint}-${queryHash}:${useCache ? "cache" : "nocache"}`;
     }
 
@@ -758,14 +766,6 @@ function safeStringify(value: unknown): string {
     }
 }
 
-function getDefaultApiUrl(): string {
-    // keep compatibility with your previous `process.env.API_URL` usage
-    const fromProcess =
-        typeof process !== "undefined" ? (process as any)?.env?.API_URL : undefined;
-
-    return typeof fromProcess === "string" ? fromProcess : "";
-}
-
 type GlobalWithBulkQueryClient = typeof globalThis & {
     __bulkQueryClient?: BulkQueryClient;
 };
@@ -779,7 +779,7 @@ const _global = globalThis as GlobalWithBulkQueryClient;
 export const bulkQueryClient: BulkQueryClient =
     _global.__bulkQueryClient ??
     (_global.__bulkQueryClient = new BulkQueryClient({
-        apiUrl: getDefaultApiUrl(),
+        apiUrl: `${process.env.API_URL}`,
     }));
 
 export type QueryResultCache = CacheConfig & {

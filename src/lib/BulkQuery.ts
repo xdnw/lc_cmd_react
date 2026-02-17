@@ -2,6 +2,7 @@ import Cookies from "js-cookie";
 import { UNPACKR } from "@/lib/utils";
 import { hashString } from "@/utils/StringUtil";
 import { CacheType } from "./apitypes";
+import { Argument, IArgument } from "@/utils/Command";
 
 export type QueryParams = Record<string, string | string[]>;
 
@@ -150,7 +151,7 @@ export class BulkQueryClient {
         this.defaultCacheDurationMs = options.defaultCacheDurationMs ?? 30_000;
         this.credentials = options.credentials ?? "include";
         this.extraHeaders = options.headers;
-        this.fetchFn = options.fetchFn ?? fetch;
+        this.fetchFn = options.fetchFn ?? fetch.bind(globalThis);
         this.unpackFn = options.unpackFn ?? ((buf) => UNPACKR.unpack(buf));
         this.debug = options.debug ?? false;
     }
@@ -862,3 +863,40 @@ export function loadFromCache<T>({
         duration_ms: (cache.duration ?? 30) * 1000
     });
 }
+
+export class ApiEndpoint<T> {
+    name: string;
+    url: string;
+    args: { [name: string]: Argument };
+    cast: (data: unknown) => T;
+    cache_duration: number;
+    cache_type: CacheType;
+    typeName: string;
+    desc: string;
+    argsLower: { [name: string]: string };
+    isPost: boolean;
+
+    constructor(name: string, url: string, args: { [name: string]: IArgument }, cast: (data: unknown) => T, cache_duration: number, cacheType: CacheType, typeName: string, desc: string, isPost: boolean) {
+        this.name = name;
+        this.url = url;
+        this.args = {};
+        for (const [key, value] of Object.entries(args)) {
+            this.args[key] = new Argument(key, value);
+        }
+        this.argsLower = Object.fromEntries(Object.entries(args).map(([key, value]) => [key.toLowerCase(), key]));
+        this.cast = cast;
+        this.cache_duration = cache_duration ?? 5000;
+        this.cache_type = cacheType;
+        this.typeName = typeName;
+        this.desc = desc;
+        this.isPost = isPost;
+    }
+
+    async call(params: { [key: string]: string }): Promise<T> {
+        return fetchSingle<T>(this.url, params, undefined);
+    }
+}
+
+export type CommonEndpoint<T, U extends { [key: string]: string | string[] | undefined }, V extends { [key: string]: string | string[] | undefined }> = {
+    endpoint: ApiEndpoint<T>;
+};

@@ -10,6 +10,7 @@ import TriStateInput from "@/components/cmd/TriStateInput";
 import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { CustomTriInput } from "@/components/cmd/CustomTriInput";
 import SearchBar from "@/components/cmd/SearchBar";
+import CopyToClipboard from "@/components/ui/copytoclipboard";
 
 import { getCharFrequency, simpleSimilarity } from "@/utils/StringUtil";
 import type { BaseCommand } from "@/utils/Command";
@@ -259,6 +260,17 @@ export default function CmdList({
             .map(({ cmd }) => cmd);
     }, [customFilteredCommands, debouncedFilter]);
 
+    // Precompute a TSV copy of the visible table (Command\tDescription)
+    const tableCopy = useMemo(() => {
+        const header = "Command\tDescription";
+        const rows = filteredCommands.map((cmd) => {
+            const path = `${prefix}${cmd.getPathString()}`;
+            const desc = (cmd.getDescShort() ?? "").replace(/\s+/g, " ").trim();
+            return `${path}\t${desc}`;
+        });
+        return [header, ...rows].join("\n");
+    }, [filteredCommands, prefix]);
+
     const toggleFilters = useCallback(() => {
         setShowFilters((prev) => {
             if (!prev) setFiltersInitialized(true); // lazy-init option lists
@@ -476,6 +488,14 @@ export default function CmdList({
                         <div>
                             Showing <span className="font-medium text-foreground">{filteredCommands.length.toLocaleString()}</span> of <span className="font-medium text-foreground">{commands.length.toLocaleString()}</span> commands{isDebouncing ? " (typing…)" : ""}
                         </div>
+
+                        {filteredCommands.length > 0 && (
+                            <CopyToClipboard
+                                text="Copy table"
+                                copy={tableCopy}
+                                className="h-6 px-2 text-xs"
+                            />
+                        )}
 
                         {hasAnyFiltering && (
                             <Button

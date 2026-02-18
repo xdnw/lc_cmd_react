@@ -1,5 +1,5 @@
 import { COMMANDS } from "@/lib/commands";
-import { CM, CommandPath } from "./Command";
+import { AnyCommandPath, CM, CommandPath } from "./Command";
 import { useDialog } from "@/components/layout/DialogContext";
 import { WebPermission } from "@/lib/apitypes";
 import { PERMISSION } from "@/lib/endpoints";
@@ -7,7 +7,7 @@ import { bulkQueryOptions } from "@/lib/queries";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useEffect } from "react";
 
-export function usePermission<P extends CommandPath<typeof COMMANDS.commands>>(path: P): { permission?: WebPermission, isFetching: boolean } {
+export function usePermission<P extends AnyCommandPath>(path: P): { permission?: WebPermission, isFetching: boolean } {
     const { showDialog } = useDialog();
     const { data, isFetching, error } = useQuery({
         ...bulkQueryOptions(PERMISSION.endpoint, {

@@ -6,7 +6,7 @@ import { WebViewCommand } from "../../lib/apitypes";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import CopyToClipboard from "../../components/ui/copytoclipboard";
-import { CommandArguments, CommandPath } from "../../utils/Command";
+import { AnyCommandPath, CommandArguments, CommandPath } from "../../utils/Command";
 import { COMMANDS } from "../../lib/commands";
 import CommandsPage from "../commands";
 import EndpointWrapper from "@/components/api/bulkwrapper";
@@ -27,10 +27,10 @@ export default function ViewCommandPage() {
         return <CommandsPage />
     }
     // search params to object {[key: string]: string}
-    return <ViewCommand command={command.split(" ") as CommandPath<typeof COMMANDS.commands>} args={toMap(searchParams)} />;
+    return <ViewCommand command={command.split(" ") as AnyCommandPath} args={toMap(searchParams)} />;
 }
 
-export function ViewCommand<P extends CommandPath<typeof COMMANDS.commands>>(
+export function ViewCommand<P extends AnyCommandPath>(
     { command, args, className }: {
         command: P,
         args: Partial<CommandArguments<typeof COMMANDS.commands, P>>,

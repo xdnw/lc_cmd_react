@@ -21,7 +21,6 @@ export type IArgument = {
     filter?: string;
 }
 
-
 export type ICommand = {
     help: string;
     desc: string;
@@ -268,7 +267,7 @@ export class BaseCommand {
     }
 }
 
-export class Command<P extends CommandPath<typeof COMMANDS.commands>> extends BaseCommand {
+export class Command<P extends AnyCommandPath> extends BaseCommand {
     path: P;
     data: Partial<CommandType<typeof COMMANDS.commands, P>>;
 
@@ -308,7 +307,7 @@ export type Completion = {
 }
 
 export function commandMention<
-    P extends CommandPath<typeof COMMANDS.commands>
+    P extends AnyCommandPath
 >(
     { command, args }: {
         command: P,
@@ -603,7 +602,7 @@ export class PlaceholderArrayBuilder<T extends keyof typeof COMMANDS.placeholder
 
 export class CommandMap {
     data: ICommandMap;
-    cmd_paths: CommandPath<typeof COMMANDS.commands>[] = [];
+    cmd_paths: AnyCommandPath[] = [];
 
     cmd_cache: Map<string, Command<AnyCommandPath>> = new Map();
     ph_cache: Map<string, PlaceholderMap<keyof typeof COMMANDS.placeholders>> = new Map();
@@ -620,7 +619,7 @@ export class CommandMap {
         return phMap;
     }
 
-    get<P extends CommandPath<typeof COMMANDS.commands>>(path: P): Command<P> {
+    get<P extends AnyCommandPath>(path: P): Command<P> {
         const pathFull = path.join(" ");
         const cached = this.cmd_cache.get(pathFull);
         if (cached) return cached as Command<P>;
@@ -644,12 +643,12 @@ export class CommandMap {
     //     return this.ph_flat[placeholder_type];
     // }
 
-    getCommandPaths(): CommandPath<typeof COMMANDS.commands>[] {
+    getCommandPaths(): AnyCommandPath[] {
         if (this.cmd_paths.length > 0) return this.cmd_paths;
         const recurse = (group: ICommandGroup, prefix: string[]) => {
             Object.keys(group).forEach(key => {
                 const value = group[key];
-                const newPrefix = [...prefix, key] as CommandPath<typeof COMMANDS.commands>;
+                const newPrefix = [...prefix, key] as AnyCommandPath;
                 if (isCommand(value)) {
                     this.cmd_paths.push(newPrefix);
                 } else {

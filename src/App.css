@@ -68,11 +68,11 @@ html {
 }
 
 .dark .themeBody::before {
-    opacity: 0.3;
+    opacity: 0.2;
 }
 
 .light .themeBody::before {
-    filter: invert(1) opacity(0.3);
+    filter: invert(1) opacity(0.1);
 }
 
 /* Legacy compatibility: pages that still add `.light` explicitly */

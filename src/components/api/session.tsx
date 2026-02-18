@@ -296,7 +296,7 @@ export default function SessionInfo() {
             <CardContent className="p-3 pt-0 space-y-2">
                 {/* Guild context (primary) */}
                 <div
-                    className={`rounded-md border p-2 ${session.guild ? "bg-background/20" : "border-primary/40 bg-primary/5"
+                    className={`rounded-md border p-2 ${session.guild ? "bg-card" : "border-primary/40 bg-red-400/20"
                         }`}
                 >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -363,7 +363,7 @@ export default function SessionInfo() {
 
                 <div className="grid gap-2 md:grid-cols-2">
                     {/* Identity */}
-                    <div className="rounded-md border bg-background/20 p-2">
+                    <div className="rounded-md border bg-card p-2">
                         <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                             Identity
                         </div>
@@ -428,7 +428,7 @@ export default function SessionInfo() {
                     </div>
 
                     {/* Session */}
-                    <div className="rounded-md border bg-background/20 p-2">
+                    <div className="rounded-md border bg-card p-2">
                         <div className="mb-1 flex items-center justify-between gap-2">
                             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                 Session

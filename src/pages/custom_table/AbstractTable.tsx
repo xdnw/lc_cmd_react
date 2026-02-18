@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 import { getQueryString, createTableInfo, toSelAndModifierString } from "./table_util";
 import { useQueryClient, useSuspenseQuery, UseSuspenseQueryOptions } from "@tanstack/react-query";
 import { singleQueryOptions, suspenseQueryOptions } from "@/lib/queries";
-import { ConfigColumns, DataTable, OrderIdx } from "./DataTable";
+import { ClientColumnOverlay, ConfigColumns, DataTable, OrderIdx } from "./DataTable";
 import { DataGridHandle } from "react-data-grid";
 import { JSONValue } from "@/lib/internaltypes";
 import { GoogleSheets } from "./TableWithExports";
@@ -30,6 +30,7 @@ export type TableProps = {
     selection: { [key: string]: string },
     columns: Map<string, string | null>,
     sort: OrderIdx | OrderIdx[] | undefined,
+    clientColumns?: ClientColumnOverlay[],
 }
 
 export function AbstractTableWithButtons({ getTableProps, load }: {
@@ -43,6 +44,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     const [selection, setSelection] = useDeepState<{ [key: string]: string }>(load ? getTableProps().selection : {});
     const [columns, setColumns] = useDeepState<Map<string, string | null>>(load ? getTableProps().columns : new Map<string, string | null>());
     const [sortState, setSortState] = useDeepState<OrderIdx | OrderIdx[] | undefined>(load ? getTableProps().sort : undefined);
+    const [clientColumns, setClientColumns] = useState<ClientColumnOverlay[]>(load ? (getTableProps().clientColumns ?? []) : []);
 
     const getTablePropsFinal = useCallback(() => {
         const props = getTableProps();
@@ -50,8 +52,9 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
         setSelection(props.selection);
         setColumns(props.columns);
         setSortState(props.sort);
+        setClientColumns(props.clientColumns ?? []);
         return props;
-    }, [getTableProps, setType, setSelection, setColumns, setSortState]);
+    }, [getTableProps, setType, setSelection, setColumns, setSortState, setClientColumns]);
     const highlightRowOrColumn = useCallback((col?: number, row?: number) => {
         const tableElem = table.current?.element;
         // remove all bg-red-500 from table th and td
@@ -183,6 +186,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
             selection={selection}
             columns={columns}
             sort={sortState}
+            clientColumns={clientColumns}
             showErrorsProvided={showErrorsProvided}
         >
             {renderChildren}
@@ -199,11 +203,12 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     }
 }
 
-function LoadTable({ type, selection, columns, sort, showErrorsProvided, children }: {
+function LoadTable({ type, selection, columns, sort, clientColumns, showErrorsProvided, children }: {
     type: string,
     selection: { [key: string]: string },
     columns: Map<string, string | null>,
     sort: OrderIdx | OrderIdx[] | undefined,
+    clientColumns?: ClientColumnOverlay[],
     showErrorsProvided: (errors: WebTableError[]) => void,
     children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void) => ReactNode
 }) {
@@ -229,12 +234,12 @@ function LoadTable({ type, selection, columns, sort, showErrorsProvided, childre
     const webTable = queryData.data as WebTable;
     const initialTableInfo = useMemo(() => {
         try {
-            return createTableInfo(webTable, sort, columns);
+            return createTableInfo(webTable, sort, columns, clientColumns ?? []);
         } catch (e) {
             console.error(e);
             return undefined;
         }
-    }, [sort, columns, webTable]);
+    }, [sort, columns, webTable, clientColumns]);
 
     const [data, setData] = useState<JSONValue[][]>(initialTableInfo?.data as JSONValue[][]);
     const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>(initialTableInfo?.columnsInfo || []);
@@ -372,12 +377,12 @@ function DeferTable(
 
     const onSuccess = useCallback((data: WebTable, sort: OrderIdx | OrderIdx[] | undefined, columns: Map<string, string | null>) => {
         try {
-            const info: TableInfo = createTableInfo(data, sort, columns);
+            const info: TableInfo = createTableInfo(data, sort, columns, getTableProps().clientColumns ?? []);
             updateTable(info);
         } catch (e) {
             onErrorOrNull(e as (string | Error));
         }
-    }, [updateTable, onErrorOrNull]);
+    }, [updateTable, onErrorOrNull, getTableProps]);
 
     const submit = useCallback(() => {
         const { type, selection, columns, sort } = getTableProps();

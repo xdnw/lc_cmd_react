@@ -1,7 +1,28 @@
 import { StaticTable } from "@/pages/custom_table/StaticTable";
+import type { ClientColumnOverlay, RenderContext } from "@/pages/custom_table/DataTable";
 import { CM } from "@/utils/Command";
 import { usePermission } from "@/utils/PermUtil";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import Badge from "@/components/ui/badge";
+import CommandActionButton from "@/components/cmd/CommandActionButton";
+
+function ConflictSyncButton({ conflictId, onSynced }: { conflictId: number; onSynced: (conflictId: number) => void; }) {
+  const onSuccess = useCallback(() => {
+    onSynced(conflictId);
+  }, [conflictId, onSynced]);
+
+  return (
+    <CommandActionButton
+      command={["conflict", "sync", "website"]}
+      args={{ conflicts: String(conflictId) }}
+      label="Sync"
+      classes="!ms-0"
+      showResultDialog={true}
+      onSuccess={onSuccess}
+    />
+  );
+}
 
 const builder = CM.placeholders('Conflict')
   .aliased()
@@ -15,66 +36,190 @@ const builder = CM.placeholders('Conflict')
   .add({ cmd: 'getdamageconverted', args: { 'isPrimary': 'false' }, alias: 'c2_damage' })
 
 export default function Conflicts() {
-  /*
-/conflict sync website <id>
-  */
-  // conflict addAllForNation
-
   const { permission: edit } = usePermission(['conflict', 'edit', 'rename']);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set<number>());
+  const [dirtyIds, setDirtyIds] = useState<Set<number>>(new Set<number>());
 
-  const [syncIds, setSyncIds] = useState<number[]>([]);
+  const parseConflictId = useCallback((value: unknown): number | null => {
+    const raw = Number(value);
+    return Number.isFinite(raw) ? raw : null;
+  }, []);
 
-  console.log("Conflicts page rendered with edit permission:", edit);
+  const toggleSelected = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
-  // AnyCommandPath[]
-  // Commands: 
-  // conflict sync website -> [{"name":"conflicts","type":"Set<Conflict>","optional":true},{"name":"upload_graph","type":"boolean","optional":true},{"name":"reinitialize_wars","type":"boolean","optional":true},{"name":"reinitialize_graphs","type":"boolean","optional":true}]
-  // conflict create -> [{"name":"category","type":"ConflictCategory","optional":false},{"name":"coalition1","type":"Set<DBAlliance>","optional":false},{"name":"coalition2","type":"Set<DBAlliance>","optional":false},{"name":"start","type":"long[Timestamp]","optional":false},{"name":"end","type":"long[Timestamp]","optional":false},{"name":"conflictName","type":"String","optional":true}]
-  // there's also: /conflict create_temp col1: col2: start: end:(optional) includegraphs:True/False (optional)
+  const toggleDirty = useCallback((id: number) => {
+    setDirtyIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
-  // conflict edit wiki -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"url","type":"String","optional":false}]
-  // conflict edit status -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"status","type":"String","optional":false}]
-  // conflict edit casus_belli -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"casus_belli","type":"String","optional":false}]
-  // conflict edit category -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"category","type":"ConflictCategory","optional":false}]
-  // conflict delete -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"force","type":"boolean","optional":true}]
-  // conflict edit end -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"time","type":"long[Timestamp]","optional":false},{"name":"alliance","type":"DBAlliance","optional":true}]
-  // conflict edit start -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"time","type":"long[Timestamp]","optional":false},{"name":"alliance","type":"DBAlliance","optional":true}]
-  // conflict edit rename -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"name","type":"String","optional":false},{"name":"isCoalition1","type":"boolean","optional":true},{"name":"isCoalition2","type":"boolean","optional":true}]
+  const queueSelectedForSync = useCallback(() => {
+    setDirtyIds((prev) => {
+      const next = new Set(prev);
+      selectedIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }, [selectedIds]);
 
-  // conflict alliance remove -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"alliances","type":"Set<DBAlliance>","optional":false}]
-  // conflict alliance add -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"alliances","type":"Set<DBAlliance>","optional":false},{"name":"isCoalition1","type":"boolean","optional":true},{"name":"isCoalition2","type":"boolean","optional":true}]
-  // conflict edit add_forum_post -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"url","type":"String","optional":false},{"name":"desc","type":"String","optional":true}]
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set<number>());
+  }, []);
 
-  // conflict edit add_none_war -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"nation","type":"DBNation","optional":false},{"name":"mark_as_alliance","type":"DBAlliance","optional":false}]
-  // conflict alliance add_all_for_nation -> [{"name":"conflict","type":"Conflict","optional":false},{"name":"nation","type":"DBNation","optional":false}]
+  const clearDirty = useCallback(() => {
+    setDirtyIds(new Set<number>());
+  }, []);
 
-  // Useful info:
-  // CM.get(AnyCommandPath (essentially a typed string[]))
-  // TABLE in endpoints.ts might be usefu
+  const onSingleSyncSuccess = useCallback((conflictId: number) => {
+    setDirtyIds((prev) => {
+      const next = new Set(prev);
+      next.delete(conflictId);
+      return next;
+    });
+  }, []);
 
-  // Need to get the conflicts on page load
-  // Figure out how to get a command button
-  // Need to refetch the conflict on demand (after edit)
-  // A successful command will return a string
-  // A failed command will throw an error
+  const onQueuedSyncSuccess = useCallback(() => {
+    setDirtyIds(new Set<number>());
+    setSelectedIds(new Set<number>());
+  }, []);
 
-  // These commands need to set a flag for resync (i.e. auto fetch won't work, user should have the sync button have a badge with the number of `dirty` conflicts that need to be synced)
-  // sync button being `conflict sync website` with the args of the conflicts
+  const onCheckboxChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const id = Number(event.currentTarget.dataset.id);
+    if (Number.isFinite(id)) {
+      toggleSelected(id);
+    }
+  }, [toggleSelected]);
 
-  // Figure out what is the best layout for the page (list of conflicts, row buttons to open controls/commands, double click to edit e.g. name, checkboxes next to conflicts, top level buttons/controls for bulk actions)
-  // The actual inputs should be generated (there are components for this, though they may need to be modified to look better and not take up so much space)
+  const onDirtyButtonClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    const id = Number(event.currentTarget.dataset.id);
+    if (Number.isFinite(id)) {
+      toggleDirty(id);
+    }
+  }, [toggleDirty]);
 
-  // Later: Code the endpoints for the AWS data so it can display the sync status and other details about the conflicts
+  const onSelectButtonClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    const id = Number(event.currentTarget.dataset.id);
+    if (Number.isFinite(id)) {
+      toggleSelected(id);
+    }
+  }, [toggleSelected]);
 
-  const test = (
+  const clientColumns = useMemo<ClientColumnOverlay[]>(() => {
+    const selectColumn: ClientColumnOverlay = {
+      id: "select",
+      title: "Select",
+      position: "start",
+      width: 72,
+      sortable: false,
+      exportable: false,
+      editable: false,
+      draggable: false,
+      value: (row) => parseConflictId(row[0]),
+      render: {
+        display: (value) => {
+          const id = Number(value);
+          if (!Number.isFinite(id)) return "-";
+          return (
+            <input
+              type="checkbox"
+              checked={selectedIds.has(id)}
+              data-id={id}
+              onChange={onCheckboxChange}
+              aria-label={`Select conflict ${id}`}
+            />
+          );
+        },
+      },
+    };
+
+    const actionColumn: ClientColumnOverlay = {
+      id: "actions",
+      title: "Actions",
+      position: "end",
+      width: 190,
+      sortable: false,
+      exportable: false,
+      editable: false,
+      draggable: false,
+      value: (row) => parseConflictId(row[0]),
+      render: {
+        display: (value, context?: RenderContext) => {
+          const id = Number(value);
+          if (!Number.isFinite(id)) return "-";
+          return (
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" data-id={id} onClick={onDirtyButtonClick}>
+                {dirtyIds.has(id) ? "Clean" : "Dirty"}
+              </Button>
+              {edit && (
+                <ConflictSyncButton conflictId={id} onSynced={onSingleSyncSuccess} />
+              )}
+              {edit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-id={id}
+                  onClick={onSelectButtonClick}
+                  title={`Toggle selected for conflict ${context?.row?.[1] ?? id}`}
+                >
+                  Select
+                </Button>
+              )}
+            </div>
+          );
+        },
+      },
+    };
+
+    return [selectColumn, actionColumn];
+  }, [dirtyIds, edit, onCheckboxChange, onDirtyButtonClick, onSelectButtonClick, onSingleSyncSuccess, parseConflictId, selectedIds]);
+
+  const queuedConflictIds = useMemo(() => {
+    return Array.from(dirtyIds).sort((a, b) => a - b).join(",");
+  }, [dirtyIds]);
+
+  return (
     <>
-      <h1>Conflicts</h1>
-      {/* Do I want to extend static table functionality so it can handle having all the buttons/checkboxes added? */}
-      <StaticTable type="Conflict" selection={{ "": "*" }} columns={builder.aliasedArray()} />
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h1 className="text-xl font-semibold">Conflicts</h1>
+        <Badge variant="outline">Selected: {selectedIds.size}</Badge>
+        <Badge variant="outline">Dirty: {dirtyIds.size}</Badge>
+        <Button variant="outline" size="sm" onClick={queueSelectedForSync} disabled={selectedIds.size === 0}>
+          Queue selected
+        </Button>
+        {edit && dirtyIds.size > 0 && (
+          <CommandActionButton
+            command={["conflict", "sync", "website"]}
+            args={{ conflicts: queuedConflictIds }}
+            label={`Sync queued (${dirtyIds.size})`}
+            classes="!ms-0"
+            showResultDialog={true}
+            onSuccess={onQueuedSyncSuccess}
+          />
+        )}
+        <Button variant="outline" size="sm" onClick={clearSelection} disabled={selectedIds.size === 0}>
+          Clear selected
+        </Button>
+        <Button variant="outline" size="sm" onClick={clearDirty} disabled={dirtyIds.size === 0}>
+          Clear dirty
+        </Button>
+      </div>
+
+      <StaticTable
+        type="Conflict"
+        selection={{ "": "*" }}
+        columns={builder.aliasedArray()}
+        clientColumns={clientColumns}
+      />
     </>
   );
-
-  console.log("Conflicts component rendered with test content:", test);
-
-  return test;
 }

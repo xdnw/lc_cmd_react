@@ -23,17 +23,46 @@ export type ColumnType = 'string' | 'number' | 'boolean' | 'mixed';
 export type ConfigColumns = {
   title: string;
   index: number;
+  key?: string;
   render?: ObjectColumnRender;
   sorted?: ['asc' | 'desc', number];
   type?: ColumnType;
+  sortable?: boolean;
+  exportable?: boolean;
+  editable?: boolean;
+  draggable?: boolean;
+  width?: number;
+  cellClassName?: string;
+  headerCellClassName?: string;
 };
 
+export interface RenderContext {
+  row: JSONValue[];
+  rowIdx: number;
+  column: ConfigColumns;
+}
+
 export interface ObjectColumnRender<T = JSONValue> {
-  display(value: T): React.ReactNode;
+  display(value: T, context?: RenderContext): React.ReactNode;
   isHtml?: boolean;
   isEnum?: boolean;
   options?: string[];
 }
+
+export type ClientColumnOverlay = {
+  id: string;
+  title: string;
+  value?: (row: JSONValue[], rowIdx: number) => JSONValue;
+  render?: ObjectColumnRender;
+  sortable?: boolean;
+  exportable?: boolean;
+  editable?: boolean;
+  draggable?: boolean;
+  width?: number;
+  position?: 'start' | 'end' | number;
+  cellClassName?: string;
+  headerCellClassName?: string;
+};
 
 interface ReactDataGridTableProps {
   table: React.RefObject<DataGridHandle | null>;
@@ -85,20 +114,25 @@ export function DataTable({
       gridCols.push({
         key: String(dataIndex),
         name: colInfo.title,
-        sortable: true,
+        sortable: colInfo.sortable ?? true,
         resizable: true,
-        draggable: true,
-        cellClass: "px-1",
-        headerCellClass: "px-1 text-gray-900 dark:text-gray-200 bg-gray-100 dark:bg-gray-600 text-xs",
+        draggable: colInfo.draggable ?? true,
+        width: colInfo.width,
+        cellClass: cn("px-1", colInfo.cellClassName),
+        headerCellClass: cn("px-1 text-gray-900 dark:text-gray-200 bg-gray-100 dark:bg-gray-600 text-xs", colInfo.headerCellClassName),
         renderCell: renderer ? (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
           const value = props.row[dataIndex];
-          return renderer(value);
+          return renderer(value, {
+            row: props.row,
+            rowIdx: props.rowIdx,
+            column: colInfo,
+          });
         } : (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
           const value = props.row[dataIndex];
           return String(value);
         },
-        renderEditCell: textEditor,
-        editable: true,
+        renderEditCell: colInfo.editable === false ? undefined : textEditor,
+        editable: colInfo.editable ?? true,
       });
     });
 
@@ -117,6 +151,7 @@ export function DataTable({
     // Convert keys to data indices
     const sourceDataIndex = Number(sourceKey);
     const targetDataIndex = Number(targetKey);
+    if (Number.isNaN(sourceDataIndex) || Number.isNaN(targetDataIndex)) return;
 
     // Find positions in columnsInfo that have these data indices
     const sourceVisualIndex = columnsInfo.findIndex(col => col.index === sourceDataIndex);
@@ -143,12 +178,13 @@ export function DataTable({
   // Handle sort changes triggered by clicking on column headers
   const handleSort = useCallback((newSort: SortColumn[] | undefined): void => {
     if (newSort && newSort.length > 0) {
-      const sortOrder: OrderIdx[] = newSort.map((s) => ({
+      const validSort = newSort.filter((s) => !Number.isNaN(Number(s.columnKey)));
+      const sortOrder: OrderIdx[] = validSort.map((s) => ({
         idx: Number(s.columnKey),
         dir: s.direction === "ASC" ? "asc" : "desc",
       }));
 
-      const sortResult = sortData(data, newSort, columnsInfo);
+      const sortResult = sortData(data, validSort, columnsInfo);
 
       if (sortResult) {
         setColumns(sortResult.columns);

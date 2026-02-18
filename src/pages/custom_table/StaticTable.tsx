@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react";
-import { OrderIdx } from './DataTable';
+import { ClientColumnOverlay, OrderIdx } from './DataTable';
 import { AbstractTableWithButtons, TableProps } from "./AbstractTable";
 
-export function StaticTable({ type, selection, columns, sort }: { type: string, selection: { [key: string]: string }, columns: (string | [string, string])[], sort?: OrderIdx | OrderIdx[] | undefined }) {
+export function StaticTable({ type, selection, columns, sort, clientColumns }: { type: string, selection: { [key: string]: string }, columns: (string | [string, string])[], sort?: OrderIdx | OrderIdx[] | undefined, clientColumns?: ClientColumnOverlay[] }) {
     const getTableProps = useCallback((): TableProps => {
         return {
             type: type,
@@ -13,8 +13,9 @@ export function StaticTable({ type, selection, columns, sort }: { type: string, 
                     : [col, null];
             })),
             sort: sort,
+            clientColumns: clientColumns,
         };
-    }, [type, selection, columns, sort]);
+    }, [type, selection, columns, sort, clientColumns]);
 
     return useMemo(() => (
         <AbstractTableWithButtons getTableProps={getTableProps} load={true} />

@@ -6,7 +6,7 @@ import { getRenderer, isHtmlRenderer } from '@/components/ui/renderers';
 import { ReactNode } from 'react';
 import { AnyCommandPath, BaseCommand, CM, Command, STRIP_PREFIXES } from '@/utils/Command';
 import { TableInfo } from './AbstractTable';
-import { ConfigColumns, ObjectColumnRender, OrderIdx } from "./DataTable";
+import { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, OrderIdx } from "./DataTable";
 import { JSONValue } from "@/lib/internaltypes";
 import { sortData, toSortColumns } from "./sort";
 
@@ -14,6 +14,7 @@ export function createTableInfo(
     newData: WebTable,
     sort: OrderIdx | OrderIdx[] | undefined,
     columns: Map<string, string | null>,
+    clientColumns: ClientColumnOverlay[] = [],
 ): TableInfo {
     const errors: WebTableError[] = newData.errors ?? [];
     const sortColumns = toSortColumns(sort);
@@ -35,9 +36,11 @@ export function createTableInfo(
         console.log("No sorting applied or no data to sort.");
     }
 
-    // data
-    // visibleColumns
-    const visibleColumns = Array.from(Array(header.length).keys());
+    const withClientColumns = applyClientColumns(data, columnsInfo, clientColumns);
+    data = withClientColumns.data;
+    columnsInfo = withClientColumns.columnsInfo;
+
+    const visibleColumns = Array.from(Array(columnsInfo.length).keys());
     // searchSet
     const searchSet: Set<number> = new Set<number>();
 
@@ -92,9 +95,11 @@ export function formatColName(str: string): string {
 }
 
 export function downloadTableData(data: JSONValue[][], columns: ConfigColumns[], useClipboard: boolean, type: ExportType): [string, string] {
-    const header = columns.map((col) => col.title);
+    const exportableColumns = columns.filter((col) => col.exportable !== false);
+    const columnsToExport = exportableColumns.length > 0 ? exportableColumns : columns;
+    const header = columnsToExport.map((col) => col.title);
     const rows = data.map((row) => {
-        return columns.map((col) => row[col.index]);
+        return columnsToExport.map((col) => row[col.index]);
     });
     const combinedData = [header, ...rows];
     return downloadCells(combinedData as (string | number)[][], useClipboard, type);
@@ -198,4 +203,70 @@ export function getQueryString(
         }
     }
     return params.toString();
+}
+
+function applyClientColumns(
+    data: JSONValue[][],
+    columnsInfo: ConfigColumns[],
+    clientColumns: ClientColumnOverlay[]
+): { data: JSONValue[][], columnsInfo: ConfigColumns[] } {
+    if (!clientColumns.length) {
+        return { data, columnsInfo };
+    }
+
+    const baseIndex = columnsInfo.length > 0
+        ? Math.max(...columnsInfo.map((c) => c.index)) + 1
+        : 0;
+
+    const overlayColumns: ConfigColumns[] = clientColumns.map((overlay, index) => ({
+        title: overlay.title,
+        index: baseIndex + index,
+        render: overlay.render,
+        sortable: overlay.sortable ?? false,
+        exportable: overlay.exportable ?? false,
+        editable: overlay.editable ?? false,
+        draggable: overlay.draggable ?? false,
+        width: overlay.width,
+        cellClassName: overlay.cellClassName,
+        headerCellClassName: overlay.headerCellClassName,
+    }));
+
+    const dataWithOverlays = data.map((row, rowIdx) => {
+        const next = [...row];
+        for (const overlay of clientColumns) {
+            next.push(overlay.value ? overlay.value(row, rowIdx) : null);
+        }
+        return next;
+    });
+
+    const startColumns: ConfigColumns[] = [];
+    const endColumns: ConfigColumns[] = [];
+    const positionedColumns: Array<{ at: number, col: ConfigColumns }> = [];
+
+    overlayColumns.forEach((col, idx) => {
+        const pos = clientColumns[idx].position;
+        if (pos === 'start') {
+            startColumns.push(col);
+        } else if (typeof pos === 'number' && Number.isFinite(pos)) {
+            positionedColumns.push({ at: Math.max(0, Math.floor(pos)), col });
+        } else {
+            endColumns.push(col);
+        }
+    });
+
+    let merged = [...startColumns, ...columnsInfo, ...endColumns];
+    if (positionedColumns.length > 0) {
+        positionedColumns.sort((a, b) => a.at - b.at);
+        let offset = 0;
+        for (const { at, col } of positionedColumns) {
+            const insertAt = Math.min(merged.length, at + offset);
+            merged = [...merged.slice(0, insertAt), col, ...merged.slice(insertAt)];
+            offset += 1;
+        }
+    }
+
+    return {
+        data: dataWithOverlays,
+        columnsInfo: merged,
+    };
 }

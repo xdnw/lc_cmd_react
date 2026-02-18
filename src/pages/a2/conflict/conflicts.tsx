@@ -113,6 +113,7 @@ export default function Conflicts() {
     }
   }, [toggleSelected]);
 
+  // Do not use <input. BooleanInput or at least <Input (uppercase I)
   const clientColumns = useMemo<ClientColumnOverlay[]>(() => {
     const selectColumn: ClientColumnOverlay = {
       id: "select",
@@ -219,6 +220,7 @@ export default function Conflicts() {
         selection={{ "": "*" }}
         columns={builder.aliasedArray()}
         clientColumns={clientColumns}
+        
       />
     </>
   );

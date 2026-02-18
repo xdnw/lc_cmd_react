@@ -79,16 +79,37 @@ export function commandButtonAction({ name, command, responseRef, showDialog }: 
     });
 }
 
-type Msg = { [key: string]: string | object | object[] | number | number[] | string[] };
+export type CommandMessage = { [key: string]: string | object | object[] | number | number[] | string[] };
+type Msg = CommandMessage;
+
+export type CommandResponseStatus = "success" | "error" | "action";
+
+export function getCommandResponseStatus(json: CommandMessage): CommandResponseStatus {
+    if (json.error != null) return "error";
+    if (typeof json.action === "string") return "action";
+    return "success";
+}
+
+export function getCommandResponseSummary(json: CommandMessage): string | undefined {
+    if (json.error != null) {
+        if (typeof json.error === "string") return json.error;
+        return json.title as string | undefined;
+    }
+    if (typeof json.action === "string") return json.action;
+    if (typeof json.title === "string") return json.title;
+    return undefined;
+}
 
 export function runCommand({
     command,
     values,
     onResponse,
+    onDone,
 }: {
     command: string;
     values: { [key: string]: string | string[] };
     onResponse: (json: Msg) => void;
+    onDone?: () => void;
 }) {
     const url = new URL(`${process.env.BACKEND_URL}sse/${command}`);
     for (const [k, v] of Object.entries(values)) {
@@ -108,6 +129,7 @@ export function runCommand({
 
         if (!res.ok || !res.body) {
             onResponse({ error: res.statusText, title: "Error Fetching" });
+            onDone?.();
             return;
         }
 
@@ -127,10 +149,10 @@ export function runCommand({
                 // Ensure capacity
                 if (buf.length - w < value.length) {
                     // Compact: move unread bytes to start
-                    if (r > 0) { 
-                        buf.copyWithin(0, r, w); 
-                        w -= r; 
-                        r = 0; 
+                    if (r > 0) {
+                        buf.copyWithin(0, r, w);
+                        w -= r;
+                        r = 0;
                     }
                     // Grow: if still not enough space, resize
                     if (buf.length - w < value.length) {
@@ -147,9 +169,9 @@ export function runCommand({
                 // Parse frames (Loop until we don't have enough bytes for the next frame)
                 while (w - r >= 4) {
                     const len = view.getUint32(r, false); // Big-Endian (matches server)
-                    
+
                     // Safety: Sanity check to prevent OOM on corrupted streams
-                    if (len > 50 * 1024 * 1024) { 
+                    if (len > 50 * 1024 * 1024) {
                         throw new Error(`Frame too large: ${len} bytes`);
                     }
 
@@ -157,7 +179,7 @@ export function runCommand({
                     if (w - r < 4 + len) break;
 
                     const payload = buf.subarray(r + 4, r + 4 + len);
-                    
+
                     // Decode
                     const msg = UNPACKR.decode(payload) as Msg;
                     onResponse(msg);
@@ -175,13 +197,15 @@ export function runCommand({
                 controller.abort(); // Ensure connection closes
             }
         } finally {
-            try { await reader.cancel(); } catch {}
+            try { await reader.cancel(); } catch { }
+            onDone?.();
         }
     })().catch(e => {
         // Handle fetch setup errors
         if (!controller.signal.aborted) {
             onResponse({ error: String(e), title: "Fetch Error" });
         }
+        onDone?.();
     });
 
     // Return the abort handle to the React component/Caller

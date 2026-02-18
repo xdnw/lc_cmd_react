@@ -11,6 +11,7 @@ withAsyncData | @/components/api/Wrapped | PUBLIC | HOC: withAsyncData(Component
 SessionProvider / useSession | @/components/api/SessionContext | PUBLIC | App auth/session context
 DialogProvider / useDialog | @/components/layout/DialogContext | PUBLIC | Global dialog helper: showDialog(title, message)
 CommandComponent | @/components/cmd/CommandComponent | PUBLIC | Renders command UIs; use when showing commands and arg forms
+CommandActionButton | @/components/cmd/CommandActionButton | PUBLIC | Small action button for running/previewing commands.
 CmdList | @/components/cmd/CmdList | PUBLIC | List commands by metadata
 ArgInput, TextInput, NumberInput, TypedInput, ListComponent, QueryComponent, MmrInput, TriStateInput, TimeInput, MapInput, ColorInput | @/components/cmd/* | PUBLIC | Input primitives driven by command metadata; prefer via ArgInput when possible
 ArgDescComponent | @/components/cmd/CommandComponent | PUBLIC | Small helper to display arg description and examples

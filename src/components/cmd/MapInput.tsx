@@ -6,7 +6,7 @@ import { Button } from "../ui/button.tsx";
 import { useDialog } from "../layout/DialogContext";
 
 function toMapString(value: { [key: string]: string }[]) {
-    return value.map((v) => Object.keys(v)[0] + ":" + Object.values(v)[0]).join('\n');
+    return value.map((v) => Object.keys(v)[0] + "=" + Object.values(v)[0]).join('\n');
 }
 
 export default function MapInput(
@@ -25,9 +25,11 @@ export default function MapInput(
         if (initial) {
             const split = initial.split('\n');
             for (const s of split) {
-                const kv = s.split('=');
-                if (kv.length == 2) {
-                    result.push({ [kv[0]]: kv[1] });
+                const equalsIdx = s.indexOf('=');
+                if (equalsIdx > 0) {
+                    const key = s.slice(0, equalsIdx);
+                    const mappedValue = s.slice(equalsIdx + 1);
+                    result.push({ [key]: mappedValue });
                 }
             }
         }

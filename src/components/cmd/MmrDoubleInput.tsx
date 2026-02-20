@@ -36,8 +36,10 @@ export default function MmrDoubleInput(
             // Set the new state
             setValue(currentValues);
             
-            // Call setOutputValue separately
-            const outputString = valueFloat === null ? "" : currentValues.join("/");
+            const isComplete = currentValues.every((entry) => entry != null);
+            const outputString = isComplete
+                ? (currentValues as number[]).join("/")
+                : "";
             setOutputValue(argName, outputString);
         }
     }, [value, setValue, argName, setOutputValue]);
@@ -52,7 +54,7 @@ export default function MmrDoubleInput(
                             argName={index + ""}
                             min={0}
                             max={index == 3 ? 3 : 5}
-                            initialValue={val ? val + "" : ""}
+                            initialValue={val != null ? val + "" : ""}
                             className="w-8"
                             setOutputValue={setOutputFunc}
                             isFloat={true}

@@ -37,10 +37,10 @@ export default function NumberInput(
                 if (!Number.isFinite(myNum)) {
                     throw new Error("Number is not finite");
                 }
-                if (min && myNum < min) {
+                if (min != null && myNum < min) {
                     throw new Error("Minimum value is " + min + " but got " + myNum);
                 }
-                if (max && myNum > max) {
+                if (max != null && myNum > max) {
                     throw new Error("Maximum value is " + max + " but got " + myNum);
                 }
                 setIsValid(true);
@@ -66,7 +66,7 @@ export default function NumberInput(
             <Input type="text"
                    value={value}
                    onChange={onChange} placeholder="Type here..."
-                   className={`${!isValid ? 'border border-2 border-red-500 dark:border-red-800' : ''} ${className} relative px-0 w-full px-1`}
+                     className={`${!isValid ? 'border-2 border-red-500 dark:border-red-800' : ''} ${className} relative px-1 w-full`}
             />
             <span className={`${noteText ? noteText + " px-1" : ""}`}>{noteText}</span>
             {validText && <p className="text-xs font-bold text-red-900 bg-red-500 dark:text-red-300 dark:bg-red-800 rounded-t-sm absolute bottom-full right-0 p-1 ">{validText}</p>}

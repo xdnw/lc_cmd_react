@@ -25,7 +25,7 @@ export default function TextInput(
         <Textarea
             value={value}
             onChange={onChange}
-            className={`${!isValid ? 'border border-2 border-red-500 relative' : ''}`}
+            className={`${!isValid ? 'border-2 border-red-500 relative' : ''}`}
             placeholder="Type here..." />
     )
 }

@@ -13,7 +13,7 @@ export default function BooleanInput(
     const [value, setValue] = useSyncedState(initialValue || '');
     const onChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setValue(e.target.checked ? "1" : "0");
-        setOutputValue(argName, e.target.checked ? "1" : '');
+        setOutputValue(argName, e.target.checked ? "1" : "0");
     }, [argName, setOutputValue, setValue]);
     return (
         <label>

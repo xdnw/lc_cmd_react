@@ -11,25 +11,38 @@ export default function CityRanges(
     }
 ) {
     const [value, setValue] = useSyncedStateFunc<[number | null, number | null]>(initialValue, (initial) => {
-        const result: [number | null, number | null] = [null, null]
-        if (initial && initial.match(/^\d+-\d+$/)) {
-            const split = initial.split('/');
-            result[0] = parseInt(split[0]);
-            result[1] = parseInt(split[1]);
+        const result: [number | null, number | null] = [null, null];
+        if (initial) {
+            const trimmed = initial.trim();
+            const matched = trimmed.match(/^c?(\d+)-(\d+)$/i);
+            if (matched) {
+                result[0] = parseInt(matched[1], 10);
+                result[1] = parseInt(matched[2], 10);
+            }
         }
         return result;
     });
 
-    const input1 = useCallback((name: string, t: string) => {
-        setValue([t ? parseInt(t) : null, value[1]]);
-        if (!t || value[1] == null) setOutputValue(argName, "");
-        else setOutputValue(argName, "c" + t + "-" + (value[1] || 0));
+    const input1 = useCallback((_name: string, t: string) => {
+        const from = t ? parseInt(t, 10) : null;
+        const next: [number | null, number | null] = [from, value[1]];
+        setValue(next);
+        if (next[0] == null || next[1] == null) {
+            setOutputValue(argName, "");
+            return;
+        }
+        setOutputValue(argName, `c${next[0]}-${next[1]}`);
     }, [argName, setOutputValue, setValue, value]);
 
-    const input2 = useCallback((name: string, t: string) => {
-        setValue([value[0], t ? parseInt(t) : null]);
-        if (value[0] == null || !t) setOutputValue(argName, "");
-        else setOutputValue(argName, "c" + (value[0] || 0) + "-" + t);
+    const input2 = useCallback((_name: string, t: string) => {
+        const to = t ? parseInt(t, 10) : null;
+        const next: [number | null, number | null] = [value[0], to];
+        setValue(next);
+        if (next[0] == null || next[1] == null) {
+            setOutputValue(argName, "");
+            return;
+        }
+        setOutputValue(argName, `c${next[0]}-${next[1]}`);
     }, [argName, setOutputValue, setValue, value]);
 
     return (
@@ -40,7 +53,7 @@ export default function CityRanges(
                     argName={argName}
                     min={0}
                     max={100}
-                    initialValue={value[0] ? value[0] + "" : ""}
+                    initialValue={value[0] != null ? value[0] + "" : ""}
                     className="grow"
                     setOutputValue={input1}
                     isFloat={false}
@@ -52,7 +65,7 @@ export default function CityRanges(
                     argName={argName}
                     min={0}
                     max={100}
-                    initialValue={value[1] ? value[1] + "" : ""}
+                    initialValue={value[1] != null ? value[1] + "" : ""}
                     className="grow"
                     setOutputValue={input2}
                     isFloat={false}

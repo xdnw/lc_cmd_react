@@ -1,10 +1,11 @@
 import "./App.css";
-import { createHashRouter, Outlet, RouterProvider, ScrollRestoration } from "react-router-dom";
-import { Suspense, ReactNode, lazy, ComponentType } from "react";
+import { createHashRouter, isRouteErrorResponse, Outlet, RouterProvider, ScrollRestoration, useRouteError } from "react-router-dom";
+import { Suspense, ReactNode, lazy, ComponentType, useEffect, useState } from "react";
 import { hasToken } from "@/utils/Auth.ts";
 import ReactGA from "react-ga4";
 import "react-data-grid/lib/styles.css";
 import AutoRoutePrefetcher from "./components/AutoRoutePrefetcher";
+import Loading from "@/components/ui/loading";
 
 // Initialize Google Analytics
 ReactGA.initialize(process.env.GTAG_ID as string);
@@ -99,6 +100,56 @@ const routeConfigs: AppRouteConfig[] = [
 const PageView = lazy(() => import("./components/layout/page-view"));
 const Splash = lazy(() => import("./pages/splash"));
 
+function RouteLoadingFallback() {
+  const [showFallback, setShowFallback] = useState(false);
+  const [isSlow, setIsSlow] = useState(false);
+
+  useEffect(() => {
+    const showTimer = window.setTimeout(() => setShowFallback(true), 250);
+    const slowTimer = window.setTimeout(() => setIsSlow(true), 10000);
+    return () => {
+      window.clearTimeout(showTimer);
+      window.clearTimeout(slowTimer);
+    };
+  }, []);
+
+  if (!showFallback) return null;
+
+  return (
+    <div className="fixed right-3 top-3 z-50 pointer-events-none">
+      <div className="rounded border border-border/70 bg-background/95 shadow-sm px-3 py-2 text-xs text-muted-foreground backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <Loading variant="ripple" />
+          <span>Loading page...</span>
+        </div>
+        {isSlow && (
+          <div className="mt-2 rounded border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-xs text-foreground">
+            This is taking longer than expected. Possible route-load hang.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RouteErrorFallback() {
+  const error = useRouteError();
+  const message = isRouteErrorResponse(error)
+    ? `${error.status} ${error.statusText}`
+    : error instanceof Error
+      ? error.message
+      : String(error ?? "Unknown route error");
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="max-w-2xl w-full rounded border border-destructive/40 bg-destructive/10 p-4">
+        <h2 className="text-base font-semibold text-destructive">Page failed to load</h2>
+        <p className="mt-2 text-sm break-words">{message}</p>
+      </div>
+    </div>
+  );
+}
+
 // Router is created once at module level
 const router = createHashRouter([
   {
@@ -107,11 +158,12 @@ const router = createHashRouter([
       <>
         <AutoRoutePrefetcher routeConfigs={routeConfigs} />
         <ScrollRestoration />
-        <Suspense>
+        <Suspense fallback={<RouteLoadingFallback />}>
           <Outlet />
         </Suspense>
       </>
     ),
+    errorElement: <RouteErrorFallback />,
     children: [
       {
         index: true,

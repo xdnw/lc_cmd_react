@@ -6,14 +6,13 @@ import { WebTable, WebTableError } from "../../lib/apitypes";
 import { useDialog } from "../../components/layout/DialogContext";
 import { Link } from "react-router-dom";
 import { getQueryString, createTableInfo, toSelAndModifierString } from "./table_util";
-import { useQueryClient, useSuspenseQuery, UseSuspenseQueryOptions } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { singleQueryOptions, suspenseQueryOptions } from "@/lib/queries";
 import { ClientColumnOverlay, ConfigColumns, DataTable, ObjectColumnRender, OrderIdx } from "./DataTable";
 import { DataGridHandle } from "react-data-grid";
 import { JSONValue } from "@/lib/internaltypes";
 import { GoogleSheets } from "./TableWithExports";
 import { useDeepState } from "@/utils/StateUtil";
-import { QueryResult } from "@/lib/BulkQuery";
 import Loading from "@/components/ui/loading";
 
 export type TableInfo = {
@@ -282,25 +281,63 @@ function LoadTable({ type, selection, columns, sort, clientColumns, columnRender
 }) {
     const { showDialog } = useDialog();
 
-    const queryOptions: UseSuspenseQueryOptions<QueryResult<WebTable>, Error, QueryResult<WebTable>, readonly unknown[]> = useMemo(() => {
+    const [showPendingUi, setShowPendingUi] = useState(false);
+    const [showSlowLoadWarning, setShowSlowLoadWarning] = useState(false);
+
+    const queryOptions = useMemo(() => {
         return {
             ...suspenseQueryOptions(TABLE.endpoint, {
                 type: type!,
                 selection_str: toSelAndModifierString(selection)!,
                 columns: Array.from(columns.keys()),
             }, undefined, 10),
-            enabled: false, // Prevent automatic fetching on mount
+            // LoadTable is the eager/static mode, so the query must run on mount.
+            enabled: Boolean(type && columns.size > 0),
         }
     }, [type, selection, columns]);
-    const { data: queryData } = useSuspenseQuery(queryOptions);
+    const {
+        data: queryData,
+        isPending,
+        isError,
+        error,
+        refetch,
+        isFetching,
+    } = useQuery(queryOptions);
+
+    useEffect(() => {
+        if (!isPending) {
+            setShowPendingUi(false);
+            return;
+        }
+
+        const showDelay = window.setTimeout(() => {
+            setShowPendingUi(true);
+        }, 250);
+
+        return () => window.clearTimeout(showDelay);
+    }, [isPending]);
+
+    useEffect(() => {
+        if (!isPending) {
+            setShowSlowLoadWarning(false);
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            setShowSlowLoadWarning(true);
+        }, 10000);
+
+        return () => window.clearTimeout(timeout);
+    }, [isPending]);
 
     // unused
     const [visibleColumns, setVisibleColumns] = useState<number[]>([]);
     const [searchSet, setSearchSet] = useState<Set<number>>(new Set<number>());
     // end unused
 
-    const webTable = queryData.data as WebTable;
+    const webTable = queryData?.data as WebTable | undefined;
     const initialTableInfo = useMemo(() => {
+        if (!webTable) return undefined;
         try {
             return createTableInfo(webTable, sort, columns, clientColumns ?? [], columnRenderers);
         } catch (e) {
@@ -319,10 +356,43 @@ function LoadTable({ type, selection, columns, sort, clientColumns, columnRender
         }
     }, [columnsInfo, onColumnsLoaded]);
 
-    if (queryData.error) {
-        return <div className="text-red-500">Error: {queryData.error}</div>;
+    if (isError) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return (
+            <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                Failed to load table data: {errorMessage}
+            </div>
+        );
     }
-    if (!queryData.data) {
+    if (isPending) {
+        if (!showPendingUi) return null;
+
+        const params = {
+            type,
+            selection: toSelAndModifierString(selection),
+            columns: Array.from(columns.keys()),
+        };
+        return (
+            <div className="space-y-2 rounded border border-border bg-background p-3 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loading variant="ripple" />
+                    <span>Loading table data...</span>
+                </div>
+                {showSlowLoadWarning && (
+                    <div className="rounded border border-yellow-500/40 bg-yellow-500/10 p-2 text-xs">
+                        <div className="font-medium">Slow load detected (10s)</div>
+                        <div className="mt-1 break-all">Request: {JSON.stringify(params)}</div>
+                        <div className="mt-2">
+                            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+                                Retry request
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+    if (!queryData?.data) {
         return <div className="text-red-500">No data</div>;
     }
     if (!initialTableInfo) {

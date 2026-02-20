@@ -554,7 +554,9 @@ const builder = CM.placeholders("Conflict")
     .add({ cmd: "getdamageconverted", args: { isPrimary: "true" }, alias: "c1_damage" })
     .add({ cmd: "getdamageconverted", args: { isPrimary: "false" }, alias: "c2_damage" })
     .add({ cmd: "getwiki", alias: "Wiki" })
-    .add({ cmd: "getstatusdesc", alias: "Status" });
+    .add({ cmd: "getstatusdesc", alias: "Status" })
+    .add({ cmd: "getcoalitionname", args: { side: "false" }, alias: "C1" })
+    .add({ cmd: "getcoalitionname", args: { side: "true" }, alias: "C2" });
 
 function toConflictId(value: unknown): number | null {
     const id = Number(value);
@@ -937,18 +939,20 @@ export default function Conflicts() {
                 <Badge variant="outline">Selected rows: {selected.count}</Badge>
             </div>
 
-            <StaticTable
-                key={`conflicts-${reloadToken}`}
-                type="Conflict"
-                selection={{ "": "*" }}
-                columns={builder.aliasedArray()}
-                columnRenderers={columnRenderers}
-                clientColumns={clientColumns}
-                rowClassName={rowClassName}
-                indexCellRenderer={indexCellRenderer}
-                indexColumnWidth={64}
-                onColumnsLoaded={onColumnsLoaded}
-            />
+            <div className="">
+                <StaticTable
+                    key={`conflicts-${reloadToken}`}
+                    type="Conflict"
+                    selection={{ "": "*" }}
+                    columns={builder.aliasedArray()}
+                    columnRenderers={columnRenderers}
+                    clientColumns={clientColumns}
+                    rowClassName={rowClassName}
+                    indexCellRenderer={indexCellRenderer}
+                    indexColumnWidth={64}
+                    onColumnsLoaded={onColumnsLoaded}
+                />
+            </div>
         </>
     );
 }

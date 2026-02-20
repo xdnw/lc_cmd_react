@@ -30,15 +30,6 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [activeDialogId, setActiveDialogId] = useState<string | null>(null);
     const [tabHistory, setTabHistory] = useState<string[]>([]);
 
-    const logDialogDebug = useCallback((event: string, payload: Record<string, unknown>) => {
-        if (process.env.NODE_ENV === "production") return;
-        try {
-            console.debug(`[DialogContext] ${event}`, payload);
-        } catch {
-            // no-op
-        }
-    }, []);
-
     const showDialog = useCallback((title: string, message: ReactNode, quoteOrOptions: boolean | ShowDialogOptions = false) => {
         const options: ShowDialogOptions = typeof quoteOrOptions === "boolean"
             ? { quote: quoteOrOptions }
@@ -71,7 +62,6 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 setActiveDialogId(id);
                 setTabHistory((prev) => {
                     const next = prev[prev.length - 1] === id ? prev : [...prev, id];
-                    logDialogDebug("open-tab", { id, nextHistory: next });
                     return next;
                 });
             }
@@ -80,7 +70,7 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         });
 
         setDialogVisible(true);
-    }, [activeDialogId, logDialogDebug]);
+    }, [activeDialogId]);
 
     const hideDialog = useCallback(() => {
         setDialogs([]);
@@ -106,7 +96,6 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 setDialogVisible(false);
                 setActiveDialogId(null);
                 setTabHistory([]);
-                logDialogDebug("close-last-tab", { closed: dialogId });
                 return nextDialogs;
             }
 
@@ -119,29 +108,26 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 setTabHistory((prev) => {
                     const filtered = prev.filter((id) => id !== dialogId && nextDialogIdSet.has(id));
                     const next = filtered[filtered.length - 1] === fallbackId ? filtered : [...filtered, fallbackId];
-                    logDialogDebug("close-active-tab", { closed: dialogId, fallbackId, nextHistory: next });
                     return next;
                 });
             } else {
                 setTabHistory((prev) => {
                     const next = prev.filter((id) => id !== dialogId && nextDialogIdSet.has(id));
-                    logDialogDebug("close-inactive-tab", { closed: dialogId, nextHistory: next });
                     return next;
                 });
             }
 
             return nextDialogs;
         });
-    }, [activeDialogId, tabHistory, logDialogDebug]);
+    }, [activeDialogId, tabHistory]);
 
     const onTabChange = useCallback((nextDialogId: string) => {
         setActiveDialogId(nextDialogId);
         setTabHistory((prev) => {
             const next = prev[prev.length - 1] === nextDialogId ? prev : [...prev, nextDialogId];
-            logDialogDebug("tab-change", { nextDialogId, nextHistory: next });
             return next;
         });
-    }, [logDialogDebug]);
+    }, []);
 
     const goBack = useCallback(() => {
         setTabHistory((prev) => {
@@ -151,16 +137,14 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             if (pruned.length <= 1) {
                 const only = pruned[0] ?? dialogs[dialogs.length - 1]?.id ?? null;
                 setActiveDialogId(only);
-                logDialogDebug("back-pruned-noop", { history: prev, pruned, active: only });
                 return pruned;
             }
             const next = pruned.slice(0, -1);
             const previousId = next[next.length - 1] ?? null;
             setActiveDialogId(previousId);
-            logDialogDebug("back", { history: prev, pruned, nextHistory: next, previousId });
             return next;
         });
-    }, [dialogs, logDialogDebug]);
+    }, [dialogs]);
 
     const selectedDialogId = useMemo(() => {
         if (activeDialogId && dialogs.some((dialog) => dialog.id === activeDialogId)) {

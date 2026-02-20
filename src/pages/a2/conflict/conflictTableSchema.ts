@@ -1,6 +1,6 @@
 import type { JSONValue } from "@/lib/internaltypes";
 import { COMMANDS } from "@/lib/commands";
-import type { ConfigColumns, ObjectColumnRender } from "@/pages/custom_table/DataTable";
+import { renderTableCellValue, type ConfigColumns, type ObjectColumnRender } from "@/pages/custom_table/DataTable";
 import { CM } from "@/utils/Command";
 import type { ReactNode } from "react";
 
@@ -120,17 +120,16 @@ export function renderConflictCell(row: ConflictRow, key: ConflictColumnKey, col
     const idx = getConflictColumnIndex(key);
     const rawValue = row.raw[idx];
     const column = getColumnByKey(key, columnsInfo);
-    const renderer = column?.render?.display;
 
-    if (renderer && column) {
-        return renderer(rawValue, {
+    if (column) {
+        return renderTableCellValue(rawValue, {
             row: row.raw,
             rowIdx: 0,
             column,
-        }) ?? "-";
+        });
     }
 
-    return rawValue == null || rawValue === "" ? "-" : String(rawValue);
+    return String(rawValue);
 }
 
 export function toPlainString(value: ReactNode): string | null {

@@ -174,8 +174,8 @@ function RouteErrorFallback() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-2xl w-full rounded border border-destructive/40 bg-destructive/10 p-4">
         <h2 className="text-base font-semibold text-destructive">Page failed to load</h2>
-        <p className="mt-2 text-sm break-words">{message}</p>
-        {stack && <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap text-xs bg-black/5 p-2 rounded">{stack}</pre>}
+        <p className="mt-2 text-sm break-words text-secondary">{message}</p>
+        {stack && <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2  text-yellow-50">{stack}</pre>}
       </div>
     </div>
   );

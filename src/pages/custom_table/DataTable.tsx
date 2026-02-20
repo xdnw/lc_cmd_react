@@ -50,6 +50,14 @@ export interface ObjectColumnRender<T = JSONValue> {
   options?: string[];
 }
 
+export function renderTableCellValue(value: JSONValue, context: RenderContext): ReactNode {
+  const renderer = context.column.render?.display;
+  if (renderer) {
+    return renderer(value, context);
+  }
+  return String(value);
+}
+
 export type ClientColumnOverlay = {
   id: string;
   title: string;
@@ -179,7 +187,7 @@ export function DataTable({
         headerCellClass: cn("px-1 text-gray-900 dark:text-gray-200 bg-gray-100 dark:bg-gray-600 text-xs", colInfo.headerCellClassName),
         renderCell: renderer ? (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
           const value = props.row[dataIndex];
-          return renderer(value, {
+          return renderTableCellValue(value, {
             row: props.row,
             rowIdx: props.rowIdx,
             column: colInfo,

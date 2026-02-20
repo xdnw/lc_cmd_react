@@ -10,7 +10,7 @@ import { usePermission } from "@/utils/PermUtil";
 import { useIdSelection } from "@/utils/useIdSelection";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import ConflictActionsDialogButton from "./ConflictActionsDialogButton";
 import {
     CONFLICT_EDIT_PERMISSION_PATH,
@@ -72,7 +72,7 @@ export default function Conflicts() {
     const selected = useIdSelection<number>();
 
     const [reloadToken, setReloadToken] = useState(0);
-    const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>([]);
+    const columnsInfoRef = useRef<ConfigColumns[]>([]);
     const [renderedRowIds, setRenderedRowIds] = useState<number[]>([]);
     const [lastSelectedRowIdx, setLastSelectedRowIdx] = useState<number | null>(null);
 
@@ -89,7 +89,11 @@ export default function Conflicts() {
     }, [refreshTable]);
 
     const onColumnsLoaded = useCallback((columns: ConfigColumns[]) => {
-        setColumnsInfo(columns);
+        columnsInfoRef.current = columns;
+    }, []);
+
+    const getColumnsInfo = useCallback(() => {
+        return columnsInfoRef.current;
     }, []);
 
     const onRowsRendered = useCallback((rows: JSONValue[][]) => {
@@ -169,7 +173,7 @@ export default function Conflicts() {
                                 canRunAction={canRunTableAction}
                                 canEdit={canEdit}
                                 onActionSuccess={onActionSuccess}
-                                columnsInfo={columnsInfo}
+                                getColumnsInfo={getColumnsInfo}
                             />
                         </div>
                     );
@@ -178,7 +182,7 @@ export default function Conflicts() {
         };
 
         return [actionsColumn];
-    }, [canEdit, canRunTableAction, columnsInfo, onActionSuccess, rowActions, selected.selectedIds]);
+    }, [canEdit, canRunTableAction, getColumnsInfo, onActionSuccess, rowActions, selected.selectedIds]);
 
     const indexCellRenderer = useCallback(({ row, rowIdx, rowNumber }: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => {
         const id = toConflictId(getConflictRawValue(row, "id"));

@@ -2,11 +2,16 @@ import CommandActionButton from "@/components/cmd/CommandActionButton";
 import { useDialog } from "@/components/layout/DialogContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { TableCommandAction, isActionVisible } from "./models";
+import type { AnyTableCommandAction } from "./models";
+import { isActionVisible } from "./models";
 import { useMemo } from "react";
 import CommandActionDialogContent from "./CommandActionDialogContent";
 
-export default function RowActionsMenu<RowT, IdT extends number | string>({
+export default function RowActionsMenu<
+    RowT,
+    IdT extends number | string,
+    A extends AnyTableCommandAction<RowT, IdT>,
+>({
     row,
     rowLabel,
     selectedIds,
@@ -17,8 +22,8 @@ export default function RowActionsMenu<RowT, IdT extends number | string>({
     row: RowT;
     rowLabel: string;
     selectedIds: Set<IdT>;
-    actions: TableCommandAction<RowT, IdT>[];
-    canRunAction: (action: TableCommandAction<RowT, IdT>) => boolean;
+    actions: readonly A[];
+    canRunAction: (action: A) => boolean;
     onActionSuccess?: (actionId: string) => void;
 }) {
     const { showDialog } = useDialog();

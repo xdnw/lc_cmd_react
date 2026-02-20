@@ -17,7 +17,8 @@ import {
     CONFLICT_SYNC_PERMISSION_PATH,
     createConflictBulkActions,
     createConflictRowActions,
-    type ConflictTableAction,
+    type ConflictBulkAction,
+    type ConflictRowAction,
 } from "./conflictActions";
 import {
     conflictColumnRenderers,
@@ -130,15 +131,15 @@ export default function Conflicts() {
         return false;
     }, [canEdit, canSync]);
 
-    const canRunTableAction = useCallback((action: ConflictTableAction) => {
+    const canRunTableAction = useCallback((action: ConflictRowAction | ConflictBulkAction) => {
         return resolveActionPermission(action.permission);
     }, [resolveActionPermission]);
 
-    const bulkActions = useMemo<ConflictTableAction[]>(() => {
+    const bulkActions = useMemo(() => {
         return createConflictBulkActions();
     }, []);
 
-    const rowActions = useMemo<ConflictTableAction[]>(() => {
+    const rowActions = useMemo(() => {
         return createConflictRowActions();
     }, []);
 
@@ -223,7 +224,7 @@ export default function Conflicts() {
                 </div>
             )}
 
-            <BulkActionsToolbar
+            <BulkActionsToolbar<ConflictRow, number, ConflictBulkAction>
                 title="Conflicts"
                 selectedIds={selected.selectedIds}
                 actions={bulkActions}

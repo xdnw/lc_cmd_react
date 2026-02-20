@@ -1,5 +1,4 @@
-import type { AnyCommandPath } from "@/utils/Command";
-import type { CommandArguments } from "@/utils/Command";
+import type { AnyCommandPath, CommandArguments } from "@/utils/Command";
 import { CM } from "@/utils/Command";
 import type { COMMANDS } from "@/lib/commands";
 

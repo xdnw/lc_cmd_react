@@ -2,12 +2,16 @@ import CommandActionButton from "@/components/cmd/CommandActionButton";
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TableCommandAction } from "./models";
+import type { AnyTableCommandAction } from "./models";
 import { useMemo } from "react";
 import { useDialog } from "@/components/layout/DialogContext";
 import CommandActionDialogContent from "./CommandActionDialogContent";
 
-export default function BulkActionsToolbar<RowT, IdT extends number | string>({
+export default function BulkActionsToolbar<
+    RowT,
+    IdT extends number | string,
+    A extends AnyTableCommandAction<RowT, IdT>,
+>({
     title,
     selectedIds,
     dirtyCount,
@@ -22,8 +26,8 @@ export default function BulkActionsToolbar<RowT, IdT extends number | string>({
     title: string;
     selectedIds: Set<IdT>;
     dirtyCount?: number;
-    actions: TableCommandAction<RowT, IdT>[];
-    canRunAction: (action: TableCommandAction<RowT, IdT>) => boolean;
+    actions: readonly A[];
+    canRunAction: (action: A) => boolean;
     onClearSelected?: () => void;
     onClearDirty?: () => void;
     onActionSuccess?: (actionId: string) => void;

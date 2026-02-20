@@ -15,13 +15,15 @@ import {
 } from "@/pages/a2/conflict/conflictTableSchema";
 import {
     buildConflictAllianceRemoveArgs,
-    buildConflictDialogPrefilledAction,
-    CONFLICT_ACTION_IDS,
-    CONFLICT_DETAIL_FIELD_SPECS,
-    isConflictAllianceAction,
-    isConflictFieldEditAction,
-    resolveConflictDetailFieldValue,
-    type ConflictTableAction,
+    buildConflictDetailFields,
+    getConflictAllianceAddAction,
+    getConflictAllianceAddForNationAction,
+    getConflictAllianceRemoveAction,
+    getConflictFooterActions,
+    getConflictHeaderSyncAction,
+    withConflictDialogArgs,
+    type ConflictFormattedValues,
+    type ConflictRowAction,
 } from "./conflictActions";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
@@ -30,7 +32,7 @@ type ConflictDetailField = {
     key: string;
     label: string;
     value: ReactNode;
-    actionId?: string;
+    action?: ConflictRowAction;
     expandable?: boolean;
 };
 
@@ -97,7 +99,7 @@ function ConflictDetailFieldRow({
                         <div className="whitespace-pre-wrap break-words">{field.value || "-"}</div>
                     )}
                 </div>
-                {field.actionId && openAction && (
+                {field.action && openAction && (
                     <Button variant="outline" size="sm" onClick={openAction} disabled={!canRun}>
                         Edit
                     </Button>
@@ -115,6 +117,7 @@ function AllianceSubMenu({
     coalitionTwoName,
     openAddAllianceDialog,
     openAddAllForNationDialog,
+    allianceRemoveAction,
 }: {
     conflict: ConflictRow;
     canEdit: boolean;
@@ -123,11 +126,12 @@ function AllianceSubMenu({
     coalitionTwoName: string;
     openAddAllianceDialog?: () => void;
     openAddAllForNationDialog?: () => void;
+    allianceRemoveAction?: ConflictRowAction;
 }) {
     const { data, isFetching, isError, error } = useQuery(bulkQueryOptions(CONFLICTALLIANCES.endpoint, { conflicts: String(conflict.id) }));
     const [pendingRemovalKey, setPendingRemovalKey] = useState<string | null>(null);
 
-    const conflictAlliancesData: ConflictAlliances | undefined = data?.data;
+    const conflictAlliancesData = (data?.data ?? undefined) as ConflictAlliances | undefined;
 
     const alliancesMap = useMemo<{ [key: number]: string }>(() => {
         return conflictAlliancesData?.alliance_names ?? {};
@@ -217,15 +221,15 @@ function AllianceSubMenu({
                                                         size="sm"
                                                         className="h-6 px-2 text-[11px]"
                                                         onClick={setPendingRemovalByKey.get(key)}
-                                                        disabled={!canEdit}
+                                                        disabled={!canEdit || !allianceRemoveAction}
                                                     >
                                                         Remove
                                                     </Button>
                                                 )}
-                                                {isConfirming && (
+                                                {isConfirming && allianceRemoveAction && (
                                                     <div className="flex items-start gap-1">
                                                         <CommandActionButton
-                                                            command={["conflict", "alliance", "remove"]}
+                                                            command={allianceRemoveAction.command}
                                                             args={removeArgs}
                                                             label="Confirm?"
                                                             classes="!m-0 !h-6 !px-2 !w-auto"
@@ -268,8 +272,8 @@ export default function ConflictActionsDialogButton({
     row: ConflictRow;
     rowLabel: string;
     selectedIds: Set<number>;
-    actions: ConflictTableAction[];
-    canRunAction: (action: ConflictTableAction) => boolean;
+    actions: readonly ConflictRowAction[];
+    canRunAction: (action: ConflictRowAction) => boolean;
     canEdit: boolean;
     onActionSuccess?: (actionId: string) => void;
     columnsInfo?: ConfigColumns[];
@@ -280,6 +284,36 @@ export default function ConflictActionsDialogButton({
         return actions.filter((action) => isActionVisible(action, { row, selectedIds }));
     }, [actions, row, selectedIds]);
 
+    const formattedValues = useMemo<ConflictFormattedValues>(() => ({
+        category: renderConflictCell(row, "category", columnsInfo),
+        start: renderConflictCell(row, "start", columnsInfo),
+        end: renderConflictCell(row, "end", columnsInfo),
+        c1Name: renderConflictCell(row, "c1Name", columnsInfo),
+        c2Name: renderConflictCell(row, "c2Name", columnsInfo),
+    }), [columnsInfo, row]);
+
+    const openActionDialog = useCallback((action: ConflictRowAction) => {
+        const actionWithPrefill = withConflictDialogArgs(action, {
+            row,
+            selectedIds,
+            formatted: formattedValues,
+            columnsInfo,
+        });
+
+        const context = { row, selectedIds };
+        showDialog(action.label, (
+            actionWithPrefill.renderDialog
+                ? actionWithPrefill.renderDialog(context)
+                : (
+                    <CommandActionDialogContent
+                        action={actionWithPrefill}
+                        context={context}
+                        onSuccess={onActionSuccess}
+                    />
+                )
+        ), { openInNewTab: true, focusNewTab: true, replaceActive: false });
+    }, [columnsInfo, formattedValues, onActionSuccess, row, selectedIds, showDialog]);
+
     const onSuccessByActionId = useMemo(() => {
         const handlers = new Map<string, (() => void) | undefined>();
         for (const action of visibleActions) {
@@ -288,71 +322,43 @@ export default function ConflictActionsDialogButton({
         return handlers;
     }, [onActionSuccess, visibleActions]);
 
+    const openDialogByActionId = useMemo(() => {
+        const handlers = new Map<string, () => void>();
+        for (const action of visibleActions) {
+            handlers.set(action.id, () => openActionDialog(action));
+        }
+        return handlers;
+    }, [openActionDialog, visibleActions]);
+
     const onAllianceActionSuccess = useCallback(() => {
         onActionSuccess?.("");
     }, [onActionSuccess]);
 
-    const formattedCategory = useMemo(() => renderConflictCell(row, "category", columnsInfo), [columnsInfo, row]);
-    const startFormatted = useMemo(() => renderConflictCell(row, "start", columnsInfo), [columnsInfo, row]);
-    const endFormatted = useMemo(() => renderConflictCell(row, "end", columnsInfo), [columnsInfo, row]);
-    const c1Formatted = useMemo(() => renderConflictCell(row, "c1Name", columnsInfo), [columnsInfo, row]);
-    const c2Formatted = useMemo(() => renderConflictCell(row, "c2Name", columnsInfo), [columnsInfo, row]);
+    const editableFields = useMemo<ConflictDetailField[]>(() => {
+        return buildConflictDetailFields(visibleActions, {
+            row,
+            formatted: formattedValues,
+            columnsInfo,
+        });
+    }, [columnsInfo, formattedValues, row, visibleActions]);
 
-    const onOpenDialogByActionId = useMemo(() => {
+    const syncAction = useMemo(() => getConflictHeaderSyncAction(visibleActions), [visibleActions]);
+    const footerActions = useMemo(() => getConflictFooterActions(visibleActions), [visibleActions]);
+    const allianceAddAction = useMemo(() => getConflictAllianceAddAction(visibleActions), [visibleActions]);
+    const allianceAddForNationAction = useMemo(() => getConflictAllianceAddForNationAction(visibleActions), [visibleActions]);
+    const allianceRemoveAction = useMemo(() => getConflictAllianceRemoveAction(visibleActions), [visibleActions]);
+
+    const fieldOpenActionByKey = useMemo(() => {
         const handlers = new Map<string, (() => void) | undefined>();
-        for (const action of visibleActions) {
-            if (!action.requiresDialog) continue;
-            handlers.set(action.id, () => {
-                const actionWithPrefill = buildConflictDialogPrefilledAction(action, row, {
-                    category: formattedCategory,
-                    start: startFormatted,
-                    end: endFormatted,
-                    c1Name: c1Formatted,
-                    c2Name: c2Formatted,
-                }, selectedIds, columnsInfo);
-
-                showDialog(action.label, (
-                    <CommandActionDialogContent
-                        action={actionWithPrefill}
-                        context={{ row, selectedIds }}
-                        onSuccess={onActionSuccess}
-                    />
-                ), { openInNewTab: true, focusNewTab: true, replaceActive: false });
-            });
+        for (const field of editableFields) {
+            if (!field.action) {
+                handlers.set(field.key, undefined);
+                continue;
+            }
+            handlers.set(field.key, openDialogByActionId.get(field.action.id));
         }
         return handlers;
-    }, [onActionSuccess, row, selectedIds, showDialog, visibleActions, formattedCategory, c1Formatted, c2Formatted, startFormatted, endFormatted, columnsInfo]);
-
-    const actionById = useMemo(() => {
-        const map = new Map<string, ConflictTableAction>();
-        for (const action of visibleActions) {
-            map.set(action.id, action);
-        }
-        return map;
-    }, [visibleActions]);
-
-    const editableFields = useMemo<ConflictDetailField[]>(() => {
-        const formatted = {
-            category: formattedCategory,
-            c1Name: c1Formatted,
-            c2Name: c2Formatted,
-            start: startFormatted,
-            end: endFormatted,
-        };
-
-        return CONFLICT_DETAIL_FIELD_SPECS.map((spec) => ({
-            key: spec.key,
-            label: spec.label,
-            value: resolveConflictDetailFieldValue(spec, row, formatted),
-            actionId: spec.actionId,
-            expandable: spec.expandable,
-        }));
-    }, [row, formattedCategory, c1Formatted, c2Formatted, startFormatted, endFormatted]);
-
-    const syncAction = useMemo(
-        () => visibleActions.find((action) => action.id === CONFLICT_ACTION_IDS.syncSingle),
-        [visibleActions],
-    );
+    }, [editableFields, openDialogByActionId]);
 
     const openDetailsContent = useMemo(() => {
         return (
@@ -362,7 +368,7 @@ export default function ConflictActionsDialogButton({
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={onOpenDialogByActionId.get(syncAction.id)}
+                            onClick={openDialogByActionId.get(syncAction.id)}
                             disabled={!canRunAction(syncAction)}
                             className="shrink-0"
                         >
@@ -371,50 +377,26 @@ export default function ConflictActionsDialogButton({
                     )}
                 </div>
                 <div className="grid grid-cols-1 gap-1">
-                    {editableFields.map((field) => {
-                        const action = field.actionId ? actionById.get(field.actionId) : undefined;
-                        const openAction = field.actionId ? onOpenDialogByActionId.get(field.actionId) : undefined;
-                        return (
-                            <ConflictDetailFieldRow
-                                key={field.key}
-                                field={field}
-                                openAction={openAction}
-                                canRun={action ? canRunAction(action) : true}
-                            />
-                        );
-                    })}
+                    {editableFields.map((field) => (
+                        <ConflictDetailFieldRow
+                            key={field.key}
+                            field={field}
+                            openAction={fieldOpenActionByKey.get(field.key)}
+                            canRun={field.action ? canRunAction(field.action) : true}
+                        />
+                    ))}
                 </div>
                 <div className="flex flex-wrap gap-1">
-                    {visibleActions.map((action) => {
+                    {footerActions.map((action) => {
                         const disabled = !canRunAction(action);
-                        const isFieldEdit = isConflictFieldEditAction(action.id);
-                        if (isFieldEdit) return null;
-
-                        if (action.id === CONFLICT_ACTION_IDS.deleteConflict) {
-                            return (
-                                <Button
-                                    key={action.id}
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={onOpenDialogByActionId.get(action.id)}
-                                    disabled={disabled}
-                                    className="mr-1 mb-1"
-                                >
-                                    {action.label}
-                                </Button>
-                            );
-                        }
-
-                        if (action.id === CONFLICT_ACTION_IDS.syncSingle) return null;
-                        if (isConflictAllianceAction(action.id)) return null;
 
                         if (action.requiresDialog) {
                             return (
                                 <Button
                                     key={action.id}
-                                    variant="outline"
+                                    variant={action.detailRole === "danger" ? "destructive" : "outline"}
                                     size="sm"
-                                    onClick={onOpenDialogByActionId.get(action.id)}
+                                    onClick={openDialogByActionId.get(action.id)}
                                     disabled={disabled}
                                     className="mr-1 mb-1"
                                 >
@@ -442,27 +424,31 @@ export default function ConflictActionsDialogButton({
                     conflict={row}
                     canEdit={canEdit}
                     onActionSuccess={onAllianceActionSuccess}
-                    coalitionOneName={toPlainString(c1Formatted) ?? row.c1Name}
-                    coalitionTwoName={toPlainString(c2Formatted) ?? row.c2Name}
-                    openAddAllianceDialog={onOpenDialogByActionId.get(CONFLICT_ACTION_IDS.allianceAdd)}
-                    openAddAllForNationDialog={onOpenDialogByActionId.get(CONFLICT_ACTION_IDS.allianceAddForNation)}
+                    coalitionOneName={toPlainString(formattedValues.c1Name) ?? row.c1Name}
+                    coalitionTwoName={toPlainString(formattedValues.c2Name) ?? row.c2Name}
+                    openAddAllianceDialog={allianceAddAction ? openDialogByActionId.get(allianceAddAction.id) : undefined}
+                    openAddAllForNationDialog={allianceAddForNationAction ? openDialogByActionId.get(allianceAddForNationAction.id) : undefined}
+                    allianceRemoveAction={allianceRemoveAction}
                 />
             </div>
         );
     }, [
-        actionById,
+        allianceAddAction,
+        allianceAddForNationAction,
+        allianceRemoveAction,
         canEdit,
         canRunAction,
-        c1Formatted,
-        c2Formatted,
         editableFields,
+        footerActions,
+        fieldOpenActionByKey,
+        formattedValues.c1Name,
+        formattedValues.c2Name,
         onAllianceActionSuccess,
-        onOpenDialogByActionId,
         onSuccessByActionId,
+        openDialogByActionId,
         row,
         selectedIds,
         syncAction,
-        visibleActions,
     ]);
 
     const openDetailsClick = useCallback(() => {

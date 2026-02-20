@@ -1,6 +1,5 @@
 import type { COMMANDS } from "@/lib/commands";
-import type { AnyCommandPath } from "@/utils/Command";
-import type { CommandArguments } from "@/utils/Command";
+import type { AnyCommandPath, CommandArguments } from "@/utils/Command";
 import type { ReactNode } from "react";
 
 export type TableActionScope = "row" | "bulk";
@@ -25,8 +24,10 @@ export type TableCommandAction<
     buildArgs: (context: { row?: RowT; selectedIds: Set<IdT> }) => TableActionArgs<P>;
 };
 
-export function isActionVisible<RowT, IdT extends number | string>(
-    action: TableCommandAction<RowT, IdT>,
+export type AnyTableCommandAction<RowT, IdT extends number | string = number> = TableCommandAction<RowT, IdT, AnyCommandPath>;
+
+export function isActionVisible<RowT, IdT extends number | string, A extends AnyTableCommandAction<RowT, IdT>>(
+    action: A,
     context: { row?: RowT; selectedIds: Set<IdT> },
 ): boolean {
     if (!action.isVisible) return true;

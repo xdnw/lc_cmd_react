@@ -14,9 +14,6 @@ export type ConflictRow = {
     wiki: string;
     start: number;
     end: number;
-    activeWars: number;
-    c1Damage: string;
-    c2Damage: string;
     casusBelli: string;
     raw: JSONValue[];
 };
@@ -24,50 +21,62 @@ export type ConflictRow = {
 type ConflictDataKey = Exclude<keyof ConflictRow, "raw">;
 type ConflictPlaceholderCommand = keyof typeof COMMANDS.placeholders["Conflict"]["commands"];
 
-type ConflictColumnDefinition = {
+type ConflictColumnSchemaEntry = {
     key: ConflictDataKey;
     placeholder: {
         cmd: ConflictPlaceholderCommand;
         alias: string;
         args?: Record<string, string>;
     };
+    renderer?: "turn_to_date";
 };
 
-const CONFLICT_COLUMNS = [
+const CONFLICT_COLUMN_SCHEMA = [
     { key: "id", placeholder: { cmd: "getid", alias: "ID" } },
     { key: "name", placeholder: { cmd: "getname", alias: "Name" } },
     { key: "category", placeholder: { cmd: "getcategory", alias: "Category" } },
-    { key: "start", placeholder: { cmd: "getstartturn", alias: "Start" } },
-    { key: "end", placeholder: { cmd: "getendturn", alias: "End" } },
-    { key: "activeWars", placeholder: { cmd: "getactivewars", alias: "Active Wars" } },
-    { key: "c1Damage", placeholder: { cmd: "getdamageconverted", args: { isPrimary: "true" }, alias: "c1_damage" } },
-    { key: "c2Damage", placeholder: { cmd: "getdamageconverted", args: { isPrimary: "false" }, alias: "c2_damage" } },
+    { key: "start", placeholder: { cmd: "getstartturn", alias: "Start" }, renderer: "turn_to_date" },
+    { key: "end", placeholder: { cmd: "getendturn", alias: "End" }, renderer: "turn_to_date" },
     { key: "wiki", placeholder: { cmd: "getwiki", alias: "Wiki" } },
     { key: "status", placeholder: { cmd: "getstatusdesc", alias: "Status" } },
     { key: "casusBelli", placeholder: { cmd: "getcasusbelli", alias: "CB" } },
     { key: "c1Name", placeholder: { cmd: "getcoalitionname", args: { side: "false" }, alias: "C1" } },
     { key: "c2Name", placeholder: { cmd: "getcoalitionname", args: { side: "true" }, alias: "C2" } },
-] as const satisfies ReadonlyArray<ConflictColumnDefinition>;
+] as const satisfies readonly ConflictColumnSchemaEntry[];
 
-export type ConflictColumnKey = (typeof CONFLICT_COLUMNS)[number]["key"];
+export type ConflictColumnKey = (typeof CONFLICT_COLUMN_SCHEMA)[number]["key"];
 
-export const CONFLICT_COLUMN_INDEX: Record<ConflictColumnKey, number> = CONFLICT_COLUMNS.reduce(
-    (acc, column, idx) => {
-        acc[column.key] = idx;
-        return acc;
+export const conflictPlaceholderColumns = CONFLICT_COLUMN_SCHEMA.reduce(
+    (builder, column) => {
+        const args = "args" in column.placeholder ? column.placeholder.args : undefined;
+        const placeholder = args
+            ? `{${column.placeholder.cmd}(${Object.entries(args).map(([key, value]) => `${key}: ${value}`).join(" ")})}`
+            : `{${column.placeholder.cmd}}`;
+        return builder.addRaw(placeholder, column.placeholder.alias);
     },
-    {} as Record<ConflictColumnKey, number>,
-);
-
-export const conflictPlaceholderColumns = CONFLICT_COLUMNS.reduce(
-    (builder, column) => builder.add(column.placeholder),
     CM.placeholders("Conflict").aliased(),
 );
 
-export const conflictColumnRenderers = {
-    getstartturn: "turn_to_date",
-    getendturn: "turn_to_date",
-} as const;
+const conflictColumnEntries: Array<ConflictColumnSchemaEntry & { index: number }> = CONFLICT_COLUMN_SCHEMA.map((column, index) => ({
+    ...column,
+    index,
+}));
+
+const conflictColumnEntryByKey = Object.fromEntries(
+    conflictColumnEntries.map((column) => [column.key, column]),
+) as Record<ConflictColumnKey, (typeof conflictColumnEntries)[number]>;
+
+export const conflictColumnRenderers = Object.fromEntries(
+    conflictColumnEntries
+        .filter((column): column is ConflictColumnSchemaEntry & { index: number; renderer: "turn_to_date" } =>
+            typeof column.renderer === "string",
+        )
+        .map((column) => [column.placeholder.cmd, column.renderer]),
+) as Record<string, string>;
+
+function getConflictColumnIndex(key: ConflictColumnKey): number {
+    return conflictColumnEntryByKey[key].index;
+}
 
 export function toConflictId(value: JSONValue): number | null {
     const id = Number(value);
@@ -75,7 +84,7 @@ export function toConflictId(value: JSONValue): number | null {
 }
 
 export function getConflictRawValue(row: JSONValue[], key: ConflictColumnKey): JSONValue {
-    return row[CONFLICT_COLUMN_INDEX[key]];
+    return row[getConflictColumnIndex(key)];
 }
 
 export function createConflictRow(raw: JSONValue[]): ConflictRow {
@@ -91,9 +100,6 @@ export function createConflictRow(raw: JSONValue[]): ConflictRow {
         wiki: String(getConflictRawValue(raw, "wiki") ?? ""),
         start: Number(getConflictRawValue(raw, "start") ?? 0),
         end: Number(getConflictRawValue(raw, "end") ?? 0),
-        activeWars: Number(getConflictRawValue(raw, "activeWars") ?? 0),
-        c1Damage: String(getConflictRawValue(raw, "c1Damage") ?? ""),
-        c2Damage: String(getConflictRawValue(raw, "c2Damage") ?? ""),
         casusBelli: String(getConflictRawValue(raw, "casusBelli") ?? ""),
         raw,
     };
@@ -107,11 +113,11 @@ export function isConflictRow(value: JSONValue): value is ConflictRow {
 }
 
 function getColumnByKey(key: ConflictColumnKey, columnsInfo?: ConfigColumns[]): ConfigColumns | undefined {
-    return columnsInfo?.find((value) => value.index === CONFLICT_COLUMN_INDEX[key]);
+    return columnsInfo?.find((value) => value.index === getConflictColumnIndex(key));
 }
 
 export function renderConflictCell(row: ConflictRow, key: ConflictColumnKey, columnsInfo?: ConfigColumns[]): ReactNode {
-    const idx = CONFLICT_COLUMN_INDEX[key];
+    const idx = getConflictColumnIndex(key);
     const rawValue = row.raw[idx];
     const column = getColumnByKey(key, columnsInfo);
     const renderer = column?.render?.display;

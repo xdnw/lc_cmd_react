@@ -197,7 +197,7 @@ export function runCommand({
                 controller.abort(); // Ensure connection closes
             }
         } finally {
-            try { await reader.cancel(); } catch { }
+            try { await reader.cancel(); } catch { /* ignore cancellation errors */ }
             onDone?.();
         }
     })().catch(e => {

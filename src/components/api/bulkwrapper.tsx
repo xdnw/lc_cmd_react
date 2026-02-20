@@ -8,44 +8,44 @@ import { suspenseQueryOptions, BackendError } from "@/lib/queries";
 
 
 function stableSerialize(value: unknown): string {
-    // must always return valid JSON
-    if (value === undefined) return "null";
-    if (value === null) return "null";
-    if (typeof value !== "object") return JSON.stringify(value);
-    if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
+  // must always return valid JSON
+  if (value === undefined) return "null";
+  if (value === null) return "null";
+  if (typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
 
-    const obj = value as Record<string, unknown>;
-    const keys = Object.keys(obj)
-        .filter((k) => obj[k] !== undefined)
-        .sort();
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined)
+    .sort();
 
-    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableSerialize(obj[k])}`).join(",")}}`;
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableSerialize(obj[k])}`).join(",")}}`;
 }
 
 export function useDeepMemo<T>(value: T): T {
-    const key = stableSerialize(value);
-    return useMemo(() => JSON.parse(key) as T, [key]);
+  const key = stableSerialize(value);
+  return useMemo(() => JSON.parse(key) as T, [key]);
 }
 
 export function renderEndpointFallback({
-    error,
-    resetErrorBoundary,
-    endpoint,
-    query,
+  error,
+  resetErrorBoundary,
+  endpoint,
+  query,
 }: {
-    error: Error;
-    resetErrorBoundary: () => void;
-    endpoint: string;
-    query: { readonly [key: string]: string | string[] };
+  error: unknown;
+  resetErrorBoundary: () => void;
+  endpoint: string;
+  query: { readonly [key: string]: string | string[] };
 }) {
-    return (
-        <ErrorBoundaryFallback
-            endpoint={endpoint}
-            query={query}
-            error={error}
-            resetErrorBoundary={resetErrorBoundary}
-        />
-    );
+  return (
+    <ErrorBoundaryFallback
+      endpoint={endpoint}
+      query={query}
+      error={error}
+      resetErrorBoundary={resetErrorBoundary}
+    />
+  );
 }
 export default function EndpointWrapper<T, A extends Record<string, string | string[] | undefined>, B extends Record<string, string | string[] | undefined>>({
   endpoint,
@@ -69,13 +69,13 @@ export default function EndpointWrapper<T, A extends Record<string, string | str
   const stableQuery: { [k: string]: string | string[] } = useDeepMemo(
     args
       ? (Object.fromEntries(Object.entries(args).filter(([_, v]) => v !== undefined)) as {
-          [k: string]: string | string[];
-        })
+        [k: string]: string | string[];
+      })
       : {}
   );
 
   const fallbackRender = useCallback(
-    (fallbackProps: { error: Error; resetErrorBoundary: () => void }) =>
+    (fallbackProps: { error: unknown; resetErrorBoundary: () => void }) =>
       renderEndpointFallback({
         ...fallbackProps,
         endpoint: endpoint.endpoint.name,
@@ -114,68 +114,70 @@ export default function EndpointWrapper<T, A extends Record<string, string | str
 
 
 export function ErrorBoundaryFallback({
-    endpoint,
-    query,
-    error,
-    resetErrorBoundary,
+  endpoint,
+  query,
+  error,
+  resetErrorBoundary,
 }: {
-    readonly endpoint: string;
-    readonly query: { readonly [key: string]: string | string[] };
-    readonly error: Error;
-    readonly resetErrorBoundary: () => void;
+  readonly endpoint: string;
+  readonly query: { readonly [key: string]: string | string[] };
+  readonly error: unknown;
+  readonly resetErrorBoundary: () => void;
 }) {
-    const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-    const handleRetry = useCallback(async () => {
-        // Reset the query to idle state and force a refetch so the ErrorBoundary
-        // will see a new error (if the backend still returns one).
-        await queryClient.resetQueries({ queryKey: [endpoint, query], exact: true });
-        await queryClient.refetchQueries({ queryKey: [endpoint, query], exact: true });
-        resetErrorBoundary();
-    }, [queryClient, endpoint, query, resetErrorBoundary]);
+  const handleRetry = useCallback(async () => {
+    // Reset the query to idle state and force a refetch so the ErrorBoundary
+    // will see a new error (if the backend still returns one).
+    await queryClient.resetQueries({ queryKey: [endpoint, query], exact: true });
+    await queryClient.refetchQueries({ queryKey: [endpoint, query], exact: true });
+    resetErrorBoundary();
+  }, [queryClient, endpoint, query, resetErrorBoundary]);
 
-    return (
-        <>
-            <div role="alert" className="whitespace-pre-wrap bg-accent relative px-2 border-2 border-destructive">
-                <pre className="whitespace-pre-wrap break-all">{error.name}: {error.message}</pre>
-            </div>
-            <Button size="sm" variant="outline" onClick={handleRetry}>Try again</Button>
-        </>
-    );
+  return (
+    <>
+      <div role="alert" className="whitespace-pre-wrap bg-accent relative px-2 border-2 border-destructive">
+        <pre className="whitespace-pre-wrap break-all">
+          {error instanceof Error ? `${error.name}: ${error.message}` : String(error)}
+        </pre>
+      </div>
+      <Button size="sm" variant="outline" onClick={handleRetry}>Try again</Button>
+    </>
+  );
 }
 
 export function BulkQueryWrapper<T>({
-    endpoint,
-    query,
-    is_post,
-    cache_duration,
-    batch_wait_ms,
-    children,
+  endpoint,
+  query,
+  is_post,
+  cache_duration,
+  batch_wait_ms,
+  children,
 }: {
-    readonly endpoint: ApiEndpoint<T>;
-    readonly query: { readonly [key: string]: string | string[] };
-    readonly is_post: boolean;
-    readonly cache_duration: number;
-    readonly batch_wait_ms?: number;
-    readonly children: (args: {
-        result: QueryResult<T>;
-        reload: () => void;
-        isRefetching: boolean;
-    }) => ReactNode;
+  readonly endpoint: ApiEndpoint<T>;
+  readonly query: { readonly [key: string]: string | string[] };
+  readonly is_post: boolean;
+  readonly cache_duration: number;
+  readonly batch_wait_ms?: number;
+  readonly children: (args: {
+    result: QueryResult<T>;
+    reload: () => void;
+    isRefetching: boolean;
+  }) => ReactNode;
 }) {
-    const { data, refetch, isRefetching } = useSuspenseQuery<QueryResult<T>>(
-        suspenseQueryOptions(endpoint, query, is_post, cache_duration, batch_wait_ms)
-    );
+  const { data, refetch, isRefetching } = useSuspenseQuery<QueryResult<T>>(
+    suspenseQueryOptions(endpoint, query, is_post, cache_duration, batch_wait_ms)
+  );
 
-    // If the backend returned an application-level error for this query,
-    // throw so ErrorBoundary can show the message (consistent with non-suspense flow).
-    if (data && data.error) {
-        throw new BackendError(data.error);
-    }
+  // If the backend returned an application-level error for this query,
+  // throw so ErrorBoundary can show the message (consistent with non-suspense flow).
+  if (data && data.error) {
+    throw new BackendError(data.error);
+  }
 
-    const reload = useCallback(() => {
-        return refetch(); // return the Promise so callers can await
-    }, [refetch]);
+  const reload = useCallback(() => {
+    return refetch(); // return the Promise so callers can await
+  }, [refetch]);
 
-    return children({ result: data, reload, isRefetching });
+  return children({ result: data, reload, isRefetching });
 }

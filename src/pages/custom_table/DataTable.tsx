@@ -5,7 +5,7 @@ import {
   Column,
   DataGridHandle,
   RenderCellProps,
-  textEditor
+  renderTextEditor
 } from "react-data-grid";
 import { JSONValue } from "@/lib/internaltypes";
 import { sortData } from "./sort";
@@ -196,7 +196,7 @@ export function DataTable({
           const value = props.row[dataIndex];
           return String(value);
         },
-        renderEditCell: colInfo.editable === false ? undefined : textEditor,
+        renderEditCell: colInfo.editable === false ? undefined : renderTextEditor,
         editable: colInfo.editable ?? true,
       });
     });

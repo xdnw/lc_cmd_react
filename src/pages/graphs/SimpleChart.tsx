@@ -442,11 +442,11 @@ class SimpleChart extends Component<ChartProps, ChartState> {
                     callbacks: {
                         label: function (context: TooltipItem<keyof ChartTypeRegistry>) {
                             const label = context.dataset.label || '';
-                            const value = context.parsed.y;
+                            const value = context.parsed.y ?? 0;
                             return `${label}: ${yCallback(value)}`;
                         },
                         title: function (context: TooltipItem<keyof ChartTypeRegistry>[]) {
-                            return timeFormatFunc(context[0].parsed.x);
+                            return timeFormatFunc(context[0].parsed.x ?? 0);
                         }
                     }
                 },

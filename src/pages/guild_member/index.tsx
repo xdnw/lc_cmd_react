@@ -318,6 +318,7 @@ const allBeigeReasons: string[] = COMMANDS.options.BeigeReason.options;
 
 export function WarComponent({ me, war, isAttacker }: { me: ApiTypes.WebTarget, war: ApiTypes.WebMyWar, isAttacker: boolean }) {
     const now_ms = Date.now();
+    const showBeigeReasons = false;
     return (
         <div className="border-2 border-red-200 dark:border-red-900 bg-slate-500/50 mb-5 rounded-md">
             <table className="table-auto w-full">
@@ -376,7 +377,7 @@ export function WarComponent({ me, war, isAttacker }: { me: ApiTypes.WebTarget, 
                                 {(isAttacker ? war.def_res : war.att_res)}</div>
                         </td>
                     </tr>
-                    <tr className="border-top border-1 border-secondary">
+                    <tr className="border-t border border-secondary">
                         <td className="border border-gray-500/25 p-1"><a className="text-blue-500 hover:text-blue-600 active:text-blue-400 underline" href={`https://www.politicsandwar.com/nation/id=${me.id}`}>{me.nation}</a>
                             {(!isAttacker ? war.def_fortified : war.att_fortified) && <span className="badge bg-secondary ms-1" title="Fortified"><LazyIcon name="Shield" className="h-4 inline" /></span>}
                             {(war.blockade == -1) && <span className="badge bg-secondary ms-1" title="Blockaded"><LazyIcon name="Sailboat" className="h-4 inline" /></span>}
@@ -405,7 +406,7 @@ export function WarComponent({ me, war, isAttacker }: { me: ApiTypes.WebTarget, 
                                 {(!isAttacker ? war.def_res : war.att_res)}</div>
                         </td>
                     </tr>
-                    <tr className="border-top border-1 border-secondary">
+                    <tr className="border-t border border-secondary">
                         <td colSpan={3}>
                             <Button variant="secondary" size="sm" className="w-full" asChild>
                                 <Link to={`https://politicsandwar.com/nation/war/timeline/war=${war.id}`}>War Link</Link>
@@ -444,10 +445,10 @@ export function WarComponent({ me, war, isAttacker }: { me: ApiTypes.WebTarget, 
                             </div>
                         </td>
                     </tr>
-                    <tr className="border-bottom border-1 border-secondary mb-2">
+                    <tr className="border-b border border-secondary mb-2">
                         <td colSpan={100}>
                             <ShowOddsComponent me={me} war={war} />
-                            {war.beigeReasons != null && isAttacker && false && <>
+                            {war.beigeReasons != null && isAttacker && showBeigeReasons && <>
                                 <div
                                     className={`alert ${Object.keys(war.beigeReasons).length == 0 ? "alert-danger" : "alert-success"}`}>
                                     <p className="lead">This is an enemy nation</p>

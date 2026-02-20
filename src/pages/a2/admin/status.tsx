@@ -549,7 +549,7 @@ const TaskDetailsInline = memo(function TaskDetailsInline({ id, now }: TaskDetai
                                             <CopyToClipboardButton text={e.stackTrace ?? ""} label="Copy stack" />
                                         </div>
 
-                                        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">
+                                        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap wrap-break-word text-xs">
                                             {e.stackTrace}
                                         </pre>
                                     </details>
@@ -748,7 +748,7 @@ const TasksDashboardView = memo(function TasksDashboardView({
 
     useEffect(() => {
         if (autoRefresh) setTick(Date.now());
-    }, []); // or [autoRefresh] if you want it when toggled on
+    }, [autoRefresh]);
 
     useEffect(() => {
         if (!openTaskParam) return;

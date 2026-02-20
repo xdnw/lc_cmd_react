@@ -12,10 +12,10 @@ import { CopyToClipboardTextArea } from "../../../components/ui/copytoclipboard"
 import { numericMap } from "../../../components/ui/renderers";
 import EndpointWrapper from "@/components/api/bulkwrapper";
 import LazyIcon from "@/components/ui/LazyIcon";
-import { JSX, ReactNode, useState } from "react";
+import React, { JSX, ReactNode, useState } from "react";
 import LazyExpander from "@/components/ui/LazyExpander";
 import ExpandableTableRow from "@/components/ui/ExpandableTableRow";
-import React from "react";
+
 import { WebTable } from "@/lib/apitypes";
 
 /*

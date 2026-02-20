@@ -449,7 +449,7 @@ export class PlaceholderMap<T extends keyof typeof COMMANDS.placeholders> {
 
 export class PlaceholderObjectBuilder<
     T extends keyof typeof COMMANDS.placeholders,
-    R extends Record<string, JSONValue> = {}
+    R extends Record<string, JSONValue> = Record<string, JSONValue>
 > {
     private readonly type: T;
     private readonly placeholders: string[] = [];
@@ -519,9 +519,9 @@ export class PlaceholderObjectBuilder<
     }
 
     // Create a typed wrapper for the row data
-    createRowAdapter<V = any>(row: V[]): R {
+    createRowAdapter<V = JSONValue>(row: V[]): R {
         const handler: ProxyHandler<object> = {
-            get: (target: object, prop: string | symbol, receiver: any) => {
+            get: (_target: object, prop: string | symbol) => {
                 if (typeof prop === 'string') {
                     const index = this.indexes.get(prop);
                     if (index !== undefined) {
@@ -862,7 +862,7 @@ export function getCompactCommands(opts: { includePlaceholders?: boolean; path?:
     if (opts.includePlaceholders) {
         const phTypes = Object.keys(CM.data.placeholders) as string[];
         for (const t of phTypes) {
-            const phMap = CM.placeholders(t as any);
+            const phMap = CM.placeholders(t as keyof typeof COMMANDS.placeholders);
             for (const ph of phMap.getCommands()) {
                 res.push({
                     path: `${t} ${ph.getPathString()}`,
@@ -924,7 +924,7 @@ export function getCommandArguments(path: string | string[], opts: { includePlac
         if (CM.data.placeholders[first]) {
             const phType = first as keyof typeof COMMANDS.placeholders;
             const phPath = parts.slice(1);
-            const phMap = CM.placeholders(phType as any);
+            const phMap = CM.placeholders(phType);
             if (phPath.length === 0) {
                 const create = phMap.getCreate();
                 return create ? create.getArguments().map(a => ({ name: a.name, optional: a.arg.optional, desc: a.arg.desc, type: a.arg.type, def: a.arg.def, choices: a.arg.choices })) : null;
@@ -933,7 +933,7 @@ export function getCommandArguments(path: string | string[], opts: { includePlac
             const phPaths = phMap.getPlaceholderPaths().map(p => p.join(' '));
             const phPathStr = phPath.join(' ');
             if (!phPaths.includes(phPathStr)) return null;
-            const ph = phMap.get(phPath as any);
+            const ph = phMap.get(phPath as unknown as never);
             return ph.getArguments().map(a => ({ name: a.name, optional: a.arg.optional, desc: a.arg.desc, type: a.arg.type, def: a.arg.def, choices: a.arg.choices }));
         }
     }

@@ -282,8 +282,8 @@ function makeStringComparator(dir: 1 | -1, opts: ResolvedOptions) {
             return aNull ? (nullsFirst ? -1 : 1) : (nullsFirst ? 1 : -1);
         }
 
-        const sa = typeof a === 'string' ? a : String(a as any);
-        const sb = typeof b === 'string' ? b : String(b as any);
+        const sa = typeof a === 'string' ? a : String(a as unknown);
+        const sb = typeof b === 'string' ? b : String(b as unknown);
 
         const cmp = collator ? collator.compare(sa, sb) : sa.localeCompare(sb);
         if (cmp !== 0) return dir === 1 ? cmp : -cmp;
@@ -364,8 +364,8 @@ function makeMixedComparator(dir: 1 | -1, opts: ResolvedOptions) {
         if (ra !== rb) return ra - rb;
 
         // Same precedence bucket; fallback to string representation
-        const sa = String(a as any);
-        const sb = String(b as any);
+        const sa = String(a as unknown);
+        const sb = String(b as unknown);
         if (sa === sb) return 0;
         const cmp = opts.collator ? opts.collator.compare(sa, sb) : sa.localeCompare(sb);
         return dir === 1 ? cmp : -cmp;
@@ -552,7 +552,7 @@ function sortUsingPrecomputedKeys(
                     strs[i] = '';
                 } else {
                     nulls[i] = 0;
-                    strs[i] = typeof v === 'string' ? v : String(v as any);
+                    strs[i] = typeof v === 'string' ? v : String(v as unknown);
                 }
             }
             keysets.push({ kind: 'string', dir, strs, nulls, nullsFirst });

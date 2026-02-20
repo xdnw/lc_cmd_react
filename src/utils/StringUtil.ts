@@ -125,9 +125,15 @@ export function formatDaysToDate(value: number) {
 
 // Convert the slider (turns) to a time string
 export function formatTurnsToDate(value: number) {
-  const timeMillis = (value / TURNS_PER_DAY) * 60 * 60 * 24 * 1000;
-  const date = new Date();
-  date.setTime(timeMillis);
+  // Defensive: accept only finite numbers; match formatDate semantics for null/-1.
+  if (value == null || value === -1 || !Number.isFinite(value)) return "N/A";
+
+  const timeMillis = (value / TURNS_PER_DAY) * 24 * 60 * 60 * 1000;
+  if (!Number.isFinite(timeMillis)) return "N/A";
+
+  const date = new Date(timeMillis);
+  if (isNaN(date.getTime())) return "N/A";
+
   const currentYear = new Date().getFullYear();
   const formattedDate = date.toISOString().slice(0, 16).replace("T", " ");
   const year = date.getFullYear();

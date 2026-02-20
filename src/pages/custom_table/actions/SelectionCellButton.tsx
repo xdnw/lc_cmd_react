@@ -8,12 +8,14 @@ export default function SelectionCellButton({
     onToggle,
     label,
     debugTag,
+    rowNumber,
 }: {
     id: number;
     isSelected: boolean;
     onToggle: (id: number, shiftKey: boolean) => void;
     label?: string;
     debugTag?: string;
+    rowNumber?: number;
 }) {
     const shiftRef = useRef(false);
 
@@ -31,7 +33,7 @@ export default function SelectionCellButton({
     }, [id, onToggle]);
 
     return (
-        <label className={cn("inline-flex items-center", isSelected ? "text-blue-600" : undefined)}>
+        <label className={cn("inline-flex items-center gap-2", isSelected ? "text-blue-600" : undefined)}>
             <Input
                 type="checkbox"
                 className="h-4 w-4"
@@ -42,6 +44,9 @@ export default function SelectionCellButton({
                 title={label ?? `Toggle selection for ${id}`}
                 data-debug={debugTag}
             />
+            {typeof rowNumber === "number" && (
+                <span className="text-xs text-muted-foreground select-none">{rowNumber}</span>
+            )}
         </label>
     );
 }

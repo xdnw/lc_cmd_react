@@ -3,7 +3,7 @@ import CommandActionButton from "@/components/cmd/CommandActionButton";
 import LazyExpander from "@/components/ui/LazyExpander";
 import { CONFLICTALLIANCES, TABLE } from "@/lib/endpoints";
 import type { JSONValue } from "@/lib/internaltypes";
-import type { ClientColumnOverlay, ConfigColumns } from "@/pages/custom_table/DataTable";
+import type { ClientColumnOverlay, ConfigColumns, ObjectColumnRender } from "@/pages/custom_table/DataTable";
 import { StaticTable } from "@/pages/custom_table/StaticTable";
 import SelectionCellButton from "@/pages/custom_table/actions/SelectionCellButton";
 import BulkActionsToolbar from "@/pages/custom_table/actions/BulkActionsToolbar";
@@ -48,8 +48,10 @@ function toPlainString(value: ReactNode): string | null {
 }
 
 function turnToTimestampPrefill(turn: number): string {
+    if (!Number.isFinite(turn) || turn < 0) return "";
     const turnsPerDay = process.env.TEST ? 24 : 12;
     const timeMillis = (turn / turnsPerDay) * 24 * 60 * 60 * 1000;
+    if (!Number.isFinite(timeMillis)) return "";
     return `timestamp:${Math.floor(timeMillis)}`;
 }
 
@@ -99,8 +101,16 @@ function parseConflictAllianceEntries(raw: unknown): ParsedAllianceEntry[] {
 
     if (raw && typeof raw === "object" && !Array.isArray(raw)) {
         for (const [coalitionKey, alliancesRaw] of Object.entries(raw as Record<string, unknown>)) {
+            // coalitionKey may be numeric string or descriptive ("c1", "coalition1") - coerce sensible numeric value when possible
+            const coalitionParsed: number | string = (() => {
+                const asNum = Number(coalitionKey);
+                if (Number.isFinite(asNum)) return asNum;
+                const m = coalitionKey.match(/(\d+)/);
+                if (m) return Number(m[1]);
+                return coalitionKey;
+            })();
             const alliances = asNumberArray(alliancesRaw);
-            alliances.forEach((allianceId) => push(allianceId, coalitionKey));
+            alliances.forEach((allianceId) => push(allianceId, coalitionParsed));
         }
     }
 
@@ -170,6 +180,22 @@ function AllianceSubMenu({
         return grouped;
     }, [entries]);
 
+    // Debugging aid: log parsed alliance payload so we can diagnose mis-categorization.
+    // Kept lightweight and only logs in dev console.
+    (function debugAllianceParsing() {
+        try {
+            // avoid noisy logs in prod
+            if (process.env.NODE_ENV !== "production") {
+                console.debug("[AllianceSubMenu] conflictAlliancesRaw:", conflictAlliancesRaw);
+                console.debug("[AllianceSubMenu] parsed entries:", entries);
+                console.debug("[AllianceSubMenu] grouped by coalition:", Array.from(entriesByCoalition.entries()));
+                console.debug("[AllianceSubMenu] alliancesMap sample:", Object.keys(alliancesMap).slice(0, 10));
+            }
+        } catch (e) {
+            /* ignore */
+        }
+    })();
+
     const onConfirmRemoveSuccess = useCallback(() => {
         setPendingRemovalKey(null);
         onActionSuccess();
@@ -197,6 +223,11 @@ function AllianceSubMenu({
                 </div>
             )}
             {isFetching && <div className="mb-2 text-xs text-muted-foreground">Loading alliances...</div>}
+            <div className="flex flex-wrap gap-2 mb-2">
+                <Button variant="outline" size="sm" onClick={openAddAllianceDialog} disabled={!canEdit || !openAddAllianceDialog}>Add Alliance</Button>
+                <Button variant="outline" size="sm" onClick={openAddAllForNationDialog} disabled={!canEdit || !openAddAllForNationDialog}>Add All for Nation</Button>
+            </div>
+
             <div className="mb-2 rounded border border-border px-2 py-1">
                 {entries.length === 0 && !isFetching && <div className="text-xs text-muted-foreground py-1">No alliances added.</div>}
                 {[...entriesByCoalition.entries()]
@@ -267,10 +298,6 @@ function AllianceSubMenu({
                         </div>
                     ))}
             </div>
-            <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={openAddAllianceDialog} disabled={!canEdit || !openAddAllianceDialog}>Add Alliance</Button>
-                <Button variant="outline" size="sm" onClick={openAddAllForNationDialog} disabled={!canEdit || !openAddAllForNationDialog}>Add All for Nation</Button>
-            </div>
         </div>
     );
 }
@@ -309,6 +336,7 @@ function ConflictSelectButton({
 }: {
     id: number;
     rowIdx: number;
+    rowNumber?: number;
     selected: boolean;
     onToggle: (id: number, rowIdx: number, shiftKey: boolean) => void;
 }) {
@@ -323,6 +351,7 @@ function ConflictSelectButton({
             onToggle={onCheckboxToggle}
             label={selected ? `Deselect conflict ${id}` : `Select conflict ${id}`}
             debugTag={`conflict-select-${id}`}
+            rowNumber={rowNumber}
         />
     );
 }
@@ -404,12 +433,39 @@ function ConflictActionsDialogButton({
     const c1Formatted = useMemo(() => renderConflictCell(row, IDX.c1Name, columnsInfo), [columnsInfo, row]);
     const c2Formatted = useMemo(() => renderConflictCell(row, IDX.c2Name, columnsInfo), [columnsInfo, row]);
 
+    // Debug: surface mapping between raw cell values and formatted values (dev only)
+    (function debugFormattedCells() {
+        if (process.env.NODE_ENV !== "production") {
+            try {
+                console.debug("[ConflictActionsDialogButton] row.id=", row.id, {
+                    rawCategory: row.raw?.[IDX.category], formattedCategory,
+                    rawStart: row.raw?.[IDX.start], startFormatted,
+                    rawEnd: row.raw?.[IDX.end], endFormatted,
+                });
+            } catch (e) {
+                /* no-op */
+            }
+        }
+    })();
+
     const onOpenDialogByActionId = useMemo(() => {
         const handlers = new Map<string, (() => void) | undefined>();
         for (const action of visibleActions) {
             if (!action.requiresDialog) continue;
             handlers.set(action.id, () => {
-                const categoryPrefill = toPlainString(formattedCategory) ?? row.category;
+                let categoryPrefill = toPlainString(formattedCategory) ?? "";
+                // If renderer returned a React node (non-primitive) try to resolve enum label from columnsInfo
+                if (!categoryPrefill) {
+                    const col = columnsInfo?.find((c) => c.index === IDX.category);
+                    const raw = row.raw?.[IDX.category];
+                    const opts = (col?.render as ObjectColumnRender | undefined)?.options;
+                    if (col?.render?.isEnum && Array.isArray(opts)) {
+                        const idx = Number(raw);
+                        if (!Number.isNaN(idx) && opts[idx]) categoryPrefill = opts[idx];
+                    }
+                }
+                if (!categoryPrefill) categoryPrefill = row.category ?? "";
+
                 const c1Prefill = toPlainString(c1Formatted) ?? row.c1Name;
                 const c2Prefill = toPlainString(c2Formatted) ?? row.c2Name;
                 const actionWithPrefill: TableCommandAction<ConflictRow, number> = {
@@ -450,7 +506,7 @@ function ConflictActionsDialogButton({
             });
         }
         return handlers;
-    }, [onActionSuccess, row, selectedIds, showDialog, visibleActions, formattedCategory, c1Formatted, c2Formatted]);
+    }, [onActionSuccess, row, selectedIds, showDialog, visibleActions, formattedCategory, c1Formatted, c2Formatted, columnsInfo]);
 
     const actionById = useMemo(() => {
         const map = new Map<string, TableCommandAction<ConflictRow, number>>();
@@ -621,6 +677,7 @@ const builder = CM.placeholders("Conflict")
     .add({ cmd: "getdamageconverted", args: { isPrimary: "false" }, alias: "c2_damage" })
     .add({ cmd: "getwiki", alias: "Wiki" })
     .add({ cmd: "getstatusdesc", alias: "Status" })
+    .add({ cmd: "getcasusbelli", alias: "CB" })
     .add({ cmd: "getcoalitionname", args: { side: "false" }, alias: "C1" })
     .add({ cmd: "getcoalitionname", args: { side: "true" }, alias: "C2" });
 
@@ -1018,6 +1075,7 @@ export default function Conflicts() {
             <ConflictSelectButton
                 id={id}
                 rowIdx={rowIdx}
+                rowNumber={rowNumber}
                 selected={selected.has(id)}
                 onToggle={onToggleRowSelection}
             />

@@ -100,35 +100,65 @@ const PageView = lazy(() => import("./components/layout/page-view"));
 const Splash = lazy(() => import("./pages/splash"));
 
 function RouteLoadingFallback() {
-  const [showFallback, setShowFallback] = useState(false);
-  const [isSlow, setIsSlow] = useState(false);
+  const [isLikelyHung, setIsLikelyHung] = useState(false);
+  const [hangStack, setHangStack] = useState<string | null>(null);
 
   useEffect(() => {
-    const showTimer = window.setTimeout(() => setShowFallback(true), 250);
-    const slowTimer = window.setTimeout(() => setIsSlow(true), 10000);
-    return () => {
-      window.clearTimeout(showTimer);
-      window.clearTimeout(slowTimer);
-    };
+    const timeoutMs = 10000;
+    const timer = window.setTimeout(() => {
+      setIsLikelyHung(true);
+      const err = new Error(`Route load exceeded ${timeoutMs / 1000}s for ${window.location.hash || "/"}`);
+      setHangStack(err.stack ?? null);
+      console.error("Likely route-load hang detected", {
+        hash: window.location.hash,
+        href: window.location.href,
+        stack: err.stack,
+      });
+    }, timeoutMs);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
-  if (!showFallback) return null;
-
   return (
-    <div className="fixed right-3 top-3 z-50 pointer-events-none">
-      <div className="rounded border border-border/70 bg-background/95 shadow-sm px-3 py-2 text-xs text-muted-foreground backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <Loading variant="ripple" />
-          <span>Loading page...</span>
-        </div>
-        {isSlow && (
-          <div className="mt-2 rounded border border-yellow-500/40 bg-yellow-500/10 px-2 py-1 text-xs text-foreground">
-            This is taking longer than expected. Possible route-load hang.
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
+      <div className="flex flex-col items-center gap-3 px-4">
+        <Loading variant="ripple" dark />
+        {isLikelyHung && (
+          <div className="max-w-2xl rounded border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-100">
+            <div className="font-medium">This route appears to be hung.</div>
+            <div className="mt-1">Loading has exceeded 10 seconds.</div>
+            {hangStack && (
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2 text-[11px] text-yellow-50">
+                {hangStack}
+              </pre>
+            )}
           </div>
         )}
       </div>
     </div>
   );
+}
+
+function extractRouteErrorStack(error: unknown): string | null {
+  if (isRouteErrorResponse(error)) {
+    const data = error.data;
+    if (typeof data === "string") return data;
+    if (data && typeof data === "object") {
+      const stackTrace = (data as { stackTrace?: unknown }).stackTrace;
+      if (typeof stackTrace === "string" && stackTrace.trim()) return stackTrace;
+      const stack = (data as { stack?: unknown }).stack;
+      if (typeof stack === "string" && stack.trim()) return stack;
+      const message = (data as { message?: unknown }).message;
+      if (typeof message === "string" && message.trim()) return message;
+    }
+    return null;
+  }
+
+  if (error instanceof Error && typeof error.stack === "string" && error.stack.trim()) {
+    return error.stack;
+  }
+
+  return null;
 }
 
 function RouteErrorFallback() {
@@ -138,12 +168,14 @@ function RouteErrorFallback() {
     : error instanceof Error
       ? error.message
       : String(error ?? "Unknown route error");
+  const stack = extractRouteErrorStack(error);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-2xl w-full rounded border border-destructive/40 bg-destructive/10 p-4">
         <h2 className="text-base font-semibold text-destructive">Page failed to load</h2>
         <p className="mt-2 text-sm break-words">{message}</p>
+        {stack && <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap text-xs bg-black/5 p-2 rounded">{stack}</pre>}
       </div>
     </div>
   );

@@ -43,8 +43,7 @@
     "noImplicitThis": true,
     "alwaysStrict": true,
     "types": [
-      "vite-plugin-pwa/react",
-      "node"
+      "vite-plugin-pwa/react"
     ]
   },
   "typeRoots": [

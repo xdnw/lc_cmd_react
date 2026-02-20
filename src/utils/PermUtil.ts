@@ -6,9 +6,10 @@ import { bulkQueryOptions } from "@/lib/queries";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useEffect, useRef } from "react";
 
-export function usePermission<P extends AnyCommandPath>(path: P): { permission?: WebPermission, isFetching: boolean } {
+export function usePermission<P extends AnyCommandPath>(path: P, options?: { showDialogOnError?: boolean }): { permission?: WebPermission, isFetching: boolean, error?: string } {
     const { showDialog } = useDialog();
     const shownErrorMessagesRef = useRef<Set<string>>(new Set());
+    const showDialogOnError = options?.showDialogOnError ?? false;
     const { data, isFetching, error } = useQuery({
         ...bulkQueryOptions(PERMISSION.endpoint, {
             command: path.join(" "),
@@ -27,6 +28,7 @@ export function usePermission<P extends AnyCommandPath>(path: P): { permission?:
     }, [error, data?.error, data?.data]);
 
     useEffect(() => {
+        if (!showDialogOnError) return;
         if (errorFinal) {
             const message = `Failed to fetch permission: ${(errorFinal).message}`;
             if (shownErrorMessagesRef.current.has(message)) {
@@ -35,7 +37,7 @@ export function usePermission<P extends AnyCommandPath>(path: P): { permission?:
             shownErrorMessagesRef.current.add(message);
             showDialog('Permission Error', message);
         }
-    }, [errorFinal, showDialog]);
+    }, [errorFinal, showDialog, showDialogOnError]);
 
-    return { permission: data?.data ?? undefined, isFetching };
+    return { permission: data?.data ?? undefined, isFetching, error: errorFinal ? errorFinal.message : undefined };
 }

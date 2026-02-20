@@ -23,7 +23,6 @@ export interface AppRouteConfig {
   element: () => Promise<{ default: ComponentType }>;
   protected: boolean;
 }
-
 const routeConfigs: AppRouteConfig[] = [
   /*
   protected = logged in

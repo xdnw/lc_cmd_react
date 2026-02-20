@@ -11,11 +11,28 @@ function formatDatetimeLocal(date: Date): string {
 }
 
 function parseValue(value: string) {
-    if (value && value.startsWith("timestamp:")) {
+    if (!value) return value;
+
+    if (value.startsWith("timestamp:")) {
         const timestamp = parseInt(value.split(":")[1]);
-        const date = new Date(timestamp);
-        return formatDatetimeLocal(date);
+        if (!Number.isNaN(timestamp)) {
+            const date = new Date(timestamp);
+            return formatDatetimeLocal(date);
+        }
+        return "";
     }
+
+    if (/^\d+$/.test(value)) {
+        const timestamp = Number(value);
+        if (Number.isFinite(timestamp)) {
+            return formatDatetimeLocal(new Date(timestamp));
+        }
+    }
+
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(value)) {
+        return value.replace(" ", "T");
+    }
+
     return value;
 }
 

@@ -31,7 +31,7 @@ export default function SelectionCellButton({
     }, [id, onToggle]);
 
     return (
-        <label className={cn("inline-flex items-center gap-1 text-[10px]", isSelected ? "text-blue-600" : undefined)}>
+        <label className={cn("inline-flex items-center", isSelected ? "text-blue-600" : undefined)}>
             <Input
                 type="checkbox"
                 className="h-4 w-4"
@@ -42,7 +42,6 @@ export default function SelectionCellButton({
                 title={label ?? `Toggle selection for ${id}`}
                 data-debug={debugTag}
             />
-            <span>{isSelected ? "On" : "Off"}</span>
         </label>
     );
 }

@@ -10,6 +10,8 @@
     "deploy": "gh-pages -d dist",
     "dev": "vite --mode dev",
     "dev-test": "vite --mode dev-test",
+    "list-commands": "node ./scripts/list-commands.cjs",
+    "command-args": "node ./scripts/command-args.cjs",
     "build": "vite build --mode main",
     "build-test": "vite build --mode test",
     "build-dev": "vite build --mode dev",

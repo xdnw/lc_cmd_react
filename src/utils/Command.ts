@@ -831,6 +831,122 @@ export function toPlaceholderName(type: string): string {
 // Constants
 export const CM = new CommandMap(COMMANDS as unknown as ICommandMap);
 
+/** Compact summary used by tooling: minimal, non-JSON view */
+export type CompactCommand = {
+    path: string;       // full path (space-separated)
+    name: string;       // final command name
+    desc: string;       // short description (first line)
+    args: string[];     // argument names
+    isPlaceholder?: boolean;
+};
+
+/**
+ * Return compact commands. Options:
+ * - includePlaceholders: include placeholder entries
+ * - path: limit results to a path prefix (string or string[])
+ * - recursive: when path is provided, include all descendants; otherwise return immediate children
+ */
+export function getCompactCommands(opts: { includePlaceholders?: boolean; path?: string | string[]; recursive?: boolean } = {}): CompactCommand[] {
+    const res: CompactCommand[] = [];
+
+    for (const cmd of CM.getCommands()) {
+        res.push({
+            path: cmd.getPathString(),
+            name: cmd.name,
+            desc: cmd.getDescShort(),
+            args: cmd.getArguments().map(a => a.name),
+            isPlaceholder: false
+        });
+    }
+
+    if (opts.includePlaceholders) {
+        const phTypes = Object.keys(CM.data.placeholders) as string[];
+        for (const t of phTypes) {
+            const phMap = CM.placeholders(t as any);
+            for (const ph of phMap.getCommands()) {
+                res.push({
+                    path: `${t} ${ph.getPathString()}`,
+                    name: ph.name,
+                    desc: ph.getDescShort(),
+                    args: ph.getArguments().map(a => a.name),
+                    isPlaceholder: true
+                });
+            }
+        }
+    }
+
+    const sorted = res.sort((a, b) => a.path.localeCompare(b.path));
+
+    if (!opts.path) return sorted;
+
+    const prefixArr = Array.isArray(opts.path) ? opts.path : String(opts.path).split(/\s+/).filter(Boolean);
+    const prefix = prefixArr.join(" ");
+
+    if (opts.recursive) {
+        return sorted.filter(item => item.path === prefix || item.path.startsWith(prefix + " "));
+    }
+
+    // immediate children only
+    const childrenMap: Map<string, CompactCommand> = new Map();
+    for (const item of sorted) {
+        if (item.path === prefix) continue;
+        if (item.path.startsWith(prefix + " ")) {
+            const remainder = item.path.substring(prefix.length + 1);
+            const immediate = remainder.split(" ")[0];
+            const childPath = `${prefix} ${immediate}`;
+            if (!childrenMap.has(immediate)) {
+                const exact = sorted.find(x => x.path === childPath);
+                if (exact) {
+                    childrenMap.set(immediate, { ...exact, path: childPath, name: immediate });
+                } else {
+                    childrenMap.set(immediate, { path: childPath, name: immediate, desc: item.desc, args: item.args, isPlaceholder: item.isPlaceholder });
+                }
+            }
+        }
+    }
+    return Array.from(childrenMap.values()).sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/**
+ * Return the argument definitions for a single command (or placeholder command when requested).
+ * - path: string or array of path segments (e.g. "conflict edit wiki")
+ * - opts.includePlaceholders: if true, allow `/<placeholder-type> <cmd>` paths
+ *
+ * Returns null when the path is not a leaf command.
+ */
+export function getCommandArguments(path: string | string[], opts: { includePlaceholders?: boolean } = {}): ({ name: string; optional?: boolean; desc?: string; type: string; def?: string; choices?: string[] })[] | null {
+    const parts = Array.isArray(path) ? path : String(path).split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return null;
+
+    // Placeholder path support: if first token matches a placeholder type and caller asked for it
+    if (opts.includePlaceholders) {
+        const first = parts[0];
+        if (CM.data.placeholders[first]) {
+            const phType = first as keyof typeof COMMANDS.placeholders;
+            const phPath = parts.slice(1);
+            const phMap = CM.placeholders(phType as any);
+            if (phPath.length === 0) {
+                const create = phMap.getCreate();
+                return create ? create.getArguments().map(a => ({ name: a.name, optional: a.arg.optional, desc: a.arg.desc, type: a.arg.type, def: a.arg.def, choices: a.arg.choices })) : null;
+            }
+            // ensure the placeholder path exists
+            const phPaths = phMap.getPlaceholderPaths().map(p => p.join(' '));
+            const phPathStr = phPath.join(' ');
+            if (!phPaths.includes(phPathStr)) return null;
+            const ph = phMap.get(phPath as any);
+            return ph.getArguments().map(a => ({ name: a.name, optional: a.arg.optional, desc: a.arg.desc, type: a.arg.type, def: a.arg.def, choices: a.arg.choices }));
+        }
+    }
+
+    const pathStr = parts.join(' ');
+    const cmdPaths = CM.getCommandPaths().map(p => p.join(' '));
+    if (!cmdPaths.includes(pathStr)) return null; // not a leaf command
+
+    const cmd = CM.get(parts as AnyCommandPath);
+    return cmd.getArguments().map(a => ({ name: a.name, optional: a.arg.optional, desc: a.arg.desc, type: a.arg.type, def: a.arg.def, choices: a.arg.choices }));
+}
+
+
 export const COMMAND_BEHAVIOR: { [key: string]: CommandBehavior } = {
     "": "DELETE_MESSAGE",
     "~": "UNPRESS",

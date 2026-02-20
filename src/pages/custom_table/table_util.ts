@@ -284,9 +284,9 @@ function resolveColumnRendererOverride(
     columnKey: string | undefined,
 ): ObjectColumnRender | undefined {
     if (!columnRenderers || !columnKey) return undefined;
-    const key = columnKey.toLowerCase();
+    const key = normalizeRendererLookupKey(columnKey);
     const entries = Object.entries(columnRenderers);
-    const match = entries.find(([rendererKey]) => rendererKey.toLowerCase() === key);
+    const match = entries.find(([rendererKey]) => normalizeRendererLookupKey(rendererKey) === key);
     if (!match) return undefined;
 
     const override = match[1];
@@ -294,4 +294,13 @@ function resolveColumnRendererOverride(
         return getRenderer(override);
     }
     return override;
+}
+
+function normalizeRendererLookupKey(value: string): string {
+    return value
+        .toLowerCase()
+        .trim()
+        .replace(/^\{/, "")
+        .replace(/\}$/, "")
+        .replace(/\(.+\)$/, "");
 }

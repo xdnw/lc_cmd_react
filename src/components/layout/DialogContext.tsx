@@ -116,28 +116,14 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, []);
 
     const goBack = useCallback(() => {
-        setDialogs((prevDialogs) => {
-            if (prevDialogs.length <= 1) return prevDialogs;
-
-            const currentId = activeDialogId ?? prevDialogs[prevDialogs.length - 1]?.id;
-            if (!currentId) return prevDialogs;
-
-            const remainingDialogs = prevDialogs.filter((dialog) => dialog.id !== currentId);
-            if (remainingDialogs.length === 0) {
-                setDialogVisible(false);
-                setActiveDialogId(null);
-                setTabHistory([]);
-                return remainingDialogs;
-            }
-
-            const historyWithoutCurrent = tabHistory.filter((id) => id !== currentId && remainingDialogs.some((dialog) => dialog.id === id));
-            const previousId = historyWithoutCurrent[historyWithoutCurrent.length - 1] ?? remainingDialogs[remainingDialogs.length - 1].id;
-
+        setTabHistory((prev) => {
+            if (prev.length <= 1) return prev;
+            const next = prev.slice(0, -1);
+            const previousId = next[next.length - 1] ?? null;
             setActiveDialogId(previousId);
-            setTabHistory([...historyWithoutCurrent, previousId]);
-            return remainingDialogs;
+            return next;
         });
-    }, [activeDialogId, tabHistory]);
+    }, []);
 
     const selectedDialogId = useMemo(() => {
         if (activeDialogId && dialogs.some((dialog) => dialog.id === activeDialogId)) {

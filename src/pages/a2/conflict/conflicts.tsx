@@ -1126,6 +1126,7 @@ export default function Conflicts() {
                 canRunAction={canRunTableAction}
                 onClearSelected={selected.clear}
                 onActionSuccess={onActionSuccess}
+                actionLayout="stacked"
             />
 
             <div className="mb-2 flex flex-wrap items-center gap-2">

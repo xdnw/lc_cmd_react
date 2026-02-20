@@ -16,6 +16,7 @@ export default function BulkActionsToolbar<RowT, IdT extends number | string>({
     onClearSelected,
     onClearDirty,
     onActionSuccess,
+    actionLayout = "inline",
     className,
 }: {
     title: string;
@@ -26,6 +27,7 @@ export default function BulkActionsToolbar<RowT, IdT extends number | string>({
     onClearSelected?: () => void;
     onClearDirty?: () => void;
     onActionSuccess?: (actionId: string) => void;
+    actionLayout?: "inline" | "stacked";
     className?: string;
 }) {
     const { showDialog } = useDialog();
@@ -56,12 +58,18 @@ export default function BulkActionsToolbar<RowT, IdT extends number | string>({
         return handlers;
     }, [actions, onActionSuccess, selectedIds, showDialog]);
 
+    const actionsRowClassName = actionLayout === "stacked"
+        ? "flex flex-wrap items-center gap-2 w-full"
+        : "flex flex-wrap items-center gap-2 ms-auto w-full sm:w-auto";
+
     return (
-        <div className={cn("mb-2 flex flex-wrap items-center gap-2", className)}>
-            <h1 className="text-xl font-semibold">{title}</h1>
-            <Badge variant="outline">Selected: {selectedIds.size}</Badge>
-            {typeof dirtyCount === "number" && <Badge variant="outline">Queued: {dirtyCount}</Badge>}
-            <div className="flex flex-wrap items-center gap-2 ms-auto w-full sm:w-auto">
+        <div className={cn("mb-2", className)}>
+            <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-semibold">{title}</h1>
+                <Badge variant="outline">Selected: {selectedIds.size}</Badge>
+                {typeof dirtyCount === "number" && <Badge variant="outline">Queued: {dirtyCount}</Badge>}
+            </div>
+            <div className={cn(actionsRowClassName, actionLayout === "stacked" ? "mt-2" : undefined)}>
                 {actions.map((action) => {
                     const requiresSelection = action.requiresSelection ?? true;
                     const disabled = (requiresSelection && !hasSelection) || !canRunAction(action);

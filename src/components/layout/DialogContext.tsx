@@ -30,6 +30,15 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [activeDialogId, setActiveDialogId] = useState<string | null>(null);
     const [tabHistory, setTabHistory] = useState<string[]>([]);
 
+    const logDialogDebug = useCallback((event: string, payload: Record<string, unknown>) => {
+        if (process.env.NODE_ENV === "production") return;
+        try {
+            console.debug(`[DialogContext] ${event}`, payload);
+        } catch {
+            // no-op
+        }
+    }, []);
+
     const showDialog = useCallback((title: string, message: ReactNode, quoteOrOptions: boolean | ShowDialogOptions = false) => {
         const options: ShowDialogOptions = typeof quoteOrOptions === "boolean"
             ? { quote: quoteOrOptions }
@@ -60,14 +69,18 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const shouldFocusNewTab = options.focusNewTab ?? true;
             if (shouldFocusNewTab || !hasActive) {
                 setActiveDialogId(id);
-                setTabHistory((prev) => (prev[prev.length - 1] === id ? prev : [...prev, id]));
+                setTabHistory((prev) => {
+                    const next = prev[prev.length - 1] === id ? prev : [...prev, id];
+                    logDialogDebug("open-tab", { id, nextHistory: next });
+                    return next;
+                });
             }
 
             return nextDialogs;
         });
 
         setDialogVisible(true);
-    }, [activeDialogId]);
+    }, [activeDialogId, logDialogDebug]);
 
     const hideDialog = useCallback(() => {
         setDialogs([]);
@@ -88,42 +101,66 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const closeDialogTab = useCallback((dialogId: string) => {
         setDialogs((prevDialogs) => {
             const nextDialogs = prevDialogs.filter((dialog) => dialog.id !== dialogId);
+            const nextDialogIdSet = new Set(nextDialogs.map((dialog) => dialog.id));
             if (nextDialogs.length === 0) {
                 setDialogVisible(false);
                 setActiveDialogId(null);
                 setTabHistory([]);
+                logDialogDebug("close-last-tab", { closed: dialogId });
                 return nextDialogs;
             }
 
             if (activeDialogId === dialogId) {
                 const previousId = [...tabHistory]
                     .reverse()
-                    .find((id) => id !== dialogId && nextDialogs.some((dialog) => dialog.id === id));
+                    .find((id) => id !== dialogId && nextDialogIdSet.has(id));
                 const fallbackId = previousId ?? nextDialogs[nextDialogs.length - 1].id;
                 setActiveDialogId(fallbackId);
-                setTabHistory((prev) => [...prev.filter((id) => id !== dialogId), fallbackId]);
+                setTabHistory((prev) => {
+                    const filtered = prev.filter((id) => id !== dialogId && nextDialogIdSet.has(id));
+                    const next = filtered[filtered.length - 1] === fallbackId ? filtered : [...filtered, fallbackId];
+                    logDialogDebug("close-active-tab", { closed: dialogId, fallbackId, nextHistory: next });
+                    return next;
+                });
             } else {
-                setTabHistory((prev) => prev.filter((id) => id !== dialogId));
+                setTabHistory((prev) => {
+                    const next = prev.filter((id) => id !== dialogId && nextDialogIdSet.has(id));
+                    logDialogDebug("close-inactive-tab", { closed: dialogId, nextHistory: next });
+                    return next;
+                });
             }
 
             return nextDialogs;
         });
-    }, [activeDialogId, tabHistory]);
+    }, [activeDialogId, tabHistory, logDialogDebug]);
 
     const onTabChange = useCallback((nextDialogId: string) => {
         setActiveDialogId(nextDialogId);
-        setTabHistory((prev) => (prev[prev.length - 1] === nextDialogId ? prev : [...prev, nextDialogId]));
-    }, []);
+        setTabHistory((prev) => {
+            const next = prev[prev.length - 1] === nextDialogId ? prev : [...prev, nextDialogId];
+            logDialogDebug("tab-change", { nextDialogId, nextHistory: next });
+            return next;
+        });
+    }, [logDialogDebug]);
 
     const goBack = useCallback(() => {
         setTabHistory((prev) => {
             if (prev.length <= 1) return prev;
-            const next = prev.slice(0, -1);
+            const validIds = new Set(dialogs.map((dialog) => dialog.id));
+            const pruned = prev.filter((id) => validIds.has(id));
+            if (pruned.length <= 1) {
+                const only = pruned[0] ?? dialogs[dialogs.length - 1]?.id ?? null;
+                setActiveDialogId(only);
+                logDialogDebug("back-pruned-noop", { history: prev, pruned, active: only });
+                return pruned;
+            }
+            const next = pruned.slice(0, -1);
             const previousId = next[next.length - 1] ?? null;
             setActiveDialogId(previousId);
+            logDialogDebug("back", { history: prev, pruned, nextHistory: next, previousId });
             return next;
         });
-    }, []);
+    }, [dialogs, logDialogDebug]);
 
     const selectedDialogId = useMemo(() => {
         if (activeDialogId && dialogs.some((dialog) => dialog.id === activeDialogId)) {

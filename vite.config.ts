@@ -1,6 +1,7 @@
 import * as path from "path";
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react-swc';
+import reactBabel from '@vitejs/plugin-react';
+import reactSwc from '@vitejs/plugin-react-swc';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import tailwindcss from "@tailwindcss/vite";
@@ -13,6 +14,21 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
   const isDevelopment = mode === 'dev' || mode === 'dev-test';
+  // Default: compiler on in non-dev builds only. Can be overridden via REACT_COMPILER=true/false.
+  const reactCompilerEnabled = process.env.REACT_COMPILER
+    ? process.env.REACT_COMPILER === 'true'
+    : !isDevelopment;
+  // Keep SWC in normal dev, but allow opting into Babel+compiler in dev via REACT_COMPILER=true.
+  const useSwc = isDevelopment && !reactCompilerEnabled;
+  const reactPlugin = useSwc
+    ? reactSwc()
+    : reactBabel({
+      babel: {
+        plugins: reactCompilerEnabled
+          ? [['babel-plugin-react-compiler', { target: '19' }]]
+          : [],
+      },
+    });
   const minify = !isDevelopment;
   const tsconfigPath = isDevelopment ? './tsconfig.dev.json' : './tsconfig.prod.json';
   let envConfig;
@@ -42,7 +58,7 @@ export default defineConfig(({ mode }) => {
   // Define base plugins
   const plugins = [
     tailwindcss(),
-    react(),
+    reactPlugin,
     tsconfigPaths({ projects: [tsconfigPath] }),
     viteStaticCopy({
       targets: [

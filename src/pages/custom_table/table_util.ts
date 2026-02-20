@@ -28,6 +28,35 @@ export function createTableInfo(
         render: renderFuncNames ? getRenderer(renderFuncNames[index]) : undefined,
     }));
 
+    const columnKeys = Array.from(columns.keys());
+    columnsInfo = columnsInfo.map((col, idx) => {
+        if (col.render) return col;
+        const key = columnKeys[idx]?.toLowerCase();
+
+        if (key === "getcategory") {
+            return {
+                ...col,
+                render: getRenderer("enum:ConflictCategory"),
+            };
+        }
+
+        if (key === "getstartturn" || key === "getendturn") {
+            return {
+                ...col,
+                render: {
+                    display: (value: JSONValue) => {
+                        const turn = Number(value ?? 0);
+                        if (!Number.isFinite(turn) || turn <= 0 || turn > 100000000) return "N/A";
+                        const date = new Date(turn * 1000);
+                        return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
+                    },
+                },
+            };
+        }
+
+        return col;
+    });
+
     const sorted = (!sort || (Array.isArray(sort) && sort.length === 0) || data.length <= 1) ? undefined : sortData(data, sortColumns, columnsInfo);
     if (sorted) {
         data = sorted.data;

@@ -5,12 +5,11 @@ import { useDialog } from "@/components/layout/DialogContext";
 import LazyExpander from "@/components/ui/LazyExpander";
 import { CONFLICTALLIANCES, TABLE } from "@/lib/endpoints";
 import type { JSONValue } from "@/lib/internaltypes";
-import type { ClientColumnOverlay } from "@/pages/custom_table/DataTable";
+import type { ClientColumnOverlay, ConfigColumns } from "@/pages/custom_table/DataTable";
 import { StaticTable } from "@/pages/custom_table/StaticTable";
 import SelectionCellButton from "@/pages/custom_table/actions/SelectionCellButton";
 import BulkActionsToolbar from "@/pages/custom_table/actions/BulkActionsToolbar";
 import CommandActionDialogContent from "@/pages/custom_table/actions/CommandActionDialogContent";
-import type { ConfigColumns } from "@/pages/custom_table/DataTable";
 import type { TableCommandAction } from "@/pages/custom_table/actions/models";
 import { isActionVisible } from "@/pages/custom_table/actions/models";
 import { CM } from "@/utils/Command";
@@ -19,17 +18,61 @@ import { serializeIdSet, useIdSelection } from "@/utils/useIdSelection";
 import { bulkQueryOptions } from "@/lib/queries";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { formatTurnsToDate } from "@/utils/StringUtil";
 
-function AllianceSubMenu({ conflictId, canEdit, onActionSuccess }: { conflictId: number, canEdit: boolean, onActionSuccess: () => void }) {
-    const { data } = useQuery(bulkQueryOptions(CONFLICTALLIANCES.endpoint, { conflicts: String(conflictId) }));
+function formatConflictTurn(raw: unknown): string {
+    const turn = Number(raw ?? 0);
+    if (!Number.isFinite(turn) || turn <= 0 || turn > 100000000) return "N/A";
+
+    // Keep identical formatting to the table's default time renderer for consistency.
+    const date = new Date(turn * 1000);
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
+}
+
+function renderConflictCell(row: ConflictRow, idx: number, columnsInfo?: ConfigColumns[]): ReactNode {
+    const rawValue = row.raw[idx];
+    const column = columnsInfo?.find((value) => value.index === idx);
+    const renderer = column?.render?.display;
+
+    if (renderer && column) {
+        return renderer(rawValue, {
+            row: row.raw,
+            rowIdx: 0,
+            column,
+        }) ?? "-";
+    }
+
+    if (idx === IDX.start || idx === IDX.end) {
+        return formatConflictTurn(rawValue);
+    }
+
+    return rawValue == null || rawValue === "" ? "-" : String(rawValue);
+}
+
+function AllianceSubMenu({
+    conflict,
+    canEdit,
+    onActionSuccess,
+    openAddAllianceDialog,
+    openAddAllForNationDialog,
+}: {
+    conflict: ConflictRow;
+    canEdit: boolean;
+    onActionSuccess: () => void;
+    openAddAllianceDialog?: () => void;
+    openAddAllForNationDialog?: () => void;
+}) {
+    const { data, isFetching, isError, error } = useQuery(bulkQueryOptions(CONFLICTALLIANCES.endpoint, { conflicts: String(conflict.id) }));
 
     const alliancesMap: { [key: number]: string } = data?.data?.alliance_names ?? {};
-    const conflictAlliances = (data?.data?.conflict_alliances?.[conflictId] ?? []) as [number, number][];
+    const conflictAlliances = (data?.data?.conflict_alliances?.[conflict.id] ?? []) as [number, number][];
 
     return (
         <div className="mt-4 border-t border-border pt-4">
             <h3 className="text-sm font-semibold mb-2">Alliances</h3>
+            <div className="mb-2 text-[11px] text-muted-foreground">
+                {`debug: fetching=${isFetching ? "yes" : "no"}, error=${isError ? "yes" : "no"}, names=${Object.keys(alliancesMap).length}, entries=${conflictAlliances.length}, conflict=${conflict.id}`}
+                {isError && <div className="text-destructive">{String(error)}</div>}
+            </div>
             <div className="space-y-1 mb-2">
                 {conflictAlliances.length === 0 && <div className="text-xs text-muted-foreground">No alliances added.</div>}
                 {conflictAlliances.map((entry: number[], idx: number) => {
@@ -41,35 +84,20 @@ function AllianceSubMenu({ conflictId, canEdit, onActionSuccess }: { conflictId:
                             <div>{name} (Side {type})</div>
                             <CommandActionButton
                                 command={["conflict", "alliance", "remove"]}
-                                args={{ conflict: String(conflictId), alliances: String(allianceId) }}
+                                args={{ conflict: String(conflict.id), alliances: String(allianceId) }}
                                 label="Remove"
                                 disabled={!canEdit}
                                 onSuccess={onActionSuccess}
                                 classes="!m-0 !h-6 !px-2 !w-auto"
+                                showResultDialog
                             />
                         </div>
                     );
                 })}
             </div>
             <div className="flex flex-wrap gap-2">
-                <CommandActionButton
-                    command={["conflict", "alliance", "add"]}
-                    args={{ conflict: String(conflictId) }}
-                    label="Add Alliance"
-                    disabled={!canEdit}
-                    onSuccess={onActionSuccess}
-                    showResultDialog
-                    classes="!m-0"
-                />
-                <CommandActionButton
-                    command={["conflict", "alliance", "add_all_for_nation"]}
-                    args={{ conflict: String(conflictId) }}
-                    label="Add All for Nation"
-                    disabled={!canEdit}
-                    onSuccess={onActionSuccess}
-                    showResultDialog
-                    classes="!m-0"
-                />
+                <Button variant="outline" size="sm" onClick={openAddAllianceDialog} disabled={!canEdit || !openAddAllianceDialog}>Add Alliance</Button>
+                <Button variant="outline" size="sm" onClick={openAddAllForNationDialog} disabled={!canEdit || !openAddAllForNationDialog}>Add All for Nation</Button>
             </div>
         </div>
     );
@@ -93,7 +121,7 @@ type ConflictRow = {
 type ConflictDetailField = {
     key: string;
     label: string;
-    value: string;
+    value: ReactNode;
     actionId?: string;
     expandable?: boolean;
 };
@@ -154,8 +182,8 @@ function ConflictDetailFieldRow({
         <div className="rounded border border-border px-2 py-1">
             <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground min-w-20">{field.label}</span>
-                <div className="text-sm break-all flex-1">
-                    {field.expandable ? (
+                <div className="text-sm break-words min-w-0 flex-1">
+                    {field.expandable && typeof field.value === "string" ? (
                         <LazyExpander
                             className="!h-7 !py-0"
                             content={<div className="whitespace-pre-wrap break-words">{field.value || "-"}</div>}
@@ -207,6 +235,10 @@ function ConflictActionsDialogButton({
         return handlers;
     }, [onActionSuccess, visibleActions]);
 
+    const onAllianceActionSuccess = useCallback(() => {
+        onActionSuccess?.("");
+    }, [onActionSuccess]);
+
     const onOpenDialogByActionId = useMemo(() => {
         const handlers = new Map<string, (() => void) | undefined>();
         for (const action of visibleActions) {
@@ -218,7 +250,7 @@ function ConflictActionsDialogButton({
                         context={{ row, selectedIds }}
                         onSuccess={onActionSuccess}
                     />
-                ));
+                ), { openInNewTab: true, focusNewTab: true, replaceActive: false });
             });
         }
         return handlers;
@@ -240,14 +272,9 @@ function ConflictActionsDialogButton({
         ];
     }, [row]);
 
-    const formattedCategory = useMemo(() => {
-        if (!columnsInfo) return row.category;
-        const catCol = columnsInfo.find(c => c.index === 2); // IDX.category is 2
-        return catCol?.render?.display ? String(catCol.render.display(row.category) ?? row.category) : row.category;
-    }, [columnsInfo, row.category]);
-
-    const startFormatted = row.start > 100000000 ? "N/A" : formatTurnsToDate(row.start);
-    const endFormatted = row.end > 100000000 ? "N/A" : formatTurnsToDate(row.end);
+    const formattedCategory = useMemo(() => renderConflictCell(row, IDX.category, columnsInfo), [columnsInfo, row]);
+    const startFormatted = useMemo(() => renderConflictCell(row, IDX.start, columnsInfo), [columnsInfo, row]);
+    const endFormatted = useMemo(() => renderConflictCell(row, IDX.end, columnsInfo), [columnsInfo, row]);
 
     const actionById = useMemo(() => {
         const map = new Map<string, TableCommandAction<ConflictRow, number>>();
@@ -270,9 +297,25 @@ function ConflictActionsDialogButton({
         ];
     }, [row, formattedCategory, startFormatted, endFormatted]);
 
+    const syncAction = useMemo(() => visibleActions.find((action) => action.id === "sync-single"), [visibleActions]);
+
     const openDetailsContent = useMemo(() => {
         return (
-            <div className="space-y-3 max-h-[70vh] overflow-auto">
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto overflow-x-hidden pr-1">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="text-sm font-semibold truncate">{row.name}</div>
+                    {syncAction && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onOpenDialogByActionId.get(syncAction.id)}
+                            disabled={!canRunAction(syncAction)}
+                            className="shrink-0"
+                        >
+                            Sync
+                        </Button>
+                    )}
+                </div>
                 <div className="grid grid-cols-1 gap-1">
                     {editableFields.map((field) => {
                         const action = field.actionId ? actionById.get(field.actionId) : undefined;
@@ -344,31 +387,20 @@ function ConflictActionsDialogButton({
                         );
                     })}
                 </div>
-                <AllianceSubMenu conflictId={row.id} canEdit={canRunAction({ permission: editPermissionPath } as any)} onActionSuccess={() => onActionSuccess?.("")} />
+                <AllianceSubMenu
+                    conflict={row}
+                    canEdit={canRunAction({ permission: editPermissionPath } as TableCommandAction<ConflictRow, number>)}
+                    onActionSuccess={onAllianceActionSuccess}
+                    openAddAllianceDialog={onOpenDialogByActionId.get("alliance-add")}
+                    openAddAllForNationDialog={onOpenDialogByActionId.get("alliance-add-for-nation")}
+                />
             </div >
         );
-    }, [actionById, canRunAction, editableFields, onOpenDialogByActionId, onSuccessByActionId, row, selectedIds, visibleActions, onActionSuccess, editPermissionPath]);
+    }, [actionById, canRunAction, editableFields, onOpenDialogByActionId, onSuccessByActionId, row, selectedIds, visibleActions, onAllianceActionSuccess, syncAction]);
 
     const openDetailsClick = useCallback(() => {
-        const syncAction = visibleActions.find(a => a.id === "sync-single");
-        showDialog(`Conflict: ${row.name}`, (
-            <div className="relative">
-                {syncAction && (
-                    <div className="absolute -top-12 right-0 z-10">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={onOpenDialogByActionId.get(syncAction.id)}
-                            disabled={!canRunAction(syncAction)}
-                        >
-                            Sync
-                        </Button>
-                    </div>
-                )}
-                {openDetailsContent}
-            </div>
-        ));
-    }, [openDetailsContent, showDialog, row.name, visibleActions, onOpenDialogByActionId, canRunAction]);
+        showDialog(`Conflict: ${row.name}`, openDetailsContent, { openInNewTab: true, focusNewTab: true, replaceActive: false });
+    }, [openDetailsContent, showDialog, row.name]);
 
     return (
         <Button variant="outline" size="sm" className="max-w-[220px] truncate justify-start" onClick={openDetailsClick}>
@@ -460,6 +492,7 @@ export default function Conflicts() {
     const selected = useIdSelection<number>();
 
     const [reloadToken, setReloadToken] = useState(0);
+    const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>([]);
 
     const canSync = Boolean(syncPermission?.success);
     const canEdit = Boolean(editPermission?.success);
@@ -472,6 +505,10 @@ export default function Conflicts() {
     const onActionSuccess = useCallback(async () => {
         await refreshTable();
     }, [refreshTable]);
+
+    const onColumnsLoaded = useCallback((columns: ConfigColumns[]) => {
+        setColumnsInfo(columns);
+    }, []);
 
     const onToggleRowSelection = useCallback((id: number, rowIdx: number, shiftKey: boolean) => {
         const shouldSelect = !selected.has(id);
@@ -605,6 +642,7 @@ export default function Conflicts() {
                     start: String(row?.start ?? ""),
                     start_turn: String(row?.start ?? ""),
                     turn: String(row?.start ?? ""),
+                    time: String(row?.start ?? ""),
                 }),
             },
             {
@@ -618,6 +656,7 @@ export default function Conflicts() {
                     end: String(row?.end ?? ""),
                     end_turn: String(row?.end ?? ""),
                     turn: String(row?.end ?? ""),
+                    time: String(row?.end ?? ""),
                 }),
             },
             {
@@ -729,8 +768,11 @@ export default function Conflicts() {
                                 actions={rowActions}
                                 canRunAction={canRunTableAction}
                                 onActionSuccess={onActionSuccess}
+                                columnsInfo={columnsInfo}
                             />
-                            <Badge variant="outline" className="hidden sm:inline-flex">{row.category || "-"}</Badge>
+                            <Badge variant="outline" className="hidden sm:inline-flex">{renderConflictCell(row, IDX.category, columnsInfo)}</Badge>
+                            <Badge variant="outline" className="hidden lg:inline-flex">{renderConflictCell(row, IDX.start, columnsInfo)}</Badge>
+                            <Badge variant="outline" className="hidden lg:inline-flex">{renderConflictCell(row, IDX.end, columnsInfo)}</Badge>
                         </div>
                     );
                 },
@@ -738,7 +780,7 @@ export default function Conflicts() {
         };
 
         return [actionsColumn];
-    }, [canRunTableAction, onActionSuccess, rowActions, selected]);
+    }, [canRunTableAction, onActionSuccess, rowActions, selected, columnsInfo]);
 
     const indexCellRenderer = useCallback(({ row, rowIdx, rowNumber }: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => {
         const id = toConflictId(row[IDX.id]);
@@ -784,6 +826,7 @@ export default function Conflicts() {
                 rowClassName={rowClassName}
                 indexCellRenderer={indexCellRenderer}
                 indexColumnWidth={64}
+                onColumnsLoaded={onColumnsLoaded}
             />
         </>
     );

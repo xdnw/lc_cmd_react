@@ -116,26 +116,28 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, []);
 
     const goBack = useCallback(() => {
-        setTabHistory((prev) => {
-            const nextHistory = [...prev].filter((id) => dialogs.some((dialog) => dialog.id === id));
-            if (nextHistory.length <= 1) return prev;
+        setDialogs((prevDialogs) => {
+            if (prevDialogs.length <= 1) return prevDialogs;
 
-            const currentId = activeDialogId ?? nextHistory[nextHistory.length - 1];
-            while (nextHistory.length > 0 && nextHistory[nextHistory.length - 1] === currentId) {
-                nextHistory.pop();
+            const currentId = activeDialogId ?? prevDialogs[prevDialogs.length - 1]?.id;
+            if (!currentId) return prevDialogs;
+
+            const remainingDialogs = prevDialogs.filter((dialog) => dialog.id !== currentId);
+            if (remainingDialogs.length === 0) {
+                setDialogVisible(false);
+                setActiveDialogId(null);
+                setTabHistory([]);
+                return remainingDialogs;
             }
 
-            while (nextHistory.length > 0 && !dialogs.some((dialog) => dialog.id === nextHistory[nextHistory.length - 1])) {
-                nextHistory.pop();
-            }
-
-            const previousId = nextHistory[nextHistory.length - 1];
-            if (!previousId) return prev;
+            const historyWithoutCurrent = tabHistory.filter((id) => id !== currentId && remainingDialogs.some((dialog) => dialog.id === id));
+            const previousId = historyWithoutCurrent[historyWithoutCurrent.length - 1] ?? remainingDialogs[remainingDialogs.length - 1].id;
 
             setActiveDialogId(previousId);
-            return [...nextHistory, previousId];
+            setTabHistory([...historyWithoutCurrent, previousId]);
+            return remainingDialogs;
         });
-    }, [activeDialogId, dialogs]);
+    }, [activeDialogId, tabHistory]);
 
     const selectedDialogId = useMemo(() => {
         if (activeDialogId && dialogs.some((dialog) => dialog.id === activeDialogId)) {

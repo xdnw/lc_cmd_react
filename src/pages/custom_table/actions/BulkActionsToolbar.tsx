@@ -1,5 +1,4 @@
 import CommandActionButton from "@/components/cmd/CommandActionButton";
-import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AnyTableCommandAction } from "./models";
@@ -14,22 +13,16 @@ export default function BulkActionsToolbar<
 >({
     title,
     selectedIds,
-    dirtyCount,
     actions,
     canRunAction,
-    onClearSelected,
-    onClearDirty,
     onActionSuccess,
     actionLayout = "inline",
     className,
 }: {
     title: string;
     selectedIds: Set<IdT>;
-    dirtyCount?: number;
     actions: readonly A[];
     canRunAction: (action: A) => boolean;
-    onClearSelected?: () => void;
-    onClearDirty?: () => void;
     onActionSuccess?: (actionId: string) => void;
     actionLayout?: "inline" | "stacked";
     className?: string;
@@ -70,8 +63,6 @@ export default function BulkActionsToolbar<
         <div className={cn("mb-2", className)}>
             <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-semibold">{title}</h1>
-                <Badge variant="outline">Selected: {selectedIds.size}</Badge>
-                {typeof dirtyCount === "number" && <Badge variant="outline">Queued: {dirtyCount}</Badge>}
             </div>
             <div className={cn(actionsRowClassName, actionLayout === "stacked" ? "mt-2" : undefined)}>
                 {actions.map((action) => {
@@ -106,16 +97,6 @@ export default function BulkActionsToolbar<
                         />
                     );
                 })}
-                {onClearSelected && (
-                    <Button variant="outline" size="sm" onClick={onClearSelected} disabled={!hasSelection}>
-                        Clear selected
-                    </Button>
-                )}
-                {onClearDirty && typeof dirtyCount === "number" && (
-                    <Button variant="outline" size="sm" onClick={onClearDirty} disabled={dirtyCount === 0}>
-                        Clear queued
-                    </Button>
-                )}
             </div>
         </div>
     );

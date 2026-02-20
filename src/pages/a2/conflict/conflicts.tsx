@@ -233,7 +233,6 @@ export default function Conflicts() {
                 selectedIds={selected.selectedIds}
                 actions={bulkActions}
                 canRunAction={canRunTableAction}
-                onClearSelected={selected.clear}
                 onActionSuccess={onActionSuccess}
                 actionLayout="stacked"
             />

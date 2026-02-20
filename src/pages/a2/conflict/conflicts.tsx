@@ -152,7 +152,6 @@ export default function Conflicts() {
             id: "actions",
             title: "Conflict",
             position: "start",
-            width: 240,
             hideOnMobile: false,
             sortable: false,
             exportable: false,

@@ -440,7 +440,7 @@ const CONFLICT_ACTIONS = defineConflictActions([
 ] as const);
 
 type ConflictActionById = {
-    [Action in (typeof CONFLICT_ACTIONS)[number] as Action["id"]]: Action;
+    [Action in (typeof CONFLICT_ACTIONS)[number]as Action["id"]]: Action;
 };
 
 const CONFLICT_ACTIONS_BY_ID = Object.fromEntries(

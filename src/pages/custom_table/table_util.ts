@@ -113,12 +113,17 @@ export function downloadTableData(data: JSONValue[][], columns: ConfigColumns[],
 }
 
 export function getTypeFromUrl(params: URLSearchParams): keyof typeof COMMANDS.placeholders | undefined {
-    return params.get('type') as keyof typeof COMMANDS.placeholders ?? undefined;
+    const rawType = params.get('type');
+    if (!rawType) return undefined;
+    if (!(rawType in COMMANDS.placeholders)) return undefined;
+    return rawType as keyof typeof COMMANDS.placeholders;
 }
 
 export function getSelectionFromUrl(params: URLSearchParams, current: keyof typeof COMMANDS.placeholders | undefined): { [key: string]: string } {
     const result: { [key: string]: string } = {};
-    result[""] = params.get('sel') ?? (current ? DEFAULT_TABS[current]!.selections.All : undefined) ?? "*";
+    const defaultSelections = current ? DEFAULT_TABS[current]?.selections : undefined;
+    const fallbackSelection = defaultSelections?.All ?? Object.values(defaultSelections ?? {})[0];
+    result[""] = params.get('sel') ?? fallbackSelection ?? "*";
     const ignore: Set<string> = new Set(["type", "sel", "col", "sort"]);
     for (const [key, value] of params.entries()) {
         if (!ignore.has(key) && key) {

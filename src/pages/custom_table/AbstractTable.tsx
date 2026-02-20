@@ -58,22 +58,6 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     const [onRowsRendered, setOnRowsRendered] = useState<TableProps['onRowsRendered']>(() => load ? getTableProps().onRowsRendered : undefined);
     const [onColumnsLoaded, setOnColumnsLoaded] = useState<TableProps['onColumnsLoaded']>(() => load ? getTableProps().onColumnsLoaded : undefined);
 
-    const getTablePropsFinal = useCallback(() => {
-        const props = getTableProps();
-        setType(props.type);
-        setSelection(props.selection);
-        setColumns(props.columns);
-        setSortState(props.sort);
-        setClientColumns(props.clientColumns ?? []);
-        setColumnRenderers(props.columnRenderers);
-        setRowClassName(() => props.rowClassName);
-        setIndexCellRenderer(() => props.indexCellRenderer);
-        setIndexColumnWidth(props.indexColumnWidth);
-        setOnRowsRendered(() => props.onRowsRendered);
-        setOnColumnsLoaded(() => props.onColumnsLoaded);
-        return props;
-    }, [getTableProps, setType, setSelection, setColumns, setSortState, setClientColumns, setColumnRenderers, setRowClassName, setIndexCellRenderer, setIndexColumnWidth, setOnRowsRendered, setOnColumnsLoaded]);
-
     useEffect(() => {
         if (!load) return;
         const props = getTableProps();
@@ -150,20 +134,29 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     }, [table]);
 
     const copy = useCallback(() => {
-        console.log("COLS ", columns);
+        const current = load
+            ? { type, selection, columns, sort: sortState }
+            : getTableProps();
+
+        if (!current.type) {
+            showDialog("Failed to copy URL", "Table type is missing.", true);
+            return;
+        }
+
+        console.log("COLS ", current.columns);
         const baseUrlWithoutPath = window.location.protocol + "//" + window.location.host;
         const url = (`${baseUrlWithoutPath}${process.env.BASE_PATH}#/view_table?${encodeURIComponent(getQueryString({
-            type: type!,
-            selAndModifiers: selection,
-            columns: columns,
-            sort: sortState
+            type: current.type,
+            selAndModifiers: current.selection,
+            columns: current.columns,
+            sort: current.sort
         }))}`);
         navigator.clipboard.writeText(url).then(() => {
             showDialog("URL copied to clipboard", url, true);
         }).catch((err) => {
             showDialog("Failed to copy URL to clipboard", err + "", true);
         });
-    }, [type, selection, columns, sortState, showDialog]);
+    }, [load, type, selection, columns, sortState, getTableProps, showDialog]);
 
     const exportsComponent = useMemo(() => {
         if (!type || !selection || !columns) return null;
@@ -252,7 +245,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     } else {
         return <DeferTable
             table={table}
-            getTableProps={getTablePropsFinal}
+            getTableProps={getTableProps}
             setSortState={setSortState}
             showErrorsProvided={showErrorsProvided}
             rowClassName={rowClassName}

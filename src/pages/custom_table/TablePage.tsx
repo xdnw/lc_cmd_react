@@ -21,8 +21,13 @@ export default function CustomTable() {
         getSelectionFromUrl(params, type)
     );
     const [columns] = useDeepState<Map<string, string | null>>(function () {
+        const defaultTab = DEFAULT_TABS[type];
+        const firstColumnGroup = Object.keys(defaultTab?.columns ?? {})[0];
+        const defaultColumns = firstColumnGroup
+            ? defaultTab?.columns[firstColumnGroup]?.value
+            : undefined;
         return getColumnsFromUrl(params) ?? new Map(
-            (DEFAULT_TABS[type]?.columns[Object.keys(DEFAULT_TABS[type].columns ?? {})[0]]?.value ?? ["{id}"]).map(col => {
+            (defaultColumns ?? ["{id}"]).map(col => {
                 if (Array.isArray(col)) {
                     return [col[0], col[1]];
                 } else {
@@ -31,21 +36,24 @@ export default function CustomTable() {
             })
         );
     }());
+    const defaultTab = DEFAULT_TABS[type];
+    const firstColumnGroup = Object.keys(defaultTab?.columns ?? {})[0];
     const [sort] = useDeepState<OrderIdx | OrderIdx[] | undefined>(
-        getSortFromUrl(params) ?? (DEFAULT_TABS[type]?.columns[Object.keys(DEFAULT_TABS[type].columns)[0]]?.sort)
+        getSortFromUrl(params) ?? (firstColumnGroup ? defaultTab?.columns[firstColumnGroup]?.sort : undefined)
     );
 
     const tabsRef = useRef<PlaceholderTabsHandle>(null);
 
     const getTableProps = useCallback(() => {
+        const currentTabs = tabsRef.current;
         const data: TableProps = {
-            type: tabsRef.current!.getType(),
-            selection: tabsRef.current!.getSelection(),
-            columns: tabsRef.current!.getColumns(),
-            sort: tabsRef.current!.getSort(),
+            type: currentTabs?.getType() ?? type,
+            selection: currentTabs?.getSelection() ?? selection,
+            columns: currentTabs?.getColumns() ?? columns,
+            sort: currentTabs?.getSort() ?? sort,
         };
         return data;
-    }, [tabsRef]);
+    }, [tabsRef, type, selection, columns, sort]);
 
     const table = useMemo(() => {
         return <div className="bg-light/10 border border-light/10 p-2 rounded mt-2">

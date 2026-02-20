@@ -31,6 +31,11 @@ export type TableProps = {
     columns: Map<string, string | null>,
     sort: OrderIdx | OrderIdx[] | undefined,
     clientColumns?: ClientColumnOverlay[],
+    rowClassName?: (row: JSONValue[], rowIdx: number) => string | undefined,
+    indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode,
+    indexColumnWidth?: number,
+    onRowsRendered?: (rows: JSONValue[][]) => void,
+    onColumnsLoaded?: (columns: ConfigColumns[]) => void,
 }
 
 export function AbstractTableWithButtons({ getTableProps, load }: {
@@ -45,6 +50,11 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     const [columns, setColumns] = useDeepState<Map<string, string | null>>(load ? getTableProps().columns : new Map<string, string | null>());
     const [sortState, setSortState] = useDeepState<OrderIdx | OrderIdx[] | undefined>(load ? getTableProps().sort : undefined);
     const [clientColumns, setClientColumns] = useState<ClientColumnOverlay[]>(load ? (getTableProps().clientColumns ?? []) : []);
+    const [rowClassName, setRowClassName] = useState<TableProps['rowClassName']>(() => load ? getTableProps().rowClassName : undefined);
+    const [indexCellRenderer, setIndexCellRenderer] = useState<TableProps['indexCellRenderer']>(() => load ? getTableProps().indexCellRenderer : undefined);
+    const [indexColumnWidth, setIndexColumnWidth] = useState<TableProps['indexColumnWidth']>(() => load ? getTableProps().indexColumnWidth : undefined);
+    const [onRowsRendered, setOnRowsRendered] = useState<TableProps['onRowsRendered']>(() => load ? getTableProps().onRowsRendered : undefined);
+    const [onColumnsLoaded, setOnColumnsLoaded] = useState<TableProps['onColumnsLoaded']>(() => load ? getTableProps().onColumnsLoaded : undefined);
 
     const getTablePropsFinal = useCallback(() => {
         const props = getTableProps();
@@ -53,8 +63,41 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
         setColumns(props.columns);
         setSortState(props.sort);
         setClientColumns(props.clientColumns ?? []);
+        setRowClassName(() => props.rowClassName);
+        setIndexCellRenderer(() => props.indexCellRenderer);
+        setIndexColumnWidth(props.indexColumnWidth);
+        setOnRowsRendered(() => props.onRowsRendered);
+        setOnColumnsLoaded(() => props.onColumnsLoaded);
         return props;
-    }, [getTableProps, setType, setSelection, setColumns, setSortState, setClientColumns]);
+    }, [getTableProps, setType, setSelection, setColumns, setSortState, setClientColumns, setRowClassName, setIndexCellRenderer, setIndexColumnWidth, setOnRowsRendered, setOnColumnsLoaded]);
+
+    useEffect(() => {
+        if (!load) return;
+        const props = getTableProps();
+        setType(props.type);
+        setSelection(props.selection);
+        setColumns(props.columns);
+        setSortState(props.sort);
+        setClientColumns(props.clientColumns ?? []);
+        setRowClassName(() => props.rowClassName);
+        setIndexCellRenderer(() => props.indexCellRenderer);
+        setIndexColumnWidth(props.indexColumnWidth);
+        setOnRowsRendered(() => props.onRowsRendered);
+        setOnColumnsLoaded(() => props.onColumnsLoaded);
+    }, [
+        load,
+        getTableProps,
+        setType,
+        setSelection,
+        setColumns,
+        setSortState,
+        setClientColumns,
+        setRowClassName,
+        setIndexCellRenderer,
+        setIndexColumnWidth,
+        setOnRowsRendered,
+        setOnColumnsLoaded,
+    ]);
     const highlightRowOrColumn = useCallback((col?: number, row?: number) => {
         const tableElem = table.current?.element;
         // remove all bg-red-500 from table th and td
@@ -159,7 +202,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
         showDialog(title, body);
     }, [showDialog, highlightError]);
 
-    const renderChildren = useCallback((errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void) => {
+    const renderChildren = useCallback((errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, currentRowClassName?: TableProps['rowClassName'], currentIndexCellRenderer?: TableProps['indexCellRenderer'], currentIndexColumnWidth?: TableProps['indexColumnWidth'], currentOnRowsRendered?: TableProps['onRowsRendered']) => {
         return <>
             {exportsComponent}
             {shareButton}
@@ -170,6 +213,10 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
                 columnsInfo={columnsInfo}
                 sort={sortState}
                 searchSet={searchSet}
+                rowClassName={currentRowClassName}
+                indexCellRenderer={currentIndexCellRenderer}
+                indexColumnWidth={currentIndexColumnWidth}
+                onRowsRendered={currentOnRowsRendered}
                 visibleColumns={visibleColumns}
                 showExports={true}
 
@@ -187,6 +234,11 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
             columns={columns}
             sort={sortState}
             clientColumns={clientColumns}
+            rowClassName={rowClassName}
+            indexCellRenderer={indexCellRenderer}
+            indexColumnWidth={indexColumnWidth}
+            onRowsRendered={onRowsRendered}
+            onColumnsLoaded={onColumnsLoaded}
             showErrorsProvided={showErrorsProvided}
         >
             {renderChildren}
@@ -197,20 +249,29 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
             getTableProps={getTablePropsFinal}
             setSortState={setSortState}
             showErrorsProvided={showErrorsProvided}
+            rowClassName={rowClassName}
+            indexCellRenderer={indexCellRenderer}
+            indexColumnWidth={indexColumnWidth}
+            onRowsRendered={onRowsRendered}
         >
             {renderChildren}
         </DeferTable>;
     }
 }
 
-function LoadTable({ type, selection, columns, sort, clientColumns, showErrorsProvided, children }: {
+function LoadTable({ type, selection, columns, sort, clientColumns, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, showErrorsProvided, children }: {
     type: string,
     selection: { [key: string]: string },
     columns: Map<string, string | null>,
     sort: OrderIdx | OrderIdx[] | undefined,
     clientColumns?: ClientColumnOverlay[],
+    rowClassName?: TableProps['rowClassName'],
+    indexCellRenderer?: TableProps['indexCellRenderer'],
+    indexColumnWidth?: TableProps['indexColumnWidth'],
+    onRowsRendered?: TableProps['onRowsRendered'],
+    onColumnsLoaded?: TableProps['onColumnsLoaded'],
     showErrorsProvided: (errors: WebTableError[]) => void,
-    children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void) => ReactNode
+    children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, rowClassName?: TableProps['rowClassName'], indexCellRenderer?: TableProps['indexCellRenderer'], indexColumnWidth?: TableProps['indexColumnWidth'], onRowsRendered?: TableProps['onRowsRendered']) => ReactNode
 }) {
     const { showDialog } = useDialog();
 
@@ -244,6 +305,12 @@ function LoadTable({ type, selection, columns, sort, clientColumns, showErrorsPr
     const [data, setData] = useState<JSONValue[][]>(initialTableInfo?.data as JSONValue[][]);
     const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>(initialTableInfo?.columnsInfo || []);
     const [errors, setErrors] = useState<WebTableError[]>(initialTableInfo?.errors || []);
+
+    useEffect(() => {
+        if (columnsInfo && columnsInfo.length > 0) {
+            onColumnsLoaded?.(columnsInfo);
+        }
+    }, [columnsInfo, onColumnsLoaded]);
 
     if (queryData.error) {
         return <div className="text-red-500">Error: {queryData.error}</div>;
@@ -298,7 +365,7 @@ ${process.env.BASE_PATH}custom_table?${getQueryString({
             size="sm"
             className="me-1"
             asChild><Link to={url}>Edit Table</Link></Button>
-        {children(errorsButton, data, columnsInfo, searchSet, visibleColumns, setColumnsInfo, setData)}
+        {children(errorsButton, data, columnsInfo, searchSet, visibleColumns, setColumnsInfo, setData, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered)}
     </>;
 }
 
@@ -318,13 +385,17 @@ ${process.env.BASE_PATH}custom_table?${getQueryString({
  * @constructor
  */
 function DeferTable(
-    { table, getTableProps, setSortState, showErrorsProvided, children }:
+    { table, getTableProps, setSortState, showErrorsProvided, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, children }:
         {
             table: React.RefObject<DataGridHandle | null>,
             getTableProps: () => TableProps,
             setSortState: (sort: OrderIdx | OrderIdx[] | undefined) => void,
             showErrorsProvided: (errors: WebTableError[]) => void,
-            children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void) => ReactNode
+            rowClassName?: TableProps['rowClassName'],
+            indexCellRenderer?: TableProps['indexCellRenderer'],
+            indexColumnWidth?: TableProps['indexColumnWidth'],
+            onRowsRendered?: TableProps['onRowsRendered'],
+            children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, rowClassName?: TableProps['rowClassName'], indexCellRenderer?: TableProps['indexCellRenderer'], indexColumnWidth?: TableProps['indexColumnWidth'], onRowsRendered?: TableProps['onRowsRendered']) => ReactNode
         }
 ) {
     const { showDialog } = useDialog();
@@ -336,6 +407,13 @@ function DeferTable(
     const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>([]);
     const [errors, setErrors] = useState<WebTableError[]>([]);
     const [isFetching, setIsFetching] = useState(false);
+
+    const onColumnsLoadedFn = getTableProps?.()?.onColumnsLoaded;
+    useEffect(() => {
+        if (columnsInfo && columnsInfo.length > 0) {
+            onColumnsLoadedFn?.(columnsInfo);
+        }
+    }, [columnsInfo, onColumnsLoadedFn]);
 
     const showErrors = useCallback(() => {
         if (errors.length > 0) {
@@ -437,6 +515,6 @@ function DeferTable(
 
     return <>
         {submitButton}
-        {children(errorsButton, data, columnsInfo, searchSet, visibleColumns, setColumnsInfo, setData)}
+        {children(errorsButton, data, columnsInfo, searchSet, visibleColumns, setColumnsInfo, setData, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered)}
     </>
 }

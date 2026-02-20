@@ -15,9 +15,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Loading from "../ui/loading";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 
-const MemoizedArgInput = React.memo(({ arg, setOutputValue }: {
+const MemoizedArgInput = React.memo(({ arg, setOutputValue, initialValue }: {
     arg: Argument,
-    setOutputValue: (name: string, value: string) => void
+    setOutputValue: (name: string, value: string) => void,
+    initialValue: string,
 }) => (
     <div className="relative">
         <ArgDescComponent arg={arg} />
@@ -27,20 +28,21 @@ const MemoizedArgInput = React.memo(({ arg, setOutputValue }: {
                 breakdown={arg.getTypeBreakdown()}
                 min={arg.arg.min}
                 max={arg.arg.max}
-                initialValue={""}
+                initialValue={initialValue}
                 setOutputValue={setOutputValue}
             />
         </div>
     </div>
-), (prev, next) => prev.arg === next.arg && prev.setOutputValue === next.setOutputValue);
+), (prev, next) => prev.arg === next.arg && prev.setOutputValue === next.setOutputValue && prev.initialValue === next.initialValue);
 
 export function ApiFormInputs<T, A extends { [key: string]: string | string[] | undefined }, B extends { [key: string]: string | string[] | undefined }>({
-    endpoint, message, default_values, showArguments, label, handle_error, classes, handle_response, children
+    endpoint, message, default_values, showArguments, includeDefaultArguments, label, handle_error, classes, handle_response, children
 }: {
     readonly endpoint: CommonEndpoint<T, A, B>;
     message?: ReactNode;
     default_values?: B;
     showArguments?: (keyof A)[];
+    includeDefaultArguments?: boolean;
     label?: ReactNode;
     handle_error?: (error: Error) => void;
     classes?: string;
@@ -84,8 +86,8 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
         return argNamesToShow
             .map((name) => endpoint.endpoint.args[name])
             .filter(Boolean)
-            .filter((arg) => !Object.prototype.hasOwnProperty.call(stableDefaults, arg.name));
-    }, [argNamesToShow, endpoint.endpoint.args, stableDefaults]);
+            .filter((arg) => includeDefaultArguments || !Object.prototype.hasOwnProperty.call(stableDefaults, arg.name));
+    }, [argNamesToShow, endpoint.endpoint.args, stableDefaults, includeDefaultArguments]);
 
     // Then simplify renderFormInputs to use it
     const renderFormInputs = useCallback((props: { setOutputValue: (name: string, value: string) => void }) => {
@@ -96,16 +98,27 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
         return (
             <>
                 {filteredArgs.map((arg) => (
-                    <MemoizedArgInput
-                        key={arg.name}
-                        arg={arg}
-                        setOutputValue={props.setOutputValue}
-                    />
+                    (() => {
+                        const defaultValue = stableDefaults[arg.name];
+                        const initialValue = typeof defaultValue === "string"
+                            ? defaultValue
+                            : Array.isArray(defaultValue)
+                                ? defaultValue.join(",")
+                                : "";
+                        return (
+                            <MemoizedArgInput
+                                key={arg.name}
+                                arg={arg}
+                                initialValue={initialValue}
+                                setOutputValue={props.setOutputValue}
+                            />
+                        );
+                    })()
                 ))}
                 <hr className="my-2" />
             </>
         );
-    }, [filteredArgs]);
+    }, [filteredArgs, stableDefaults]);
 
     return (
         <ApiForm
@@ -225,39 +238,39 @@ export function ApiFormHandler<T, A extends { [key: string]: string | string[] |
     const queryClient = useQueryClient();
 
     const mutation = useMutation({
-    mutationFn: (args: { readonly [key: string]: string | string[] }) =>
-        queryClient.fetchQuery(singleQueryOptions(endpoint.endpoint, args, undefined, 10)),
-    onSuccess: (result) => {
-        const qr = result as QueryResult<T>;
+        mutationFn: (args: { readonly [key: string]: string | string[] }) =>
+            queryClient.fetchQuery(singleQueryOptions(endpoint.endpoint, args, undefined, 10)),
+        onSuccess: (result) => {
+            const qr = result as QueryResult<T>;
 
-        if (qr.error) {
-        handle_error?.(new Error(qr.error));
-        return;
-        }
-        if (!qr.data) {
-        handle_error?.(new Error("No data returned"));
-        return;
-        }
+            if (qr.error) {
+                handle_error?.(new Error(qr.error));
+                return;
+            }
+            if (!qr.data) {
+                handle_error?.(new Error("No data returned"));
+                return;
+            }
 
-        handle_response?.(qr as Omit<QueryResult<T>, "data"> & { data: NonNullable<QueryResult<T>["data"]> });
-    },
-    onError: (err) => {
-        handle_error?.(err as Error);
-    },
+            handle_response?.(qr as Omit<QueryResult<T>, "data"> & { data: NonNullable<QueryResult<T>["data"]> });
+        },
+        onError: (err) => {
+            handle_error?.(err as Error);
+        },
     });
 
     const data = mutation.data as QueryResult<T> | undefined;
     const isFetching = mutation.isPending;
 
     const submitForm = useCallback(() => {
-      const args = store.getState().output as { readonly [key: string]: string | string[] };
-      mutation.mutate(args);
+        const args = store.getState().output as { readonly [key: string]: string | string[] };
+        mutation.mutate(args);
     }, [store, mutation]);
 
     // Memoize the children/data section
     const renderedChildren = useMemo(() => {
-      if (!children || !data?.data) return null;
-      return children(data as Omit<QueryResult<T>, "data"> & { data: NonNullable<QueryResult<T>["data"]> });
+        if (!children || !data?.data) return null;
+        return children(data as Omit<QueryResult<T>, "data"> & { data: NonNullable<QueryResult<T>["data"]> });
     }, [data, children]);
 
 

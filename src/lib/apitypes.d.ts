@@ -1,6 +1,10 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-02-02 16:40:15.
+// Generated using typescript-generator version 3.2.1263 on 2026-02-20 11:15:14.
+
+export interface WebError {
+    error: string;
+}
 
 export interface CoalitionGraph {
     name: string;
@@ -186,9 +190,6 @@ export interface WebSession {
 export interface WebSuccess {
     success: boolean;
     message?: string;
-}
-export interface WebError {
-    error: string;
 }
 
 export interface WebTable {
@@ -403,6 +404,11 @@ export interface TaskDetails {
     errors: ErrorSample[];
     sinceMs: number;
     history: RunHistorySnapshot;
+}
+
+export interface ConflictAlliances {
+    alliance_names: { [index: string]: string };
+    conflict_alliances: { [index: string]: number[][] };
 }
 
 export interface WebTaxBracket {

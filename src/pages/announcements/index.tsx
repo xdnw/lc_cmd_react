@@ -8,7 +8,7 @@ import { PaginatedList } from "@/components/ui/pagination.tsx";
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { useDialog } from "../../components/layout/DialogContext";
-import { WebAnnouncement, WebSuccess } from "../../lib/apitypes";
+import { WebAnnouncement, WebAnnouncements, WebSuccess } from "../../lib/apitypes";
 import EndpointWrapper from "@/components/api/bulkwrapper";
 import { ApiFormInputs } from "@/components/api/apiform";
 import { QueryResult } from "@/lib/BulkQuery";
@@ -77,16 +77,24 @@ export function Read({ announcementId, title }: { announcementId: number, title:
         // Update cache instead of mutating props
         queryClient.setQueryData(
             [ANNOUNCEMENT_TITLES.endpoint.name, { read: "true" }],
-            (oldData: QueryResult<WebAnnouncement[]>) => {
-                const newData = oldData.clone();
-                if (newData.data) {
-                    newData.data = newData.data.map((item: WebAnnouncement) =>
-                        item.id === announcementId
-                            ? { ...item, active: false }
-                            : item
-                    );
+            (oldData: QueryResult<WebAnnouncements>) => {
+                if (oldData && oldData.data && oldData.data.values) {
+                    return new QueryResult({
+                        endpoint: oldData.endpoint,
+                        query: oldData.query,
+                        update_ms: oldData.update_ms,
+                        cache: oldData.cache,
+                        error: oldData.error,
+                        data: {
+                            values: oldData.data.values.map((item: WebAnnouncement) =>
+                                item.id === announcementId
+                                    ? { ...item, active: false }
+                                    : item
+                            )
+                        }
+                    });
                 }
-                return newData;
+                return oldData;
             }
         );
     }, [showDialog, title, announcementId, queryClient]);
@@ -107,20 +115,28 @@ export function Unread({ announcementId, title }: { announcementId: number, titl
 
     const handleResponse = useCallback((data: QueryResult<WebSuccess>) => {
         showDialog("Marked as unread", <>Marked {title} as unread</>);
-        
+
 
         queryClient.setQueryData(
             [ANNOUNCEMENT_TITLES.endpoint.name, { read: "true" }],
-            (oldData: QueryResult<WebAnnouncement[]>) => {
-                const newData = oldData.clone();
-                if (newData.data) {
-                    newData.data = newData.data.map((item: WebAnnouncement) =>
-                        item.id === announcementId
-                            ? { ...item, active: true }
-                            : item
-                    );
+            (oldData: QueryResult<WebAnnouncements>) => {
+                if (oldData && oldData.data && oldData.data.values) {
+                    return new QueryResult({
+                        endpoint: oldData.endpoint,
+                        query: oldData.query,
+                        update_ms: oldData.update_ms,
+                        cache: oldData.cache,
+                        error: oldData.error,
+                        data: {
+                            values: oldData.data.values.map((item: WebAnnouncement) =>
+                                item.id === announcementId
+                                    ? { ...item, active: true }
+                                    : item
+                            )
+                        }
+                    });
                 }
-                return newData;
+                return oldData;
             }
         );
     }, [showDialog, title, announcementId, queryClient]);

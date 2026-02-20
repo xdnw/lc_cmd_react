@@ -227,6 +227,7 @@ function applyClientColumns(
         editable: overlay.editable ?? false,
         draggable: overlay.draggable ?? false,
         width: overlay.width,
+        hideOnMobile: overlay.hideOnMobile,
         cellClassName: overlay.cellClassName,
         headerCellClassName: overlay.headerCellClassName,
     }));

@@ -90,7 +90,7 @@ const routeConfigs: AppRouteConfig[] = [
   { key: "multi_v2", path: "/multi_v2/:nation", element: () => import("./pages/a2/nation/multi_2"), protected: false },
 
   // game conflict viewer (anyone)
-  { key: "conflicts", path: "/conflicts", element: () => import("./pages/a2/conflict/conflicts"), protected: false },
+  { key: "conflicts", path: "/conflicts", element: () => import("@/pages/a2/conflict/conflicts"), protected: false },
 
   // tasks (anyone - though view is limited if not an admin)
   { key: "status", path: "/status", element: () => import("./pages/a2/admin/status"), protected: false },

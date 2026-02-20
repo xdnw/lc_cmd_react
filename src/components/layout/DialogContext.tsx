@@ -1,13 +1,22 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import SimpleDialog from "../ui/simple-dialog";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '../ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Button } from "../ui/button";
+
+export type ShowDialogOptions = {
+    quote?: boolean;
+    openInNewTab?: boolean;
+    focusNewTab?: boolean;
+    replaceActive?: boolean;
+};
 
 type DialogContextType = {
-    showDialog: (title: string, message: ReactNode, quote?: boolean) => void;
+    showDialog: (title: string, message: ReactNode, quoteOrOptions?: boolean | ShowDialogOptions) => void;
     hideDialog: () => void;
 };
 
 type DialogProps = {
+    id: string;
     title: string;
     message: ReactNode;
     quote?: boolean;
@@ -18,15 +27,52 @@ const DialogContext = createContext<DialogContextType | undefined>(undefined);
 export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [dialogs, setDialogs] = useState<DialogProps[]>([]);
     const [isDialogVisible, setDialogVisible] = useState(false);
+    const [activeDialogId, setActiveDialogId] = useState<string | null>(null);
+    const [tabHistory, setTabHistory] = useState<string[]>([]);
 
-    const showDialog = useCallback((title: string, message: ReactNode, quote: boolean = false) => {
-        setDialogs(prevDialogs => [...prevDialogs, { title, message, quote }]);
+    const showDialog = useCallback((title: string, message: ReactNode, quoteOrOptions: boolean | ShowDialogOptions = false) => {
+        const options: ShowDialogOptions = typeof quoteOrOptions === "boolean"
+            ? { quote: quoteOrOptions }
+            : quoteOrOptions;
+
+        const quote = options.quote ?? false;
+
+        setDialogs((prevDialogs) => {
+            const hasActive = activeDialogId !== null && prevDialogs.some((dialog) => dialog.id === activeDialogId);
+            const openInNewTab = options.openInNewTab ?? false;
+            const replaceActive = options.replaceActive ?? (!openInNewTab);
+
+            if (replaceActive && hasActive && activeDialogId) {
+                return prevDialogs.map((dialog) => {
+                    if (dialog.id !== activeDialogId) return dialog;
+                    return {
+                        ...dialog,
+                        title,
+                        message,
+                        quote,
+                    };
+                });
+            }
+
+            const id = `dialog-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            const nextDialogs = [...prevDialogs, { id, title, message, quote }];
+
+            const shouldFocusNewTab = options.focusNewTab ?? true;
+            if (shouldFocusNewTab || !hasActive) {
+                setActiveDialogId(id);
+                setTabHistory((prev) => (prev[prev.length - 1] === id ? prev : [...prev, id]));
+            }
+
+            return nextDialogs;
+        });
+
         setDialogVisible(true);
-    }, []);
+    }, [activeDialogId]);
 
     const hideDialog = useCallback(() => {
-        console.log("Clear dialog");
         setDialogs([]);
+        setActiveDialogId(null);
+        setTabHistory([]);
         setDialogVisible(false);
     }, []);
 
@@ -34,35 +80,145 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setDialogVisible(visible);
         if (!visible) {
             setDialogs([]);
+            setActiveDialogId(null);
+            setTabHistory([]);
         }
     }, []);
+
+    const closeDialogTab = useCallback((dialogId: string) => {
+        setDialogs((prevDialogs) => {
+            const nextDialogs = prevDialogs.filter((dialog) => dialog.id !== dialogId);
+            if (nextDialogs.length === 0) {
+                setDialogVisible(false);
+                setActiveDialogId(null);
+                setTabHistory([]);
+                return nextDialogs;
+            }
+
+            if (activeDialogId === dialogId) {
+                const previousId = [...tabHistory]
+                    .reverse()
+                    .find((id) => id !== dialogId && nextDialogs.some((dialog) => dialog.id === id));
+                const fallbackId = previousId ?? nextDialogs[nextDialogs.length - 1].id;
+                setActiveDialogId(fallbackId);
+                setTabHistory((prev) => [...prev.filter((id) => id !== dialogId), fallbackId]);
+            } else {
+                setTabHistory((prev) => prev.filter((id) => id !== dialogId));
+            }
+
+            return nextDialogs;
+        });
+    }, [activeDialogId, tabHistory]);
+
+    const onTabChange = useCallback((nextDialogId: string) => {
+        setActiveDialogId(nextDialogId);
+        setTabHistory((prev) => (prev[prev.length - 1] === nextDialogId ? prev : [...prev, nextDialogId]));
+    }, []);
+
+    const goBack = useCallback(() => {
+        setTabHistory((prev) => {
+            const nextHistory = [...prev].filter((id) => dialogs.some((dialog) => dialog.id === id));
+            if (nextHistory.length <= 1) return prev;
+
+            const currentId = activeDialogId ?? nextHistory[nextHistory.length - 1];
+            while (nextHistory.length > 0 && nextHistory[nextHistory.length - 1] === currentId) {
+                nextHistory.pop();
+            }
+
+            while (nextHistory.length > 0 && !dialogs.some((dialog) => dialog.id === nextHistory[nextHistory.length - 1])) {
+                nextHistory.pop();
+            }
+
+            const previousId = nextHistory[nextHistory.length - 1];
+            if (!previousId) return prev;
+
+            setActiveDialogId(previousId);
+            return [...nextHistory, previousId];
+        });
+    }, [activeDialogId, dialogs]);
+
+    const selectedDialogId = useMemo(() => {
+        if (activeDialogId && dialogs.some((dialog) => dialog.id === activeDialogId)) {
+            return activeDialogId;
+        }
+        return dialogs[dialogs.length - 1]?.id ?? null;
+    }, [activeDialogId, dialogs]);
+
+    const selectedDialog = useMemo(() => {
+        return dialogs.find((dialog) => dialog.id === selectedDialogId) ?? dialogs[0];
+    }, [dialogs, selectedDialogId]);
+
+    const canGoBack = tabHistory.length > 1;
+
+    const closeHandlerByDialogId = useMemo(() => {
+        const handlers = new Map<string, () => void>();
+        for (const dialog of dialogs) {
+            handlers.set(dialog.id, () => {
+                closeDialogTab(dialog.id);
+            });
+        }
+        return handlers;
+    }, [closeDialogTab, dialogs]);
+
+    const middleClickCloseHandlerByDialogId = useMemo(() => {
+        const handlers = new Map<string, (event: React.MouseEvent<HTMLButtonElement>) => void>();
+        for (const dialog of dialogs) {
+            handlers.set(dialog.id, (event: React.MouseEvent<HTMLButtonElement>) => {
+                if (event.button !== 1) return;
+                event.preventDefault();
+                closeDialogTab(dialog.id);
+            });
+        }
+        return handlers;
+    }, [closeDialogTab, dialogs]);
 
     return (
         <DialogContext.Provider value={{ showDialog, hideDialog }}>
             {children}
-            {isDialogVisible && (
+            {isDialogVisible && selectedDialog && (
                 <SimpleDialog
-                    title={`${dialogs.length == 1 ? dialogs[0]?.title : 'Errors'}`}
+                    title={selectedDialog.title}
                     message={
                         dialogs.length < 2 ? (
-                            dialogs[0]?.message
+                            selectedDialog.message
                         ) : (
-                            <Tabs defaultValue={"dialog-0"} className="w-[400px]">
-                                <TabsList>
-                                    {dialogs.map((dialog, index) => (
-                                        <TabsTrigger key={index} value={`dialog-${index}`}>
-                                            {dialog.title}
-                                        </TabsTrigger>
-                                    ))}
-                                </TabsList>
-                                {dialogs.map((dialog, index) => (
-                                    <TabsContent key={index} value={`dialog-${index}`}>
+                            <Tabs value={selectedDialog.id} onValueChange={onTabChange} className="w-full">
+                                <div className="mb-2 flex items-center gap-2">
+                                    <Button variant="outline" size="sm" onClick={goBack} disabled={!canGoBack}>
+                                        Back
+                                    </Button>
+                                    <TabsList className="h-auto max-w-full flex-wrap justify-start gap-1 p-1">
+                                        {dialogs.map((dialog) => (
+                                            <div key={dialog.id} className="inline-flex items-center gap-1 rounded border border-border px-1">
+                                                <TabsTrigger
+                                                    value={dialog.id}
+                                                    className="h-7 max-w-[220px] truncate px-2"
+                                                    title={dialog.title}
+                                                    onMouseDown={middleClickCloseHandlerByDialogId.get(dialog.id)}
+                                                >
+                                                    <span className="truncate">{dialog.title}</span>
+                                                </TabsTrigger>
+                                                <button
+                                                    type="button"
+                                                    className="h-5 w-5 rounded text-xs hover:bg-muted"
+                                                    aria-label={`Close ${dialog.title}`}
+                                                    onClick={closeHandlerByDialogId.get(dialog.id)}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </TabsList>
+                                </div>
+                                {dialogs.map((dialog) => (
+                                    <TabsContent key={dialog.id} value={dialog.id} className="mt-0">
                                         {dialog.message}
                                     </TabsContent>
                                 ))}
                             </Tabs>
                         )
                     }
+                    quote={selectedDialog.quote}
                     showDialog={isDialogVisible}
                     setShowDialog={setDialogVisibleAndClear}
                 />
@@ -74,7 +230,7 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 export const useDialog = (): DialogContextType => {
     const context = useContext(DialogContext);
     if (context === undefined) {
-        throw new Error('useDialog must be used within a DialogProvider');
+        throw new Error("useDialog must be used within a DialogProvider");
     }
     return context;
 };

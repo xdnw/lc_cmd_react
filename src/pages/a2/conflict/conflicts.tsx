@@ -1,300 +1,36 @@
-import { Button } from "@/components/ui/button";
-import CommandActionButton from "@/components/cmd/CommandActionButton";
-import LazyExpander from "@/components/ui/LazyExpander";
-import { CONFLICTALLIANCES, TABLE } from "@/lib/endpoints";
-import type { ConflictAlliances } from "@/lib/apitypes.d.ts";
-import type { JSONValue } from "@/lib/internaltypes";
-import type { ClientColumnOverlay, ConfigColumns, ObjectColumnRender } from "@/pages/custom_table/DataTable";
-import { StaticTable } from "@/pages/custom_table/StaticTable";
-import SelectionCellButton from "@/pages/custom_table/actions/SelectionCellButton";
-import BulkActionsToolbar from "@/pages/custom_table/actions/BulkActionsToolbar";
-import CommandActionDialogContent from "@/pages/custom_table/actions/CommandActionDialogContent";
-import type { TableCommandAction } from "@/pages/custom_table/actions/models";
-import { isActionVisible } from "@/pages/custom_table/actions/models";
-import { CM } from "@/utils/Command";
-import { usePermission } from "@/utils/PermUtil";
-import { serializeIdSet, useIdSelection } from "@/utils/useIdSelection";
-import { bulkQueryOptions } from "@/lib/queries";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/components/api/SessionContext";
+import { Button } from "@/components/ui/button";
+import { TABLE } from "@/lib/endpoints";
+import type { JSONValue } from "@/lib/internaltypes";
+import type { ClientColumnOverlay, ConfigColumns } from "@/pages/custom_table/DataTable";
+import BulkActionsToolbar from "@/pages/custom_table/actions/BulkActionsToolbar";
+import SelectionCellButton from "@/pages/custom_table/actions/SelectionCellButton";
+import { StaticTable } from "@/pages/custom_table/StaticTable";
+import { usePermission } from "@/utils/PermUtil";
+import { useIdSelection } from "@/utils/useIdSelection";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useDialog } from "@/components/layout/DialogContext";
+import { useCallback, useMemo, useState } from "react";
+import ConflictActionsDialogButton from "./ConflictActionsDialogButton";
+import {
+    CONFLICT_EDIT_PERMISSION_PATH,
+    CONFLICT_SYNC_PERMISSION_PATH,
+    createConflictBulkActions,
+    createConflictRowActions,
+    type ConflictTableAction,
+} from "./conflictActions";
+import {
+    conflictColumnRenderers,
+    conflictPlaceholderColumns,
+    createConflictRow,
+    getConflictRawValue,
+    isConflictRow,
+    toConflictId,
+    type ConflictRow,
+} from "./conflictTableSchema";
 
-function renderConflictCell(row: ConflictRow, idx: number, columnsInfo?: ConfigColumns[]): ReactNode {
-    const rawValue = row.raw[idx];
-    const column = columnsInfo?.find((value) => value.index === idx);
-    const renderer = column?.render?.display;
-
-    if (renderer && column) {
-        return renderer(rawValue, {
-            row: row.raw,
-            rowIdx: 0,
-            column,
-        }) ?? "-";
-    }
-
-    return rawValue == null || rawValue === "" ? "-" : String(rawValue);
-}
-
-type ParsedAllianceEntry = {
-    allianceId: number;
-    coalition: 0 | 1;
-};
-
-type AllianceDebugRow = {
-    coalition: 0 | 1;
-    coalitionLabel: string;
-    allianceId: number;
-    allianceName: string;
-};
-
-function toPlainString(value: ReactNode): string | null {
-    if (typeof value === "string") return value;
-    if (typeof value === "number") return String(value);
-    return null;
-}
-
-function turnToTimestampPrefill(turn: number): string {
-    if (!Number.isFinite(turn) || turn < 0) return "";
-    const turnsPerDay = process.env.TEST ? 24 : 12;
-    const timeMillis = (turn / turnsPerDay) * 24 * 60 * 60 * 1000;
-    if (!Number.isFinite(timeMillis)) return "";
-    return `timestamp:${Math.floor(timeMillis)}`;
-}
-
-function parseConflictAllianceEntries(conflictAllianceLists: number[][] | undefined): ParsedAllianceEntry[] {
-    if (!conflictAllianceLists) return [];
-
-    const coalitionOne = conflictAllianceLists[0] ?? [];
-    const coalitionTwo = conflictAllianceLists[1] ?? [];
-
-    const normalizeIds = (ids: number[]): number[] => {
-        return ids.filter((id) => Number.isFinite(id) && id > 0);
-    };
-
-    const entries: ParsedAllianceEntry[] = [];
-    normalizeIds(coalitionOne).forEach((allianceId) => {
-        entries.push({ allianceId, coalition: 0 });
-    });
-    normalizeIds(coalitionTwo).forEach((allianceId) => {
-        entries.push({ allianceId, coalition: 1 });
-    });
-
-    const deduped = new Map<string, ParsedAllianceEntry>();
-    entries.forEach((entry) => {
-        deduped.set(`${entry.coalition}-${entry.allianceId}`, entry);
-    });
-
-    return Array.from(deduped.values());
-}
-
-function coalitionLabel(side: 0 | 1 | null, coalitionOneName: string, coalitionTwoName: string): string {
-    if (side === 0) return coalitionOneName || "Coalition 1";
-    if (side === 1) return coalitionTwoName || "Coalition 2";
-    return "Unassigned";
-}
-
-function AllianceSubMenu({
-    conflict,
-    canEdit,
-    onActionSuccess,
-    coalitionOneName,
-    coalitionTwoName,
-    openAddAllianceDialog,
-    openAddAllForNationDialog,
-}: {
-    conflict: ConflictRow;
-    canEdit: boolean;
-    onActionSuccess: () => void;
-    coalitionOneName: string;
-    coalitionTwoName: string;
-    openAddAllianceDialog?: () => void;
-    openAddAllForNationDialog?: () => void;
-}) {
-    const { data, isFetching, isError, error } = useQuery(bulkQueryOptions(CONFLICTALLIANCES.endpoint, { conflicts: String(conflict.id) }));
-    const [pendingRemovalKey, setPendingRemovalKey] = useState<string | null>(null);
-
-    const conflictAlliancesData: ConflictAlliances | undefined = data?.data;
-
-    const alliancesMap = useMemo<{ [key: number]: string }>(() => {
-        return conflictAlliancesData?.alliance_names ?? {};
-    }, [conflictAlliancesData?.alliance_names]);
-
-    const conflictAllianceLists = useMemo(() => {
-        return conflictAlliancesData?.conflict_alliances?.[String(conflict.id)];
-    }, [conflict.id, conflictAlliancesData?.conflict_alliances]);
-
-    const entries = useMemo(() => parseConflictAllianceEntries(conflictAllianceLists), [conflictAllianceLists]);
-    const entriesByCoalition = useMemo(() => {
-        const grouped = new Map<0 | 1, ParsedAllianceEntry[]>();
-        for (const entry of entries) {
-            const bucket = grouped.get(entry.coalition) ?? [];
-            bucket.push(entry);
-            grouped.set(entry.coalition, bucket);
-        }
-        return grouped;
-    }, [entries]);
-
-    const coalitionSections = useMemo(() => {
-        return ([0, 1] as const).map((coalition) => ({
-            coalition,
-            entries: entriesByCoalition.get(coalition) ?? [],
-        }));
-    }, [entriesByCoalition]);
-
-    // Targeted debugging for coalition parsing only.
-    useEffect(() => {
-        if (process.env.NODE_ENV === "production") return;
-        const debugRows: AllianceDebugRow[] = entries.map((entry) => ({
-            coalition: entry.coalition,
-            coalitionLabel: coalitionLabel(entry.coalition, coalitionOneName, coalitionTwoName),
-            allianceId: entry.allianceId,
-            allianceName: alliancesMap[entry.allianceId] ?? `Alliance ${entry.allianceId}`,
-        }));
-
-        const groupedSummary = Array.from(entriesByCoalition.entries()).map(([coalition, coalitionEntries]) => ({
-            coalition,
-            coalitionLabel: coalitionLabel(coalition, coalitionOneName, coalitionTwoName),
-            allianceIds: coalitionEntries.map((entry) => entry.allianceId),
-        }));
-
-        console.groupCollapsed(
-            `[Conflict Alliances] id=${conflict.id} name=${conflict.name} c1=${coalitionOneName} c2=${coalitionTwoName}`,
-        );
-        console.debug("conflict_alliances entry:", conflictAllianceLists);
-        console.debug("alliance_names:", alliancesMap);
-        console.table(debugRows);
-        console.table(groupedSummary);
-        console.groupEnd();
-    }, [alliancesMap, coalitionOneName, coalitionTwoName, conflict.id, conflict.name, conflictAllianceLists, entries, entriesByCoalition]);
-
-    const onConfirmRemoveSuccess = useCallback(() => {
-        setPendingRemovalKey(null);
-        onActionSuccess();
-    }, [onActionSuccess]);
-
-    const setPendingRemovalByKey = useMemo(() => {
-        const handlers = new Map<string, () => void>();
-        for (const entry of entries) {
-            const key = `${entry.coalition ?? "u"}-${entry.allianceId}`;
-            handlers.set(key, () => setPendingRemovalKey(key));
-        }
-        return handlers;
-    }, [entries]);
-
-    const clearPendingRemoval = useCallback(() => {
-        setPendingRemovalKey(null);
-    }, []);
-
-    return (
-        <div className="mt-4 border-t border-border pt-4">
-            <h3 className="text-sm font-semibold mb-2">Alliances</h3>
-            {isError && (
-                <div className="mb-2 rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive">
-                    Failed to load alliances: {String(error)}
-                </div>
-            )}
-            {isFetching && <div className="mb-2 text-xs text-muted-foreground">Loading alliances...</div>}
-            <div className="flex flex-wrap gap-2 mb-2">
-                <Button variant="outline" size="sm" onClick={openAddAllianceDialog} disabled={!canEdit || !openAddAllianceDialog}>Add Alliance</Button>
-                <Button variant="outline" size="sm" onClick={openAddAllForNationDialog} disabled={!canEdit || !openAddAllForNationDialog}>Add All for Nation</Button>
-            </div>
-
-            <div className="mb-2">
-                {entries.length === 0 && !isFetching && <div className="text-xs text-muted-foreground py-1">No alliances added.</div>}
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    {coalitionSections.map(({ coalition, entries: coalitionEntries }) => (
-                        <div key={`coalition-${coalition}`} className="rounded border border-border px-2 py-1">
-                            <div className="text-[11px] font-medium text-muted-foreground mb-1">
-                                {coalitionLabel(coalition, coalitionOneName, coalitionTwoName)} ({coalitionEntries.length})
-                            </div>
-                            <div className="space-y-1">
-                                {coalitionEntries
-                                    .slice()
-                                    .sort((left, right) => {
-                                        const leftName = alliancesMap[left.allianceId] || `Alliance ${left.allianceId}`;
-                                        const rightName = alliancesMap[right.allianceId] || `Alliance ${right.allianceId}`;
-                                        return leftName.localeCompare(rightName);
-                                    })
-                                    .map((entry) => {
-                                        const name = alliancesMap[entry.allianceId] || `Alliance ${entry.allianceId}`;
-                                        const key = `${entry.coalition}-${entry.allianceId}`;
-                                        const isConfirming = pendingRemovalKey === key;
-                                        const removeArgs = withKnownCommandArgs(["conflict", "alliance", "remove"], { conflict: String(conflict.id) }, {
-                                            alliances: String(entry.allianceId),
-                                        });
-                                        return (
-                                            <div key={key} className="flex items-start gap-2 rounded px-1 py-1 hover:bg-muted">
-                                                <div className="min-w-0 flex-1 text-xs truncate">{name}</div>
-                                                {!isConfirming && (
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="sm"
-                                                        className="h-6 px-2 text-[11px]"
-                                                        onClick={setPendingRemovalByKey.get(key)}
-                                                        disabled={!canEdit}
-                                                    >
-                                                        Remove
-                                                    </Button>
-                                                )}
-                                                {isConfirming && (
-                                                    <div className="flex items-start gap-1">
-                                                        <CommandActionButton
-                                                            command={["conflict", "alliance", "remove"]}
-                                                            args={removeArgs}
-                                                            label="Confirm?"
-                                                            classes="!m-0 !h-6 !px-2 !w-auto"
-                                                            disabled={!canEdit}
-                                                            onSuccess={onConfirmRemoveSuccess}
-                                                            showResultDialog
-                                                        />
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-6 px-2 text-[11px]"
-                                                            onClick={clearPendingRemoval}
-                                                        >
-                                                            Cancel
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-type ConflictRow = {
-    id: number;
-    name: string;
-    category: string;
-    c1Name: string;
-    c2Name: string;
-    status: string;
-    wiki: string;
-    start: number;
-    end: number;
-    activeWars: number;
-    c1Damage: string;
-    c2Damage: string;
-    casusBelli: string;
-    raw: JSONValue[];
-};
-
-type ConflictDetailField = {
-    key: string;
-    label: string;
-    value: ReactNode;
-    actionId?: string;
-    expandable?: boolean;
-};
+const syncPermissionKey = CONFLICT_SYNC_PERMISSION_PATH.join(" ");
+const editPermissionKey = CONFLICT_EDIT_PERMISSION_PATH.join(" ");
 
 function ConflictSelectButton({
     id,
@@ -325,368 +61,12 @@ function ConflictSelectButton({
     );
 }
 
-function ConflictDetailFieldRow({
-    field,
-    openAction,
-    canRun,
-}: {
-    field: ConflictDetailField;
-    openAction?: () => void;
-    canRun: boolean;
-}) {
-    return (
-        <div className="rounded border border-border px-2 py-1">
-            <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground min-w-20">{field.label}</span>
-                <div className="text-sm min-w-0 flex-1 overflow-hidden">
-                    {field.expandable && typeof field.value === "string" ? (
-                        <LazyExpander
-                            className="!h-7 !py-0"
-                            hideTriggerChildrenWhenExpanded
-                            content={<div className="whitespace-pre-wrap break-words">{field.value || "-"}</div>}
-                        >
-                            <span className="block truncate w-full text-left">{field.value || "-"}</span>
-                        </LazyExpander>
-                    ) : (
-                        <div className="whitespace-pre-wrap break-words">{field.value || "-"}</div>
-                    )}
-                </div>
-                {field.actionId && openAction && (
-                    <Button variant="outline" size="sm" onClick={openAction} disabled={!canRun}>
-                        Edit
-                    </Button>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function ConflictActionsDialogButton({
-    row,
-    rowLabel,
-    selectedIds,
-    actions,
-    canRunAction,
-    onActionSuccess,
-    columnsInfo,
-}: {
-    row: ConflictRow;
-    rowLabel: string;
-    selectedIds: Set<number>;
-    actions: TableCommandAction<ConflictRow, number>[];
-    canRunAction: (action: TableCommandAction<ConflictRow, number>) => boolean;
-    onActionSuccess?: (actionId: string) => void;
-    columnsInfo?: ConfigColumns[];
-}) {
-    const { showDialog } = useDialog();
-
-    const visibleActions = useMemo(() => {
-        return actions.filter((action) => isActionVisible(action, { row, selectedIds }));
-    }, [actions, row, selectedIds]);
-
-    const onSuccessByActionId = useMemo(() => {
-        const handlers = new Map<string, (() => void) | undefined>();
-        for (const action of visibleActions) {
-            handlers.set(action.id, onActionSuccess ? () => onActionSuccess(action.id) : undefined);
-        }
-        return handlers;
-    }, [onActionSuccess, visibleActions]);
-
-    const onAllianceActionSuccess = useCallback(() => {
-        onActionSuccess?.("");
-    }, [onActionSuccess]);
-
-    const formattedCategory = useMemo(() => renderConflictCell(row, IDX.category, columnsInfo), [columnsInfo, row]);
-    const startFormatted = useMemo(() => renderConflictCell(row, IDX.start, columnsInfo), [columnsInfo, row]);
-    const endFormatted = useMemo(() => renderConflictCell(row, IDX.end, columnsInfo), [columnsInfo, row]);
-    const c1Formatted = useMemo(() => renderConflictCell(row, IDX.c1Name, columnsInfo), [columnsInfo, row]);
-    const c2Formatted = useMemo(() => renderConflictCell(row, IDX.c2Name, columnsInfo), [columnsInfo, row]);
-
-    const onOpenDialogByActionId = useMemo(() => {
-        const handlers = new Map<string, (() => void) | undefined>();
-        for (const action of visibleActions) {
-            if (!action.requiresDialog) continue;
-            handlers.set(action.id, () => {
-                let categoryPrefill = toPlainString(formattedCategory) ?? "";
-                // If renderer returned a React node (non-primitive) try to resolve enum label from columnsInfo
-                if (!categoryPrefill) {
-                    const col = columnsInfo?.find((c) => c.index === IDX.category);
-                    const raw = row.raw?.[IDX.category];
-                    const opts = (col?.render as ObjectColumnRender | undefined)?.options;
-                    if (col?.render?.isEnum && Array.isArray(opts)) {
-                        const idx = Number(raw);
-                        if (!Number.isNaN(idx) && opts[idx]) categoryPrefill = opts[idx];
-                    }
-                }
-                if (!categoryPrefill) categoryPrefill = row.category ?? "";
-
-                const c1Prefill = toPlainString(c1Formatted) ?? row.c1Name;
-                const c2Prefill = toPlainString(c2Formatted) ?? row.c2Name;
-                const actionWithPrefill: TableCommandAction<ConflictRow, number> = {
-                    ...action,
-                    buildArgs: (context) => {
-                        if (action.id === "edit-category") {
-                            return withKnownCommandArgs(["conflict", "edit", "category"], { conflict: String(row.id) }, { category: categoryPrefill });
-                        }
-                        if (action.id === "edit-start") {
-                            return withKnownCommandArgs(["conflict", "edit", "start"], { conflict: String(row.id) }, { time: turnToTimestampPrefill(row.start) });
-                        }
-                        if (action.id === "edit-end") {
-                            return withKnownCommandArgs(["conflict", "edit", "end"], { conflict: String(row.id) }, { time: turnToTimestampPrefill(row.end) });
-                        }
-                        if (action.id === "edit-c1-name") {
-                            return withKnownCommandArgs(["conflict", "edit", "rename"], { conflict: String(row.id) }, {
-                                name: c1Prefill,
-                                isCoalition1: "true",
-                            });
-                        }
-                        if (action.id === "edit-c2-name") {
-                            return withKnownCommandArgs(["conflict", "edit", "rename"], { conflict: String(row.id) }, {
-                                name: c2Prefill,
-                                isCoalition2: "true",
-                            });
-                        }
-                        return action.buildArgs(context);
-                    },
-                };
-
-                showDialog(action.label, (
-                    <CommandActionDialogContent
-                        action={actionWithPrefill}
-                        context={{ row, selectedIds }}
-                        onSuccess={onActionSuccess}
-                    />
-                ), { openInNewTab: true, focusNewTab: true, replaceActive: false });
-            });
-        }
-        return handlers;
-    }, [onActionSuccess, row, selectedIds, showDialog, visibleActions, formattedCategory, c1Formatted, c2Formatted, columnsInfo]);
-
-    const actionById = useMemo(() => {
-        const map = new Map<string, TableCommandAction<ConflictRow, number>>();
-        for (const action of visibleActions) {
-            map.set(action.id, action);
-        }
-        return map;
-    }, [visibleActions]);
-
-    const editableFields = useMemo<ConflictDetailField[]>(() => {
-        return [
-            { key: "id", label: "ID", value: String(row.id) },
-            { key: "name", label: "Name", value: row.name, actionId: "edit-rename" },
-            { key: "category", label: "Category", value: formattedCategory, actionId: "edit-category" },
-            { key: "c1Name", label: "C1", value: c1Formatted, actionId: "edit-c1-name" },
-            { key: "c2Name", label: "C2", value: c2Formatted, actionId: "edit-c2-name" },
-            { key: "status", label: "Status", value: row.status, actionId: "edit-status", expandable: true },
-            { key: "casusBelli", label: "CB", value: row.casusBelli, actionId: "edit-casus-belli", expandable: true },
-            { key: "wiki", label: "Wiki", value: row.wiki, actionId: "edit-wiki" },
-            { key: "start", label: "Start", value: startFormatted, actionId: "edit-start" },
-            { key: "end", label: "End", value: endFormatted, actionId: "edit-end" },
-        ];
-    }, [row, formattedCategory, c1Formatted, c2Formatted, startFormatted, endFormatted]);
-
-    const syncAction = useMemo(() => visibleActions.find((action) => action.id === "sync-single"), [visibleActions]);
-
-    const openDetailsContent = useMemo(() => {
-        return (
-            <div className="space-y-3 pr-1">
-                <div className="flex items-start justify-end gap-2">
-                    {syncAction && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={onOpenDialogByActionId.get(syncAction.id)}
-                            disabled={!canRunAction(syncAction)}
-                            className="shrink-0"
-                        >
-                            Sync
-                        </Button>
-                    )}
-                </div>
-                <div className="grid grid-cols-1 gap-1">
-                    {editableFields.map((field) => {
-                        const action = field.actionId ? actionById.get(field.actionId) : undefined;
-                        const openAction = field.actionId ? onOpenDialogByActionId.get(field.actionId) : undefined;
-                        return (
-                            <ConflictDetailFieldRow
-                                key={field.key}
-                                field={field}
-                                openAction={openAction}
-                                canRun={action ? canRunAction(action) : true}
-                            />
-                        );
-                    })}
-                </div>
-                <div className="flex flex-wrap gap-1">
-                    {visibleActions.map((action) => {
-                        const disabled = !canRunAction(action);
-                        const isFieldEdit = editableFields.some(f => f.actionId === action.id);
-                        if (isFieldEdit) return null;
-
-                        if (action.id === "delete-conflict") {
-                            return (
-                                <Button
-                                    key={action.id}
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={onOpenDialogByActionId.get(action.id)}
-                                    disabled={disabled}
-                                    className="mr-1 mb-1"
-                                >
-                                    {action.label}
-                                </Button>
-                            );
-                        }
-
-                        // Extract sync to top right
-                        if (action.id === "sync-single") return null;
-
-                        // Alliance actions have their own sub-menu
-                        if (action.id.startsWith("alliance-")) return null;
-
-                        if (action.requiresDialog) {
-                            return (
-                                <Button
-                                    key={action.id}
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={onOpenDialogByActionId.get(action.id)}
-                                    disabled={disabled}
-                                    className="mr-1 mb-1"
-                                >
-                                    {action.label}
-                                </Button>
-                            );
-                        }
-
-                        return (
-                            <div key={action.id} className="mb-1">
-                                <CommandActionButton
-                                    command={action.command}
-                                    args={action.buildArgs({ row, selectedIds })}
-                                    label={action.label}
-                                    classes="!ms-0"
-                                    disabled={disabled}
-                                    showResultDialog={true}
-                                    onSuccess={onSuccessByActionId.get(action.id)}
-                                />
-                            </div>
-                        );
-                    })}
-                </div>
-                <AllianceSubMenu
-                    conflict={row}
-                    canEdit={canRunAction({ permission: editPermissionPath } as TableCommandAction<ConflictRow, number>)}
-                    onActionSuccess={onAllianceActionSuccess}
-                    coalitionOneName={toPlainString(c1Formatted) ?? row.c1Name}
-                    coalitionTwoName={toPlainString(c2Formatted) ?? row.c2Name}
-                    openAddAllianceDialog={onOpenDialogByActionId.get("alliance-add")}
-                    openAddAllForNationDialog={onOpenDialogByActionId.get("alliance-add-for-nation")}
-                />
-            </div >
-        );
-    }, [actionById, canRunAction, editableFields, onOpenDialogByActionId, onSuccessByActionId, row, selectedIds, visibleActions, onAllianceActionSuccess, syncAction, c1Formatted, c2Formatted]);
-
-    const openDetailsClick = useCallback(() => {
-        showDialog(`Conflict: ${row.name}`, openDetailsContent, { openInNewTab: true, focusNewTab: true, replaceActive: false });
-    }, [openDetailsContent, showDialog, row.name]);
-
-    return (
-        <Button variant="outline" size="sm" className="max-w-[220px] truncate justify-start" onClick={openDetailsClick}>
-            {rowLabel}
-        </Button>
-    );
-}
-
-const syncPermissionPath: ["conflict", "sync", "website"] = ["conflict", "sync", "website"];
-const editPermissionPath: ["conflict", "edit", "rename"] = ["conflict", "edit", "rename"];
-const syncPermissionKey = syncPermissionPath.join(" ");
-const editPermissionKey = editPermissionPath.join(" ");
-
-const IDX = {
-    id: 0,
-    name: 1,
-    category: 2,
-    start: 3,
-    end: 4,
-    activeWars: 5,
-    c1Damage: 6,
-    c2Damage: 7,
-    wiki: 8,
-    status: 9,
-    casusBelli: 10,
-    c1Name: 11,
-    c2Name: 12,
-} as const;
-
-const builder = CM.placeholders("Conflict")
-    .aliased()
-    .add({ cmd: "getid", alias: "ID" })
-    .add({ cmd: "getname", alias: "Name" })
-    .add({ cmd: "getcategory", alias: "Category" })
-    .add({ cmd: "getstartturn", alias: "Start" })
-    .add({ cmd: "getendturn", alias: "End" })
-    .add({ cmd: "getactivewars", alias: "Active Wars" })
-    .add({ cmd: "getdamageconverted", args: { isPrimary: "true" }, alias: "c1_damage" })
-    .add({ cmd: "getdamageconverted", args: { isPrimary: "false" }, alias: "c2_damage" })
-    .add({ cmd: "getwiki", alias: "Wiki" })
-    .add({ cmd: "getstatusdesc", alias: "Status" })
-    .add({ cmd: "getcasusbelli", alias: "CB" })
-    .add({ cmd: "getcoalitionname", args: { side: "false" }, alias: "C1" })
-    .add({ cmd: "getcoalitionname", args: { side: "true" }, alias: "C2" });
-
-function toConflictId(value: JSONValue): number | null {
-    const id = Number(value);
-    return Number.isFinite(id) ? id : null;
-}
-
-function toConflictRow(value: JSONValue): ConflictRow | null {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-    const source = value as Record<string, JSONValue>;
-    const id = Number(source.id);
-    if (!Number.isFinite(id)) return null;
-
-    return {
-        id,
-        name: source.name ? String(source.name) : String(id),
-        category: source.category ? String(source.category) : "",
-        c1Name: source.c1Name ? String(source.c1Name) : "",
-        c2Name: source.c2Name ? String(source.c2Name) : "",
-        status: source.status ? String(source.status) : "",
-        wiki: source.wiki ? String(source.wiki) : "",
-        start: Number(source.start ?? 0),
-        end: Number(source.end ?? 0),
-        activeWars: Number(source.activeWars ?? 0),
-        c1Damage: source.c1Damage ? String(source.c1Damage) : "",
-        c2Damage: source.c2Damage ? String(source.c2Damage) : "",
-        casusBelli: source.casusBelli ? String(source.casusBelli) : "",
-        raw: Array.isArray(source.raw) ? (source.raw as JSONValue[]) : [],
-    };
-}
-
-function withKnownCommandArgs(
-    commandPath: TableCommandAction<ConflictRow, number>["command"],
-    base: Record<string, string>,
-    prefillCandidates: Record<string, string>,
-): Record<string, string> {
-    const command = CM.get(commandPath);
-    const knownArgs = new Set(command.getArguments().map((arg) => arg.name));
-    const args: Record<string, string> = { ...base };
-    Object.entries(prefillCandidates).forEach(([key, value]) => {
-        if (!value) return;
-        if (knownArgs.has(key)) {
-            args[key] = value;
-        }
-    });
-    return args;
-}
-
 export default function Conflicts() {
     const queryClient = useQueryClient();
     const { session } = useSession();
 
-    const { permission: syncPermission, error: syncPermissionError } = usePermission(syncPermissionPath, { showDialogOnError: false });
-    const { permission: editPermission, error: editPermissionError } = usePermission(editPermissionPath, { showDialogOnError: false });
+    const { permission: syncPermission, error: syncPermissionError } = usePermission(CONFLICT_SYNC_PERMISSION_PATH, { showDialogOnError: false });
+    const { permission: editPermission, error: editPermissionError } = usePermission(CONFLICT_EDIT_PERMISSION_PATH, { showDialogOnError: false });
 
     const selected = useIdSelection<number>();
 
@@ -713,7 +93,7 @@ export default function Conflicts() {
 
     const onRowsRendered = useCallback((rows: JSONValue[][]) => {
         const ids = rows
-            .map((row) => toConflictId(row[IDX.id]))
+            .map((row) => toConflictId(getConflictRawValue(row, "id")))
             .filter((id): id is number => id !== null);
         setRenderedRowIds(ids);
     }, []);
@@ -742,8 +122,6 @@ export default function Conflicts() {
         selected.addMany(renderedRowIds);
     }, [renderedRowIds, selected]);
 
-
-
     const resolveActionPermission = useCallback((permissionPath?: readonly string[]) => {
         if (!permissionPath) return true;
         const key = permissionPath.join(" ");
@@ -752,224 +130,16 @@ export default function Conflicts() {
         return false;
     }, [canEdit, canSync]);
 
-    const canRunTableAction = useCallback((action: TableCommandAction<ConflictRow, number>) => {
+    const canRunTableAction = useCallback((action: ConflictTableAction) => {
         return resolveActionPermission(action.permission);
     }, [resolveActionPermission]);
 
-    const bulkActions = useMemo<TableCommandAction<ConflictRow, number>[]>(() => {
-        return [
-            {
-                id: "sync-selected",
-                label: "Bulk sync",
-                command: ["conflict", "sync", "website"],
-                scope: "bulk",
-                permission: syncPermissionPath,
-                requiresSelection: true,
-                buildArgs: ({ selectedIds }) => ({
-                    conflicts: serializeIdSet(selectedIds),
-                }),
-            },
-            {
-                id: "create-conflict",
-                label: "Create conflict",
-                command: ["conflict", "create"],
-                scope: "bulk",
-                permission: editPermissionPath,
-                requiresSelection: false,
-                requiresDialog: true,
-                description: "Create a new conflict with full command arguments.",
-                buildArgs: () => ({}),
-            },
-            {
-                id: "create-temp-conflict",
-                label: "Create temp",
-                command: ["conflict", "create_temp"],
-                scope: "bulk",
-                permission: editPermissionPath,
-                requiresSelection: false,
-                requiresDialog: true,
-                description: "Create a temporary conflict.",
-                buildArgs: () => ({}),
-            },
-        ];
+    const bulkActions = useMemo<ConflictTableAction[]>(() => {
+        return createConflictBulkActions();
     }, []);
 
-    const rowActions = useMemo<TableCommandAction<ConflictRow, number>[]>(() => {
-        const withConflict = (row?: ConflictRow) => ({ conflict: String(row?.id ?? "") });
-        return [
-            {
-                id: "sync-single",
-                label: "Sync website",
-                description: "Run conflict sync for this conflict.",
-                command: ["conflict", "sync", "website"],
-                scope: "row",
-                permission: syncPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => ({
-                    conflicts: String(row?.id ?? ""),
-                }),
-            },
-            {
-                id: "edit-wiki",
-                label: "Edit wiki",
-                command: ["conflict", "edit", "wiki"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withKnownCommandArgs(["conflict", "edit", "wiki"], withConflict(row), {
-                    wiki: row?.wiki ?? "",
-                    url: row?.wiki ?? "",
-                }),
-            },
-            {
-                id: "edit-status",
-                label: "Edit status",
-                command: ["conflict", "edit", "status"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withKnownCommandArgs(["conflict", "edit", "status"], withConflict(row), {
-                    status: row?.status ?? "",
-                }),
-            },
-            {
-                id: "edit-casus-belli",
-                label: "Edit casus belli",
-                command: ["conflict", "edit", "casus_belli"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withKnownCommandArgs(["conflict", "edit", "casus_belli"], withConflict(row), {
-                    casus_belli: row?.casusBelli ?? "",
-                    cb: row?.casusBelli ?? "",
-                    reason: row?.casusBelli ?? "",
-                }),
-            },
-            {
-                id: "edit-category",
-                label: "Edit category",
-                command: ["conflict", "edit", "category"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withKnownCommandArgs(["conflict", "edit", "category"], withConflict(row), {
-                    category: row?.category ?? "",
-                }),
-            },
-            {
-                id: "edit-c1-name",
-                label: "Edit C1",
-                command: ["conflict", "edit", "rename"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withKnownCommandArgs(["conflict", "edit", "rename"], withConflict(row), {
-                    name: row?.c1Name ?? "",
-                    isCoalition1: "true",
-                }),
-            },
-            {
-                id: "edit-c2-name",
-                label: "Edit C2",
-                command: ["conflict", "edit", "rename"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withKnownCommandArgs(["conflict", "edit", "rename"], withConflict(row), {
-                    name: row?.c2Name ?? "",
-                    isCoalition2: "true",
-                }),
-            },
-            {
-                id: "edit-start",
-                label: "Edit start",
-                command: ["conflict", "edit", "start"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withKnownCommandArgs(["conflict", "edit", "start"], withConflict(row), {
-                    time: turnToTimestampPrefill(row?.start ?? 0),
-                }),
-            },
-            {
-                id: "edit-end",
-                label: "Edit end",
-                command: ["conflict", "edit", "end"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withKnownCommandArgs(["conflict", "edit", "end"], withConflict(row), {
-                    time: turnToTimestampPrefill(row?.end ?? 0),
-                }),
-            },
-            {
-                id: "edit-rename",
-                label: "Edit rename",
-                command: ["conflict", "edit", "rename"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withKnownCommandArgs(["conflict", "edit", "rename"], withConflict(row), {
-                    name: row?.name ?? "",
-                    new_name: row?.name ?? "",
-                    conflict_name: row?.name ?? "",
-                }),
-            },
-            {
-                id: "delete-conflict",
-                label: "Delete",
-                command: ["conflict", "delete"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withConflict(row),
-            },
-            {
-                id: "alliance-add",
-                label: "Alliance add",
-                command: ["conflict", "alliance", "add"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withConflict(row),
-            },
-            {
-                id: "alliance-remove",
-                label: "Alliance remove",
-                command: ["conflict", "alliance", "remove"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withConflict(row),
-            },
-            {
-                id: "alliance-add-for-nation",
-                label: "Add all for nation",
-                command: ["conflict", "alliance", "add_all_for_nation"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withConflict(row),
-            },
-            {
-                id: "edit-add-forum-post",
-                label: "Add forum post",
-                command: ["conflict", "edit", "add_forum_post"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withConflict(row),
-            },
-            {
-                id: "edit-add-none-war",
-                label: "Add none war",
-                command: ["conflict", "edit", "add_none_war"],
-                scope: "row",
-                permission: editPermissionPath,
-                requiresDialog: true,
-                buildArgs: ({ row }) => withConflict(row),
-            },
-        ];
+    const rowActions = useMemo<ConflictTableAction[]>(() => {
+        return createConflictRowActions();
     }, []);
 
     const clientColumns = useMemo<ClientColumnOverlay[]>(() => {
@@ -983,35 +153,20 @@ export default function Conflicts() {
             exportable: false,
             editable: false,
             draggable: false,
-            value: (row) => ({
-                id: toConflictId(row[IDX.id]) ?? -1,
-                name: String(row[IDX.name] ?? row[IDX.id] ?? "Conflict"),
-                category: String(row[IDX.category] ?? ""),
-                c1Name: String(row[IDX.c1Name] ?? ""),
-                c2Name: String(row[IDX.c2Name] ?? ""),
-                start: Number(row[IDX.start] ?? 0),
-                end: Number(row[IDX.end] ?? 0),
-                activeWars: Number(row[IDX.activeWars] ?? 0),
-                c1Damage: String(row[IDX.c1Damage] ?? ""),
-                c2Damage: String(row[IDX.c2Damage] ?? ""),
-                wiki: String(row[IDX.wiki] ?? ""),
-                status: String(row[IDX.status] ?? ""),
-                casusBelli: String(row[IDX.casusBelli] ?? ""),
-                raw: row,
-            }),
+            value: (row) => createConflictRow(row),
             render: {
                 display: (value) => {
-                    const row = toConflictRow(value);
-                    if (!row || row.id < 0) return "-";
+                    if (!isConflictRow(value) || value.id < 0) return "-";
 
                     return (
                         <div className="flex items-center gap-1 justify-end sm:justify-start">
                             <ConflictActionsDialogButton
-                                row={row}
-                                rowLabel={row.name}
+                                row={value}
+                                rowLabel={value.name}
                                 selectedIds={selected.selectedIds}
                                 actions={rowActions}
                                 canRunAction={canRunTableAction}
+                                canEdit={canEdit}
                                 onActionSuccess={onActionSuccess}
                                 columnsInfo={columnsInfo}
                             />
@@ -1022,10 +177,10 @@ export default function Conflicts() {
         };
 
         return [actionsColumn];
-    }, [canRunTableAction, onActionSuccess, rowActions, selected, columnsInfo]);
+    }, [canEdit, canRunTableAction, columnsInfo, onActionSuccess, rowActions, selected.selectedIds]);
 
     const indexCellRenderer = useCallback(({ row, rowIdx, rowNumber }: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => {
-        const id = toConflictId(row[IDX.id]);
+        const id = toConflictId(getConflictRawValue(row, "id"));
         if (id === null) return String(rowNumber);
         return (
             <ConflictSelectButton
@@ -1038,18 +193,11 @@ export default function Conflicts() {
         );
     }, [onToggleRowSelection, selected]);
 
-    const rowClassName = useCallback((row: unknown[]) => {
-        const id = toConflictId(row[0]);
+    const rowClassName = useCallback((row: JSONValue[]) => {
+        const id = toConflictId(getConflictRawValue(row, "id"));
         if (!id) return undefined;
         return selected.has(id) ? "bg-blue-100/80 dark:bg-blue-900/30" : undefined;
     }, [selected]);
-
-    const columnRenderers = useMemo(() => {
-        return {
-            getstartturn: "turn_to_date",
-            getendturn: "turn_to_date",
-        };
-    }, []);
 
     const permissionErrors = useMemo(() => {
         const errors: string[] = [];
@@ -1094,21 +242,19 @@ export default function Conflicts() {
                 </Button>
             </div>
 
-            <div className="">
-                <StaticTable
-                    key={`conflicts-${reloadToken}`}
-                    type="Conflict"
-                    selection={{ "": "*" }}
-                    columns={builder.aliasedArray()}
-                    columnRenderers={columnRenderers}
-                    clientColumns={clientColumns}
-                    rowClassName={rowClassName}
-                    indexCellRenderer={indexCellRenderer}
-                    indexColumnWidth={64}
-                    onColumnsLoaded={onColumnsLoaded}
-                    onRowsRendered={onRowsRendered}
-                />
-            </div>
+            <StaticTable
+                key={`conflicts-${reloadToken}`}
+                type="Conflict"
+                selection={{ "": "*" }}
+                columns={conflictPlaceholderColumns.aliasedArray()}
+                columnRenderers={conflictColumnRenderers}
+                clientColumns={clientColumns}
+                rowClassName={rowClassName}
+                indexCellRenderer={indexCellRenderer}
+                indexColumnWidth={64}
+                onColumnsLoaded={onColumnsLoaded}
+                onRowsRendered={onRowsRendered}
+            />
         </>
     );
 }

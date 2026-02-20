@@ -1,4 +1,4 @@
-import { commafy, formatDuration, formatSi, formatTimeRelative, split } from "../../utils/StringUtil";
+import { commafy, formatDuration, formatSi, formatTimeRelative, formatTurnsToDate, split } from "../../utils/StringUtil";
 import ReactDOMServer from 'react-dom/server';
 import { CM, IOptionData } from "../../utils/Command";
 import React, { ReactNode } from "react";
@@ -26,6 +26,7 @@ export const RENDERERS: { [key: string]: ObjectColumnRender | undefined } = {
     percent: { display: percent },
     duration_ms: { display: duration_ms },
     numeric_map: { display: numericMap },
+    turn_to_date: { display: formatTurnsToDate },
 }
 
 export function percent_100(value: number): string {

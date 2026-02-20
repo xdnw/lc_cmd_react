@@ -7,9 +7,10 @@ interface LazyExpanderProps {
     children: ReactNode;
     content: ReactNode;
     className?: string;
+    hideTriggerChildrenWhenExpanded?: boolean;
 }
 
-const LazyExpander = ({ children, content, className = "" }: LazyExpanderProps) => {
+const LazyExpander = ({ children, content, className = "", hideTriggerChildrenWhenExpanded = false }: LazyExpanderProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -42,7 +43,7 @@ const LazyExpander = ({ children, content, className = "" }: LazyExpanderProps) 
                 role="button"
                 aria-expanded={isExpanded}
             >
-                <div className="flex-grow">{children}</div>
+                <div className={cn("flex-grow min-w-0", hideTriggerChildrenWhenExpanded && isExpanded ? "hidden" : undefined)}>{children}</div>
                 {chevronIcon}
             </Button>
             {expandedContent && (

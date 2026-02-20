@@ -15,6 +15,7 @@ export function createTableInfo(
     sort: OrderIdx | OrderIdx[] | undefined,
     columns: Map<string, string | null>,
     clientColumns: ClientColumnOverlay[] = [],
+    columnRenderers?: Record<string, string | ObjectColumnRender>,
 ): TableInfo {
     const errors: WebTableError[] = newData.errors ?? [];
     const sortColumns = toSortColumns(sort);
@@ -22,47 +23,24 @@ export function createTableInfo(
     const header: string[] = columns.size > 0 ? Array.from(columns).map(([key, value]) => value ?? key) : newData.cells[0] as string[];
     let data = newData.cells.slice(1);
     const renderFuncNames = newData.renderers;
-    let columnsInfo: ConfigColumns[] = header.map((col: string, index: number) => ({
-        title: formatColName(col),
-        index: index,
-        render: renderFuncNames ? getRenderer(renderFuncNames[index]) : undefined,
-    }));
-
     const columnKeys = Array.from(columns.keys());
-    columnsInfo = columnsInfo.map((col, idx) => {
-        if (col.render) return col;
-        const key = columnKeys[idx]?.toLowerCase();
+    let columnsInfo: ConfigColumns[] = header.map((col: string, index: number) => {
+        const backendRenderer = renderFuncNames ? getRenderer(renderFuncNames[index]) : undefined;
+        const overrideRenderer = backendRenderer
+            ? undefined
+            : resolveColumnRendererOverride(columnRenderers, columnKeys[index]);
 
-        if (key === "getcategory") {
-            return {
-                ...col,
-                render: getRenderer("enum:ConflictCategory"),
-            };
-        }
-
-        if (key === "getstartturn" || key === "getendturn") {
-            return {
-                ...col,
-                render: {
-                    display: (value: JSONValue) => {
-                        const turn = Number(value ?? 0);
-                        if (!Number.isFinite(turn) || turn <= 0 || turn > 100000000) return "N/A";
-                        const date = new Date(turn * 1000);
-                        return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
-                    },
-                },
-            };
-        }
-
-        return col;
+        return {
+            title: formatColName(col),
+            index: index,
+            render: backendRenderer ?? overrideRenderer,
+        };
     });
 
     const sorted = (!sort || (Array.isArray(sort) && sort.length === 0) || data.length <= 1) ? undefined : sortData(data, sortColumns, columnsInfo);
     if (sorted) {
         data = sorted.data;
         columnsInfo = sorted.columns;
-    } else {
-        console.log("No sorting applied or no data to sort.");
     }
 
     const withClientColumns = applyClientColumns(data, columnsInfo, clientColumns);
@@ -299,4 +277,21 @@ function applyClientColumns(
         data: dataWithOverlays,
         columnsInfo: merged,
     };
+}
+
+function resolveColumnRendererOverride(
+    columnRenderers: Record<string, string | ObjectColumnRender> | undefined,
+    columnKey: string | undefined,
+): ObjectColumnRender | undefined {
+    if (!columnRenderers || !columnKey) return undefined;
+    const key = columnKey.toLowerCase();
+    const entries = Object.entries(columnRenderers);
+    const match = entries.find(([rendererKey]) => rendererKey.toLowerCase() === key);
+    if (!match) return undefined;
+
+    const override = match[1];
+    if (typeof override === "string") {
+        return getRenderer(override);
+    }
+    return override;
 }

@@ -1,9 +1,9 @@
 import { ReactNode, useCallback, useMemo } from "react";
-import { ClientColumnOverlay, ConfigColumns, OrderIdx } from './DataTable';
+import { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, OrderIdx } from './DataTable';
 import { AbstractTableWithButtons, TableProps } from "./AbstractTable";
 import { JSONValue } from "@/lib/internaltypes";
 
-export function StaticTable({ type, selection, columns, sort, clientColumns, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded }: { type: string, selection: { [key: string]: string }, columns: (string | [string, string])[], sort?: OrderIdx | OrderIdx[] | undefined, clientColumns?: ClientColumnOverlay[], rowClassName?: (row: JSONValue[], rowIdx: number) => string | undefined, indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode, indexColumnWidth?: number, onRowsRendered?: (rows: JSONValue[][]) => void, onColumnsLoaded?: (columns: ConfigColumns[]) => void }) {
+export function StaticTable({ type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded }: { type: string, selection: { [key: string]: string }, columns: (string | [string, string])[], sort?: OrderIdx | OrderIdx[] | undefined, clientColumns?: ClientColumnOverlay[], columnRenderers?: Record<string, string | ObjectColumnRender>, rowClassName?: (row: JSONValue[], rowIdx: number) => string | undefined, indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode, indexColumnWidth?: number, onRowsRendered?: (rows: JSONValue[][]) => void, onColumnsLoaded?: (columns: ConfigColumns[]) => void }) {
     const getTableProps = useCallback((): TableProps => {
         return {
             type: type,
@@ -15,13 +15,14 @@ export function StaticTable({ type, selection, columns, sort, clientColumns, row
             })),
             sort: sort,
             clientColumns: clientColumns,
+            columnRenderers,
             rowClassName,
             indexCellRenderer,
             indexColumnWidth,
             onRowsRendered,
             onColumnsLoaded,
         };
-    }, [type, selection, columns, sort, clientColumns, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered]);
+    }, [type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded]);
 
     return useMemo(() => (
         <AbstractTableWithButtons getTableProps={getTableProps} load={true} />

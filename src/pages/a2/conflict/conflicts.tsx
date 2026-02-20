@@ -19,15 +19,6 @@ import { bulkQueryOptions } from "@/lib/queries";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 
-function formatConflictTurn(raw: unknown): string {
-    const turn = Number(raw ?? 0);
-    if (!Number.isFinite(turn) || turn <= 0 || turn > 100000000) return "N/A";
-
-    // Keep identical formatting to the table's default time renderer for consistency.
-    const date = new Date(turn * 1000);
-    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
-}
-
 function renderConflictCell(row: ConflictRow, idx: number, columnsInfo?: ConfigColumns[]): ReactNode {
     const rawValue = row.raw[idx];
     const column = columnsInfo?.find((value) => value.index === idx);
@@ -41,11 +32,72 @@ function renderConflictCell(row: ConflictRow, idx: number, columnsInfo?: ConfigC
         }) ?? "-";
     }
 
-    if (idx === IDX.start || idx === IDX.end) {
-        return formatConflictTurn(rawValue);
+    return rawValue == null || rawValue === "" ? "-" : String(rawValue);
+}
+
+type ParsedAllianceEntry = {
+    allianceId: number;
+    coalition: number | null;
+};
+
+function asNumberArray(value: unknown): number[] {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((entry) => Number(entry))
+        .filter((entry) => Number.isFinite(entry));
+}
+
+function parseConflictAllianceEntries(raw: unknown): ParsedAllianceEntry[] {
+    const flattened: ParsedAllianceEntry[] = [];
+
+    const push = (allianceId: number, coalition: number | null) => {
+        if (!Number.isFinite(allianceId) || allianceId <= 0) return;
+        flattened.push({ allianceId, coalition: coalition && Number.isFinite(coalition) ? coalition : null });
+    };
+
+    if (Array.isArray(raw)) {
+        for (const entry of raw) {
+            const values = asNumberArray(entry);
+            if (values.length === 0) continue;
+
+            // Format A: [allianceId, coalition]
+            if (values.length === 2 && values[1] >= 1 && values[1] <= 2 && values[0] > 2) {
+                push(values[0], values[1]);
+                continue;
+            }
+
+            // Format B: [coalition, allianceId]
+            if (values.length === 2 && values[0] >= 1 && values[0] <= 2 && values[1] > 2) {
+                push(values[1], values[0]);
+                continue;
+            }
+
+            // Format C: [coalition, allianceId, allianceId, ...]
+            if (values.length > 2 && values[0] >= 1 && values[0] <= 2) {
+                const coalition = values[0];
+                values.slice(1).forEach((allianceId) => push(allianceId, coalition));
+                continue;
+            }
+
+            values.forEach((allianceId) => push(allianceId, null));
+        }
     }
 
-    return rawValue == null || rawValue === "" ? "-" : String(rawValue);
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        for (const [coalitionKey, alliancesRaw] of Object.entries(raw as Record<string, unknown>)) {
+            const coalition = Number(coalitionKey);
+            if (!Number.isFinite(coalition)) continue;
+            const alliances = asNumberArray(alliancesRaw);
+            alliances.forEach((allianceId) => push(allianceId, coalition));
+        }
+    }
+
+    const deduped = new Map<string, ParsedAllianceEntry>();
+    flattened.forEach((entry) => {
+        const key = `${entry.coalition ?? 0}-${entry.allianceId}`;
+        deduped.set(key, entry);
+    });
+    return Array.from(deduped.values());
 }
 
 function AllianceSubMenu({
@@ -61,39 +113,117 @@ function AllianceSubMenu({
     openAddAllianceDialog?: () => void;
     openAddAllForNationDialog?: () => void;
 }) {
+    const { showDialog, hideDialog } = useDialog();
     const { data, isFetching, isError, error } = useQuery(bulkQueryOptions(CONFLICTALLIANCES.endpoint, { conflicts: String(conflict.id) }));
 
-    const alliancesMap: { [key: number]: string } = data?.data?.alliance_names ?? {};
-    const conflictAlliances = (data?.data?.conflict_alliances?.[conflict.id] ?? []) as [number, number][];
+    const alliancesMap = useMemo<{ [key: number]: string }>(() => {
+        return data?.data?.alliance_names ?? {};
+    }, [data?.data?.alliance_names]);
+    const conflictAlliancesRaw = data?.data?.conflict_alliances?.[conflict.id];
+    const entries = useMemo(() => parseConflictAllianceEntries(conflictAlliancesRaw), [conflictAlliancesRaw]);
+    const entriesByCoalition = useMemo(() => {
+        const grouped = new Map<number | null, ParsedAllianceEntry[]>();
+        for (const entry of entries) {
+            const bucket = grouped.get(entry.coalition) ?? [];
+            bucket.push(entry);
+            grouped.set(entry.coalition, bucket);
+        }
+        return grouped;
+    }, [entries]);
+
+    const onConfirmRemoveSuccess = useCallback(() => {
+        hideDialog();
+        onActionSuccess();
+    }, [hideDialog, onActionSuccess]);
+
+    const openRemoveConfirmation = useCallback((entry: ParsedAllianceEntry) => {
+        const allianceName = alliancesMap[entry.allianceId] || `Alliance ${entry.allianceId}`;
+        const coalitionText = entry.coalition ? `Side ${entry.coalition}` : "Unassigned side";
+        const args = withKnownCommandArgs(["conflict", "alliance", "remove"], { conflict: String(conflict.id) }, {
+            alliances: String(entry.allianceId),
+            alliance: String(entry.allianceId),
+            coalition: entry.coalition ? String(entry.coalition) : "",
+            side: entry.coalition ? String(entry.coalition) : "",
+        });
+
+        showDialog(`Remove ${allianceName}?`, (
+            <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                    This will remove <span className="font-medium text-foreground">{allianceName}</span> from conflict {conflict.id} ({coalitionText}).
+                </p>
+                <p className="text-sm text-destructive">This action is destructive. Please confirm before continuing.</p>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={hideDialog}>Cancel</Button>
+                    <CommandActionButton
+                        command={["conflict", "alliance", "remove"]}
+                        args={args}
+                        label="Confirm Remove"
+                        disabled={!canEdit}
+                        onSuccess={onConfirmRemoveSuccess}
+                        classes="!m-0 !h-8 !px-3 !w-auto"
+                        showResultDialog
+                    />
+                </div>
+            </div>
+        ));
+    }, [alliancesMap, canEdit, conflict.id, hideDialog, onConfirmRemoveSuccess, showDialog]);
+
+    const openRemoveHandlerById = useMemo(() => {
+        const handlers = new Map<string, () => void>();
+        for (const entry of entries) {
+            const key = `${entry.coalition ?? 0}-${entry.allianceId}`;
+            handlers.set(key, () => openRemoveConfirmation(entry));
+        }
+        return handlers;
+    }, [entries, openRemoveConfirmation]);
 
     return (
         <div className="mt-4 border-t border-border pt-4">
             <h3 className="text-sm font-semibold mb-2">Alliances</h3>
-            <div className="mb-2 text-[11px] text-muted-foreground">
-                {`debug: fetching=${isFetching ? "yes" : "no"}, error=${isError ? "yes" : "no"}, names=${Object.keys(alliancesMap).length}, entries=${conflictAlliances.length}, conflict=${conflict.id}`}
-                {isError && <div className="text-destructive">{String(error)}</div>}
-            </div>
-            <div className="space-y-1 mb-2">
-                {conflictAlliances.length === 0 && <div className="text-xs text-muted-foreground">No alliances added.</div>}
-                {conflictAlliances.map((entry: number[], idx: number) => {
-                    const allianceId = entry[0];
-                    const type = entry[1];
-                    const name = alliancesMap[allianceId] || `Alliance ${allianceId}`;
-                    return (
-                        <div key={idx} className="flex items-center justify-between text-xs p-1 rounded hover:bg-muted">
-                            <div>{name} (Side {type})</div>
-                            <CommandActionButton
-                                command={["conflict", "alliance", "remove"]}
-                                args={{ conflict: String(conflict.id), alliances: String(allianceId) }}
-                                label="Remove"
-                                disabled={!canEdit}
-                                onSuccess={onActionSuccess}
-                                classes="!m-0 !h-6 !px-2 !w-auto"
-                                showResultDialog
-                            />
+            {isError && (
+                <div className="mb-2 rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive">
+                    Failed to load alliances: {String(error)}
+                </div>
+            )}
+            {isFetching && <div className="mb-2 text-xs text-muted-foreground">Loading alliances...</div>}
+            <div className="mb-2 max-h-72 overflow-y-auto rounded border border-border px-2 py-1">
+                {entries.length === 0 && !isFetching && <div className="text-xs text-muted-foreground py-1">No alliances added.</div>}
+                {[...entriesByCoalition.entries()]
+                    .sort(([left], [right]) => (left ?? Number.MAX_SAFE_INTEGER) - (right ?? Number.MAX_SAFE_INTEGER))
+                    .map(([coalition, coalitionEntries]) => (
+                        <div key={`coalition-${coalition ?? "unknown"}`} className="mb-2 last:mb-0">
+                            <div className="text-[11px] font-medium text-muted-foreground mb-1">
+                                {coalition ? `Side ${coalition}` : "Unassigned"} ({coalitionEntries.length})
+                            </div>
+                            <div className="space-y-1">
+                                {coalitionEntries
+                                    .slice()
+                                    .sort((left, right) => {
+                                        const leftName = alliancesMap[left.allianceId] || `Alliance ${left.allianceId}`;
+                                        const rightName = alliancesMap[right.allianceId] || `Alliance ${right.allianceId}`;
+                                        return leftName.localeCompare(rightName);
+                                    })
+                                    .map((entry) => {
+                                        const name = alliancesMap[entry.allianceId] || `Alliance ${entry.allianceId}`;
+                                        const key = `${entry.coalition ?? 0}-${entry.allianceId}`;
+                                        return (
+                                            <div key={key} className="flex items-center gap-2 rounded px-1 py-1 hover:bg-muted">
+                                                <div className="min-w-0 flex-1 text-xs truncate">{name}</div>
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="h-6 px-2 text-[11px]"
+                                                    onClick={openRemoveHandlerById.get(key)}
+                                                    disabled={!canEdit}
+                                                >
+                                                    Remove
+                                                </Button>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
                         </div>
-                    );
-                })}
+                    ))}
             </div>
             <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={openAddAllianceDialog} disabled={!canEdit || !openAddAllianceDialog}>Add Alliance</Button>
@@ -182,16 +312,17 @@ function ConflictDetailFieldRow({
         <div className="rounded border border-border px-2 py-1">
             <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground min-w-20">{field.label}</span>
-                <div className="text-sm break-words min-w-0 flex-1">
+                <div className="text-sm min-w-0 flex-1 overflow-hidden">
                     {field.expandable && typeof field.value === "string" ? (
                         <LazyExpander
                             className="!h-7 !py-0"
+                            hideTriggerChildrenWhenExpanded
                             content={<div className="whitespace-pre-wrap break-words">{field.value || "-"}</div>}
                         >
-                            <span className="block truncate max-w-[420px] text-left">{field.value || "-"}</span>
+                            <span className="block truncate w-full text-left">{field.value || "-"}</span>
                         </LazyExpander>
                     ) : (
-                        field.value || "-"
+                        <div className="whitespace-pre-wrap break-words">{field.value || "-"}</div>
                     )}
                 </div>
                 {field.actionId && openAction && (
@@ -255,22 +386,6 @@ function ConflictActionsDialogButton({
         }
         return handlers;
     }, [onActionSuccess, row, selectedIds, showDialog, visibleActions]);
-
-    const detailRows = useMemo<{ label: string; value: ReactNode }[]>(() => {
-        return [
-            { label: "ID", value: row.id },
-            { label: "Name", value: row.name || "-" },
-            { label: "Category", value: row.category || "-" },
-            { label: "Status", value: row.status || "-" },
-            { label: "Wiki", value: row.wiki || "-" },
-            { label: "Start", value: row.start || "-" },
-            { label: "End", value: row.end || "-" },
-            { label: "Active Wars", value: row.activeWars || "0" },
-            { label: "Active Wars", value: row.activeWars || "0" },
-            { label: "c1 Damage", value: row.c1Damage || "-" },
-            { label: "c2 Damage", value: row.c2Damage || "-" },
-        ];
-    }, [row]);
 
     const formattedCategory = useMemo(() => renderConflictCell(row, IDX.category, columnsInfo), [columnsInfo, row]);
     const startFormatted = useMemo(() => renderConflictCell(row, IDX.start, columnsInfo), [columnsInfo, row]);
@@ -510,10 +625,8 @@ export default function Conflicts() {
         setColumnsInfo(columns);
     }, []);
 
-    const onToggleRowSelection = useCallback((id: number, rowIdx: number, shiftKey: boolean) => {
+    const onToggleRowSelection = useCallback((id: number, _rowIdx: number, _shiftKey: boolean) => {
         const shouldSelect = !selected.has(id);
-        // Shift select logic isn't easily supported without visible IDs tracking,
-        // user mentioned "Checkbox works, extra debug and other dead or unnecessary code can be removed."
         selected.setOne(id, shouldSelect);
     }, [selected]);
 
@@ -802,6 +915,13 @@ export default function Conflicts() {
         return selected.has(id) ? "bg-blue-100/80 dark:bg-blue-900/30" : undefined;
     }, [selected]);
 
+    const columnRenderers = useMemo(() => {
+        return {
+            getstartturn: "turn_to_date",
+            getendturn: "turn_to_date",
+        };
+    }, []);
+
     return (
         <>
             <BulkActionsToolbar
@@ -822,6 +942,7 @@ export default function Conflicts() {
                 type="Conflict"
                 selection={{ "": "*" }}
                 columns={builder.aliasedArray()}
+                columnRenderers={columnRenderers}
                 clientColumns={clientColumns}
                 rowClassName={rowClassName}
                 indexCellRenderer={indexCellRenderer}

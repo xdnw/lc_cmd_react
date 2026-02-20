@@ -1,17 +1,17 @@
-import { COMMANDS } from "@/lib/commands";
-import { AnyCommandPath, CM, CommandPath } from "./Command";
+import { AnyCommandPath } from "./Command";
 import { useDialog } from "@/components/layout/DialogContext";
 import { WebPermission } from "@/lib/apitypes";
 import { PERMISSION } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 
 export function usePermission<P extends AnyCommandPath>(path: P): { permission?: WebPermission, isFetching: boolean } {
     const { showDialog } = useDialog();
+    const shownErrorMessagesRef = useRef<Set<string>>(new Set());
     const { data, isFetching, error } = useQuery({
         ...bulkQueryOptions(PERMISSION.endpoint, {
-            command: CM.get(path).fullPath(),
+            command: path.join(" "),
         }),
         retry: false, // Optional: prevent retries if you want
     });
@@ -28,7 +28,12 @@ export function usePermission<P extends AnyCommandPath>(path: P): { permission?:
 
     useEffect(() => {
         if (errorFinal) {
-            showDialog('Permission Error', `Failed to fetch permission: ${(errorFinal).message}`);
+            const message = `Failed to fetch permission: ${(errorFinal).message}`;
+            if (shownErrorMessagesRef.current.has(message)) {
+                return;
+            }
+            shownErrorMessagesRef.current.add(message);
+            showDialog('Permission Error', message);
         }
     }, [errorFinal, showDialog]);
 

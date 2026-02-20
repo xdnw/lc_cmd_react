@@ -1,6 +1,6 @@
 import { DiscordEmbed } from "../components/ui/MarkupRenderer";
 import { ReactNode } from "react";
-import { getEmoji } from './emoji-tmp';
+import { getEmoji } from './emoji';
 
 export interface HtmlOptions {
     escapeHTML: boolean;

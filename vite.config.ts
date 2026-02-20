@@ -141,9 +141,13 @@ export default defineConfig(({ mode }) => {
         compress: {
           drop_console: minify,
           drop_debugger: minify,
+          passes: 2,
+        },
+        format: {
+          comments: false,
         }
       },
-      minify: minify ? 'terser' : false, // Use 'terser' for minification when enabled
+      minify: minify ? 'esbuild' : false, // Use 'terser' for minification when enabled
       //   rollupOptions: {
       //     output: {
       //       manualChunks: (id) => {
@@ -169,6 +173,8 @@ export default defineConfig(({ mode }) => {
     chunkSizeWarningLimit: 600,
     esbuild: {
       target: 'es2020',
+      drop: mode === 'main' ? ['console', 'debugger'] : [],
+      legalComments: 'none',
     },
     server: {
       hmr: true,

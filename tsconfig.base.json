@@ -33,7 +33,7 @@
     "outDir": "./dist",
     /* Performance improvements */
     "removeComments": true,
-    "downlevelIteration": true,
+    "downlevelIteration": false,
     /* Additional strict options */
     "noImplicitAny": true,
     "strictNullChecks": true,

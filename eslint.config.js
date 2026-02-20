@@ -19,6 +19,10 @@ import sonarjs from 'eslint-plugin-sonarjs';
 import importPlugin from 'eslint-plugin-import';
 // @ts-ignore
 import unusedImports from 'eslint-plugin-unused-imports';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const tsconfigRootDir = dirname(fileURLToPath(import.meta.url));
 
 const FIX_IMPORTS = process.env.FIX_IMPORTS === 'true';
 
@@ -43,7 +47,7 @@ const baseConfig = tseslint.config(
             parser: tseslint.parser,
             parserOptions: {
                 project: './tsconfig.json',
-                tsconfigRootDir: '.',
+                tsconfigRootDir,
                 ecmaVersion: 'latest',
                 sourceType: 'module',
             },

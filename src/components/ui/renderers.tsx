@@ -1,7 +1,7 @@
 import { commafy, formatDuration, formatSi, formatTimeRelative, formatTurnsToDate, split } from "../../utils/StringUtil";
-import ReactDOMServer from 'react-dom/server';
 import { CM, IOptionData } from "../../utils/Command";
 import React, { ReactNode } from "react";
+import DOMPurify from "dompurify";
 import SimpleChart from "../../pages/graphs/SimpleChart.js";
 import { WebGraph } from "../../lib/apitypes.js";
 import Color from "../renderer/Color.js";
@@ -65,7 +65,8 @@ export function duration_ms(ms: number): string {
 }
 
 export function html(value: string): ReactNode {
-    return <>{ReactDOMServer.renderToStaticMarkup(<div dangerouslySetInnerHTML={{ __html: value }} />)}</>;
+    const sanitized = DOMPurify.sanitize(value ?? "");
+    return <span dangerouslySetInnerHTML={{ __html: sanitized }} />;
 }
 
 export function isHtmlRenderer(type: ObjectColumnRender): boolean {

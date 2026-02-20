@@ -7,6 +7,13 @@ import "react-data-grid/lib/styles.css";
 import AutoRoutePrefetcher from "./components/AutoRoutePrefetcher";
 import Loading from "@/components/ui/loading";
 
+function handleCopyStackClick(e: React.MouseEvent<HTMLButtonElement>) {
+  const text = e.currentTarget.dataset.stack;
+  if (!text) return;
+  void navigator.clipboard?.writeText(text);
+  alert("Copied to clipboard.");
+}
+
 // Initialize Google Analytics
 ReactGA.initialize(process.env.GTAG_ID as string);
 // Lazy-loaded components
@@ -175,7 +182,19 @@ function RouteErrorFallback() {
       <div className="max-w-2xl w-full rounded border border-destructive/40 bg-destructive/10 p-4">
         <h2 className="text-base font-semibold text-destructive">Page failed to load</h2>
         <p className="mt-2 text-sm break-words text-secondary">{message}</p>
-        {stack && <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2  text-yellow-50">{stack}</pre>}
+        {stack && (
+          <div className="mt-4">
+            <button
+              type="button"
+              data-stack={stack}
+              onClick={handleCopyStackClick}
+              className="mb-2 bg-primary rounded border px-2 py-1 text-xs text-white active:translate-y-px active:opacity-80"
+            >
+              copy
+            </button>
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2 text-yellow-50">{stack}</pre>
+          </div>
+        )}
       </div>
     </div>
   );

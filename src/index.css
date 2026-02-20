@@ -184,10 +184,6 @@
   body {
     height: 100%;
   }
-
-  ::selection {
-    background: hsl(var(--primary) / 0.25);
-  }
 }
 
 @layer base {

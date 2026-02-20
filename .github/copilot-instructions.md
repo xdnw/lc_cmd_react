@@ -1,4 +1,6 @@
 Using react 19, ts, tailwind, shadcn/ui
+Make sure to write clean, extensible, componentized code, and find opportunities for code reuse with shared utils/components etc. instead of reimplementing things.
+
 EndpointWrapper | @/components/api/bulkwrapper | PUBLIC | Default export: EndpointWrapper<T,A,B> - props: endpoint, args, handle_error?, batch_wait_ms?, isPostOverride?, children({data,reload,isRefetching})
 useDeepMemo | @/components/api/bulkwrapper | PUBLIC | useDeepMemo(value) - deep-compare memo for deps
 BulkQueryClient / fetchBulk / fetchSingle / QueryResult | @/lib/BulkQuery.ts | PUBLIC | Batched API client + types — `fetchBulk` = deduped/batched requests with optional caching; `fetchSingle` = direct POST; exports `bulkQueryClient` singleton and `QueryResult<T>` (endpoint, query, update_ms, cache, data, error).

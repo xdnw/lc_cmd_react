@@ -1,14 +1,8 @@
-import React, { useRef, useEffect, KeyboardEventHandler, useState, useMemo } from "react";
-// @ts-expect-error Clusterize is not typed
-import Clusterize from 'clusterize.js';
-import 'clusterize.js/clusterize.css';
-import CreatableSelect from 'react-select/creatable';
-import './list.css';
-import Select from "react-select/base";
+import React, { useRef, useState, useMemo, KeyboardEventHandler, useEffect, useCallback, memo } from "react";
+import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useDialog } from "../layout/DialogContext";
 import { Button } from "../ui/button";
 import { TypeBreakdown } from "../../utils/Command";
-import { InputActionMeta } from "react-select";
 import Loading from "../ui/loading";
 import { useSyncedState } from "@/utils/StateUtil";
 import {
@@ -18,288 +12,368 @@ import {
     type SelectOption,
 } from "./selectValueUtils";
 
+// ----------------------------------------------------------------------
+// Sub-Components (Extracted to prevent inline JSX functions)
+// ----------------------------------------------------------------------
+
+interface SelectedChipProps {
+    option: SelectOption;
+    onRemove: (option: SelectOption) => void;
+}
+
+const SelectedChip = memo(function SelectedChip({ option, onRemove }: SelectedChipProps) {
+    const handleRemoveClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+        onRemove(option);
+    }, [option, onRemove]);
+
+    return (
+        <span className="flex items-center gap-1 px-2 py-0.5 text-sm bg-slate-200 dark:bg-slate-900 text-slate-900 dark:text-white rounded-sm">
+            {option.icon && (
+                <img src={option.icon} alt="" className="w-3.5 h-3.5 object-contain inline-block" />
+            )}
+            {option.label || option.value}
+            <button
+                type="button"
+                className="hover:text-red-500 dark:hover:text-red-400 focus:outline-none font-bold"
+                onClick={handleRemoveClick}
+            >
+                &times;
+            </button>
+        </span>
+    );
+});
+
+interface DropdownItemProps {
+    option: SelectOption;
+    index: number;
+    isHighlighted: boolean;
+    isSelected: boolean;
+    onToggle: (option: SelectOption) => void;
+    onHover: (index: number) => void;
+}
+
+const DropdownItem = memo(function DropdownItem({
+    option,
+    index,
+    isHighlighted,
+    isSelected,
+    onToggle,
+    onHover,
+}: DropdownItemProps) {
+    const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        onToggle(option);
+    }, [option, onToggle]);
+
+    const handleMouseEnter = useCallback(() => {
+        onHover(index);
+    }, [index, onHover]);
+
+    return (
+        <div
+            onMouseEnter={handleMouseEnter}
+            onClick={handleClick}
+            className={`
+        flex items-center px-3 py-2 cursor-pointer text-sm select-none transition-colors
+        ${isHighlighted ? 'bg-slate-100 dark:bg-slate-800' : 'bg-transparent'}
+        ${isSelected ? 'bg-slate-200 dark:bg-slate-900 font-medium' : ''}
+        text-slate-900 dark:text-white
+      `}
+        >
+            {option.icon && (
+                <img src={option.icon} loading="lazy" alt="" className="w-4 h-4 mr-2 object-contain inline-block" />
+            )}
+            {option.label || option.value}
+        </div>
+    );
+});
+
+// ----------------------------------------------------------------------
+// Wrapper Components
+// ----------------------------------------------------------------------
+
 export function ListComponentBreakdown({ breakdown, argName, isMulti, initialValue, setOutputValue }: {
-    breakdown: TypeBreakdown,
-    argName: string,
-    isMulti: boolean,
-    initialValue: string,
-    setOutputValue: (name: string, value: string) => void
+    breakdown: TypeBreakdown;
+    argName: string;
+    isMulti: boolean;
+    initialValue: string;
+    setOutputValue: (name: string, value: string) => void;
 }) {
     const labelled = useMemo(() => {
         const types = breakdown.map.getPlaceholderTypes(true);
         return types.map((o) => ({ label: o, value: o }));
     }, [breakdown]);
 
-    return <ListComponent argName={argName} options={labelled} isMulti={isMulti} initialValue={initialValue} setOutputValue={setOutputValue} />
+    return <ListComponent argName={argName} options={labelled} isMulti={isMulti} initialValue={initialValue} setOutputValue={setOutputValue} />;
 }
 
 export function ListComponentOptions({ options, argName, isMulti, initialValue, setOutputValue }: {
-    options: string[],
-    argName: string,
-    isMulti: boolean,
-    initialValue: string,
-    setOutputValue: (name: string, value: string) => void
+    options: string[];
+    argName: string;
+    isMulti: boolean;
+    initialValue: string;
+    setOutputValue: (name: string, value: string) => void;
 }) {
     const labelled = useMemo(() => {
-        return options.map((o) => ({ label: o, value: o }))
+        return options.map((o) => ({ label: o, value: o }));
     }, [options]);
 
-    return <ListComponent argName={argName} options={labelled} isMulti={isMulti} initialValue={initialValue} setOutputValue={setOutputValue} />
+    return <ListComponent argName={argName} options={labelled} isMulti={isMulti} initialValue={initialValue} setOutputValue={setOutputValue} />;
 }
 
-export default function ListComponent(
-    { argName, options, isMulti, initialValue, setOutputValue }:
-        {
-            argName: string,
-            options: SelectOption[],
-            isMulti: boolean,
-            initialValue: string,
-            setOutputValue: (name: string, value: string) => void
-        }
-) {
+// ----------------------------------------------------------------------
+// Main List Component
+// ----------------------------------------------------------------------
+
+export default function ListComponent({ argName, options, isMulti, initialValue, setOutputValue }: {
+    argName: string;
+    options: SelectOption[];
+    isMulti: boolean;
+    initialValue: string;
+    setOutputValue: (name: string, value: string) => void;
+}) {
     const { showDialog } = useDialog();
 
-    const [inputValue, setInputValue] = React.useState('');
     const normalizedInitialSelection = useMemo(() => {
         return resolveInitialSelection(initialValue || '', options, isMulti);
     }, [initialValue, isMulti, options]);
+
     const [value, setValue] = useSyncedState<SelectOption[]>(normalizedInitialSelection);
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const contentRef = useRef<HTMLOListElement>(null);
-    const selectRef = useRef<Select>(null);
-    const [clusterize, setClusterize] = useState<Clusterize | null>(null);
-    const [isFocused, setIsFocused] = useState(false);
+    const [inputValue, setInputValue] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
 
-    const selectedValueSet = useMemo(() => {
-        return new Set(value.map((v) => v.value));
-    }, [value]);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const virtuosoRef = useRef<VirtuosoHandle>(null);
 
-    const selectValue = useMemo(() => {
-        if (isMulti) return value;
-        return value[0] ?? null;
-    }, [isMulti, value]);
+    const selectedValueSet = useMemo(() => new Set(value.map((v) => v.value)), [value]);
 
-    const syncOutput = React.useCallback((selection: SelectOption[]) => {
+    const syncOutput = useCallback((selection: SelectOption[]) => {
         setOutputValue(argName, serializeSelection(selection, isMulti));
     }, [argName, isMulti, setOutputValue]);
 
-    const addValue = React.useCallback((option: SelectOption | undefined, input: string) => {
-        if (option) {
-            const nextSelection = isMulti
-                ? dedupeByValue([...value, option])
-                : [option];
+    const filteredOptions = useMemo(() => {
+        if (!options) return [];
+        if (!inputValue) return options;
 
-            setValue(nextSelection);
-            syncOutput(nextSelection);
-            setInputValue('');
+        const exactMatches: SelectOption[] = [];
+        const partialMatches: SelectOption[] = [];
+        const inputLower = inputValue.toLowerCase();
+
+        for (const option of options) {
+            const checkAgainst = option.label || option.value;
+            const checkLower = checkAgainst.toLowerCase();
+
+            if (checkLower.includes(inputLower)) {
+                if (checkLower === inputLower) exactMatches.push(option);
+                else partialMatches.push(option);
+            }
+        }
+        return exactMatches.concat(partialMatches);
+    }, [options, inputValue]);
+
+    useEffect(() => {
+        setHighlightedIndex(0);
+        if (isOpen && virtuosoRef.current) {
+            virtuosoRef.current.scrollToIndex({ index: 0, align: 'start' });
+        }
+    }, [filteredOptions.length, isOpen]);
+
+    const toggleOption = useCallback((option: SelectOption | undefined, inputString?: string) => {
+        if (!option) {
+            showDialog("Invalid value", <>The value <kbd className='bg-secondary rounded px-0.5'>{inputString}</kbd> is not a valid option.</>);
+            return;
+        }
+
+        const isSelected = selectedValueSet.has(option.value);
+        let nextSelection: SelectOption[];
+
+        if (isMulti) {
+            if (isSelected) nextSelection = value.filter(v => v.value !== option.value);
+            else nextSelection = dedupeByValue([...value, option]);
         } else {
-            showDialog("Invalid value", <>The value <kbd className='bg-secondary rounded px-0.5'>{input}</kbd> is not a valid option.</>);
+            nextSelection = isSelected ? [] : [option];
         }
-    }, [isMulti, showDialog, setValue, syncOutput, value]);
 
-    const handleKeyDown: KeyboardEventHandler = React.useCallback((event) => {
-        switch (event.key) {
-            case 'Escape': {
-                setIsFocused(false);
-                break;
-            }
-            default: {
-                if (!isFocused) {
-                    setIsFocused(true);
-                }
-            }
+        setValue(nextSelection);
+        syncOutput(nextSelection);
+
+        if (!isMulti) setIsOpen(false);
+        setInputValue('');
+        inputRef.current?.focus();
+    }, [isMulti, value, selectedValueSet, setValue, syncOutput, showDialog]);
+
+    const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = useCallback((event) => {
+        if (event.key === 'Escape') {
+            setIsOpen(false);
+            inputRef.current?.blur();
+            return;
         }
-        if (!inputValue) return;
+
+        if (!isOpen) {
+            if (['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) setIsOpen(true);
+            return;
+        }
+
         switch (event.key) {
+            case 'ArrowDown':
+                event.preventDefault();
+                setHighlightedIndex((prev) => {
+                    const next = Math.min(prev + 1, filteredOptions.length - 1);
+                    virtuosoRef.current?.scrollIntoView({ index: next, align: 'center' });
+                    return next;
+                });
+                break;
+            case 'ArrowUp':
+                event.preventDefault();
+                setHighlightedIndex((prev) => {
+                    const next = Math.max(prev - 1, 0);
+                    virtuosoRef.current?.scrollIntoView({ index: next, align: 'center' });
+                    return next;
+                });
+                break;
             case 'Enter':
             case 'Tab': {
-                const option = options.find((o) => o.label === inputValue || o.value === inputValue);
-                addValue(option, inputValue);
                 event.preventDefault();
+                if (filteredOptions.length > 0) {
+                    toggleOption(filteredOptions[highlightedIndex], inputValue);
+                } else if (inputValue) {
+                    toggleOption(undefined, inputValue);
+                }
+                break;
+            }
+            case 'Backspace': {
+                if (!inputValue && isMulti && value.length > 0) {
+                    const nextSelection = value.slice(0, -1);
+                    setValue(nextSelection);
+                    syncOutput(nextSelection);
+                }
                 break;
             }
         }
-    }, [isFocused, inputValue, options, addValue]);
+    }, [isOpen, filteredOptions, highlightedIndex, inputValue, isMulti, value, toggleOption, setValue, syncOutput]);
 
-    useEffect(() => {
-        if (scrollRef.current && contentRef.current && options) {
-            const exactMatches: string[] = [];
-            const partialMatches: string[] = [];
-            const inputLower = inputValue.toLowerCase();
-
-            for (const option of options) {
-                const checkAgainst = option.label ? option.label : option.value;
-                const checkLower = checkAgainst.toLowerCase();
-
-                if (checkLower.includes(inputLower)) {
-                    // Build an inline icon (lazy-loading) if option.icon is present.
-                    const iconHtml = option.icon ? `<img src="${option.icon}" loading="lazy" class="list-icon" alt="" />` : '';
-                    let li;
-                    if (selectedValueSet.has(option.value)) {
-                        li = `<li class='bg-input dark:bg-slate-700 p-0.5'>${iconHtml}${option.label}</li>`;
-                    } else {
-                        li = `<li class='p-0.5'>${iconHtml}${option.label}</li>`;
-                    }
-
-                    if (checkLower === inputLower) {
-                        exactMatches.push(li);
-                    } else {
-                        partialMatches.push(li);
-                    }
-                }
-            }
-
-            const filteredOptions = exactMatches.concat(partialMatches);
-
-            if (clusterize) {
-                clusterize.update(filteredOptions);
-            } else {
-                const newClusterize = new Clusterize({
-                    rows: filteredOptions,
-                    scrollElem: scrollRef.current,
-                    contentElem: contentRef.current,
-                    tag: 'ol',
-                });
-                setClusterize(newClusterize);
-            }
+    const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+        if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+            setIsOpen(false);
         }
-    }, [inputValue, value, clusterize, options, selectedValueSet]);
-
-    useEffect(() => {
-        return () => {
-            if (clusterize) clusterize.destroy(true);
-        };
-    }, [clusterize]);
-
-    const handleBlur = React.useCallback(() => {
-        setTimeout(() => {
-            const activeElement = document.activeElement;
-            if (scrollRef.current && (scrollRef.current === activeElement || scrollRef.current.contains(activeElement))) {
-                return;
-            }
-            const selectControlElement = selectRef.current?.controlRef;
-            if (selectControlElement && (selectControlElement === activeElement || selectControlElement.contains(activeElement))) {
-                return;
-            }
-            setIsFocused(false);
-        }, 0);
-    }, [scrollRef, selectRef]);
-
-    const focusTriggered = useRef(false);
-
-    const handleFocus = React.useCallback(() => {
-        focusTriggered.current = true;
-        setIsFocused(true);
-        setTimeout(() => {
-            focusTriggered.current = false;
-        }, 200);
     }, []);
 
-    const handleClick = React.useCallback(() => {
-        if (!focusTriggered.current) {
-            setIsFocused(f => !f);
-        }
-        focusTriggered.current = false;
-    }, [setIsFocused, focusTriggered]);
-
-    useEffect(() => {
-        const scrollElement = scrollRef.current;
-        const selectElement = selectRef.current?.controlRef;
-        scrollElement?.addEventListener('focus', handleFocus, true);
-        scrollElement?.addEventListener('blur', handleBlur, true);
-        selectElement?.addEventListener('mousedown', handleClick);
-
-        return () => {
-            scrollElement?.removeEventListener('focus', handleFocus, true);
-            scrollElement?.removeEventListener('blur', handleBlur, true);
-            selectElement?.removeEventListener('mousedown', handleClick);
-        };
-    }, [scrollRef, selectRef, handleFocus, handleBlur, handleClick]);
-
-    const selectAll = React.useCallback(() => {
+    const selectAll = useCallback(() => {
         setValue(options);
         syncOutput(options);
     }, [options, setValue, syncOutput]);
 
-    const clearAll = React.useCallback(() => {
+    const clearAll = useCallback(() => {
         setValue([]);
         syncOutput([]);
+        setInputValue('');
     }, [setValue, syncOutput]);
 
-    const handleChange = React.useCallback((newValue: unknown) => {
-        const nextSelection = (() => {
-            if (Array.isArray(newValue)) {
-                return dedupeByValue(newValue as SelectOption[]);
-            }
-            if (newValue && typeof newValue === 'object') {
-                return [newValue as SelectOption];
-            }
-            return [];
-        })();
-
-        setValue(nextSelection);
-        syncOutput(nextSelection);
-    }, [setValue, syncOutput]);
-
-    const handleInputChange = React.useCallback((newValue: string, actionMeta: InputActionMeta) => {
-        if (actionMeta.action !== 'input-blur' && actionMeta.action !== 'set-value' && actionMeta.action !== 'menu-close') {
-            setInputValue(newValue);
-        }
+    // Stable handlers to avoid inline functions in JSX
+    const handleContainerClick = useCallback(() => {
+        setIsOpen(true);
+        inputRef.current?.focus();
     }, []);
 
-    const handleListClick = React.useCallback((e: React.MouseEvent<HTMLOListElement>) => {
-        const target = e.target as HTMLElement;
-        if (target.tagName.toLowerCase() === 'li') {
-            const option = options.find((o) => o.label === target.innerText);
-            if (option) {
-                if (value.find((v) => v.value === option.value)) {
-                    const newValue = value.filter((v) => v.value !== option.value);
-                    setValue(newValue);
-                    syncOutput(newValue);
-                } else {
-                    const labelOrValue = option.label ? option.label : option.value;
-                    addValue(option, labelOrValue);
-                }
-            }
-        }
-    }, [addValue, options, setValue, syncOutput, value]);
+    const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputValue(e.target.value);
+        setIsOpen(true);
+    }, []);
+
+    const handleInputFocus = useCallback(() => {
+        setIsOpen(true);
+    }, []);
+
+    const handleRemoveOption = useCallback((option: SelectOption) => {
+        toggleOption(option);
+    }, [toggleOption]);
+
+    const handleItemHover = useCallback((index: number) => {
+        setHighlightedIndex(index);
+    }, []);
+
+    // Virtuoso Render Prop
+    const renderItem = useCallback((index: number, option: SelectOption) => {
+        const isSelected = selectedValueSet.has(option.value);
+        const isHighlighted = index === highlightedIndex;
+
+        return (
+            <DropdownItem
+                option={option}
+                index={index}
+                isHighlighted={isHighlighted}
+                isSelected={isSelected}
+                onToggle={toggleOption}
+                onHover={handleItemHover}
+            />
+        );
+    }, [selectedValueSet, highlightedIndex, toggleOption, handleItemHover]);
+
+    const placeholderText = !isMulti && value.length === 1 && !inputValue
+        ? (value[0].label || value[0].value)
+        : "Type something and press enter...";
+
+    // Memoize style object to avoid inline object allocation
+    const virtuosoStyle = useMemo(() => ({
+        height: `${Math.min(filteredOptions.length * 36, 300)}px`
+    }), [filteredOptions.length]);
 
     return (
-        <div className="relative">
-            <CreatableSelect
-                ref={selectRef}
-                className="react-select-container"
-                classNamePrefix="react-select"
-                inputValue={inputValue}
-                isClearable={false}
-                isMulti={isMulti}
-                menuIsOpen={false}
-                onChange={handleChange}
-                onInputChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Type something and press enter..."
-                value={selectValue}
-                options={options}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-            />
+        <div
+            className="relative flex flex-col gap-2"
+            ref={containerRef}
+            onBlur={handleBlur}
+        >
             <div
-                className={`absolute z-10 ${isFocused ? '' : 'invisible'} inset-x-0 bg-gray-50 dark:bg-gray-600 drop-shadow-2xl shadow-2xl border border-slate-400 dark:border-slate-400 rounded-sm p-0 clusterize-scroll`}
-                ref={scrollRef}
+                className="flex flex-wrap items-center gap-1.5 p-1.5 border rounded-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent min-h-[38px] cursor-text transition-all"
+                onClick={handleContainerClick}
             >
-                <ul className="clusterize-content" ref={contentRef} onClick={handleListClick}>
-                    <Loading />
-                </ul>
+                {isMulti && value.map((v) => (
+                    <SelectedChip
+                        key={v.value}
+                        option={v}
+                        onRemove={handleRemoveOption}
+                    />
+                ))}
+
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    onFocus={handleInputFocus}
+                    placeholder={placeholderText}
+                    className="flex-1 min-w-[120px] bg-transparent outline-none text-slate-900 dark:text-white text-sm px-1 py-0.5 placeholder:text-slate-400 dark:placeholder:text-slate-400"
+                />
             </div>
+
             {isMulti && (
-                <>
-                    <Button variant="outline" className="me-1" size="sm" onClick={selectAll}>
-                        Select All
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={clearAll}>
-                        Clear
-                    </Button>
-                </>
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={selectAll}>Select All</Button>
+                    <Button variant="outline" size="sm" onClick={clearAll}>Clear</Button>
+                </div>
+            )}
+
+            {isOpen && (
+                <div className="absolute top-[42px] left-0 right-0 z-50 bg-white dark:bg-slate-700 shadow-xl border border-slate-300 dark:border-slate-600 rounded-md overflow-hidden">
+                    {!options ? (
+                        <div className="p-4 flex justify-center"><Loading /></div>
+                    ) : filteredOptions.length === 0 ? (
+                        <div className="p-3 text-sm text-slate-500 dark:text-slate-400 text-center">No options found.</div>
+                    ) : (
+                        <Virtuoso
+                            ref={virtuosoRef}
+                            style={virtuosoStyle}
+                            totalCount={filteredOptions.length}
+                            data={filteredOptions}
+                            itemContent={renderItem}
+                        />
+                    )}
+                </div>
             )}
         </div>
     );

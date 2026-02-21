@@ -3,7 +3,6 @@ import { createHashRouter, isRouteErrorResponse, Outlet, RouterProvider, ScrollR
 import { Suspense, ReactNode, lazy, ComponentType, useEffect, useState } from "react";
 import { hasToken } from "@/utils/Auth.ts";
 import ReactGA from "react-ga4";
-import "react-data-grid/lib/styles.css";
 import AutoRoutePrefetcher from "./components/AutoRoutePrefetcher";
 import Loading from "@/components/ui/loading";
 

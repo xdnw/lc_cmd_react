@@ -1,13 +1,14 @@
 import { commafy, formatDuration, formatSi, formatTimeRelative, formatTurnsToDate, split } from "../../utils/StringUtil";
 import { CM, IOptionData } from "../../utils/Command";
-import React, { ReactNode } from "react";
-import DOMPurify from "dompurify";
-import SimpleChart from "../../pages/graphs/SimpleChart.js";
+import React, { ReactNode, Suspense, lazy } from "react";
 import { WebGraph } from "../../lib/apitypes.js";
 import Color from "../renderer/Color.js";
 import { ObjectColumnRender } from "@/pages/custom_table/DataTable.js";
 import { JSONValue } from "@/lib/internaltypes.js";
 import { Link } from "react-router-dom";
+
+const LazySimpleChart = lazy(() => import("../../pages/graphs/SimpleChart.js"));
+const LazySanitizedHtml = lazy(() => import("./SanitizedHtml"));
 
 export const RENDERERS: { [key: string]: ObjectColumnRender | undefined } = {
     money: { display: money },
@@ -65,8 +66,11 @@ export function duration_ms(ms: number): string {
 }
 
 export function html(value: string): ReactNode {
-    const sanitized = DOMPurify.sanitize(value ?? "");
-    return <span dangerouslySetInnerHTML={{ __html: sanitized }} />;
+    return (
+        <Suspense fallback={<span>{value ?? ""}</span>}>
+            <LazySanitizedHtml value={value ?? ""} />
+        </Suspense>
+    );
 }
 
 export function isHtmlRenderer(type: ObjectColumnRender): boolean {
@@ -74,12 +78,16 @@ export function isHtmlRenderer(type: ObjectColumnRender): boolean {
 }
 
 export function graph(value: WebGraph): ReactNode {
-    return <SimpleChart graph={value} type={"LINE"} theme="light"
-        hideLegend={true}
-        hideDots={true}
-        minHeight="40px"
-        maxHeight="50px"
-    />
+    return (
+        <Suspense fallback={<span>Loading graph...</span>}>
+            <LazySimpleChart graph={value} type={"LINE"} theme="light"
+                hideLegend={true}
+                hideDots={true}
+                minHeight="40px"
+                maxHeight="50px"
+            />
+        </Suspense>
+    );
 }
 
 export function autoMarkdown(value: string): ReactNode {

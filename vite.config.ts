@@ -148,24 +148,23 @@ export default defineConfig(({ mode }) => {
         }
       },
       minify: minify ? 'esbuild' : false, // Use 'terser' for minification when enabled
-      //   rollupOptions: {
-      //     output: {
-      //       manualChunks: (id) => {
-      //         if (id.includes('node_modules/lucide-react')) {
-      //           return 'lucide-core';
-      //         }
-      //         if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-      //           return 'vendor-react';
-      //         }
-      //         if (id.includes('node_modules/clsx') ||
-      //           id.includes('node_modules/tailwind-merge') ||
-      //           id.includes('node_modules/msgpackr')) {
-      //           return 'vendor-utils';
-      //         }
-      //         // Consider removing manualChunks if default splitting is sufficient
-      //       },
-      //     },
-      //   },
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            const normalizedId = id.replace(/\\/g, '/');
+
+            // Keep generated command metadata isolated so it does not inflate broad shared chunks.
+            if (normalizedId.includes('/src/lib/commands.ts')) {
+              return 'command-meta';
+            }
+
+            // Group command parsing helpers separately from general UI chunks.
+            if (normalizedId.includes('/src/utils/Command.ts')) {
+              return 'command-utils';
+            }
+          },
+        },
+      },
     },
     optimizeDeps: {
       include: ['react', 'react-dom', 'react-router-dom'],

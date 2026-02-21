@@ -1,4 +1,5 @@
 import React, { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import "react-data-grid/lib/styles.css";
 import {
   DataGrid,
   SortColumn,

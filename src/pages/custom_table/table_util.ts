@@ -1,14 +1,15 @@
-import { COMMANDS } from "../../lib/commands";
 import { downloadCells, ExportType } from "../../utils/StringUtil";
 import { DEFAULT_TABS } from "../../lib/layouts";
 import { WebTable, WebTableError } from '@/lib/apitypes';
 import { getRenderer, isHtmlRenderer } from '@/components/ui/renderers';
 import { ReactNode } from 'react';
-import { AnyCommandPath, BaseCommand, CM, Command, STRIP_PREFIXES } from '@/utils/Command';
+import { BaseCommand, CM, STRIP_PREFIXES } from '@/utils/Command';
 import { TableInfo } from './AbstractTable';
 import { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, OrderIdx } from "./DataTable";
 import { JSONValue } from "@/lib/internaltypes";
 import { sortData, toSortColumns } from "./sort";
+
+type PlaceholderType = keyof typeof CM.data.placeholders;
 
 export function createTableInfo(
     newData: WebTable,
@@ -74,7 +75,7 @@ export function getReactSlots(columnsInfo: ConfigColumns[]): { [key: number]: ((
     return reactSlots ? reactSlots : undefined;
 }
 
-export function getColOptions(type: keyof typeof COMMANDS.placeholders, filter?: (f: BaseCommand) => boolean): [string, string][] {
+export function getColOptions(type: PlaceholderType, filter?: (f: BaseCommand) => boolean): [string, string][] {
     const commands: BaseCommand[] = CM.placeholders(type).getCommands();
     const result: [string, string][] = [];
     for (const value of commands) {
@@ -112,14 +113,14 @@ export function downloadTableData(data: JSONValue[][], columns: ConfigColumns[],
     return downloadCells(combinedData as (string | number)[][], useClipboard, type);
 }
 
-export function getTypeFromUrl(params: URLSearchParams): keyof typeof COMMANDS.placeholders | undefined {
+export function getTypeFromUrl(params: URLSearchParams): PlaceholderType | undefined {
     const rawType = params.get('type');
     if (!rawType) return undefined;
-    if (!(rawType in COMMANDS.placeholders)) return undefined;
-    return rawType as keyof typeof COMMANDS.placeholders;
+    if (!(rawType in CM.data.placeholders)) return undefined;
+    return rawType as PlaceholderType;
 }
 
-export function getSelectionFromUrl(params: URLSearchParams, current: keyof typeof COMMANDS.placeholders | undefined): { [key: string]: string } {
+export function getSelectionFromUrl(params: URLSearchParams, current: PlaceholderType | undefined): { [key: string]: string } {
     const result: { [key: string]: string } = {};
     const defaultSelections = current ? DEFAULT_TABS[current]?.selections : undefined;
     const fallbackSelection = defaultSelections?.All ?? Object.values(defaultSelections ?? {})[0];

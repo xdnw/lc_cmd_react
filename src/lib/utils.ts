@@ -1,11 +1,9 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { Unpackr } from 'msgpackr';
 
 export const DEBUG = {
   LOADING_WRAPPER: true,
 }
-export const UNPACKR = new Unpackr({largeBigIntToFloat: true, mapsAsObjects: true, bundleStrings: true, int64AsType: "number"});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

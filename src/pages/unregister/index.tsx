@@ -117,7 +117,13 @@ export function UnregisterInvalid({ session }: { session: WebSession }) {
                     correct accounts.
                 </p>
             </>} handle_response={handle_response} />
-        <Button variant="outline" size="sm" className='border-slate-600' asChild>
-            <Link to={`${process.env.BASE_PATH}logout`}>Logout</Link></Button>
+        <Button
+            variant="destructive"
+            size="sm"
+            className="h-6 px-2 bg-destructive/90 dark:bg-destructive/70 hover:bg-destructive/80 dark:hover:bg-destructive/60"
+            asChild
+        >
+            <Link to={`${process.env.BASE_PATH}logout`}>Logout</Link>
+        </Button>
     </div>
 }

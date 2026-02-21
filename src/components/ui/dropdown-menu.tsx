@@ -9,8 +9,8 @@ type DropdownMenuContextValue = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   triggerElement: HTMLElement | null;
   setTriggerElement: (element: HTMLElement | null) => void;
-  contentElement: HTMLElement | null; 
-  setContentElement: (element: HTMLElement | null) => void; 
+  contentElement: HTMLElement | null;
+  setContentElement: (element: HTMLElement | null) => void;
   registerSubmenu: (id: string, isOpen: boolean) => void;
   unregisterSubmenu: (id: string) => void;
   activeSubmenu: string | null;
@@ -38,10 +38,10 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   const [submenus, setSubmenus] = React.useState<Map<string, boolean>>(new Map());
   const [activeSubmenu, setActiveSubmenu] = React.useState<string | null>(null);
   const [contentElement, setContentElement] = React.useState<HTMLElement | null>(null);
-  
+
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
-  
+
   const setOpen = React.useCallback((value: boolean | ((prev: boolean) => boolean)) => {
     if (!isControlled) {
       setUncontrolledOpen(value);
@@ -51,7 +51,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       onOpenChange(newValue);
     }
   }, [isControlled, onOpenChange, open]);
-  
+
   const registerSubmenu = React.useCallback((id: string, isOpen: boolean) => {
     setSubmenus(prev => {
       const newMap = new Map(prev);
@@ -64,7 +64,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       setActiveSubmenu(null);
     }
   }, [activeSubmenu]);
-  
+
   const unregisterSubmenu = React.useCallback((id: string) => {
     setSubmenus(prev => {
       const newMap = new Map(prev);
@@ -75,7 +75,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       setActiveSubmenu(null);
     }
   }, [activeSubmenu]);
-  
+
   // Close on escape key
   React.useEffect(() => {
     const handleEscapeKey = (e: KeyboardEvent) => {
@@ -83,28 +83,28 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
         setOpen(false);
       }
     };
-    
+
     document.addEventListener('keydown', handleEscapeKey);
     return () => document.removeEventListener('keydown', handleEscapeKey);
   }, [open, setOpen]);
-  
+
   // Close on click outside
   const handleClickOutside = React.useCallback((e: MouseEvent) => {
     const target = e.target as Node;
     // Check if click is outside both trigger and dropdown content
-    const clickedOutside = 
+    const clickedOutside =
       (triggerElement && !triggerElement.contains(target)) &&
       (contentElement && !contentElement.contains(target));
-      
+
     if (clickedOutside) {
       setOpen(false);
     }
   }, [triggerElement, contentElement, setOpen]);
-  
+
   // Close on click outside
   React.useEffect(() => {
     if (!open) return;
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open, handleClickOutside]);
@@ -217,19 +217,19 @@ interface DropdownMenuPortalProps {
   container?: HTMLElement;
 }
 
-const DropdownMenuPortal: React.FC<DropdownMenuPortalProps> = ({ 
+const DropdownMenuPortal: React.FC<DropdownMenuPortalProps> = ({
   children,
-  container 
+  container
 }) => {
   const [mounted, setMounted] = React.useState(false);
-  
+
   React.useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
   }, []);
-  
+
   if (!mounted) return null;
-  
+
   return createPortal(
     children,
     container || document.body
@@ -245,13 +245,13 @@ interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivElement> 
 }
 
 export function calculateDropdownPosition(
-  triggerElement: HTMLElement, 
+  triggerElement: HTMLElement,
   contentElement: HTMLElement | null,
-  { 
-    sideOffset = 4, 
-    align = "center", 
-    alignOffset = 0, 
-    avoidCollisions = true 
+  {
+    sideOffset = 4,
+    align = "center",
+    alignOffset = 0,
+    avoidCollisions = true
   }: {
     sideOffset?: number;
     align?: "start" | "center" | "end";
@@ -261,31 +261,31 @@ export function calculateDropdownPosition(
 ) {
   const triggerRect = triggerElement.getBoundingClientRect();
   const contentRect = contentElement?.getBoundingClientRect() ?? { width: 0, height: 0 };
-  
+
   // Default position (bottom align-center)
   let top = triggerRect.bottom + sideOffset + window.scrollY;
   let left = triggerRect.left + (triggerRect.width - contentRect.width) / 2 + window.scrollX;
-  
+
   // Handle alignment
   if (align === "start") left = triggerRect.left + alignOffset + window.scrollX;
   else if (align === "end") left = triggerRect.right - contentRect.width - alignOffset + window.scrollX;
-  
+
   // Avoid collisions if enabled
   if (avoidCollisions) {
     // Avoid right edge
     if (window.innerWidth - (left + contentRect.width) < 8) {
       left = Math.max(8, left + window.innerWidth - (left + contentRect.width) - 8);
     }
-    
+
     // Avoid left edge
     if (left < 8) left = 8;
-    
+
     // Avoid bottom edge
     if (window.innerHeight - (top + contentRect.height) < 8) {
       top = Math.max(8, window.innerHeight - contentRect.height - 8);
     }
   }
-  
+
   return {
     position: 'absolute' as const,
     top,
@@ -296,14 +296,14 @@ export function calculateDropdownPosition(
 }
 
 const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenuContentProps>(
-  ({ 
-    children, 
-    className, 
-    sideOffset = 4, 
+  ({
+    children,
+    className,
+    sideOffset = 4,
     align = "center",
     alignOffset = 0,
     avoidCollisions = true,
-    ...props 
+    ...props
   }, ref) => {
     const context = useDropdownMenuContext();
     const contentRef = React.useRef<HTMLDivElement>(null);
@@ -352,7 +352,7 @@ const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenuContent
           aria-orientation="vertical"
           style={{ ...style, display: context.open ? "block" : "none" }}
           className={cn(
-            "min-w-[8rem] overflow-hidden border bg-popover p-1 text-popover-foreground shadow-md",
+            "min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
             "animate-in fade-in-0 zoom-in-95",
             "data-[side=bottom]:slide-in-from-top-2",
             "data-[side=left]:slide-in-from-right-2",
@@ -407,20 +407,20 @@ const DropdownMenuSub: React.FC<DropdownMenuSubProps> = ({ children }) => {
   const [open, setOpen] = React.useState(false);
   const [triggerElement, setTriggerElement] = React.useState<HTMLElement | null>(null);
   const id = React.useId();
-  
+
   // Register with parent
   React.useEffect(() => {
     parentContext.registerSubmenu(id, open);
     return () => parentContext.unregisterSubmenu(id);
   }, [id, open, parentContext]);
-  
+
   // Close this submenu when another is opened
   React.useEffect(() => {
     if (parentContext.activeSubmenu && parentContext.activeSubmenu !== id) {
       setOpen(false);
     }
   }, [id, parentContext.activeSubmenu]);
-  
+
   return (
     <DropdownMenuSubContext.Provider value={{
       open,
@@ -440,26 +440,26 @@ interface DropdownMenuSubTriggerProps extends React.HTMLAttributes<HTMLDivElemen
 const DropdownMenuSubTrigger = React.forwardRef<HTMLDivElement, DropdownMenuSubTriggerProps>(
   ({ className, inset, children, ...props }, ref) => {
     const context = useDropdownMenuSubContext();
-    
+
     const refCallback = React.useCallback((node: HTMLDivElement | null) => {
       context.setTriggerElement(node);
-      
+
       if (typeof ref === "function") {
         ref(node);
       }
     }, [context, ref]);
-    
+
     const handlePointerEnter = React.useCallback(() => {
       context.setOpen(true);
     }, [context]);
-    
+
     const handlePointerLeave = React.useCallback(() => {
       // Don't close immediately, allow moving to submenu
       setTimeout(() => {
         context.setOpen(false);
       }, 100);
     }, [context]);
-    
+
     return (
       <div
         ref={refCallback}
@@ -491,24 +491,24 @@ function updatePositionWithArgs(triggerElement: HTMLElement, contentRef: React.R
     width: 0,
     height: 0
   };
-  
+
   // Default position (right side)
   let top = triggerRect.top + window.scrollY;
   let left = triggerRect.right + 4 + window.scrollX; // 4px offset
-  
+
   // Avoid right edge collision
   const rightOverflow = window.innerWidth - (left + contentRect.width);
   if (rightOverflow < 8) {
     // Place on left side instead
     left = triggerRect.left - contentRect.width - 4 + window.scrollX;
   }
-  
+
   // Avoid bottom edge collision
   const bottomOverflow = window.innerHeight - (top + contentRect.height);
   if (bottomOverflow < 8) {
     top = Math.max(8, window.innerHeight - contentRect.height - 8 + window.scrollY);
   }
-  
+
   return { top, left };
 }
 
@@ -523,7 +523,7 @@ const DropdownMenuSubContent = React.forwardRef<HTMLDivElement, DropdownMenuSubC
       visibility: 'hidden',
       zIndex: 51
     });
-    
+
     // Forward the ref
     React.useEffect(() => {
       if (ref && contentRef.current) {
@@ -532,35 +532,35 @@ const DropdownMenuSubContent = React.forwardRef<HTMLDivElement, DropdownMenuSubC
         }
       }
     }, [ref]);
-    
+
     // Handle mounting
     React.useEffect(() => {
       setMounted(subContext.open);
-  }, [subContext.open]);
+    }, [subContext.open]);
 
-  const updatePosition = React.useCallback(() => {
-        if (!mounted || !contentRef.current || !subContext.triggerElement) return;
-        updatePositionWithArgs(subContext.triggerElement!, contentRef);
+    const updatePosition = React.useCallback(() => {
+      if (!mounted || !contentRef.current || !subContext.triggerElement) return;
+      updatePositionWithArgs(subContext.triggerElement!, contentRef);
     }, [mounted, subContext.triggerElement]);
-    
+
     // Position the submenu
     React.useEffect(() => {
       if (!mounted || !contentRef.current || !subContext.triggerElement) return;
 
       updatePosition();
-      
+
       window.addEventListener('resize', updatePosition);
       window.addEventListener('scroll', updatePosition);
-      
+
       return () => {
         window.removeEventListener('resize', updatePosition);
         window.removeEventListener('scroll', updatePosition);
       };
     }, [mounted, subContext.triggerElement, updatePosition]);
-    
+
     // Don't render if parent is closed
     if (!parentContext.open) return null;
-    
+
     return (
       <div
         ref={contentRef}
@@ -568,7 +568,7 @@ const DropdownMenuSubContent = React.forwardRef<HTMLDivElement, DropdownMenuSubC
         aria-orientation="vertical"
         style={style}
         className={cn(
-          "min-w-[8rem] overflow-hidden border bg-popover p-1 text-popover-foreground shadow-md",
+          "min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
           "animate-in fade-in-0 zoom-in-95",
           "data-[side=bottom]:slide-in-from-top-2",
           "data-[side=left]:slide-in-from-right-2",
@@ -603,14 +603,14 @@ const DropdownMenuRadioGroup = React.forwardRef<HTMLDivElement, DropdownMenuRadi
       >
         {React.Children.map(children, child => {
           if (!React.isValidElement(child)) return child;
-          
+
           // Properly type the element to avoid "child.props is of type unknown" error
           const typedChild = child as React.ReactElement<{
             value: string;
             checked?: boolean;
             onSelect?: () => void;
           }>;
-          
+
           // Now TypeScript knows what properties are available
           return React.cloneElement(typedChild, {
             checked: typedChild.props.value === value,
@@ -632,7 +632,7 @@ interface DropdownMenuItemProps extends React.HTMLAttributes<HTMLDivElement> {
 const DropdownMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
   ({ className, inset, disabled, ...props }, ref) => {
     const context = useDropdownMenuContext();
-    
+
     const handleSelect = React.useCallback(
       (
         e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>
@@ -653,7 +653,7 @@ const DropdownMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>
       },
       [context, disabled, props]
     );
-    
+
     return (
       <div
         ref={ref}
@@ -661,7 +661,7 @@ const DropdownMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>
         tabIndex={disabled ? -1 : 0}
         aria-disabled={disabled}
         className={cn(
-          "relative flex cursor-default select-none items-center px-2 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground",
+          "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-xs outline-none transition-colors hover:bg-accent focus:bg-accent focus:text-accent-foreground",
           inset && "pl-8",
           disabled && "pointer-events-none opacity-50",
           className
@@ -685,7 +685,7 @@ interface DropdownMenuCheckboxItemProps extends Omit<React.HTMLAttributes<HTMLDi
 const DropdownMenuCheckboxItem = React.forwardRef<HTMLDivElement, DropdownMenuCheckboxItemProps>(
   ({ className, children, checked, onCheckedChange, disabled, ...props }, ref) => {
     const context = useDropdownMenuContext();
-    
+
     const handleSelect = React.useCallback(
       (
         e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>
@@ -697,7 +697,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<HTMLDivElement, DropdownMenuCh
       },
       [checked, disabled, onCheckedChange, props]
     );
-    
+
     return (
       <div
         ref={ref}
@@ -706,7 +706,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<HTMLDivElement, DropdownMenuCh
         tabIndex={disabled ? -1 : 0}
         aria-disabled={disabled}
         className={cn(
-          "relative flex cursor-default select-none items-center py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground",
+          "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-xs outline-none transition-colors hover:bg-accent focus:bg-accent focus:text-accent-foreground",
           disabled && "pointer-events-none opacity-50",
           className
         )}
@@ -736,7 +736,7 @@ const DropdownMenuRadioItem = React.forwardRef<HTMLDivElement, DropdownMenuRadio
   ({ className, children, value, checked, onSelect, disabled, ...props }, ref) => {
     // Note: checked and onSelect are passed by RadioGroup
     const context = useDropdownMenuContext();
-    
+
     const handleSelect = React.useCallback(
       (
         e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>
@@ -748,7 +748,7 @@ const DropdownMenuRadioItem = React.forwardRef<HTMLDivElement, DropdownMenuRadio
       },
       [disabled, onSelect, props]
     );
-    
+
     return (
       <div
         ref={ref}
@@ -758,7 +758,7 @@ const DropdownMenuRadioItem = React.forwardRef<HTMLDivElement, DropdownMenuRadio
         aria-disabled={disabled}
         data-value={value}
         className={cn(
-          "relative flex cursor-default select-none items-center py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground",
+          "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-xs outline-none transition-colors hover:bg-accent focus:bg-accent focus:text-accent-foreground",
           disabled && "pointer-events-none opacity-50",
           className
         )}
@@ -787,7 +787,7 @@ const DropdownMenuLabel = React.forwardRef<HTMLDivElement, DropdownMenuLabelProp
       <div
         ref={ref}
         className={cn(
-          "px-2 py-1.5 text-sm font-semibold",
+          "px-2 py-1.5 text-xs font-semibold",
           inset && "pl-8",
           className
         )}

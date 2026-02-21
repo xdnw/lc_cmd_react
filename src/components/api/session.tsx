@@ -281,7 +281,12 @@ export default function SessionInfo() {
                             />
                         </Button>
 
-                        <Button variant="destructive" size="sm" className="h-8 px-3" asChild>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-8 px-3"
+                            asChild
+                        >
                             <Link
                                 to={`${basePath}logout`}
                                 className="flex items-center gap-2"
@@ -347,7 +352,7 @@ export default function SessionInfo() {
                             </Button>
 
                             {session.guild ? (
-                                <Button variant="secondary" size="sm" asChild>
+                                <Button variant="outline" size="sm" asChild>
                                     <Link to={`${basePath}guild_member`}>
                                         Member home
                                         <LazyIcon

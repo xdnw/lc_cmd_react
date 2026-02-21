@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useCallback, useMemo } from "react"
-import {cn} from "../../lib/utils"
-import {ButtonProps, buttonVariants} from "./button";
+import { cn } from "../../lib/utils"
+import { ButtonProps, buttonVariants } from "./button";
 import LazyIcon from "./LazyIcon";
 
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
@@ -40,11 +40,11 @@ type PaginationLinkProps = {
     React.ComponentProps<"a">
 
 const PaginationLink = ({
-                            className,
-                            isActive,
-                            size = "sm",
-                            ...props
-                        }: PaginationLinkProps) => (
+    className,
+    isActive,
+    size = "sm",
+    ...props
+}: PaginationLinkProps) => (
     <a
         aria-current={isActive ? "page" : undefined}
         className={cn(
@@ -53,7 +53,7 @@ const PaginationLink = ({
                 size,
             }),
             className,
-            isActive ? "" : "cursor-pointer hover:bg-gray-500/50 active:bg-gray-500/20"
+            isActive ? "" : "cursor-pointer hover:bg-accent active:bg-accent/80"
         )}
         {...props}
     />
@@ -61,9 +61,9 @@ const PaginationLink = ({
 PaginationLink.displayName = "PaginationLink"
 
 const PaginationPrevious = ({
-                                className,
-                                ...props
-                            }: React.ComponentProps<typeof PaginationLink>) => (
+    className,
+    ...props
+}: React.ComponentProps<typeof PaginationLink>) => (
     <PaginationLink
         aria-label="Go to previous page"
         size="sm"
@@ -77,9 +77,9 @@ const PaginationPrevious = ({
 PaginationPrevious.displayName = "PaginationPrevious"
 
 const PaginationNext = ({
-                            className,
-                            ...props
-                        }: React.ComponentProps<typeof PaginationLink>) => (
+    className,
+    ...props
+}: React.ComponentProps<typeof PaginationLink>) => (
     <PaginationLink
         aria-label="Go to next page"
         size="sm"
@@ -93,17 +93,17 @@ const PaginationNext = ({
 PaginationNext.displayName = "PaginationNext"
 
 const PaginationEllipsis = ({
-                                className,
-                                ...props
-                            }: React.ComponentProps<"span">) => (
+    className,
+    ...props
+}: React.ComponentProps<"span">) => (
     <span
         aria-hidden
         className={cn("flex h-4 w-4 items-center justify-center", className)}
         {...props}
     >
-    <LazyIcon name="MoreHorizontal" className="h-4 w-4" />
-    <span className="sr-only">More pages</span>
-  </span>
+        <LazyIcon name="MoreHorizontal" className="h-4 w-4" />
+        <span className="sr-only">More pages</span>
+    </span>
 )
 PaginationEllipsis.displayName = "PaginationEllipsis"
 
@@ -152,12 +152,12 @@ export function PaginatedList<T>({ items, render, parent, perPage, currentPage, 
         const target = e.currentTarget;
         const key = parseInt(target.getAttribute('data-key') || '0', 10);
         const isRelative = target.getAttribute('data-relative') === 'true';
-        
+
         let page = key;
         if (isRelative) {
             page = currentPage + key;
         }
-        
+
         if (page >= 1 && page <= totalPages) {
             onPageChange(page);
         }
@@ -174,7 +174,7 @@ export function PaginatedList<T>({ items, render, parent, perPage, currentPage, 
                     {pageNumbers.map(page => (
                         <PaginationItem key={page}>
                             <PaginationLink data-key={page} data-relative={false} size="sm"
-                                            isActive={page === currentPage}
+                                isActive={page === currentPage}
                                 onClick={handleClick}
                             >
                                 {page}
@@ -196,11 +196,11 @@ export function PaginatedList<T>({ items, render, parent, perPage, currentPage, 
     );
 }
 
-const RenderItems = <T,>({ items, render, parent: Parent }: { items: T[], render: (item: T) => React.ReactNode, parent?: React.ComponentType<{ children: React.ReactNode }>}) => {
+const RenderItems = <T,>({ items, render, parent: Parent }: { items: T[], render: (item: T) => React.ReactNode, parent?: React.ComponentType<{ children: React.ReactNode }> }) => {
     if (Parent) {
         return <Parent>{items.map((item, index) => <React.Fragment key={index}>{render(item)}</React.Fragment>)}</Parent>;
     }
     return <>{items.map((item, index) => <React.Fragment key={index}>{render(item)}</React.Fragment>)}</>;
 };
 
-const MemoizedRenderItems = React.memo(RenderItems) as <T>(props: { items: T[], render: (item: T) => React.ReactNode, parent?: React.ComponentType<{ children: React.ReactNode }>}) => React.ReactNode;
+const MemoizedRenderItems = React.memo(RenderItems) as <T>(props: { items: T[], render: (item: T) => React.ReactNode, parent?: React.ComponentType<{ children: React.ReactNode }> }) => React.ReactNode;

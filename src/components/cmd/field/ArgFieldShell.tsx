@@ -18,7 +18,7 @@ export default function ArgFieldShell({
             className={cn(
                 "rounded border bg-accent/40",
                 isOptional ? "border-dashed border-border/60" : "border-solid border-border",
-                displayMode === "focus-pane" ? "px-2 py-1 flex flex-row items-center gap-2" : "px-2 py-1",
+                displayMode === "focus-pane" ? "px-1.5 py-0.5 flex flex-row items-center gap-2" : "px-1.5 py-0.5",
                 className,
             )}
             onClick={(e) => {

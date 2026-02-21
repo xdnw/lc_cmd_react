@@ -46,12 +46,12 @@ export function RingsLoader({ dark }: { dark?: boolean }) {
         <div className="relative flex items-center justify-center h-6 w-6">
             {/* Ring 1 */}
             <div
-                className={`absolute h-6 w-6 rounded-full border-2 ${ringColor1} border-t-transparent animate-[spin_1.2s_linear_infinite]`}
-                style={{ animationDirection: 'normal' }}
+                className={`absolute h-6 w-6 rounded-full border-2 ${ringColor1} border-t-transparent`}
+                style={{ animation: 'spin 1.2s linear infinite', animationDirection: 'normal' }}
             ></div>
             <div
-                className={`absolute h-4 w-4 rounded-full border-2 ${ringColor2} border-b-transparent animate-[spin_0.9s_linear_infinite,ringPulse_1.8s_ease-in-out_infinite]`}
-                style={{ animationDirection: 'reverse' }}
+                className={`absolute h-4 w-4 rounded-full border-2 ${ringColor2} border-b-transparent`}
+                style={{ animation: 'spin 0.9s linear infinite, ringPulse 1.8s ease-in-out infinite', animationDirection: 'reverse' }}
             ></div>
             <style>{`
                 @keyframes spin {
@@ -116,9 +116,9 @@ export function CosmicLoader({ dark }: { dark?: boolean }) {
 
     return (
         <div className="relative flex items-center justify-center h-8 w-8">
-            <div className={`absolute h-8 w-8 rounded-full ${outerColor} border-2 opacity-30 animate-[cosmicPulse_1.5s_linear_infinite]`}></div>
-            <div className={`absolute h-5 w-5 rounded-full ${innerColor} border-2 animate-[reverseSpin_1s_linear_infinite]`}></div>
-            <div className={`h-3 w-3 rounded-full ${outerColor} bg-current animate-[cosmicBounce_1.5s_ease_infinite]`}></div>
+            <div className={`absolute h-8 w-8 rounded-full ${outerColor} border-2 opacity-30`} style={{ animation: 'cosmicPulse 1.5s linear infinite' }}></div>
+            <div className={`absolute h-5 w-5 rounded-full ${innerColor} border-2`} style={{ animation: 'reverseSpin 1s linear infinite' }}></div>
+            <div className={`h-3 w-3 rounded-full ${outerColor} bg-current`} style={{ animation: 'cosmicBounce 1.5s ease infinite' }}></div>
 
             <style>{`
           @keyframes cosmicPulse {
@@ -155,14 +155,15 @@ export function QuantumDots({ dark }: { dark?: boolean }) {
             {positions.map((pos, i) => (
                 <div
                     key={i}
-                    className={`absolute w-1.5 h-1.5 rounded-full ${dotColor} animate-[quantumFade_1.8s_linear_infinite]`}
+                    className={`absolute w-1.5 h-1.5 rounded-full ${dotColor}`}
                     style={{
+                        animation: 'quantumFade 1.8s linear infinite',
                         transform: `translate(${pos.x}px, ${pos.y}px)`,
                         animationDelay: `${i * 0.3}s`,
                     }}
                 ></div>
             ))}
-            <div className={`w-2 h-2 rounded-full ${dotColor} animate-[quantumPulse_1.8s_ease-in-out_infinite]`}></div>
+            <div className={`w-2 h-2 rounded-full ${dotColor}`} style={{ animation: 'quantumPulse 1.8s ease-in-out infinite' }}></div>
 
             <style>{`
           @keyframes quantumFade {
@@ -186,8 +187,9 @@ export function ElasticDots({ dark }: { dark?: boolean }) {
             {[...Array(3)].map((_, i) => (
                 <div
                     key={i}
-                    className={`${dotColor} w-2 h-2 rounded-full animate-[elasticBounce_0.6s_ease_infinite_alternate]`}
+                    className={`${dotColor} w-2 h-2 rounded-full`}
                     style={{
+                        animation: 'elasticBounce 0.6s ease infinite alternate',
                         animationDelay: `${i * 0.1}s`,
                     }}
                 ></div>
@@ -221,8 +223,11 @@ export function WaveRipple({ dark }: { dark?: boolean }) {
             {[...Array(6)].map((_, i) => (
                 <div
                     key={i}
-                    className={`${color} mx-0.5 h-full w-1 opacity-80 animate-[waveRipple_1.2s_ease-in-out_infinite]`}
-                    style={{ animationDelay: `${i * 0.1}s` }}
+                    className={`${color} mx-0.5 h-full w-1 opacity-80`}
+                    style={{
+                        animation: 'waveRipple 1.2s ease-in-out infinite',
+                        animationDelay: `${i * 0.1}s`
+                    }}
                 ></div>
             ))}
             <style>{`
@@ -252,7 +257,7 @@ export function HorizontalProgressLoader({ dark }: { dark?: boolean }) {
     return (
         <div className="w-full h-1 overflow-hidden bg-gray-200 dark:bg-gray-700">
             <div
-                className={`h-full ${dark ? "bg-gray-500" : "bg-blue-500"} animate-[progress_1.5s_ease-in-out_infinite]`}
+                className={`h-full ${dark ? "bg-gray-500" : "bg-blue-500"}`}
                 style={{
                     animationName: 'progress',
                     animationDuration: '1.5s',
@@ -303,12 +308,12 @@ export function ButtonPulse({ dark }: { dark?: boolean }) {
 
     return (
         <div className="flex items-center justify-center space-x-1 py-1">
-            <div className={`w-1.5 h-1.5 rounded-full ${dotColor} opacity-70 animate-[pulseOpacity_1.4s_ease-in-out_infinite]`}
-                style={{ animationDelay: '0s' }} />
-            <div className={`w-1.5 h-1.5 rounded-full ${dotColor} opacity-70 animate-[pulseOpacity_1.4s_ease-in-out_infinite]`}
-                style={{ animationDelay: '0.2s' }} />
-            <div className={`w-1.5 h-1.5 rounded-full ${dotColor} opacity-70 animate-[pulseOpacity_1.4s_ease-in-out_infinite]`}
-                style={{ animationDelay: '0.4s' }} />
+            <div className={`w-1.5 h-1.5 rounded-full ${dotColor} opacity-70`}
+                style={{ animation: 'pulseOpacity 1.4s ease-in-out infinite', animationDelay: '0s' }} />
+            <div className={`w-1.5 h-1.5 rounded-full ${dotColor} opacity-70`}
+                style={{ animation: 'pulseOpacity 1.4s ease-in-out infinite', animationDelay: '0.2s' }} />
+            <div className={`w-1.5 h-1.5 rounded-full ${dotColor} opacity-70`}
+                style={{ animation: 'pulseOpacity 1.4s ease-in-out infinite', animationDelay: '0.4s' }} />
             <style>{`
           @keyframes pulseOpacity {
             0%, 100% { opacity: 0.3; transform: scale(0.8); }
@@ -325,7 +330,8 @@ export function FadingBorder({ dark }: { dark?: boolean }) {
     return (
         <div className="relative p-px w-full h-full">
             <div
-                className={`absolute inset-0 border-2 rounded ${borderColor} animate-[border-pulse_1.5s_ease-in-out_infinite]`}
+                className={`absolute inset-0 border-2 rounded ${borderColor}`}
+                style={{ animation: 'border-pulse 1.5s ease-in-out infinite' }}
             ></div>
             <style>{`
           @keyframes border-pulse {

@@ -1,12 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { 
-  createContext, 
-  useCallback, 
-  useContext, 
-  useMemo, 
-  useState, 
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
   useId,
   startTransition,
   useLayoutEffect
@@ -29,7 +29,7 @@ const TabsValueContext = createContext<{
 const TabsActionContext = createContext<{
   onChange: (value: string) => void
 }>({
-  onChange: () => {}
+  onChange: () => { }
 })
 
 interface TabsProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -53,11 +53,11 @@ const Tabs = React.memo(({
   const tabsId = useId()
   // Track initial render with state, not a ref
   const [isInitialRender, setIsInitialRender] = useState(true)
-  
+
   // Controlled or uncontrolled state management
   const [internalValue, setInternalValue] = useState(defaultValue || "")
   const currentValue = value !== undefined ? value : internalValue
-  
+
   const handleValueChange = useCallback((newValue: string) => {
     // Use startTransition for state updates to keep UI responsive
     startTransition(() => {
@@ -67,7 +67,7 @@ const Tabs = React.memo(({
       onValueChange?.(newValue)
     })
   }, [value, onValueChange])
-  
+
   // Split context values for more targeted renders
   const valueContextValue = useMemo(() => ({
     value: currentValue,
@@ -75,22 +75,22 @@ const Tabs = React.memo(({
     isInitialRender,
     preloadStrategy
   }), [currentValue, tabsId, isInitialRender, preloadStrategy])
-  
+
   const actionContextValue = useMemo(() => ({
     onChange: handleValueChange
   }), [handleValueChange])
-  
+
   // After first render, update state
   useLayoutEffect(() => {
     setIsInitialRender(false)
   }, [])
-  
+
   return (
     <TabsValueContext.Provider value={valueContextValue}>
       <TabsActionContext.Provider value={actionContextValue}>
-        <div 
+        <div
           data-preload-strategy={preloadStrategy}
-          className={cn("w-full", className)} 
+          className={cn("w-full", className)}
           {...props}
         >
           {children}
@@ -107,21 +107,21 @@ const useTabsAction = () => useContext(TabsActionContext)
 
 // Pre-compute styles objects outside component for performance
 const tabsListStyles = {
-  base: "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
-  dark: "dark:bg-slate-800 dark:text-slate-400"
+  base: "inline-flex min-h-9 items-center justify-center rounded-md bg-muted p-0.5 text-muted-foreground",
+  dark: ""
 }
 
 const TabsList = React.memo(React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
-  const memoizedClassName = useMemo(() => 
+  const memoizedClassName = useMemo(() =>
     cn(tabsListStyles.base, tabsListStyles.dark, className),
     [className]
   )
-  
+
   return (
-    <div 
+    <div
       ref={ref}
       role="tablist"
       className={memoizedClassName}
@@ -137,10 +137,10 @@ interface TabsTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 
 // Precomputed styles for triggers
 const triggerStyles = {
-  base: "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-  active: "bg-background text-foreground shadow-sm dark:bg-slate-900 dark:text-slate-50",
-  inactive: "text-muted-foreground hover:bg-muted/80 dark:hover:bg-slate-800/80",
-  dark: "dark:focus-visible:ring-slate-500"
+  base: "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  active: "bg-background text-foreground shadow-sm",
+  inactive: "text-muted-foreground hover:bg-accent",
+  dark: ""
 }
 
 // Tab trigger component
@@ -151,11 +151,11 @@ const TabsTrigger = React.memo(React.forwardRef<
   const { value: selectedValue, tabsId } = useTabsValue()
   const { onChange } = useTabsAction()
   const isSelected = selectedValue === value
-  
+
   const handleClick = useCallback(() => {
     onChange(value)
   }, [onChange, value])
-  
+
   // Avoid recalculating class names on every render
   const memoizedClassName = useMemo(() =>
     cn(
@@ -166,10 +166,10 @@ const TabsTrigger = React.memo(React.forwardRef<
     ),
     [className, isSelected]
   )
-  
+
   const contentId = `${tabsId}-content-${value}`
   const triggerId = `${tabsId}-trigger-${value}`
-  
+
   return (
     <button
       ref={ref}
@@ -191,7 +191,7 @@ const TabsTrigger = React.memo(React.forwardRef<
   // Custom equality comparison for more aggressive memoization
   const { value: prevValue, className: prevClassName, ...prevRest } = prevProps
   const { value: nextValue, className: nextClassName, ...nextRest } = nextProps
-  
+
   // Only re-render if these specific props change
   return (
     prevValue === nextValue &&
@@ -211,7 +211,7 @@ interface TabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
 
 // Precomputed styles for content
 const contentStyles = {
-  base: "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+  base: "mt-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
   dark: "dark:focus-visible:ring-slate-500"
 }
 
@@ -222,30 +222,30 @@ const TabsContent = React.memo(React.forwardRef<
 >(({ className, value, forceMount, index, children, ...props }, ref) => {
   const { value: selectedValue, tabsId, isInitialRender, preloadStrategy } = useTabsValue()
   const isSelected = selectedValue === value
-  
+
   // Calculate all values using hooks before any conditional returns
   const shouldRender = useMemo(() => {
     if (forceMount) return true
     if (isSelected) return true
-    
+
     // On first render, be conservative with what we render
     if (isInitialRender) {
       if (preloadStrategy === 'none') return false
       if (preloadStrategy === 'active') return isSelected
       if (preloadStrategy === 'adjacent') {
         // If index is provided, can determine if adjacent to selected tab
-        return isSelected || (index !== undefined && 
-          (selectedValue === `tab-${index-1}` || selectedValue === `tab-${index+1}`))
+        return isSelected || (index !== undefined &&
+          (selectedValue === `tab-${index - 1}` || selectedValue === `tab-${index + 1}`))
       }
       if (preloadStrategy === 'all') return true
-      
+
       // Default to only rendering selected tab on first render
       return isSelected
     }
-    
+
     return false
   }, [forceMount, isSelected, isInitialRender, preloadStrategy, index, selectedValue])
-  
+
   const memoizedClassName = useMemo(() =>
     cn(
       contentStyles.base,
@@ -255,10 +255,10 @@ const TabsContent = React.memo(React.forwardRef<
     ),
     [className, isSelected, forceMount]
   )
-  
+
   const contentId = `${tabsId}-content-${value}`
   const triggerId = `${tabsId}-trigger-${value}`
-  
+
   // Instead of early return, conditionally render the content
   return (
     shouldRender ? (

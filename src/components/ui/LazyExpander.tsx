@@ -24,14 +24,14 @@ const LazyExpander = ({ children, content, className = "", hideTriggerChildrenWh
     const expandedContent = useMemo(() => {
         if (!isExpanded) return null;
         return (
-            <div className="mt-1 p-3 border border-slate-300 dark:border-slate-600 rounded-md shadow-md bg-white dark:bg-slate-800 w-full animate-in fade-in duration-200">
+            <div className="mt-1 p-3 border border-border rounded-md shadow-md bg-card w-full animate-in fade-in duration-200">
                 {hasLoaded && content}
             </div>
         );
     }, [isExpanded, hasLoaded, content]);
 
     const chevronIcon = useMemo(() => (
-        <span className="ml-2 text-slate-500 flex-shrink-0">
+        <span className="ml-2 text-muted-foreground flex-shrink-0">
             {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </span>
     ), [isExpanded]);

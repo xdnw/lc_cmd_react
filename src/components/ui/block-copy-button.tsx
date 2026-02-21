@@ -32,11 +32,11 @@ export function BlockCopyButton({
         <Button
           size="icon"
           variant="outline"
-          className={`h-6 w-6 rounded [&_svg]:size-3.5 absolute ${left ? "left-0.5" : "right-0.5"} top-0.5`}
+          className={`h-5 w-5 rounded [&_svg]:size-3 ${left ? "" : ""}`}
+          aria-label="Copy"
           onClick={handleClick}
           {...props}
         >
-          <span className="sr-only hidden">Copy</span>&#8203;
           {hasCopied ? <LazyIcon name="CheckIcon" /> : <LazyIcon name="ClipboardIcon" />}
         </Button>
       </TooltipTrigger>

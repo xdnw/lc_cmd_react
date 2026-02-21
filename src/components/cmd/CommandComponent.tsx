@@ -120,14 +120,14 @@ export default function CommandComponent({ command, overrideName, filterArgument
 
     return (
         <div onPasteCapture={handlePasteCapture} onKeyDown={handleKeyDown}>
-            <h2 className="text-lg">{overrideName ?? command.name}</h2>
+            <h2 className="text-sm font-semibold">{overrideName ?? command.name}</h2>
             {displayMode === "focus-pane" && <FocusInfoBar arg={focusedArg} />}
             {
                 groupedArgs.map((group, index) => {
                     const groupExists = group[0].arg.group != null;
                     const groupDescExists = command.command.group_descs && command.command.group_descs[group[0].arg.group || 0];
                     return (
-                        <div className="mb-0.5 px-1 pb-1" key={index + "g"}>
+                        <div className="mb-0.5 px-0.5 pb-0.5" key={index + "g"}>
                             {groupExists &&
                                 <>
                                     <p className="font-bold">

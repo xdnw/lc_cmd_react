@@ -19,7 +19,7 @@ const CardHeaderComponent = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
   const classes = React.useMemo(
-    () => cn("flex flex-col space-y-1 p-2", className),
+    () => cn("flex flex-col space-y-0.5 p-2", className),
     [className]
   )
   return <div ref={ref} className={classes} {...props} />
@@ -32,7 +32,7 @@ const CardTitleComponent = React.forwardRef<
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => {
   const classes = React.useMemo(
-    () => cn("text-lg font-semibold leading-none tracking-tight", className),
+    () => cn("text-sm font-semibold leading-none tracking-tight", className),
     [className]
   )
   return <h3 ref={ref} className={classes} {...props} />
@@ -45,7 +45,7 @@ const CardDescriptionComponent = React.forwardRef<
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => {
   const classes = React.useMemo(
-    () => cn("text-sm text-muted-foreground", className),
+    () => cn("text-xs text-muted-foreground", className),
     [className]
   )
   return <p ref={ref} className={classes} {...props} />
@@ -58,7 +58,7 @@ const CardContentComponent = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
   const classes = React.useMemo(
-    () => cn("p-6 pt-0", className),
+    () => cn("p-3 pt-0", className),
     [className]
   )
   return <div ref={ref} className={classes} {...props} />
@@ -71,7 +71,7 @@ const CardFooterComponent = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
   const classes = React.useMemo(
-    () => cn("flex items-center p-6 pt-0", className),
+    () => cn("flex items-center p-3 pt-0", className),
     [className]
   )
   return <div ref={ref} className={classes} {...props} />

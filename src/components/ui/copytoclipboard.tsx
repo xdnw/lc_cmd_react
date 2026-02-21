@@ -19,7 +19,7 @@ export default function CopyToClipboard({ text, copy, className }: { text: strin
         <>
             <Button
                 size="sm"
-                className={`font-mono bg-background rounded px-2 ${className} underline text-primary`}
+                className={`font-mono bg-background rounded px-1.5 ${className} underline text-primary`}
                 style={{ cursor: 'pointer' }}
                 aria-label={`Copy ${text} to clipboard`}
                 onClick={handleCopy}>

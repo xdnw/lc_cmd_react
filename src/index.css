@@ -113,33 +113,33 @@
     min-height: 100%;
 
     /* shadcn/ui design tokens */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --background: 220 20% 98%;
+    --foreground: 224 12% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 224 12% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 224 12% 10%;
 
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 222 60% 48%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    --secondary: 220 14% 93%;
+    --secondary-foreground: 224 12% 20%;
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 8% 46%;
 
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --accent: 222 40% 93%;
+    --accent-foreground: 224 12% 10%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 74% 42%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --border: 220 13% 90%;
+    --input: 220 13% 86%;
+    --ring: 222 60% 48%;
 
     --radius: 0.5rem;
 
@@ -151,33 +151,33 @@
   .dark {
     --light: 0 0% 100%;
     --dark: 0 0% 0%;
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 224 12% 7%;
+    --foreground: 210 20% 96%;
 
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 224 12% 9%;
+    --card-foreground: 210 20% 96%;
 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 224 12% 9%;
+    --popover-foreground: 210 20% 96%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
+    --primary: 222 60% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 222 12% 16%;
+    --secondary-foreground: 210 20% 96%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 222 12% 14%;
+    --muted-foreground: 220 8% 56%;
 
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 222 12% 16%;
+    --accent-foreground: 210 20% 96%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 68% 44%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --border: 222 10% 18%;
+    --input: 222 10% 18%;
+    --ring: 222 60% 55%;
   }
 
   .rdg {
@@ -227,31 +227,17 @@
   }
 }
 
-@layer base {
-  @media (prefers-reduced-motion: reduce) {
-
-    *,
-    ::before,
-    ::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-  }
-}
-
 @layer utilities {
-  .dark a {
+  .dark a:not(.ui-button) {
     @apply text-blue-400 visited:text-indigo-400 hover:text-blue-500 active:text-blue-600 underline active:no-underline;
   }
 
-  .light a {
+  .light a:not(.ui-button) {
     @apply text-blue-700 visited:text-indigo-500 hover:text-blue-500 active:text-blue-600 underline active:no-underline;
   }
 
-  .dark a:focus-visible,
-  .light a:focus-visible {
+  .dark a:not(.ui-button):focus-visible,
+  .light a:not(.ui-button):focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background rounded-sm;
   }
 

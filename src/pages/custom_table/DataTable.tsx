@@ -157,7 +157,7 @@ export function DataTable({
   const gridColumns: Column<JSONValue[]>[] = useMemo(() => {
     const gridCols: Column<JSONValue[]>[] = [];
     gridCols.push({
-      key: "index", name: "#", width: columnsInfo.length === 0 ? undefined : (indexColumnWidth ?? 50), sortable: false,
+      key: "index", name: "#", width: columnsInfo.length === 0 ? undefined : (indexColumnWidth ?? 36), sortable: false,
       cellClass: cn("ps-1", columnsInfo.length === 0 ? "w-full" : undefined),
       headerCellClass: "ps-1 text-foreground bg-muted",
       renderCell:
@@ -183,9 +183,9 @@ export function DataTable({
         sortable: colInfo.sortable ?? true,
         resizable: true,
         draggable: colInfo.draggable ?? true,
-        width: colInfo.width ?? 170,
-        minWidth: 110,
-        maxWidth: 420,
+        width: colInfo.width ?? undefined,
+        minWidth: Math.max(60, Math.min(180, colInfo.title.length * 9 + 30)),
+        maxWidth: 800,
         cellClass: cn("px-1 whitespace-normal break-words overflow-hidden", colInfo.cellClassName),
         headerCellClass: cn("px-1 text-foreground bg-muted text-xs", colInfo.headerCellClassName),
         renderCell: renderer ? (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {

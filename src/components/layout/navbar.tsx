@@ -11,13 +11,13 @@ const SearchBar = React.memo(() => (
     <div className="w-full p-0 flex items-center">
         <Input
             id="navbar-search"
-            className="relative w-full rounded-r-none border-r-0 px-2 h-8"
+            className="relative w-full rounded-r-none border-r-0 px-2 h-7"
             type="search"
             placeholder="Search pages..."
             aria-label="Search"
             name="term"
         />
-        <button type="submit" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2 h-8 rounded-r border border-input border-l-0 flex items-center justify-center">
+        <button type="submit" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2 h-7 rounded-r border border-input border-l-0 flex items-center justify-center">
             <LazyIcon name="Search" size={14} />
         </button>
     </div>
@@ -66,12 +66,12 @@ export default function Navbar() {
     const modeToggle = useMemo(() => <ModeToggle />, []);
 
     return (
-        <nav className="bg-card border-b border-border flex flex-row items-center px-2 py-1.5 gap-2 shadow-sm">
+        <nav className="bg-card border-b border-border flex flex-row items-center px-2 py-1 gap-1.5 shadow-sm">
             <div className="flex-none">
                 {modeToggle}
             </div>
             <div className="flex-none">
-                <div className="inline-flex max-w-[42vw] md:max-w-136 overflow-hidden text-ellipsis text-xs h-8 px-2 bg-muted text-muted-foreground rounded items-center justify-center whitespace-nowrap">
+                <div className="inline-flex max-w-[42vw] md:max-w-136 overflow-hidden text-ellipsis text-xs h-7 px-2 bg-muted text-muted-foreground rounded items-center justify-center whitespace-nowrap">
                     {breadcrumbs}
                 </div>
             </div>

@@ -2,14 +2,14 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-export type InputProps = React.InputHTMLAttributes<HTMLInputElement>; 
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, ...props }, ref) => {
     const isBooleanControl = type === "checkbox" || type === "radio";
     const baseClass = isBooleanControl
       ? "relative h-4 w-4 border bg-background border-input"
-      : "relative block h-9 w-full border bg-background border-input px-2";
+      : "relative block h-7 w-full border bg-background border-input px-2";
 
     return (
       <input

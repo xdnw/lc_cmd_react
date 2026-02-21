@@ -26,7 +26,7 @@ export default function LoggedInDropdown() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="m-0.5 h-7 w-7 rounded-[6px] [&_svg]:size-3.5">
+                <Button variant="ghost" size="iconSm" className="rounded-md [&_svg]:size-3.5 text-muted-foreground hover:text-foreground">
                     <LazyIcon name="Settings" className="h-[1rem] w-[1rem] rotate-0 scale-100 transition-all" />
                     <span className="sr-only">Profile Menu</span>
                 </Button>

@@ -27,7 +27,7 @@ const ListItem = memo(
 
 export default function Footer() {
   return (
-    <footer className="border-t border-border mt-4 py-4 bg-card text-card-foreground">
+    <footer className="border-t border-border mt-2 py-3 bg-card text-card-foreground">
       <div className="w-full px-2 md:px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -39,7 +39,7 @@ export default function Footer() {
                 width="24"
                 height="24"
               />
-              <h5 className="font-semibold text-lg">{process.env.APPLICATION}</h5>
+              <h5 className="font-semibold text-sm mb-3">{process.env.APPLICATION}</h5>
             </div>
             <ul className="list-none space-y-2">
               <ListItem
@@ -60,7 +60,7 @@ export default function Footer() {
             </ul>
           </div>
           <div>
-            <h5 className="font-semibold text-lg mb-4">Get in Touch</h5>
+            <h5 className="font-semibold text-sm mb-2">Get in Touch</h5>
             <ul className="list-none space-y-2">
               <ListItem
                 href={`${process.env.REPOSITORY_URL}/issues`}
@@ -90,7 +90,7 @@ export default function Footer() {
             </ul>
           </div>
           <div>
-            <h5 className="font-semibold text-lg mb-4">Legal</h5>
+            <h5 className="font-semibold text-sm mb-2">Legal</h5>
             <ul className="list-none space-y-2">
               <ListItem
                 href="https://github.com/xdnw/locutus/blob/master/LICENSE"

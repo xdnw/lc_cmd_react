@@ -15,11 +15,14 @@ import { getCommandAndBehavior } from "../../utils/Command";
 import { queryParamsToObject } from "../../lib/utils";
 import { createCommandStoreWithDef } from "../../utils/StateUtil";
 import { COMMANDS } from '@/lib/commands';
+import type { CommandInputDisplayMode } from '@/components/cmd/field/fieldTypes';
+import { formatCommandString } from '@/utils/CommandParser';
 
 export default function CommandPage() {
     const { command } = useParams();
     const [cmdObj, setCmdObj] = useState<BaseCommand | null>(command !== "test" ? CM.get(command?.split(" ") as AnyCommandPath) : CM.buildTest());
     const pathJoined = useMemo(() => cmdObj?.path.join(" ") ?? "", [cmdObj]);
+    const [displayMode, setDisplayMode] = useState<CommandInputDisplayMode>("card");
 
     const [initialValues, setInitialValues] = useState<{ [key: string]: string }>(queryParamsToObject(getQueryParams()) as { [key: string]: string });
     const commandStore = useMemo(() => createCommandStoreWithDef(initialValues), [initialValues]);
@@ -33,7 +36,12 @@ export default function CommandPage() {
 
     return (
         <>
+            <div className="mb-2 flex items-center gap-1">
+                <Button size="sm" variant={displayMode === "card" ? "default" : "outline"} onClick={() => setDisplayMode("card")} tabIndex={-1}>Card</Button>
+                <Button size="sm" variant={displayMode === "focus-pane" ? "default" : "outline"} onClick={() => setDisplayMode("focus-pane")} tabIndex={-1}>Focus Pane</Button>
+            </div>
             <CommandComponent key={cmdObj.name} command={cmdObj} filterArguments={alwaysTrue} initialValues={initialValues}
+                displayMode={displayMode}
                 setOutput={commandStore((state) => state.setOutput)}
             />
             <OutputValuesDisplay name={pathJoined} store={commandStore} />
@@ -301,37 +309,41 @@ export function OutputValuesDisplay({ name, store }: { name: string, store: Comm
         runCommand({ command: name, values: output, onResponse: (json) => handleResponse({ json, responseRef, showDialog }) });
     }, [name, output, responseRef, showDialog]);
 
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                runCommandCallback();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [runCommandCallback]);
+
     const clearOutput = useCallback(() => {
         if (responseRef.current) {
             responseRef.current.innerHTML = "";
         }
     }, [responseRef]);
 
+    const commandString = useMemo(() => formatCommandString(name, output), [name, output]);
+
     const getText = useCallback(() => {
-        if (textRef.current) {
-            return textRef.current.textContent ?? "";
-        }
-        return '';
-    }, [textRef]);
+        return commandString;
+    }, [commandString]);
 
     return (
         <div className="relative">
             <div className='flex items-center'>
                 <TooltipProvider>
-                    <BlockCopyButton className="rounded-[5px] [&_svg]:size-3.5 mr-1 mb-1" size="sm" left={true} getText={getText} />
+                    <BlockCopyButton className="rounded-[5px] [&_svg]:size-3.5 mr-1 mb-1" size="sm" left={true} getText={getText} tabIndex={-1} />
                 </TooltipProvider>
-                <p className="w-full rounded h-6 pl-1 mb-1 bg-accent border border-slate-500 border-opacity-50" ref={textRef}>/{name}&nbsp;
-                    {
-                        Object.entries(output).map(([name, value]) => (
-                            <span key={name} className="me-1">
-                                {name}: {value}
-                            </span>
-                        ))
-                    }
+                <p className="w-full rounded h-6 pl-1 mb-1 bg-accent border border-slate-500 border-opacity-50 overflow-hidden text-ellipsis whitespace-nowrap" ref={textRef}>
+                    {commandString}
                 </p>
             </div>
-            <Button variant="outline" size="sm" onClick={runCommandCallback}>Run Command</Button>
-            <Button variant="outline" size="sm" className="ms-1" onClick={clearOutput}>Clear</Button>
+            <Button variant="outline" size="sm" onClick={runCommandCallback} tabIndex={-1}>Run Ctrl ↩</Button>
+            <Button variant="outline" size="sm" className="ms-1" onClick={clearOutput} tabIndex={-1}>Clear</Button>
             <div ref={responseRef}></div>
         </div>
     );

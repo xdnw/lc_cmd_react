@@ -10,6 +10,7 @@ import { useDeepMemo } from "./bulkwrapper";
 import { Argument } from "@/utils/Command";
 import ArgInput from "../cmd/ArgInput";
 import { ArgDescComponent } from "../cmd/CommandComponent";
+import ArgFieldShell from "../cmd/field/ArgFieldShell";
 import { singleQueryOptions } from "@/lib/queries";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Loading from "../ui/loading";
@@ -22,7 +23,7 @@ const MemoizedArgInput = React.memo(({ arg, setOutputValue, initialValue }: {
 }) => (
     <div className="relative">
         <ArgDescComponent arg={arg} />
-        <div className="mb-1 bg-accent border border-slate-500 border-opacity-50 rounded-b-sm rounded-tr-sm">
+        <ArgFieldShell className="rounded-t-none">
             <ArgInput
                 argName={arg.name}
                 breakdown={arg.getTypeBreakdown()}
@@ -31,7 +32,7 @@ const MemoizedArgInput = React.memo(({ arg, setOutputValue, initialValue }: {
                 initialValue={initialValue}
                 setOutputValue={setOutputValue}
             />
-        </div>
+        </ArgFieldShell>
     </div>
 ), (prev, next) => prev.arg === next.arg && prev.setOutputValue === next.setOutputValue && prev.initialValue === next.initialValue);
 

@@ -1,10 +1,13 @@
-import { useSyncedState } from "@/utils/StateUtil";
 import { Input } from "../ui/input";
 import { useCallback, useMemo, useState } from "react";
 import { COMMANDS } from "../../lib/commands";
 import { Button } from "../ui/button";
 import { getColOptions } from "@/pages/custom_table/table_util";
 import LazyIcon from "../ui/LazyIcon";
+import { cn } from "@/lib/utils";
+import { useArgFieldState } from "./field/useArgFieldState";
+import { validateRegexInput } from "./field/argValidation";
+import FieldMessage from "./field/FieldMessage";
 
 function isNumeric(str: string | undefined) {
     if (str) {
@@ -27,6 +30,7 @@ interface TypedInputProps {
     filterHelp?: string;
     placeholder: keyof typeof COMMANDS.placeholders;
     type: string;
+    compact?: boolean;
     setOutputValue: (name: string, value: string) => void;
 }
 
@@ -37,11 +41,10 @@ export default function TypedInput({
     filterHelp,
     placeholder,
     type,
+    compact,
     setOutputValue,
 }: TypedInputProps) {
-    const [value, setValue] = useSyncedState(initialValue || '');
-    const [isValid, setIsValid] = useState(true);
-    const [validText, setValidText] = useState('');
+    const { value, setValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || "");
 
     // Memoize colOptions based on placeholder and type.
     const colOptions = useMemo<[string, string][]>(() =>
@@ -57,31 +60,27 @@ export default function TypedInput({
             const myValue = e.target.value;
             setValue(myValue);
             setOutputValue(argName, myValue);
-            if (myValue && filter) {
-                const newValid = new RegExp(filter).test(myValue);
-                setIsValid(newValid);
-                setValidText(
-                    !newValid
-                        ? `Invalid input. Must be ${filterHelp ? filterHelp + " " : ""}matching pattern: ${filter}`
-                        : ""
-                );
-            } else {
-                setIsValid(true);
-                setValidText("");
+            if (!myValue) {
+                resetValidation();
+                return;
             }
+
+            setValidation(validateRegexInput(myValue, filter, filterHelp));
         },
-        [argName, filter, filterHelp, setOutputValue, setValue]
+        [argName, filter, filterHelp, setOutputValue, setValue, setValidation, resetValidation]
     );
 
     return (
         <>
             <InputField
                 value={value}
-                isValid={isValid}
-                validText={validText}
+                isValid={validation.isValid}
+                validText={validation.error}
                 onChange={handleInputChange}
                 filter={filter}
+                compact={compact}
             />
+            <FieldMessage error={validation.error} note={validation.note} compact={compact} />
             <div className="mt-1">
                 <OptionsSelector
                     argName={argName}
@@ -89,6 +88,7 @@ export default function TypedInput({
                     setValue={setValue}
                     setOutputValue={setOutputValue}
                     colOptions={colOptions}
+                    compact={compact}
                 />
             </div>
         </>
@@ -100,18 +100,18 @@ interface InputFieldProps {
     isValid: boolean;
     validText: string;
     filter?: string;
+    compact?: boolean;
     onChange: React.ChangeEventHandler<HTMLInputElement>;
 }
 
-function InputField({ value, isValid, validText, onChange, filter }: InputFieldProps) {
+function InputField({ value, isValid, onChange, filter, compact }: InputFieldProps) {
     const inputClass = useMemo(
-        () =>
-            `${!isValid ? 'border border-2 border-red-500 dark:border-red-800' : ''} relative px-0 w-full px-1`,
-        [isValid]
+        () => cn(!isValid ? "border-destructive" : "", compact ? "h-8 text-xs" : ""),
+        [isValid, compact]
     );
 
     return (
-        <div className="flex items-center px-0 mx-0 m-0">
+        <div className="flex items-center">
             <Input
                 type="text"
                 value={value}
@@ -120,11 +120,6 @@ function InputField({ value, isValid, validText, onChange, filter }: InputFieldP
                 pattern={filter ? filter : ".*"}
                 placeholder="Type here..."
             />
-            {validText && (
-                <p className="text-xs font-bold text-red-900 bg-red-500 dark:text-red-300 dark:bg-red-800 rounded-t-sm absolute bottom-full right-0 p-1">
-                    {validText}
-                </p>
-            )}
         </div>
     );
 }
@@ -135,6 +130,7 @@ interface OptionsSelectorProps {
     setValue: (value: string) => void;
     setOutputValue: (name: string, value: string) => void;
     colOptions: [string, string][];
+    compact?: boolean;
 }
 
 function OptionsSelector({
@@ -143,6 +139,7 @@ function OptionsSelector({
     setValue,
     setOutputValue,
     colOptions,
+    compact,
 }: OptionsSelectorProps) {
     const [collapseColOptions, setCollapseColOptions] = useState(true);
     const [colFilter, setColFilter] = useState("");
@@ -192,7 +189,7 @@ function OptionsSelector({
             <Button
                 variant="outline"
                 size="sm"
-                className="w-full px-2 rounded justify-start"
+                className={cn("w-full px-2 rounded justify-start", compact ? "h-7 text-xs" : "")}
                 onClick={toggleCollapse}
             >
                 Add Simple {collapseIcon}
@@ -202,9 +199,9 @@ function OptionsSelector({
                     collapseColOptions ? 'max-h-0 opacity-0 overflow-hidden' : 'p-2 opacity-100'
                 }`}
             >
-                <input
+                <Input
                     type="text"
-                    className="px-1 w-full mb-2 relative"
+                    className={cn("w-full mb-2", compact ? "h-8 text-xs" : "")}
                     placeholder="Filter options"
                     value={colFilter}
                     onChange={handleColFilterChange}
@@ -214,10 +211,10 @@ function OptionsSelector({
                     return (
                         <Button
                             key={key}
-                            variant="outline"
+                            variant={value === newValue ? "secondary" : "outline"}
                             size="sm"
                             data-key={key}
-                            className={`me-1 mb-1 ${value === newValue ? "hidden" : ""}`}
+                            className={cn("me-1 mb-1", compact ? "h-7 text-xs" : "")}
                             onClick={handleOptionClick}
                         >
                             {key}:&nbsp;

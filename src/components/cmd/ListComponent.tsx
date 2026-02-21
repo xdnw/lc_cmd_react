@@ -202,7 +202,10 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
 
         if (!isMulti) setIsOpen(false);
         setInputValue('');
-        inputRef.current?.focus();
+        // Don't force focus back if we're closing, let the browser or parent handle it
+        if (isMulti) {
+            inputRef.current?.focus();
+        }
     }, [isMulti, value, selectedValueSet, setValue, syncOutput, showDialog]);
 
     const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = useCallback((event) => {
@@ -213,7 +216,10 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
         }
 
         if (!isOpen) {
-            if (['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) setIsOpen(true);
+            if (['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) {
+                event.preventDefault();
+                setIsOpen(true);
+            }
             return;
         }
 
@@ -236,7 +242,9 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
                 break;
             case 'Enter':
             case 'Tab': {
-                event.preventDefault();
+                if (isMulti) {
+                    event.preventDefault();
+                }
                 if (filteredOptions.length > 0) {
                     toggleOption(filteredOptions[highlightedIndex], inputValue);
                 } else if (inputValue) {
@@ -286,6 +294,69 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
     const handleInputFocus = useCallback(() => {
         setIsOpen(true);
     }, []);
+
+    const handleInputPaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
+        const pastedText = e.clipboardData.getData('text');
+        if (!pastedText) return;
+
+        if (isMulti) {
+            // Try to split by comma or newline
+            const parts = pastedText.split(/[\n,]+/).map(p => p.trim()).filter(Boolean);
+            if (parts.length > 1) {
+                e.preventDefault();
+                
+                const newSelection = [...value];
+                let changed = false;
+                
+                for (const part of parts) {
+                    // Find matching option by value or label
+                    const option = options.find(o => 
+                        o.value.toLowerCase() === part.toLowerCase() || 
+                        (o.label && o.label.toLowerCase() === part.toLowerCase())
+                    );
+                    
+                    if (option && !newSelection.some(v => v.value === option.value)) {
+                        newSelection.push(option);
+                        changed = true;
+                    }
+                }
+                
+                if (changed) {
+                    setValue(newSelection);
+                    syncOutput(newSelection);
+                }
+            }
+        } else {
+            // Single select: try to find exact match
+            const part = pastedText.trim();
+            const option = options.find(o => 
+                o.value.toLowerCase() === part.toLowerCase() || 
+                (o.label && o.label.toLowerCase() === part.toLowerCase())
+            );
+            
+            if (option) {
+                e.preventDefault();
+                setValue([option]);
+                syncOutput([option]);
+                setIsOpen(false);
+                inputRef.current?.blur();
+            }
+        }
+    }, [isMulti, options, value, setValue, syncOutput]);
+
+    const handleInputCopy = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
+        // If there's text selected in the input, let the default copy behavior happen
+        if (inputRef.current && inputRef.current.selectionStart !== inputRef.current.selectionEnd) {
+            return;
+        }
+        
+        if (value.length > 0) {
+            e.preventDefault();
+            // Copy the labels if available, otherwise values
+            const textToCopy = value.map(v => v.label || v.value).join(', ');
+            e.clipboardData.setData('text/plain', textToCopy);
+        }
+    }, [value]);
 
     const handleRemoveOption = useCallback((option: SelectOption) => {
         toggleOption(option);
@@ -346,6 +417,8 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                     onFocus={handleInputFocus}
+                    onPaste={handleInputPaste}
+                    onCopy={handleInputCopy}
                     placeholder={placeholderText}
                     className="flex-1 min-w-[120px] bg-transparent outline-none text-slate-900 dark:text-white text-sm px-1 py-0.5 placeholder:text-slate-400 dark:placeholder:text-slate-400"
                 />

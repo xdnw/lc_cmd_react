@@ -1,12 +1,14 @@
 import { useSyncedStateFunc } from "@/utils/StateUtil";
 import NumberInput from "./NumberInput";
 import React, { useCallback } from "react";
+import { cn } from "@/lib/utils";
 
 export default function MmrDoubleInput(
-    { argName, initialValue, setOutputValue }:
+    { argName, initialValue, setOutputValue, compact }:
         {
             argName: string,
             initialValue: string,
+            compact?: boolean,
             setOutputValue: (name: string, value: string) => void
         }
 ) {
@@ -45,17 +47,17 @@ export default function MmrDoubleInput(
     }, [value, setValue, argName, setOutputValue]);
 
     return (
-        <div className="flex items-center">
+        <div className={cn("flex items-center", compact ? "gap-1" : "gap-2")}>
             {value.map((val, index) => {
                 return (
                     <React.Fragment key={index}>
-                        {index > 0 && <span>/</span>}
+                        {index > 0 && <span className="text-xs text-muted-foreground">/</span>}
                         <NumberInput
                             argName={index + ""}
                             min={0}
                             max={index == 3 ? 3 : 5}
                             initialValue={val != null ? val + "" : ""}
-                            className="w-8"
+                            className={compact ? "h-7 text-xs w-12" : "w-16"}
                             setOutputValue={setOutputFunc}
                             isFloat={true}
                         />

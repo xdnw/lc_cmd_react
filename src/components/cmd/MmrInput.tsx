@@ -3,11 +3,12 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input-otp";
 import { useCallback } from "react";
 
 export default function MmrInput(
-    {argName, allowWildcard, initialValue, setOutputValue}:
+    {argName, allowWildcard, initialValue, setOutputValue, compact}:
     {
         argName: string,
         allowWildcard: boolean,
         initialValue: string,
+        compact?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
 ) {
@@ -26,10 +27,10 @@ export default function MmrInput(
             onChange={onChange}
           >
             <InputOTPGroup>
-              <InputOTPSlot index={0} />
-              <InputOTPSlot index={1} />
-              <InputOTPSlot index={2} />
-              <InputOTPSlot index={3} />
+              <InputOTPSlot index={0} className={compact ? "h-7 w-7 text-xs" : ""} />
+              <InputOTPSlot index={1} className={compact ? "h-7 w-7 text-xs" : ""} />
+              <InputOTPSlot index={2} className={compact ? "h-7 w-7 text-xs" : ""} />
+              <InputOTPSlot index={3} className={compact ? "h-7 w-7 text-xs" : ""} />
             </InputOTPGroup>
           </InputOTP>
       )

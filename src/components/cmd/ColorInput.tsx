@@ -4,10 +4,11 @@ import { Button } from '../ui/button.tsx';
 import { useCallback } from "react";
 
 export default function ColorInput(
-    {argName, initialValue, setOutputValue}:
+    {argName, initialValue, setOutputValue, compact}:
     {
         argName: string,
         initialValue: string,
+        compact?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
 ) {
@@ -25,12 +26,13 @@ export default function ColorInput(
     }, [argName, setOutputValue, setValue]);
 
     return (
-        <div className='flex items-center'>
+        <div className='flex items-center gap-2'>
             <Input type="color"
+                   className={compact ? "h-8 w-10" : "h-9 w-12"}
                    value={value}
                    onChange={handleChange} />
-            <Button onClick={handleClear} variant="outline" size="sm" className="ml-1" disabled={!value}>X</Button>
-            <span className="text-sm ml-1">{value}</span>
+            <Button onClick={handleClear} variant="outline" size="sm" disabled={!value}>Clear</Button>
+            <span className="text-xs text-muted-foreground">{value || "No color set"}</span>
         </div>
-    )
+    );
 }

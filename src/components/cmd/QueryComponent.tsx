@@ -34,8 +34,6 @@ export default function QueryComponent(
                 color: options.color ? options.color[i] : undefined,
                 icon: options.icon ? options.icon[i] : undefined
             }));
-            // log the icons
-            console.log("Loaded options for element", element, labelled.map(o => o.icon));
             return <ListComponent argName={argName} options={labelled} isMulti={multi} initialValue={initialValue}
                                   setOutputValue={setOutputValue}/>
         }}

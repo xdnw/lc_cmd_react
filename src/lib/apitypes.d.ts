@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-02-20 11:15:14.
+// Generated using typescript-generator version 3.2.1263 on 2026-02-21 21:27:51.
 
 export interface WebError {
     error: string;
@@ -409,6 +409,19 @@ export interface TaskDetails {
 export interface ConflictAlliances {
     alliance_names: { [index: string]: string };
     conflict_alliances: { [index: string]: number[][] };
+}
+
+export interface WebVirtualConflict {
+    id: string;
+    name: string;
+    category: string;
+    date: number;
+    end: number;
+    wiki: string;
+    cb: string;
+    status: string;
+    alliances: ConflictAlliances;
+    posts: { [index: string]: any[][] };
 }
 
 export interface WebTaxBracket {

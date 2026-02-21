@@ -1,22 +1,25 @@
 import ArgInput from "./ArgInput";
-import { AnyCommandPath, Argument, BaseCommand, Command } from "../../utils/Command";
-import { Label } from "../ui/label";
-import { useCallback, useMemo, useState } from "react";
+import { Argument, BaseCommand } from "../../utils/Command";
+import { useCallback, useMemo, useState, useEffect, type FocusEvent } from "react";
 import MarkupRenderer from "../ui/MarkupRenderer";
 import LazyIcon from "../ui/LazyIcon";
+import { cn } from "@/lib/utils";
+import type { CommandInputDisplayMode } from "./field/fieldTypes";
+import { isCompactMode } from "./field/fieldTypes";
+import ArgFieldShell from "./field/ArgFieldShell";
+import { parseCommandString } from "../../utils/CommandParser";
 
 interface CommandProps {
     command: BaseCommand,
     overrideName?: string,
     filterArguments: (arg: Argument) => boolean,
     initialValues: { [key: string]: string },
+    displayMode?: CommandInputDisplayMode,
     setOutput: (key: string, value: string) => void
 }
 
-export default function CommandComponent({ command, overrideName, filterArguments, initialValues, setOutput }: CommandProps) {
+function buildGroupedArgs(argsArr: Argument[]): Argument[][] {
     const groupedArgs: Argument[][] = [];
-
-    const argsArr = command.getArguments();
     let lastGroupId = -1;
     let lastGroup: Argument[] = [];
 
@@ -34,9 +37,91 @@ export default function CommandComponent({ command, overrideName, filterArgument
         }
     }
 
+    return groupedArgs;
+}
+
+function FocusInfoBar({ arg }: { arg: Argument | null }) {
+    if (!arg) return null;
+
     return (
-        <>
+        <div className="sticky top-0 z-20 mb-2 rounded border border-border bg-background/95 p-2 text-xs backdrop-blur">
+            <div className="flex items-center gap-2 mb-1">
+                <p className="font-medium text-sm">
+                    {arg.name} <span className="text-muted-foreground font-normal">{arg.arg.type}</span>
+                </p>
+                {arg.arg.optional ? (
+                    <span className="rounded bg-blue-400/20 text-blue-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider">Optional</span>
+                ) : (
+                    <span className="rounded bg-red-400/20 text-red-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider">Required</span>
+                )}
+            </div>
+            {arg.arg.desc && <p className="mt-1"><MarkupRenderer content={arg.arg.desc} /></p>}
+            {arg.getTypeDesc() && <p className="mt-1 text-muted-foreground"><MarkupRenderer content={arg.getTypeDesc() || ""} /></p>}
+        </div>
+    );
+}
+
+export default function CommandComponent({ command, overrideName, filterArguments, initialValues, setOutput, displayMode = "card" }: CommandProps) {
+    const groupedArgs = useMemo(() => buildGroupedArgs(command.getArguments()), [command]);
+    const compact = isCompactMode(displayMode);
+    const [focusedArgName, setFocusedArgName] = useState<string | null>(null);
+    const [localValues, setLocalValues] = useState<{ [key: string]: string }>(initialValues);
+
+    useEffect(() => {
+        setLocalValues(initialValues);
+    }, [initialValues]);
+
+    const focusedArg = useMemo(() => {
+        if (!focusedArgName) return null;
+        return command.getArguments().find((arg) => arg.name === focusedArgName) ?? null;
+    }, [command, focusedArgName]);
+
+    const handleFocusCapture = useCallback((event: FocusEvent<HTMLDivElement>) => {
+        const argName = event.currentTarget.dataset.argName;
+        if (argName) {
+            setFocusedArgName(argName);
+        }
+    }, []);
+
+    const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
+        const pastedText = event.clipboardData.getData('text');
+        if (!pastedText) return;
+
+        const parsed = parseCommandString(command, pastedText);
+        if (parsed) {
+            event.preventDefault();
+            event.stopPropagation();
+            setLocalValues(prev => ({ ...prev, ...parsed }));
+            for (const [key, value] of Object.entries(parsed)) {
+                setOutput(key, value);
+            }
+        }
+    }, [command, setOutput]);
+
+    const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === 'Enter' && !event.ctrlKey && !event.shiftKey && !event.isDefaultPrevented()) {
+            const target = event.target as HTMLElement;
+            if (target.tagName === 'TEXTAREA') return;
+            if (target.tagName === 'BUTTON') return;
+            
+            // Find all focusable inputs within this CommandComponent
+            const container = event.currentTarget;
+            const focusableElements = Array.from(
+                container.querySelectorAll('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')
+            ) as HTMLElement[];
+            
+            const currentIndex = focusableElements.indexOf(target);
+            if (currentIndex > -1 && currentIndex < focusableElements.length - 1) {
+                event.preventDefault();
+                focusableElements[currentIndex + 1].focus();
+            }
+        }
+    }, []);
+
+    return (
+        <div onPasteCapture={handlePasteCapture} onKeyDown={handleKeyDown}>
             <h2 className="text-lg">{overrideName ?? command.name}</h2>
+            {displayMode === "focus-pane" && <FocusInfoBar arg={focusedArg} />}
             {
                 groupedArgs.map((group, index) => {
                     const groupExists = group[0].arg.group != null;
@@ -58,14 +143,32 @@ export default function CommandComponent({ command, overrideName, filterArgument
                             <div>
                                 {group.map((arg, argIndex) => (
                                     filterArguments(arg) &&
-                                    <div className="w-full" key={index + "-" + argIndex + "m"}>
-                                        <ArgDescComponent arg={arg} />
-                                        <div
-                                            className="mb-1 bg-accent border border-slate-500 border-opacity-50 rounded-b-sm rounded-tr-sm p-1">
-                                            <ArgInput argName={arg.name} breakdown={arg.getTypeBreakdown()} min={arg.arg.min}
-                                                max={arg.arg.max} initialValue={initialValues[arg.name]}
-                                                setOutputValue={setOutput} />
-                                        </div>
+                                    <div
+                                        className={cn("w-full", compact ? "mb-1" : "mb-2")}
+                                        key={index + "-" + argIndex + "m"}
+                                        data-arg-name={arg.name}
+                                        onFocusCapture={handleFocusCapture}
+                                    >
+                                        {displayMode !== "focus-pane" && (
+                                            <ArgDescComponent
+                                                arg={arg}
+                                                includeType={!compact}
+                                                includeDesc={!compact}
+                                                includeExamples={false}
+                                                compact={compact}
+                                            />
+                                        )}
+                                        <ArgFieldShell displayMode={displayMode} className={displayMode !== "focus-pane" ? "rounded-t-none" : ""} isOptional={arg.arg.optional}>
+                                            {displayMode === "focus-pane" && (
+                                                <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground">{arg.name}:</span>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <ArgInput argName={arg.name} breakdown={arg.getTypeBreakdown()} min={arg.arg.min}
+                                                    max={arg.arg.max} initialValue={localValues[arg.name]}
+                                                    displayMode={displayMode}
+                                                    setOutputValue={setOutput} />
+                                            </div>
+                                        </ArgFieldShell>
                                     </div>
                                 ))}
                             </div>
@@ -73,17 +176,18 @@ export default function CommandComponent({ command, overrideName, filterArgument
                     );
                 })
             }
-        </>
+        </div>
     );
 }
 
 export function ArgDescComponent(
-    { arg, includeType = false, includeDesc = false, includeExamples = false }:
+    { arg, includeType = false, includeDesc = false, includeExamples = false, compact = false }:
         {
             arg: Argument,
             includeType?: boolean,
             includeDesc?: boolean,
             includeExamples?: boolean,
+            compact?: boolean,
         }) {
     const [hide, setHide] = useState<boolean>(!includeType && !includeDesc && !includeExamples);
     const desc = arg.getTypeDesc();
@@ -94,9 +198,8 @@ export function ArgDescComponent(
         }
         return [];
     }, [arg]);
-    const [showType, setShowType] = useState<boolean>(includeType);
-    const [showDesc, setShowDesc] = useState<boolean>(includeDesc);
-    const [showExamples, setShowExamples] = useState<boolean>(includeExamples);
+
+    const isExpanded = !hide;
 
 
     const optionalBadge = useMemo(() => {
@@ -112,7 +215,7 @@ export function ArgDescComponent(
     }, [hide]);
 
     const descriptionContent = useMemo(() => {
-        if (!showDesc) return null;
+        if (!isExpanded) return null;
         return (
             <>
                 <br />
@@ -120,39 +223,37 @@ export function ArgDescComponent(
                 {desc && <p className="font-thin text-xs"><MarkupRenderer content={desc} /></p>}
             </>
         );
-    }, [showDesc, arg.arg.desc, desc]);
+    }, [isExpanded, arg.arg.desc, desc]);
 
     const examplesContent = useMemo(() => {
-        if (!showExamples || examples.length === 0) return null;
+        if (!isExpanded || examples.length === 0) return null;
         return (
-            <p className="font-thin">
+            <p className="font-thin mt-1">
                 Examples:
                 {examples
-                    .map(example => <kbd key={example} className="bg-white bg-opacity-20">{example}</kbd>)
-                    .reduce((prev, curr) => <> {prev}, {curr} </>)}
+                    .map(example => <kbd key={example} className="mx-1 rounded border border-border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground font-mono">{example}</kbd>)
+                    .reduce((prev, curr) => <> {prev} {curr} </>)}
             </p>
         );
-    }, [showExamples, examples]);
+    }, [isExpanded, examples]);
 
-    const toggleHidden = useCallback(() => {
+    const toggleHidden = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
         setHide(f => !f);
-        setShowType(f => !f);
-        setShowDesc(f => !f);
-        setShowExamples(f => !f);
-    }, [setHide, setShowType, setShowDesc, setShowExamples]);
+    }, [setHide]);
 
 
     return (
-        <Label className="inline-block rounded-t-sm border border-slate-500 border-b-0 bg-accent m-0 p-1 align-top top-0 left-0 me-1 text-xs" style={{ marginBottom: "-1px" }}>
+        <div className={cn("inline-block rounded-t-sm border border-border border-b-0 bg-accent m-0 p-1 align-top top-0 left-0 me-1 text-xs", compact ? "w-full me-0" : "")} style={{ marginBottom: "-1px" }}>
             {optionalBadge}
-            <div className="inline-block cursor-pointer rounded border border-transparent hover:bg-background/50 hover:border hover:border-primary/20" onClick={toggleHidden}>
+            <button type="button" tabIndex={-1} className="inline-flex items-center cursor-pointer rounded border border-transparent hover:bg-background/50 hover:border hover:border-primary/20" onClick={toggleHidden}>
                 <span className="bg-white/20 px-0.5">
-                    {arg.name}{showType ? ": " + arg.arg.type : ""}
+                    {arg.name}{isExpanded ? ": " + arg.arg.type : ""}
                 </span>
                 {toggleIcon}
-            </div>
+            </button>
             {descriptionContent}
             {examplesContent}
-        </Label>
+        </div>
     );
 }

@@ -1,31 +1,44 @@
-import { useSyncedState } from "@/utils/StateUtil";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { Textarea } from "../ui/textarea";
+import { cn } from "@/lib/utils";
+import { validateRegexInput } from "./field/argValidation";
+import { useArgFieldState } from "./field/useArgFieldState";
+import FieldMessage from "./field/FieldMessage";
 
 export default function TextInput(
-    { argName, initialValue, filter, setOutputValue }:
+    { argName, initialValue, filter, setOutputValue, compact }:
         {
             argName: string,
             initialValue: string,
             filter?: string,
+            compact?: boolean,
             setOutputValue: (name: string, value: string) => void
         }
 ) {
-    const [value, setValue] = useSyncedState(initialValue || '');
-    const [isValid, setIsValid] = useState(true);
+    const { value, setValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || "");
+
     const onChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setValue(e.target.value);
-        setOutputValue(argName, e.target.value);
-        if (filter) {
-            setIsValid(new RegExp(filter).test(e.target.value));
+        const next = e.target.value;
+        setValue(next);
+        setOutputValue(argName, next);
+        if (!next) {
+            resetValidation();
+            return;
         }
-    }, [filter, argName, setOutputValue, setValue]);
+        if (filter) {
+            setValidation(validateRegexInput(next, filter));
+        }
+    }, [filter, argName, setOutputValue, setValue, setValidation, resetValidation]);
 
     return (
-        <Textarea
-            value={value}
-            onChange={onChange}
-            className={`${!isValid ? 'border-2 border-red-500 relative' : ''}`}
-            placeholder="Type here..." />
-    )
+        <div>
+            <Textarea
+                value={value}
+                onChange={onChange}
+                className={cn(validation.isValid ? "" : "border-destructive", compact ? "min-h-[60px] text-xs" : "")}
+                placeholder="Type here..."
+            />
+            <FieldMessage error={validation.error} note={validation.note} compact={compact} />
+        </div>
+    );
 }

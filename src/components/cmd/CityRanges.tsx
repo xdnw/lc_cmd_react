@@ -1,12 +1,13 @@
 import { useSyncedStateFunc } from "@/utils/StateUtil";
-import NumberInput from "./NumberInput";
 import { useCallback } from "react";
+import NumberPairInput from "./composite/NumberPairInput";
 
 export default function CityRanges(
-    {argName, initialValue, setOutputValue}:
+    {argName, initialValue, setOutputValue, compact}:
     {
         argName: string,
         initialValue: string,
+        compact?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
 ) {
@@ -45,32 +46,12 @@ export default function CityRanges(
         setOutputValue(argName, `c${next[0]}-${next[1]}`);
     }, [argName, setOutputValue, setValue, value]);
 
-    return (
-        <div className="flex w-full items-center">
-            <div className="flex items-center w-1/2 grow">
-                <span className="mr-2">c</span>
-                <NumberInput
-                    argName={argName}
-                    min={0}
-                    max={100}
-                    initialValue={value[0] != null ? value[0] + "" : ""}
-                    className="grow"
-                    setOutputValue={input1}
-                    isFloat={false}
-                />
-            </div>
-            <div className="flex items-center w-1/2 grow">
-                <span className="mx-2">-</span>
-                <NumberInput
-                    argName={argName}
-                    min={0}
-                    max={100}
-                    initialValue={value[1] != null ? value[1] + "" : ""}
-                    className="grow"
-                    setOutputValue={input2}
-                    isFloat={false}
-                />
-            </div>
-        </div>
-    );
+    return <NumberPairInput
+        argName={argName}
+        values={value}
+        delimiter="-"
+        compact={compact}
+        left={{ min: 0, max: 100, onChange: input1, prefix: "c" }}
+        right={{ min: 0, max: 100, onChange: input2 }}
+    />;
 }

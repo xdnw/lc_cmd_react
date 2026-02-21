@@ -1,5 +1,7 @@
 import { useSyncedState } from "@/utils/StateUtil";
 import { useCallback } from "react";
+import { Input } from "../ui/input";
+import { cn } from "@/lib/utils";
 
 function formatDatetimeLocal(date: Date): string {
     const pad = (num: number) => num.toString().padStart(2, "0");
@@ -39,10 +41,12 @@ function parseValue(value: string) {
 export default function TimeInput({
                                       argName,
                                       initialValue,
-                                      setOutputValue
+                                      setOutputValue,
+                                      compact,
                                   }: {
     argName: string,
     initialValue: string,
+    compact?: boolean,
     setOutputValue: (name: string, value: string) => void
 }) {
     const [value, setValue] = useSyncedState(parseValue(initialValue) || '');
@@ -55,9 +59,11 @@ export default function TimeInput({
                    setOutputValue(argName, "timestamp:" + Math.floor(date.getTime()));
     }, [argName, setOutputValue, setValue]);
     return (
-        <input type="datetime-local"
-               className="dark:bg-slate-700 bg-slate-100"
-               value={value}
-               onChange={onChange} />
+        <Input
+            type="datetime-local"
+            className={cn("w-full", compact ? "h-8 text-xs" : "")}
+            value={value}
+            onChange={onChange}
+        />
     );
 }

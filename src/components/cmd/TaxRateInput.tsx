@@ -1,12 +1,13 @@
 import { useSyncedStateFunc } from "@/utils/StateUtil";
-import NumberInput from "./NumberInput";
 import { useCallback } from "react";
+import NumberPairInput from "./composite/NumberPairInput";
 
 export default function TaxRateInput(
-    {argName, initialValue, setOutputValue}:
+    {argName, initialValue, setOutputValue, compact}:
     {
         argName: string,
         initialValue: string,
+        compact?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
 ) {
@@ -42,11 +43,12 @@ export default function TaxRateInput(
         setOutputValue(argName, `${next[0]}/${next[1]}`);
     }, [argName, setOutputValue, setValue, value]);
 
-    return <div className="flex items-center">
-    <NumberInput argName={argName} min={0} max={100} initialValue={value[0] != null ? value[0] + "" : ""} className="w-8"
-    setOutputValue={moneyRate} isFloat={false} />
-    <span>/</span>
-    <NumberInput argName={argName} min={0} max={100} initialValue={value[1] != null ? value[1] + "" : ""} className="w-8"
-        setOutputValue={rssRate} isFloat={false} />
-    </div>
+    return <NumberPairInput
+        argName={argName}
+        values={value}
+        delimiter="/"
+        compact={compact}
+        left={{ min: 0, max: 100, onChange: moneyRate }}
+        right={{ min: 0, max: 100, onChange: rssRate }}
+    />;
 }

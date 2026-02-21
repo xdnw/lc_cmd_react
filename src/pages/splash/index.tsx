@@ -67,7 +67,7 @@ export function setupAnimation(): AnimationControls {
     [0, 'rgba(0,0,0,0.98)'], [0.42, 'rgba(8,1,1,0.9)'], [0.7, 'rgba(24,5,3,0.56)'], [1, 'transparent']
   ]);
   const gradEye = createGradientCanvas(512, [
-    [0, '#c24512'], [0.35, 'rgba(18, 0, 5, 0.5)'], [0.7, 'rgba(40, 0, 0, 0.15)'], [1, 'transparent']
+    [0, 'rgba(0,0,0,0)'], [0.46, 'rgba(0,0,0,0)'], [0.6, 'rgba(112, 16, 28, 0.34)'], [0.78, 'rgba(54, 8, 16, 0.16)'], [1, 'transparent']
   ]);
   const gradVig = createGradientCanvas(1024, [
     [0, 'transparent'], [0.72, 'rgba(4,0,2,0.012)'], [1, 'rgba(2,0,1,1)'] // Alpha modulated during draw
@@ -507,9 +507,19 @@ export function setupAnimation(): AnimationControls {
     }
     if (eyePhase === 0) return;
 
-    const eyeR = minDim * 0.26 * eyeOpen * 1.5;
-    hctx.globalAlpha = eyeOpen * 0.85;
+    const eyeR = minDim * 0.39 * eyeOpen * 1.62;
+    hctx.globalAlpha = eyeOpen * 0.42;
     hctx.drawImage(gradEye, cx - eyeR, cy - eyeR, eyeR * 2, eyeR * 2);
+
+    hctx.globalAlpha = eyeOpen * 0.26;
+    hctx.strokeStyle = '#681220';
+    hctx.lineWidth = 2 + eyeOpen * 1.8;
+    hctx.shadowColor = 'rgba(120, 18, 34, 0.35)';
+    hctx.shadowBlur = 8 + eyeOpen * 9;
+    hctx.beginPath();
+    hctx.arc(cx, cy, eyeR * 0.9, 0, Math.PI * 2);
+    hctx.stroke();
+    hctx.shadowBlur = 0;
   }
 
   // ---- Main render loop ----
@@ -562,8 +572,8 @@ export function setupAnimation(): AnimationControls {
     hctx.globalAlpha = 0.07 + 0.02 * Math.sin(time * 0.01);
     hctx.drawImage(gradVig, cx - vigOuter, cy - vigOuter, vigOuter * 2, vigOuter * 2);
 
-    tickEye();
     drawCenterPulse();
+    tickEye();
     drawMonsters();
 
     // GPU Glitch lines

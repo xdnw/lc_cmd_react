@@ -15,9 +15,9 @@ const ListItem = memo(
       <li className="mb-2">
         <a
           href={href}
-          className="text-blue-600 hover:text-blue-800 underline flex items-center"
+          className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm"
         >
-          <LazyIcon name={iconName} size={22} fallback={IconPlaceholder} />
+          <LazyIcon name={iconName} size={16} fallback={IconPlaceholder} />
           {label}
         </a>
       </li>
@@ -27,20 +27,21 @@ const ListItem = memo(
 
 export default function Footer() {
   return (
-    <footer className="border-top border-red-500 mt-0 pt-3 bg-secondary">
-      <div className="container mx-auto">
-        <div className="flex flex-wrap mx-4">
-          <div className="w-full md:w-1/3 px-4">
-            <img
-              src="https://cdn.discordapp.com/avatars/672237266940198960/0d78b819d401a8f983ab16242de195da.webp"
-              className="absolute"
-              alt="Logo"
-              width="18"
-              height="18"
-            />
-            <h5 className="font-medium ml-4">{process.env.APPLICATION}</h5>
-            <hr className="my-2" />
-            <ul className="list-none">
+    <footer className="border-t border-border mt-4 py-4 bg-card text-card-foreground">
+      <div className="w-full px-2 md:px-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <img
+                src="https://cdn.discordapp.com/avatars/672237266940198960/0d78b819d401a8f983ab16242de195da.webp"
+                className="rounded-full"
+                alt="Logo"
+                width="24"
+                height="24"
+              />
+              <h5 className="font-semibold text-lg">{process.env.APPLICATION}</h5>
+            </div>
+            <ul className="list-none space-y-2">
               <ListItem
                 href={process.env.REPOSITORY_URL!}
                 iconName="GitPullRequest"
@@ -58,10 +59,9 @@ export default function Footer() {
               />
             </ul>
           </div>
-          <div className="w-full md:w-1/3 px-4">
-            <h5 className="font-medium m-0">Get in Touch</h5>
-            <hr className="my-2" />
-            <ul className="list-none">
+          <div>
+            <h5 className="font-semibold text-lg mb-4">Get in Touch</h5>
+            <ul className="list-none space-y-2">
               <ListItem
                 href={`${process.env.REPOSITORY_URL}/issues`}
                 iconName="Github"
@@ -89,10 +89,9 @@ export default function Footer() {
               />
             </ul>
           </div>
-          <div className="w-full md:w-1/3 px-4">
-            <h5 className="font-medium m-0">Legal</h5>
-            <hr className="my-2" />
-            <ul className="list-none">
+          <div>
+            <h5 className="font-semibold text-lg mb-4">Legal</h5>
+            <ul className="list-none space-y-2">
               <ListItem
                 href="https://github.com/xdnw/locutus/blob/master/LICENSE"
                 iconName="ListX"

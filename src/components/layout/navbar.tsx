@@ -1,63 +1,64 @@
-import {ModeToggle} from "@/components/ui/mode-toggle.tsx";
+import { ModeToggle } from "@/components/ui/mode-toggle.tsx";
 import React, { useMemo } from "react";
 import { useLocation, Link } from "react-router-dom";
-import {hasToken} from "@/utils/Auth.ts";
+import { hasToken } from "@/utils/Auth.ts";
 import LoggedInDropdown from "@/components/layout/logged-in-dropdown.tsx";
 import LoggedOutDropdown from "@/components/layout/logged-out-dropdown.tsx";
 import { Input } from "../ui/input";
+import LazyIcon from "../ui/LazyIcon";
 
 const SearchBar = React.memo(() => (
     <div className="w-full p-0 flex items-center">
-      <Input 
-        id="navbar-search" 
-        className="relative w-full form-control rounded border-background px-1"
-        type="search"
-        placeholder="Search pages..." 
-        aria-label="Search" 
-        name="term"
-      />
-      <button type="submit" className="btn btn-light text-nowrap rounded-l-none">
-        <i className="bi bi-search"></i>
-      </button>
+        <Input
+            id="navbar-search"
+            className="relative w-full rounded-r-none border-r-0 px-2 h-8"
+            type="search"
+            placeholder="Search pages..."
+            aria-label="Search"
+            name="term"
+        />
+        <button type="submit" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2 h-8 rounded-r border border-input border-l-0 flex items-center justify-center">
+            <LazyIcon name="Search" size={14} />
+        </button>
     </div>
-  ));
+));
 
 export default function Navbar() {
     const location = useLocation();
-    
+
     // Memoize pathnames array to prevent unnecessary recalculations
-    const pathnames = useMemo(() => 
+    const pathnames = useMemo(() =>
         decodeURI(location.pathname).split('/').filter(x => x),
         [location.pathname]
     );
 
     // Memoize login status to avoid rechecking on every render
     const isLoggedIn = useMemo(() => hasToken(), []);
-    
+
     // Memoize breadcrumbs to prevent recreating on every render
     const breadcrumbs = useMemo(() => {
         if (pathnames.length === 0) {
             return <span>Home</span>;
         }
-        
+
         return (
             <>
-                <Link to="/" className="text-blue-600 hover:text-blue-800 underline">[index]</Link>
+                <Link to="/" className="text-primary hover:text-primary/80 underline">[index]</Link>
                 {pathnames.map((value, index) => {
                     const to = `/${pathnames.slice(0, index + 1).join('/')}`;
                     return (
                         <React.Fragment key={to}>
                             <span className="mx-1">/</span>
-                            <Link to={to} className="text-blue-600 hover:text-blue-800 underline">{value}</Link>
+                            <Link to={to} className="text-primary hover:text-primary/80 underline">{value}</Link>
                         </React.Fragment>
                     );
                 })}
             </>
         );
     }, [pathnames]);
-    
+
     // Memoize the user dropdown component
-    const userDropdown = useMemo(() => 
+    const userDropdown = useMemo(() =>
         isLoggedIn ? <LoggedInDropdown /> : <LoggedOutDropdown />,
         [isLoggedIn]
     );
@@ -65,17 +66,19 @@ export default function Navbar() {
     const modeToggle = useMemo(() => <ModeToggle />, []);
 
     return (
-        <nav className="bg-secondary border-bottom border-card flex flex-row items-center">
-            <div className="inline-block">
+        <nav className="bg-card border-b border-border flex flex-row items-center px-2 py-1.5 gap-2 shadow-sm">
+            <div className="flex-none">
                 {modeToggle}
             </div>
-            <div className="btn-group me-1">
-                <div className="inline-block text-xs h-6 px-1 p-1 text-truncate bg-background rounded flex items-center justify-center">
+            <div className="flex-none">
+                <div className="inline-flex max-w-[42vw] md:max-w-136 overflow-hidden text-ellipsis text-xs h-8 px-2 bg-muted text-muted-foreground rounded items-center justify-center whitespace-nowrap">
                     {breadcrumbs}
                 </div>
             </div>
-            <SearchBar />
-            <div className="p-0 ps-1 relative">
+            <div className="grow">
+                <SearchBar />
+            </div>
+            <div className="flex-none relative">
                 {userDropdown}
             </div>
         </nav>

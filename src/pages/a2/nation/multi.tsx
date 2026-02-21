@@ -1,6 +1,6 @@
-import {Link, useParams} from "react-router-dom";
-import {MULTI_BUSTER} from "../../../lib/endpoints";
-import {getQueryParams} from "../../../lib/utils";
+import { Link, useParams } from "react-router-dom";
+import { MULTI_BUSTER } from "../../../lib/endpoints";
+import { getQueryParams } from "../../../lib/utils";
 import Timestamp from "../../../components/ui/timestamp";
 import React from "react";
 import { Button } from "@/components/ui/button";
@@ -22,54 +22,53 @@ export function renderLink(id: number, name: string | number, type: 'nation' | '
 export default function MultiBuster() {
     const { nation } = useParams<{ nation: string }>();
 
-    return <EndpointWrapper endpoint={MULTI_BUSTER} args={{nation: nation, forceUpdate: getQueryParams().get("update") ?? 'false'}}>
-            {({data}) => {
-                const networkColumns = ["ID", "Last Access From Shared IP", "Number Of Shared IPs", "Last Active Ms", "Alliance ID", "Date Created"];
-                const networkRenderers = ["normal", 'time_ms', 'comma', 'time_ms', "normal", 'time_ms'];
-                const networkData = Object.values(data.network).map((row) => [
-                    renderLink(row.id, data.nationNames[row.id] ?? row.id, 'nation', data.bans[row.id], "multi"),
-                    row.lastAccessFromSharedIP,
-                    row.numberOfSharedIPs,
-                    row.lastActiveMs,
-                    renderLink(row.allianceId, data.allianceNames[row.allianceId] ?? row.allianceId, 'alliance', undefined, undefined),
-                    row.dateCreated
-                ]);
+    return <EndpointWrapper endpoint={MULTI_BUSTER} args={{ nation: nation, forceUpdate: getQueryParams().get("update") ?? 'false' }}>
+        {({ data }) => {
+            const networkColumns = ["ID", "Last Access From Shared IP", "Number Of Shared IPs", "Last Active Ms", "Alliance ID", "Date Created"];
+            const networkRenderers = ["normal", 'time_ms', 'comma', 'time_ms', "normal", 'time_ms'];
+            const networkData = Object.values(data.network).map((row) => [
+                renderLink(row.id, data.nationNames[row.id] ?? row.id, 'nation', data.bans[row.id], "multi"),
+                row.lastAccessFromSharedIP,
+                row.numberOfSharedIPs,
+                row.lastActiveMs,
+                renderLink(row.allianceId, data.allianceNames[row.allianceId] ?? row.allianceId, 'alliance', undefined, undefined),
+                row.dateCreated
+            ]);
 
-                const tradeColumns = ["Selling Nation", "Buying Nation", "Date Offered", "Resource", "Amount", "PPU"];
-                const tradeRenderers = ["normal", "normal", 'time_ms', /* resource */ undefined, 'comma', 'comma'];
-                const tradeData = data.trade.map((trade) => [
-                    renderLink(trade.sellingNation, data.nationNames[trade.sellingNation] ?? trade.sellingNation, 'nation', data.bans[trade.sellingNation]),
-                    renderLink(trade.buyingNation, data.nationNames[trade.buyingNation] ?? trade.buyingNation, 'nation', data.bans[trade.buyingNation]),
-                    trade.dateOffered,
-                    trade.resource,
-                    trade.amount,
-                    trade.ppu
-                ]);
+            const tradeColumns = ["Selling Nation", "Buying Nation", "Date Offered", "Resource", "Amount", "PPU"];
+            const tradeRenderers = ["normal", "normal", 'time_ms', /* resource */ undefined, 'comma', 'comma'];
+            const tradeData = data.trade.map((trade) => [
+                renderLink(trade.sellingNation, data.nationNames[trade.sellingNation] ?? trade.sellingNation, 'nation', data.bans[trade.sellingNation]),
+                renderLink(trade.buyingNation, data.nationNames[trade.buyingNation] ?? trade.buyingNation, 'nation', data.bans[trade.buyingNation]),
+                trade.dateOffered,
+                trade.resource,
+                trade.amount,
+                trade.ppu
+            ]);
 
-                return (
-                    <>
-                        <div className='themeDiv bg-opacity-10 p-2'>
-                            Multi Buster info for: <a href={`https://politicsandwar.com/nation/id=${data.nationId}`}>{data.nationNames[data.nationId] ?? data.nationId}</a>
-                            <br/>
-                            Last updated: <Timestamp millis={data.dateFetched}/>
-                            <hr className="my-1"/>
-                            {data.dateFetched < Date.now() - 1000 * 60 * 60 * 24 && <Button variant="outline" size="sm" className='border-red-800/70' asChild><Link to={`?update=true`}>Update</Link></Button>}
+            return (
+                <>
+                    <div className='bg-card border border-border rounded-lg p-4 shadow-sm'>
+                        Multi Buster info for: <a href={`https://politicsandwar.com/nation/id=${data.nationId}`}>{data.nationNames[data.nationId] ?? data.nationId}</a>
+                        <br />
+                        Last updated: <Timestamp millis={data.dateFetched} />
+                        <hr className="my-2 border-border" />
+                        {data.dateFetched < Date.now() - 1000 * 60 * 60 * 24 && <Button variant="outline" size="sm" asChild><Link to={`?update=true`}>Update</Link></Button>}
+                    </div>
+                    <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden mt-4">
+                        <h2 className="text-xl font-semibold w-full border-b border-border px-4 py-2 bg-muted/50">Shared Networks (Unique IDs)</h2>
+                        <div className="p-4">
+                            <TableWith2DData columns={networkColumns} data={networkData} renderers={networkRenderers} sort={{ idx: 3, dir: "desc" }} />
                         </div>
-                        <hr className="my-2"/>
-                        <div className="themeDiv bg-opacity-10 rounded-t">
-                            <h2 className="text-2xl w-full border-b border-secondary px-2 bg-primary/10">Shared Networks (Unique IDs)</h2>
-                            <div className="p-2">
-                                <TableWith2DData columns={networkColumns} data={networkData} renderers={networkRenderers} sort={{idx: 3, dir: "desc"}}/>
-                            </div>
-                        </div>
-                        <div className="themeDiv bg-opacity-10 mt-2 rounded-t">
-                            <h2 className="text-2xl w-full border-b border-secondary px-2 bg-primary/10">Same Network Trades</h2>
-                            <div className="p-2">
+                    </div>
+                    <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden mt-4">
+                        <h2 className="text-xl font-semibold w-full border-b border-border px-4 py-2 bg-muted/50">Same Network Trades</h2>
+                        <div className="p-4">
                             <TableWith2DData columns={tradeColumns} data={tradeData} renderers={tradeRenderers} />
-                            </div>
                         </div>
-                    </>
-                );
-            }}
-        </EndpointWrapper>
+                    </div>
+                </>
+            );
+        }}
+    </EndpointWrapper>
 }

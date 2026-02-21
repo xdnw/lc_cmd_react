@@ -79,37 +79,36 @@ const _cardTemplates: {
 export default function Home() {
     return <>
         <LoginPickerPage />
-        <div className="bg-light/10 border border-light/10 rounded p-2 mt-4">
-            <h1 className="text-2xl font-bold">Featured Content</h1>
-            <div className="flex flex-wrap">
+        <div className="bg-card border border-border rounded-lg p-3 mt-3 shadow-sm">
+            <h1 className="text-2xl font-bold mb-3">Featured Content</h1>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(16rem,18rem))] justify-center gap-3">
                 {Object.keys(_cardTemplates).map((key) => {
                     const template = _cardTemplates[key];
                     return (
-                        <div key={key} className="flex items-center me-1 mb-1">
-                            <Card className="mx-auto relative rounded-lg" style={{ width: '18rem' }}>
-                                <CardHeader className="card-header">
-                                    <div className="relative">
-                                        <img
-                                            src={template.img}
-                                            style={{ background: template.bg }}
-                                            className="h-36 w-72 object-fill block mx-auto rounded"
-                                            alt="..."
-                                        />
-                                        {template.ad && <kbd className="bg-blue-400/50 text-sm rounded-lg px-2 py-0.5 absolute top-1 right-1">Ad</kbd>}
-                                    </div>
-                                    <CardTitle className="card-title p-2">
-                                        {template.subtitle}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="card-body" style={{ height: '6.5rem' }}>
-                                    <CardDescription className="card-text">{template.desc}</CardDescription>
-                                </CardContent>
-                                <CardFooter className="card-footer">
-                                    <Button variant="outline" size="sm" className='border-slate-800/70' asChild><Link to={template.invite}>{template.label}</Link></Button>
-
-                                </CardFooter>
-                            </Card>
-                        </div>
+                        <Card key={key} className="w-full max-w-[18rem] flex flex-col overflow-hidden hover:shadow-md transition-shadow">
+                            <div className="relative">
+                                <img
+                                    src={template.img}
+                                    style={{ background: template.bg }}
+                                    className="h-48 w-full object-cover"
+                                    alt={template.subtitle}
+                                />
+                                {template.ad && <span className="bg-blue-500/80 text-white text-xs font-medium rounded px-2 py-1 absolute top-2 right-2 backdrop-blur-sm">Ad</span>}
+                            </div>
+                            <CardHeader>
+                                <CardTitle className="text-lg">
+                                    {template.subtitle}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grow">
+                                <CardDescription className="text-sm">{template.desc}</CardDescription>
+                            </CardContent>
+                            <CardFooter className="pt-0">
+                                <Button variant="outline" className="w-full" asChild>
+                                    <Link to={template.invite}>{template.label}</Link>
+                                </Button>
+                            </CardFooter>
+                        </Card>
                     );
                 })}
             </div>

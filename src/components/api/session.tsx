@@ -66,58 +66,58 @@ export function LoginPicker() {
     );
 
     return (
-        <div className="bg-light/10 border border-light/10 rounded p-2 mt-4">
-            <div className="pb-3 flex items-center justify-between gap-3">
+        <div className="bg-card border border-border rounded-lg p-3 mt-3 shadow-sm">
+            <div className="pb-3 flex items-center justify-between gap-3 border-b border-border mb-3">
                 <div>
                     <h1 className="text-2xl font-bold">Sign in to access web features</h1>
                     {/* <CardTitle>Sign in to access web features</CardTitle> */}
-                    <div className="text-sm text-foreground">Link your Discord or in-game nation.</div>
+                    <div className="text-sm text-muted-foreground mt-1">Link your Discord or in-game nation.</div>
                 </div>
-                <LazyIcon name="KeyRound" size={28} />
+                <LazyIcon name="KeyRound" size={32} className="text-muted-foreground" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="rounded border p-3">
-                    <div className="mb-2 font-semibold text-lg flex items-center gap-2 text-foreground">
-                        <LazyIcon name="KeyRound" size={18} /> Login with Discord
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Card className="rounded-lg border border-border p-3 hover:shadow-md transition-shadow">
+                    <div className="mb-3 font-semibold text-lg flex items-center gap-2 text-foreground">
+                        <LazyIcon name="KeyRound" size={20} className="text-primary" /> Login with Discord
                     </div>
 
-                    <div className="text-sm mb-4 text-foreground">
+                    <div className="text-sm mb-3 text-muted-foreground">
                         Click <strong>Login with Discord</strong> to open the OAuth flow and link your account.
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" asChild>
+                    <div className="flex items-center gap-3">
+                        <Button variant="default" size="sm" asChild>
                             <a href={getDiscordAuthUrl()} aria-label="Login via Discord">
-                                <LazyIcon name="KeyRound" size={14} />&nbsp;Login with Discord
+                                <LazyIcon name="KeyRound" size={16} className="mr-2" /> Login with Discord
                             </a>
                         </Button>
-                        <Button variant="secondary" size="sm" onClick={openDiscordInfo}>What is Discord?</Button>
+                        <Button variant="outline" size="sm" onClick={openDiscordInfo}>What is Discord?</Button>
                     </div>
                 </Card>
 
-                <Card className="rounded border p-3">
-                    <div className="mb-2 font-semibold text-lg flex items-center gap-2 text-foreground">
-                        <LazyIcon name="Mail" size={18} /> Authenticate via In-Game Mail
+                <Card className="rounded-lg border border-border p-3 hover:shadow-md transition-shadow">
+                    <div className="mb-3 font-semibold text-lg flex items-center gap-2 text-foreground">
+                        <LazyIcon name="Mail" size={20} className="text-primary" /> Authenticate via In-Game Mail
                     </div>
 
-                    <div className="text-sm text-foreground mb-4 leading-relaxed">
+                    <div className="text-sm text-muted-foreground mb-3 leading-relaxed">
                         You will receive a login link via in-game mail.
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" asChild>
+                    <div className="flex items-center gap-3">
+                        <Button variant="default" size="sm" asChild>
                             <Link to={`${process.env.BASE_PATH}nation_picker`}>Choose Nation</Link>
                         </Button>
-                        <Button variant="secondary" size="sm" onClick={openMailInfo}>Help</Button>
+                        <Button variant="outline" size="sm" onClick={openMailInfo}>Help</Button>
                     </div>
                 </Card>
             </div>
 
             {/* Footer: kept your copy + CopyToClipboard button */}
-            <div className="mt-3 text-sm text-foreground flex items-center gap-3">
+            <div className="mt-3 pt-2 border-t border-border text-sm text-muted-foreground flex flex-wrap items-center gap-2">
                 <span>You can use a login link on Discord by using the command:</span>
-                <CopyToClipboard text="/web" /> <span className="text-foreground">(the bot will DM you a link)</span>
+                <CopyToClipboard text="/web" /> <span>(the bot will DM you a link)</span>
             </div>
         </div>
     );
@@ -128,10 +128,10 @@ export function LoginPickerOld() {
             <Tabs defaultValue="discord">
                 <TabsList className='w-full'>
                     <TabsTrigger value="discord" className='w-full'>
-                        <i className="bi bi-discord"></i> Discord OAuth
+                        <LazyIcon name="MessageCircle" size={14} />&nbsp;Discord OAuth
                     </TabsTrigger>
                     <TabsTrigger value="mail" className="w-full">
-                        <i className="bi bi-envelope-fill"></i> Politics & War Mail
+                        <LazyIcon name="Mail" size={14} />&nbsp;Politics & War Mail
                     </TabsTrigger>
                 </TabsList>
                 <TabsContent value="discord">
@@ -189,16 +189,16 @@ export default function SessionInfo() {
 
     if (isLoading) {
         return (
-            <Card className="bg-light/10 border border-light/10">
-                <CardHeader className="p-3 pb-1">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <LazyIcon name="User" size={18} />
+            <Card className="bg-card border border-border shadow-sm mt-3">
+                <CardHeader className="p-3 pb-2 border-b border-border">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <LazyIcon name="User" size={20} className="text-primary" />
                         Session
                     </CardTitle>
                     <CardDescription>Loading…</CardDescription>
                 </CardHeader>
-                <CardContent className="p-3 pt-0">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CardContent className="p-3">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
                         <Loading variant="ripple" />
                         Fetching session…
                     </div>
@@ -216,7 +216,7 @@ export default function SessionInfo() {
                             <LazyIcon name="TriangleAlert" size={18} />
                             Could not load session
                         </CardTitle>
-                        <CardDescription className="break-words">
+                        <CardDescription className="wrap-break-word">
                             {String(backendError ?? "Unknown error")}
                         </CardDescription>
                     </CardHeader>
@@ -255,37 +255,38 @@ export default function SessionInfo() {
             : null;
 
     return (
-        <Card className="bg-light/10 border border-light/10">
-            <CardHeader className="p-3 pb-1">
-                <div className="flex items-start justify-between gap-3">
+        <Card className="bg-card border border-border shadow-sm mt-3">
+            <CardHeader className="p-3 pb-2 border-b border-border mb-2">
+                <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            <LazyIcon name="User" size={18} />
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                            <LazyIcon name="User" size={22} className="text-primary" />
                             Session
                         </CardTitle>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={refetchCallback}
                             disabled={isFetching}
                             aria-label="Refresh session"
+                            className="h-8 w-8 p-0"
                         >
                             <LazyIcon
                                 name="RotateCcw"
-                                size={18}
+                                size={16}
                                 className={isFetching ? "animate-spin" : ""}
                             />
                         </Button>
 
-                        <Button variant="outline" size="sm" className="px-2" asChild>
+                        <Button variant="destructive" size="sm" className="h-8 px-3" asChild>
                             <Link
                                 to={`${basePath}logout`}
-                                className="flex items-center"
+                                className="flex items-center gap-2"
                             >
-                                <LazyIcon name="X" size={18} />
+                                <LazyIcon name="LogOut" size={16} />
                                 <span className="hidden sm:inline">Logout</span>
                             </Link>
                         </Button>

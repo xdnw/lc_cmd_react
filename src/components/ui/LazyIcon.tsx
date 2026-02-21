@@ -28,6 +28,7 @@ const IconComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   'x': lazy(() => import('lucide-react/dist/esm/icons/x.js')),
   'gitpullrequest': lazy(() => import('lucide-react/dist/esm/icons/git-pull-request.js')),
   'bookopentext': lazy(() => import('lucide-react/dist/esm/icons/book-open-text.js')),
+  'copy': lazy(() => import('lucide-react/dist/esm/icons/copy.js')),
   'infinity': lazy(() => import('lucide-react/dist/esm/icons/infinity.js')),
   'github': lazy(() => import('lucide-react/dist/esm/icons/github.js')),
   'messagesquaretext': lazy(() => import('lucide-react/dist/esm/icons/message-square-text.js')),
@@ -39,6 +40,11 @@ const IconComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   'eyeoff': lazy(() => import('lucide-react/dist/esm/icons/eye-off.js')),
   'bug': lazy(() => import('lucide-react/dist/esm/icons/bug.js')),
   'rotateccw': lazy(() => import('lucide-react/dist/esm/icons/rotate-ccw.js')),
+  'search': lazy(() => import('lucide-react/dist/esm/icons/search.js')),
+  'logout': lazy(() => import('lucide-react/dist/esm/icons/log-out.js')),
+  'users': lazy(() => import('lucide-react/dist/esm/icons/users.js')),
+  'messagecircle': lazy(() => import('lucide-react/dist/esm/icons/message-circle.js')),
+  'trianglealert': lazy(() => import('lucide-react/dist/esm/icons/triangle-alert.js')),
   'pause': lazy(() => import('lucide-react/dist/esm/icons/pause.js')),
   'play': lazy(() => import('lucide-react/dist/esm/icons/play.js')),
   'user': lazy(() => import('lucide-react/dist/esm/icons/user.js')),
@@ -51,9 +57,19 @@ type LazyIconProps = {
   onClick?: (event: React.MouseEvent<SVGElement>) => void;
 };
 
-export const IconPlaceholder = <svg width={22} height={22} />;
+export const IconPlaceholder = (
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 8v5" />
+    <path d="M12 16h.01" />
+  </svg>
+);
 const IconPlaceholderSized = ({ size = 22, className }: { size?: number; className?: string }) => (
-  <svg width={size} height={size} className={className} />
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 8v5" />
+    <path d="M12 16h.01" />
+  </svg>
 );
 
 const LazyIcon: React.FC<LazyIconProps & React.HTMLAttributes<SVGElement>> = memo(
@@ -70,11 +86,11 @@ const LazyIcon: React.FC<LazyIconProps & React.HTMLAttributes<SVGElement>> = mem
     return (
       <Suspense fallback={fallback}>
         <IconComponent
-            size={size}
-            className={className}
-            onClick={onClick}
-            {...rest} // Forward all remaining props including data attributes
-          />
+          size={size}
+          className={className}
+          onClick={onClick}
+          {...rest} // Forward all remaining props including data attributes
+        />
       </Suspense>
     );
   }

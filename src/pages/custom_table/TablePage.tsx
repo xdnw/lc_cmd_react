@@ -56,7 +56,7 @@ export default function CustomTable() {
     }, [tabsRef, type, selection, columns, sort]);
 
     const table = useMemo(() => {
-        return <div className="bg-light/10 border border-light/10 p-2 rounded mt-2">
+        return <div className="themeDiv p-2 mt-2">
             <AbstractTableWithButtons
                 getTableProps={getTableProps}
                 load={false}

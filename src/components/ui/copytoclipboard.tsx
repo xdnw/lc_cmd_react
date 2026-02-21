@@ -19,7 +19,7 @@ export default function CopyToClipboard({ text, copy, className }: { text: strin
         <>
             <Button
                 size="sm"
-                className={`font-mono bg-background rounded px-0.5 ${className} underline text-primary`}
+                className={`font-mono bg-background rounded px-2 ${className} underline text-primary`}
                 style={{ cursor: 'pointer' }}
                 aria-label={`Copy ${text} to clipboard`}
                 onClick={handleCopy}>
@@ -37,7 +37,7 @@ export function CopyToClipboardTextArea({ text, className }: { text: ReactNode, 
     return (
         <>
             <div className="relative font-mono">
-                <code ref={textareaRef} className={`text-sm bg-background p-1 ${className} rounded text-primary break-words max-w-full`}>
+                <code ref={textareaRef} className={`text-sm bg-background p-1 ${className} rounded text-primary wrap-break-word max-w-full`}>
                     {text}
                 </code>
                 <TooltipProvider>

@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TableVirtuoso, type TableComponents } from "react-virtuoso";
 import { useDebounce } from "use-debounce";
-import { ChevronDown, ChevronUp, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import ListComponent from "@/components/cmd/ListComponent";
 import TriStateInput from "@/components/cmd/TriStateInput";
 import MarkupRenderer from "@/components/ui/MarkupRenderer";
@@ -65,15 +64,10 @@ const VirtuosoTableComponents: TableComponents<BaseCommand> = {
             {...(props as React.TableHTMLAttributes<HTMLTableElement>)}
             style={style}
             className={[
-                "w-full table-fixed border-separate border-spacing-0 text-sm",
+                "w-full table-auto border-separate border-spacing-0 text-sm",
                 className ?? "",
             ].join(" ")}
         >
-            {/* Stable column sizing to prevent jitter while virtualized rows mount/unmount */}
-            <colgroup>
-                <col style={{ width: "clamp(14rem, 32%, 22rem)" }} />
-                <col />
-            </colgroup>
             {children}
         </table>
     ),
@@ -87,7 +81,7 @@ const VirtuosoTableComponents: TableComponents<BaseCommand> = {
             ref={ref}
             className={[
                 "sticky top-0 z-10",
-                "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+                "bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60",
                 className ?? "",
             ].join(" ")}
         />
@@ -416,17 +410,17 @@ export default function CmdList({
 
             return (
                 <>
-                    <td className="px-3 py-2 align-top">
+                    <td className="px-3 py-2 align-top w-[24rem] max-w-lg">
                         <a
                             href={`#command/${path}`}
-                            className="block break-words font-mono text-sm font-semibold text-primary no-underline hover:underline"
+                            className="block break-all font-mono text-sm font-semibold text-primary no-underline hover:underline"
                         >
                             <span className="text-muted-foreground">{prefix}</span>
                             {path}
                         </a>
                     </td>
                     <td className="px-3 py-2 align-top">
-                        <div className="min-w-0 break-words text-sm text-foreground">
+                        <div className="min-w-0 wrap-break-word whitespace-normal text-sm text-foreground">
                             <MarkupRenderer content={desc} />
                         </div>
                     </td>
@@ -484,7 +478,7 @@ export default function CmdList({
                         </Button>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
                         <div>
                             Showing <span className="font-medium text-foreground">{filteredCommands.length.toLocaleString()}</span> of <span className="font-medium text-foreground">{commands.length.toLocaleString()}</span> commands{isDebouncing ? " (typing…)" : ""}
                         </div>

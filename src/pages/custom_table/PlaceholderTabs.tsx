@@ -106,16 +106,16 @@ export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
 
     const createTabsTrigger = useCallback((index: number) => {
         return <TabsTrigger key={phTypes[index]} value={phTypes[index]} className='w-auto px-3'>
-        {toPlaceholderName(phTypes[index])}
-    </TabsTrigger>
+            {toPlaceholderName(phTypes[index])}
+        </TabsTrigger>
     }, [phTypes]);
 
     const tabList = useMemo(() => {
         return (
-            <TabsList className="min-w-full" style={{ overflow: 'hidden' }}>
+            <TabsList className="min-w-full rounded-lg border border-border bg-card" style={{ overflow: 'hidden' }}>
                 <Virtuoso
                     totalCount={phTypes.length}
-                    style={{ height: '40px', width: '100%' }}
+                    style={{ height: '36px', width: '100%' }}
                     horizontalDirection
                     itemContent={createTabsTrigger}
                 />
@@ -380,7 +380,7 @@ export function ColumnsSection({
 
     // Handle column sorting
     const handleColumnSort = useCallback((index: number, shiftKey: boolean) => {
-        let newSort : OrderIdx | OrderIdx[] | undefined = undefined;
+        let newSort: OrderIdx | OrderIdx[] | undefined = undefined;
         if (Array.isArray(sort)) {
             const sortIndex = sort.findIndex(sortItem => sortItem.idx === index);
             if (sortIndex !== -1) {
@@ -442,16 +442,16 @@ export function ColumnsSection({
     }, [selectColumnTemplate]);
 
     return (
-        <div className="bg-light/10 border border-light/10 rounded mt-2">
+        <div className="themeDiv mt-2 overflow-hidden">
             <Button
                 variant="ghost"
                 size="md"
-                className="text-2xl w-full border-b border-secondary px-2 bg-primary/10 rounded-t justify-start"
+                className="h-9 text-sm font-semibold w-full border-b border-border px-2 bg-muted/40 rounded-none justify-start"
                 onClick={toggleColumns}
             >
                 Columns {collapseColumns ? <LazyIcon name="ChevronDown" /> : <LazyIcon name="ChevronUp" />}
             </Button>
-            <div className={`transition-all duration-200 ease-in-out ${collapseColumns ? 'max-h-0 opacity-0 overflow-hidden' : 'p-2 opacity-100'}`}>
+            <div className={`transition-all duration-200 ease-in-out ${collapseColumns ? 'max-h-0 opacity-0 overflow-hidden' : 'p-2 opacity-100 space-y-2'}`}>
                 <h2 className="text-lg mb-1">Templates</h2>
                 {colTemplates.map((column) => (
                     <Button
@@ -554,7 +554,7 @@ function ColumnList({
                 right click and type/backspace to edit alias | clipboard button to copy
             </span><br />
 
-            <div className="inline-flex flex-wrap">
+            <div className="inline-flex flex-wrap items-center gap-1">
                 {Array.from(columns).map((colInfo, index) => (
                     <span key={`spw-${index}`} className="inline-flex items-center bg-background rounded me-1 mb-1">
                         <LazyIcon name="ChevronLeft"
@@ -849,10 +849,10 @@ function SimpleColumnOptions({
                 {chunk.map((option, i) => {
                     const isHidden = columns.has("{" + option[0] + "}");
                     if (isHidden) return null;
-    
+
                     // Create a key for this option
                     const optionKey = `${index}-${i}`;
-                    
+
                     return (
                         <OptionButton
                             key={optionKey}
@@ -867,21 +867,21 @@ function SimpleColumnOptions({
     }, [chunkedOptions, columns, handleAddSimpleColumn]);
 
     return (
-        <div className="bg-secondary rounded">
+        <div className="mt-2 rounded-md border border-border bg-card/60">
             <Button
                 variant="ghost"
                 size="sm"
-                className="text-lg w-full border-b border-secondary px-2 bg-primary/10 rounded justify-start"
+                className="h-8 text-sm font-semibold w-full border-b border-border px-2 bg-muted/40 rounded-none justify-start"
                 onClick={toggleCollapse}
             >
                 Add Simple {collapseColOptions ? <LazyIcon name="ChevronDown" /> : <LazyIcon name="ChevronUp" />}
             </Button>
 
-            <div className={`transition-all duration-200 ease-in-out ${collapseColOptions ? 'max-h-0 opacity-0 overflow-hidden' : 'px-2 pt-2 opacity-100'}`}>
-                <input
+            <div className={`transition-all duration-200 ease-in-out ${collapseColOptions ? 'max-h-0 opacity-0 overflow-hidden' : 'p-2 opacity-100'}`}>
+                <Input
                     ref={filterRef}
                     type="text"
-                    className="relative px-1 w-full mb-2 bg-gray-200 dark:bg-gray-600"
+                    className="w-full mb-2"
                     placeholder="Filter options"
                     value={filter}
                     onChange={updateFilter}
@@ -958,7 +958,7 @@ export function SelectionSection({
         <Button
             variant="ghost"
             size="md"
-            className="text-2xl w-full border-b border-secondary px-2 bg-primary/10 rounded-t justify-start"
+            className="h-9 text-sm font-semibold w-full border-b border-border px-2 bg-muted/40 rounded-none justify-start"
             onClick={toggleCollapse}
         >
             Selection {collapsed ? <LazyIcon name="ChevronDown" /> : <LazyIcon name="ChevronUp" />}
@@ -1006,7 +1006,7 @@ export function SelectionSection({
                 <TooltipProvider>
                     <BlockCopyButton
                         getText={getSelectionText}
-                        className="rounded-[6px] [&_svg]:size-3.5 ml-2"
+                        className="rounded-[6px] [&_svg]:size-3.5 ml-1"
                         size="sm"
                     />
                 </TooltipProvider>
@@ -1037,11 +1037,11 @@ export function SelectionSection({
 
     // Main container - only re-renders when collapsed state changes
     const contentContainerClass = useMemo(() =>
-        `transition-all duration-200 ease-in-out ${collapsed ? 'max-h-0 opacity-0 overflow-hidden' : 'p-2 opacity-100'}`,
+        `transition-all duration-200 ease-in-out ${collapsed ? 'max-h-0 opacity-0 overflow-hidden' : 'p-2 opacity-100 space-y-2'}`,
         [collapsed]);
 
     return (
-        <div className="bg-light/10 border border-light/10 rounded mt-2">
+        <div className="themeDiv mt-2 overflow-hidden">
             {headerButton}
             <div className={contentContainerClass}>
                 {templatesSection}

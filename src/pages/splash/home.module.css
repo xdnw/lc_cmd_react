@@ -54,16 +54,16 @@
   /* Gives that scrolling effect as the typing happens */
   letter-spacing: .15em;
   /* Adjust as needed */
+  width: 0ch;
   animation:
-    typing 7s steps(7, end),
-    dummy 0.01s forwards,
-    blink-caret 1s step-end infinite;
+    typing 2.8s steps(7, end) forwards,
+    blink-caret 0.9s step-end infinite;
   font-weight: 900;
   -webkit-font-smoothing: none;
   font-family: 'Chakra Petch', system-ui;
   font-size: 10vw;
-  display: flex;
-  opacity: 0.3;
+  display: inline-block;
+  opacity: 0.35;
   text-transform: uppercase;
   line-height: 1;
   /* Adjust line height to reduce gap */
@@ -71,6 +71,7 @@
 
 .typedContainer {
   display: flex;
+  justify-content: center;
   overflow: hidden;
   top: 20%;
   width: 100%;
@@ -90,11 +91,11 @@
 /* The typing effect */
 @keyframes typing {
   from {
-    width: 0
+    width: 0ch
   }
 
   to {
-    width: 100%
+    width: 7ch
   }
 }
 

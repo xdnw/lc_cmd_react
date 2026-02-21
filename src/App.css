@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&display=swap');
 
 pre,
 code {
@@ -44,59 +44,37 @@ html {
 
 /* App background (default = light). Keep `.light` selectors for backwards compatibility. */
 .themeBody {
-    background-image: linear-gradient(135deg, #ecf7ff 0%, #c6e6ff 25%, #e5f1ff 100%);
-    background-size: 100% 100vh;
-    background-attachment: fixed;
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(circle at top left, hsl(var(--primary) / 0.08), transparent 35%);
+    color: hsl(var(--foreground));
 }
 
 .dark .themeBody {
-    background-image: linear-gradient(135deg, #111 0%, #09203f 25%, #111 100%);
-    background-size: 100% 100vh;
-    background-attachment: fixed;
-}
-
-.themeBody::before {
-    position: fixed;
-    content: "";
-    background-image: url("assets/stripe.svg");
-    inset-inline-start: 0;
-    inset-inline-end: 0;
-    top: 0;
-    bottom: 0;
-    background-repeat: repeat;
-    pointer-events: none;
-}
-
-.dark .themeBody::before {
-    opacity: 0.2;
-}
-
-.light .themeBody::before {
-    filter: invert(1) opacity(0.1);
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(circle at top left, hsl(var(--primary) / 0.14), transparent 40%);
+    color: hsl(var(--foreground));
 }
 
 /* Legacy compatibility: pages that still add `.light` explicitly */
 .light .themeBody {
-    background-image: linear-gradient(135deg, #ecf7ff 0%, #c6e6ff 25%, #e5f1ff 100%);
-    background-size: 100% 100vh;
-    background-attachment: fixed;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
 }
 
 /* Surface container (themeDiv) */
 .themeDiv {
     border-radius: var(--radius-md, 4px);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 6px 18px -14px rgb(0 0 0 / 0.45), 0 1px 1px 0 rgb(0 0 0 / 0.07);
 }
 
 .dark .themeDiv {
-    background-color: hsl(var(--foreground) / 0.08);
-    border: 1px solid hsl(var(--foreground) / 0.12);
-}
-
-.light .themeDiv {
-    background-color: hsl(var(--background) / 0.55);
-    border: 1px solid hsl(var(--foreground) / 0.12);
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 14px 34px -24px rgb(0 0 0 / 0.9), 0 1px 1px 0 rgb(0 0 0 / 0.55);
 }
 
 .clusterize-scroll {

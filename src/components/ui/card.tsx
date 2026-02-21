@@ -19,7 +19,7 @@ const CardHeaderComponent = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
   const classes = React.useMemo(
-    () => cn("flex flex-col p-1", className),
+    () => cn("flex flex-col space-y-1 p-2", className),
     [className]
   )
   return <div ref={ref} className={classes} {...props} />

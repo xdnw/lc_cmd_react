@@ -13,13 +13,11 @@ export default function PageView({ children }: { children: ReactNode }): ReactEl
         <DialogProvider>
             <SessionProvider>
                 <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-                    <div className="min-h-screen themeBody">
+                    <div className="min-h-screen bg-background text-foreground flex flex-col">
                         {navBar}
-                        <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 245.5px)' }}>
-                            <div className="mt-1 p-1 grow">
-                                {children}
-                            </div>
-                        </div>
+                        <main className="grow w-full px-2 py-2 md:px-4 md:py-3 space-y-2">
+                            {children}
+                        </main>
                         <Footer />
                     </div>
                 </ThemeProvider>

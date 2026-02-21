@@ -159,7 +159,7 @@ export function DataTable({
     gridCols.push({
       key: "index", name: "#", width: columnsInfo.length === 0 ? undefined : (indexColumnWidth ?? 50), sortable: false,
       cellClass: cn("ps-1", columnsInfo.length === 0 ? "w-full" : undefined),
-      headerCellClass: "ps-1 text-gray-900 dark:text-gray-200 bg-gray-100 dark:bg-gray-600",
+      headerCellClass: "ps-1 text-foreground bg-muted",
       renderCell:
         (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
           const rowIndex = props.rowIdx + 1;
@@ -183,9 +183,11 @@ export function DataTable({
         sortable: colInfo.sortable ?? true,
         resizable: true,
         draggable: colInfo.draggable ?? true,
-        width: colInfo.width,
-        cellClass: cn("px-1", colInfo.cellClassName),
-        headerCellClass: cn("px-1 text-gray-900 dark:text-gray-200 bg-gray-100 dark:bg-gray-600 text-xs", colInfo.headerCellClassName),
+        width: colInfo.width ?? 170,
+        minWidth: 110,
+        maxWidth: 420,
+        cellClass: cn("px-1 whitespace-normal break-words overflow-hidden", colInfo.cellClassName),
+        headerCellClass: cn("px-1 text-foreground bg-muted text-xs", colInfo.headerCellClassName),
         renderCell: renderer ? (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
           const value = props.row[dataIndex];
           return renderTableCellValue(value, {
@@ -211,12 +213,12 @@ export function DataTable({
         draggable: false,
         width: 84,
         cellClass: "px-1",
-        headerCellClass: "px-1 text-gray-900 dark:text-gray-200 bg-gray-100 dark:bg-gray-600 text-xs",
+        headerCellClass: "px-1 text-foreground bg-muted text-xs",
         renderCell: (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
           return (
             <details className="text-[10px]">
               <summary className="cursor-pointer select-none">More</summary>
-              <div className="mt-1 max-h-36 overflow-auto rounded border border-slate-600/40 bg-background p-1">
+              <div className="mt-1 max-h-36 overflow-auto rounded border border-border bg-background p-1">
                 {hiddenColumnsInfo.map((hiddenCol) => {
                   const rawValue = props.row[hiddenCol.index];
                   return (
@@ -237,7 +239,7 @@ export function DataTable({
   }, [visibleColumnsInfo, isMobile, hiddenColumnsInfo, columnsInfo.length, indexCellRenderer, indexColumnWidth]);
 
   const noRowsFallback = useMemo(() => {
-    return <div className="flex items-center justify-center h-full text-xl text-center bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 w-full hover:bg-gray-100 dark:hover:bg-gray-700 cursor-default">No data to display</div>;
+    return <div className="flex items-center justify-center h-full text-xl text-center bg-background text-foreground w-full cursor-default">No data to display</div>;
   }, []);
 
 
@@ -302,14 +304,14 @@ export function DataTable({
 
   const evenClass = useMemo(() => {
     return cn(
-      "text-gray-900 dark:text-gray-200 w-full hover:bg-black/20 dark:hover:bg-white/20",
-      "bg-black/5 dark:bg-white/5"
+      "text-foreground w-full hover:bg-muted/60",
+      "bg-muted/30"
     );
   }, []);
 
   const oddClass = useMemo(() => {
     return cn(
-      "text-gray-900 dark:text-gray-200 w-full hover:bg-black/20 dark:hover:bg-white/20",
+      "text-foreground w-full hover:bg-muted/60",
       "bg-transparent"
     );
   }, []);
@@ -326,10 +328,10 @@ export function DataTable({
   }, [searchSet, evenClass, oddClass, rowClassName]);
 
   const dataGrid = useMemo(() => {
-    return <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden text-xs">
+    return <div className="border border-border rounded-md overflow-x-auto overflow-y-hidden text-xs bg-background">
       <DataGrid
         key={columnsInfo.length}
-        className={`bg-transparent text-xs`}
+        className={`bg-transparent text-xs min-w-[800px]`}
         style={{ height: '70vh', maxHeight: '70vh', flex: '1 1 auto' }}
         ref={table}
         columns={gridColumns}

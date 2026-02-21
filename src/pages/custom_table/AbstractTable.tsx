@@ -174,6 +174,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
             <Button
                 variant="outline"
                 size="sm"
+                className="me-1"
                 onClick={copy}>
                 Share
             </Button>
@@ -354,7 +355,7 @@ ${process.env.BASE_PATH}custom_table?${getQueryString({
             <Button
                 variant="outline"
                 size="sm"
-                className={`ms-1 bg-destructive ${errors.length == 0 ? "hidden" : ""}`}
+                className={`me-1 ${errors.length == 0 ? "hidden" : ""}`}
                 onClick={showErrors}>
                 View {errors.length} Errors
             </Button>
@@ -438,7 +439,7 @@ function DeferTable(
             <Button
                 variant="outline"
                 size="sm"
-                className={`ms-1 bg-destructive ${errors.length == 0 ? "hidden" : ""}`}
+                className={`me-1 ${errors.length == 0 ? "hidden" : ""}`}
                 onClick={showErrors}>
                 View {errors.length} Errors
             </Button>

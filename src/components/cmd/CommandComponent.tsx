@@ -103,13 +103,13 @@ export default function CommandComponent({ command, overrideName, filterArgument
             const target = event.target as HTMLElement;
             if (target.tagName === 'TEXTAREA') return;
             if (target.tagName === 'BUTTON') return;
-            
+
             // Find all focusable inputs within this CommandComponent
             const container = event.currentTarget;
             const focusableElements = Array.from(
                 container.querySelectorAll('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')
             ) as HTMLElement[];
-            
+
             const currentIndex = focusableElements.indexOf(target);
             if (currentIndex > -1 && currentIndex < focusableElements.length - 1) {
                 event.preventDefault();
@@ -204,8 +204,8 @@ export function ArgDescComponent(
 
     const optionalBadge = useMemo(() => {
         return arg.arg.optional
-            ? <div className="inline-block bg-blue-400 text-blue-800 me-0.5 px-0.5">Optional</div>
-            : <div className="inline-block bg-red-400 text-red-800 me-0.5 px-0.5">Required</div>;
+            ? <div className="inline-block bg-blue-500/20 text-blue-600 dark:text-blue-400 me-1 px-1 rounded-sm font-medium">Optional</div>
+            : <div className="inline-block bg-red-500/20 text-red-600 dark:text-red-400 me-1 px-1 rounded-sm font-medium">Required</div>;
     }, [arg.arg.optional]);
 
     const toggleIcon = useMemo(() => {

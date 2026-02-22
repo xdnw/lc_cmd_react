@@ -1,0 +1,1 @@
+import{c as e}from"./createLucideIcon-BbdX0qUR.js";import"./index-Ci-lVsFi.js";const t=[["rect",{x:"14",y:"3",width:"5",height:"18",rx:"1",key:"kaeet6"}],["rect",{x:"5",y:"3",width:"5",height:"18",rx:"1",key:"1wsw3u"}]],r=e("pause",t);export{t as __iconNode,r as default};

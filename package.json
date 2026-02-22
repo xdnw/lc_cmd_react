@@ -11,8 +11,6 @@
     "dev": "vite --mode dev",
     "dev-compiler": "cross-env REACT_COMPILER=true vite --mode dev",
     "dev-test": "vite --mode dev-test",
-    "list-commands": "node ./scripts/list-commands.cjs",
-    "command-args": "node ./scripts/command-args.cjs",
     "build": "vite build --mode main",
     "build-test": "vite build --mode test",
     "build-dev-compile": "cross-env REACT_COMPILER=true vite build --mode dev",
@@ -22,7 +20,12 @@
     "preview": "vite preview --port 5173",
     "preview-dev-compile": "npm run build-dev-compile && vite preview --port 5173",
     "fix-imports": "cross-env FIX_IMPORTS=true eslint --fix \"src/**/*.{ts,tsx}\"",
-    "verify-emoji": "node scripts/verify-emoji.cjs"
+    "verify-emoji": "node scripts/verify-emoji.cjs",
+    "list-commands": "node ./scripts/list-commands.cjs",
+    "command-args": "node ./scripts/command-args.cjs",
+    "list-placeholders": "node ./scripts/list-placeholders.cjs",
+    "placeholder-args": "node ./scripts/placeholder-args.cjs",
+    "list-placeholder-types": "node ./scripts/list-placeholder-types.cjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.6",

@@ -19,12 +19,12 @@ import { Virtuoso } from 'react-virtuoso';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { COMMANDS } from "../../lib/commands";
-import { Command, CM, toPlaceholderName, AnyCommandPath, BaseCommand } from "../../utils/Command";
+import { Command, CM, toPlaceholderName, AnyCommandPath, BaseCommand, getTypeBreakdown } from "../../utils/Command";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { BlockCopyButton } from "../../components/ui/block-copy-button";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { useDialog } from "../../components/layout/DialogContext";
-import { DEFAULT_TABS } from "../../lib/layouts";
+import { DEFAULT_TABS, getLayoutColumnConfig, LayoutConfigSchema, resolveLayoutColumnTemplate } from "../../lib/layouts";
 import CommandComponent from "../../components/cmd/CommandComponent";
 import { Input } from "@/components/ui/input";
 import { getColOptions, getQueryString } from "./table_util";
@@ -32,6 +32,7 @@ import { useDeepState } from "@/utils/StateUtil";
 import LazyIcon from '@/components/ui/LazyIcon';
 import { OrderIdx } from './DataTable';
 import { deepEqual } from '@/lib/utils';
+import ArgInput from '@/components/cmd/ArgInput';
 
 export interface PlaceholderTabsHandle {
     getType: () => keyof typeof COMMANDS.placeholders;
@@ -46,7 +47,7 @@ export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
     defColumns: Map<string, string | null>,
     defSort: OrderIdx | OrderIdx[] | undefined,
 }>(function PlaceholderTabs({ defType, defSelection, defColumns, defSort }, ref) {
-    const { showDialog } = useDialog();
+    const { showDialog, hideDialog } = useDialog();
     const [type, setType] = useDeepState(defType);
     const [selection, setSelection] = useDeepState(defSelection);
     const [columns, setColumns] = useState(defColumns);
@@ -150,8 +151,9 @@ export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
             sort={sort}
             setSort={setSort}
             showDialog={showDialog}
+            hideDialog={hideDialog}
         />;
-    }, [type, columns, setColumns, sort, setSort, showDialog]);
+    }, [type, columns, setColumns, sort, setSort, showDialog, hideDialog]);
 
     return (
         <>
@@ -168,14 +170,16 @@ export function ColumnsSection({
     setColumns,
     sort,
     setSort,
-    showDialog
+    showDialog,
+    hideDialog,
 }: {
     type: keyof typeof COMMANDS.placeholders,
     columns: Map<string, string | null>,
     setColumns: (columns: Map<string, string | null>) => void,
     sort: OrderIdx | OrderIdx[] | undefined,
     setSort: (sort: OrderIdx | OrderIdx[] | undefined) => void,
-    showDialog: (title: string, message: string) => void,
+    showDialog: (title: string, message: React.ReactNode) => void,
+    hideDialog: () => void,
 }) {
     const [collapseColumns, setCollapseColumns] = useState(false);
 
@@ -334,8 +338,12 @@ export function ColumnsSection({
     }, [columns, showDialog, setColumns]);
 
     // Handle template selection
-    const selectColumnTemplate = useCallback((templateName: string) => {
-        const colInfo = DEFAULT_TABS[type]?.columns[templateName];
+    const applyColumnTemplate = useCallback((templateName: string, values?: Record<string, string>) => {
+        const colInfo = resolveLayoutColumnTemplate(type, templateName, values) ?? DEFAULT_TABS[type]?.columns[templateName];
+        if (!colInfo) {
+            showDialog("Template not found", `Could not find column template "${templateName}" for ${type}.`);
+            return;
+        }
         const newColumns = new Map((colInfo?.value || ["{id}"]).map(col => {
             if (Array.isArray(col)) {
                 return [col[0], col[1]];
@@ -347,7 +355,35 @@ export function ColumnsSection({
 
         setColumns(newColumns);
         setSort(newSort);
-    }, [type, setColumns, setSort]);
+    }, [type, setColumns, setSort, showDialog]);
+
+    const applyConfiguredColumnTemplate = useCallback((templateName: string, values: Record<string, string>) => {
+        try {
+            applyColumnTemplate(templateName, values);
+            hideDialog();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            showDialog("Layout configuration error", message);
+        }
+    }, [applyColumnTemplate, hideDialog, showDialog]);
+
+    const selectColumnTemplate = useCallback((templateName: string) => {
+        const config = getLayoutColumnConfig(type, templateName);
+        if (!config) {
+            applyColumnTemplate(templateName);
+            return;
+        }
+
+        showDialog(
+            `Configure ${templateName}`,
+            <LayoutConfigDialogContent
+                templateName={templateName}
+                config={config}
+                onCancel={hideDialog}
+                onApplyTemplate={applyConfiguredColumnTemplate}
+            />
+        );
+    }, [type, applyColumnTemplate, showDialog, hideDialog, applyConfiguredColumnTemplate]);
 
     // Handle column removal
     const removeColumn = useCallback((colInfo: [string, string | null], index: number) => {
@@ -1085,5 +1121,81 @@ export function ModifierComponent({
             initialValues={selection}
             setOutput={setOuput}
         />
+    );
+}
+
+function LayoutConfigDialogContent({
+    templateName,
+    config,
+    onApplyTemplate,
+    onCancel,
+}: {
+    templateName: string;
+    config: LayoutConfigSchema;
+    onApplyTemplate: (templateName: string, values: Record<string, string>) => void;
+    onCancel: () => void;
+}) {
+    const initialValues = useMemo(
+        () => Object.fromEntries(Object.entries(config.variables).map(([key, value]) => [key, value.defaultValue])),
+        [config.variables]
+    );
+    const [values, setValues] = useState<Record<string, string>>(initialValues);
+
+    const breakdownByVariable = useMemo(
+        () => Object.fromEntries(
+            Object.entries(config.variableInputs).map(([key, input]) => [key, getTypeBreakdown(CM, input.argType)])
+        ),
+        [config.variableInputs]
+    );
+
+    useEffect(() => {
+        setValues(initialValues);
+    }, [initialValues]);
+
+    const setOutputValue = useCallback((key: string, value: string) => {
+        setValues((prev) => ({
+            ...prev,
+            [key]: value,
+        }));
+    }, []);
+
+    const apply = useCallback(() => {
+        onApplyTemplate(templateName, values);
+    }, [onApplyTemplate, templateName, values]);
+
+    return (
+        <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+                Configure arguments for <span className="font-semibold">{templateName}</span>.
+            </p>
+            <div className="space-y-2 max-h-[50vh] overflow-auto pr-1">
+                {Object.entries(config.variables).map(([variable, variableDef]) => {
+                    const input = config.variableInputs[variable];
+                    const breakdown = breakdownByVariable[variable];
+                    return (
+                        <div key={variable} className="rounded border border-border p-2 space-y-1">
+                            <div className="text-xs font-semibold">{variableDef.label ?? variable}</div>
+                            <div className="text-xs text-muted-foreground">
+                                {variableDef.desc ?? input?.desc ?? input?.argType}
+                            </div>
+                            {breakdown && (
+                                <ArgInput
+                                    argName={variable}
+                                    breakdown={breakdown}
+                                    min={input?.min}
+                                    max={input?.max}
+                                    initialValue={values[variable] ?? variableDef.defaultValue}
+                                    setOutputValue={setOutputValue}
+                                />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+                <Button size="sm" onClick={apply}>Apply</Button>
+            </div>
+        </div>
     );
 }

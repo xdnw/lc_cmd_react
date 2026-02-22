@@ -12,52 +12,87 @@ function formatDatetimeLocal(date: Date): string {
         pad(date.getMinutes());
 }
 
-function parseValue(value: string) {
-    if (!value) return value;
+function normalizeTimeValue(value: string, nowMs: number = Date.now()): { displayValue: string; outputValue: string } {
+    const raw = (value ?? "").trim();
+    if (!raw) {
+        return { displayValue: "", outputValue: "" };
+    }
 
-    if (value.startsWith("timestamp:")) {
-        const timestamp = parseInt(value.split(":")[1]);
+    const toResultFromDate = (date: Date) => {
+        const timestamp = date.getTime();
+        if (!Number.isFinite(timestamp)) {
+            return { displayValue: "", outputValue: "" };
+        }
+        return {
+            displayValue: formatDatetimeLocal(date),
+            outputValue: `timestamp:${Math.floor(timestamp)}`,
+        };
+    };
+
+    // Supports timediff values like "30d", "12h", "90m", "2w", "1y".
+    const timediffMatch = raw.match(/^(-?\d+)([smhdwy])$/i);
+    if (timediffMatch) {
+        const amount = Number(timediffMatch[1]);
+        const unit = timediffMatch[2].toLowerCase();
+        if (Number.isFinite(amount)) {
+            const minute = 60 * 1000;
+            const hour = 60 * minute;
+            const day = 24 * hour;
+            const multiplier = unit === "s" ? 1000
+                : unit === "m" ? minute
+                    : unit === "h" ? hour
+                        : unit === "d" ? day
+                            : unit === "w" ? 7 * day
+                                : 365 * day;
+            return toResultFromDate(new Date(nowMs - amount * multiplier));
+        }
+    }
+
+    if (raw.startsWith("timestamp:")) {
+        const timestamp = parseInt(raw.split(":")[1], 10);
         if (!Number.isNaN(timestamp)) {
-            const date = new Date(timestamp);
-            return formatDatetimeLocal(date);
+            return toResultFromDate(new Date(timestamp));
         }
-        return "";
+        return { displayValue: "", outputValue: "" };
     }
 
-    if (/^\d+$/.test(value)) {
-        const timestamp = Number(value);
+    if (/^\d+$/.test(raw)) {
+        const timestamp = Number(raw);
         if (Number.isFinite(timestamp)) {
-            return formatDatetimeLocal(new Date(timestamp));
+            return toResultFromDate(new Date(timestamp));
         }
     }
 
-    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(value)) {
-        return value.replace(" ", "T");
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(raw)) {
+        return normalizeTimeValue(raw.replace(" ", "T"), nowMs);
     }
 
-    return value;
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) {
+        return toResultFromDate(new Date(raw));
+    }
+
+    return { displayValue: "", outputValue: "" };
 }
 
 export default function TimeInput({
-                                      argName,
-                                      initialValue,
-                                      setOutputValue,
-                                      compact,
-                                  }: {
+    argName,
+    initialValue,
+    setOutputValue,
+    compact,
+}: {
     argName: string,
     initialValue: string,
     compact?: boolean,
     setOutputValue: (name: string, value: string) => void
 }) {
-    const [value, setValue] = useSyncedState(parseValue(initialValue) || '');
+    const [value, setValue] = useSyncedState(normalizeTimeValue(initialValue).displayValue);
+
     const onChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const localDateTimeString = e.target.value;
-                   // The new Date() parses the string as local time.
-                   const date = new Date(localDateTimeString);
-                   setValue(localDateTimeString);
-                   // date.getTime() yields the UTC timestamp as intended.
-                   setOutputValue(argName, "timestamp:" + Math.floor(date.getTime()));
+        setValue(localDateTimeString);
+        setOutputValue(argName, normalizeTimeValue(localDateTimeString).outputValue);
     }, [argName, setOutputValue, setValue]);
+
     return (
         <Input
             type="datetime-local"

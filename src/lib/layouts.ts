@@ -5,11 +5,318 @@ import { OrderIdx } from "@/pages/custom_table/DataTable";
 interface Columns {
     value: (string | [string, string])[],
     sort: OrderIdx | OrderIdx[],
+    config?: LayoutConfigSchema,
 }
 
 interface TabDefault {
     selections: { [key: string]: string },
     columns: { [key: string]: Columns },
+}
+
+type PlaceholderTypeName = keyof typeof COMMANDS.placeholders;
+
+type PlaceholderCommandName<T extends PlaceholderTypeName> = Extract<keyof typeof COMMANDS.placeholders[T]["commands"], string>;
+
+type PlaceholderCommandArgs<
+    T extends PlaceholderTypeName,
+    C extends PlaceholderCommandName<T>
+> = typeof COMMANDS.placeholders[T]["commands"][C] extends { arguments: infer A }
+    ? { [K in keyof A]?: string }
+    : never;
+
+export type LayoutVarRef<V extends string = string> = {
+    kind: "layout-var";
+    name: V;
+};
+
+export function layoutVar<V extends string>(name: V): LayoutVarRef<V> {
+    return { kind: "layout-var", name };
+}
+
+function isLayoutVarRef(value: string | LayoutVarRef): value is LayoutVarRef {
+    return typeof value === "object" && value != null && value.kind === "layout-var";
+}
+
+export interface LayoutVariableDefinition {
+    defaultValue: string;
+    label?: string;
+    desc?: string;
+}
+
+export interface LayoutVariableInputSchema {
+    argType: string;
+    min?: number;
+    max?: number;
+    desc?: string;
+    choices?: string[];
+}
+
+export interface LayoutConfigSchema {
+    variables: Record<string, LayoutVariableDefinition>;
+    variableInputs: Record<string, LayoutVariableInputSchema>;
+}
+
+type LayoutArgValue = string | LayoutVarRef;
+
+type PlaceholderCommandArgsWithVars<
+    T extends PlaceholderTypeName,
+    C extends PlaceholderCommandName<T>,
+    V extends string
+> = PlaceholderCommandArgs<T, C> extends never
+    ? never
+    : {
+        [K in keyof PlaceholderCommandArgs<T, C>]?: string | LayoutVarRef<V>;
+    };
+
+type ConfigurableColumnCommandSpec<T extends PlaceholderTypeName> = {
+    kind: "command";
+    cmd: PlaceholderCommandName<T>;
+    args?: Record<string, LayoutArgValue>;
+    alias?: string;
+};
+
+type ConfigurableColumnRawSpec<V extends string> = {
+    kind: "raw";
+    placeholder: string | ((resolvedVars: Record<V, string>) => string);
+    alias?: string;
+};
+
+type ConfigurableColumnSpec<T extends PlaceholderTypeName, V extends string> = {
+    variables: Record<V, LayoutVariableDefinition>;
+    entries: Array<ConfigurableColumnCommandSpec<T> | ConfigurableColumnRawSpec<V>>;
+    sort: OrderIdx | OrderIdx[];
+    shorten?: boolean;
+};
+
+export class LayoutColumnTemplateBuilder<T extends PlaceholderTypeName, V extends string> {
+    private readonly entries: Array<ConfigurableColumnCommandSpec<T> | ConfigurableColumnRawSpec<V>> = [];
+
+    add<C extends PlaceholderCommandName<T>>(
+        command: {
+            cmd: C;
+            args?: PlaceholderCommandArgsWithVars<T, C, V>;
+            alias?: string;
+        }
+    ): this {
+        this.entries.push({
+            kind: "command",
+            cmd: command.cmd,
+            args: command.args as Record<string, LayoutArgValue> | undefined,
+            alias: command.alias,
+        });
+        return this;
+    }
+
+    addRaw(placeholder: string | ((resolvedVars: Record<V, string>) => string), alias?: string): this {
+        this.entries.push({
+            kind: "raw",
+            placeholder,
+            alias,
+        });
+        return this;
+    }
+
+    getEntries(): Array<ConfigurableColumnCommandSpec<T> | ConfigurableColumnRawSpec<V>> {
+        return [...this.entries];
+    }
+}
+
+export function defineConfigurableColumns<
+    T extends PlaceholderTypeName,
+    V extends string
+>(
+    type: T,
+    templateName: string,
+    spec: {
+        variables: Record<V, LayoutVariableDefinition>;
+        sort: OrderIdx | OrderIdx[];
+        shorten?: boolean;
+    },
+    configure: (builder: LayoutColumnTemplateBuilder<T, V>) => LayoutColumnTemplateBuilder<T, V>
+): Columns {
+    const builder = new LayoutColumnTemplateBuilder<T, V>();
+    const finalBuilder = configure(builder);
+    return createConfigurableColumns(type, templateName, {
+        variables: spec.variables,
+        entries: finalBuilder.getEntries(),
+        sort: spec.sort,
+        shorten: spec.shorten,
+    });
+}
+
+type VariableUsage = {
+    variable: string;
+    command: string;
+    argName: string;
+    argType: string;
+};
+
+const configResolverByTypeAndTemplate = new Map<string, (values?: Record<string, string>) => (string | [string, string])[]>();
+
+function getConfigResolverKey(type: PlaceholderTypeName, templateName: string): string {
+    return `${type}::${templateName}`;
+}
+
+function normalizeLayoutValues(
+    variables: Record<string, LayoutVariableDefinition>,
+    values?: Record<string, string>
+): Record<string, string> {
+    const resolved: Record<string, string> = {};
+    for (const [key, def] of Object.entries(variables)) {
+        const provided = values?.[key];
+        resolved[key] = provided != null && provided !== "" ? provided : def.defaultValue;
+    }
+    return resolved;
+}
+
+function collectVariableInputs<T extends PlaceholderTypeName>(
+    type: T,
+    spec: ConfigurableColumnSpec<T, string>
+): LayoutConfigSchema {
+    const variableInputs: Record<string, LayoutVariableInputSchema> = {};
+    const seen: Record<string, VariableUsage> = {};
+
+    for (const commandSpec of spec.entries) {
+        if (commandSpec.kind !== "command") continue;
+        if (!commandSpec.args) continue;
+        const command = CM.placeholders(type).get([commandSpec.cmd] as never);
+        const argumentsByName = Object.fromEntries(command.getArguments().map((arg) => [arg.name, arg]));
+
+        for (const [argName, argValue] of Object.entries(commandSpec.args)) {
+            if (!isLayoutVarRef(argValue)) continue;
+
+            const argument = argumentsByName[argName];
+            if (!argument) {
+                throw new Error(
+                    `Layout config error for ${type}:${commandSpec.cmd} - argument "${argName}" does not exist.`
+                );
+            }
+
+            const usage: VariableUsage = {
+                variable: argValue.name,
+                command: String(commandSpec.cmd),
+                argName,
+                argType: argument.arg.type,
+            };
+
+            const existing = seen[argValue.name];
+            if (!existing) {
+                seen[argValue.name] = usage;
+                variableInputs[argValue.name] = {
+                    argType: argument.arg.type,
+                    min: argument.arg.min,
+                    max: argument.arg.max,
+                    desc: argument.arg.desc,
+                    choices: argument.arg.choices,
+                };
+                continue;
+            }
+
+            if (existing.argType !== usage.argType) {
+                throw new Error(
+                    `Layout config variable "${argValue.name}" has conflicting argument types: ` +
+                    `${existing.command}.${existing.argName} (${existing.argType}) vs ${usage.command}.${usage.argName} (${usage.argType}).`
+                );
+            }
+        }
+    }
+
+    for (const variableName of Object.keys(spec.variables)) {
+        if (!variableInputs[variableName]) {
+            throw new Error(`Layout config variable "${variableName}" is declared but never used.`);
+        }
+    }
+
+    return {
+        variables: spec.variables,
+        variableInputs,
+    };
+}
+
+function createConfigurableColumns<T extends PlaceholderTypeName>(
+    type: T,
+    templateName: string,
+    spec: ConfigurableColumnSpec<T, string>
+): Columns {
+    const config = collectVariableInputs(type, spec);
+    const resolver = (values?: Record<string, string>) => {
+        const resolvedVars = normalizeLayoutValues(spec.variables, values);
+        const builder = CM.placeholders(type).array();
+
+        for (const entry of spec.entries) {
+            if (entry.kind === "raw") {
+                const resolvedRaw = typeof entry.placeholder === "function"
+                    ? entry.placeholder(resolvedVars)
+                    : entry.placeholder;
+                builder.addRaw(resolvedRaw, entry.alias);
+                continue;
+            }
+
+            let resolvedArgs: Record<string, string> | undefined = undefined;
+            if (entry.args) {
+                resolvedArgs = Object.fromEntries(
+                    Object.entries(entry.args).map(([argName, argValue]) => {
+                        if (isLayoutVarRef(argValue)) {
+                            const value = resolvedVars[argValue.name];
+                            if (value == null) {
+                                throw new Error(
+                                    `Layout config variable "${argValue.name}" is missing while resolving ${type}:${templateName}.`
+                                );
+                            }
+                            return [argName, value];
+                        }
+                        return [argName, argValue];
+                    })
+                );
+            }
+
+            if (!resolvedArgs || Object.keys(resolvedArgs).length === 0) {
+                builder.addRaw(`{${entry.cmd}}`, entry.alias);
+                continue;
+            }
+
+            const argPairs = Object.entries(resolvedArgs)
+                .map(([argName, argValue]) => `${argName}: ${argValue}`)
+                .join(" ");
+            const mention = argPairs.length > 0
+                ? `{${entry.cmd}(${argPairs})}`
+                : `{${entry.cmd}}`;
+            builder.addRaw(mention, entry.alias);
+        }
+
+        if (spec.shorten !== false) {
+            builder.shorten();
+        }
+
+        return builder.build2d();
+    };
+
+    configResolverByTypeAndTemplate.set(getConfigResolverKey(type, templateName), resolver);
+
+    return {
+        value: resolver(),
+        sort: spec.sort,
+        config,
+    };
+}
+
+export function getLayoutColumnConfig(type: PlaceholderTypeName, templateName: string): LayoutConfigSchema | undefined {
+    return DEFAULT_TABS[type]?.columns[templateName]?.config;
+}
+
+export function resolveLayoutColumnTemplate(
+    type: PlaceholderTypeName,
+    templateName: string,
+    values?: Record<string, string>
+): Columns | undefined {
+    const original = DEFAULT_TABS[type]?.columns[templateName];
+    if (!original) return undefined;
+    const resolver = configResolverByTypeAndTemplate.get(getConfigResolverKey(type, templateName));
+    if (!resolver) return original;
+    return {
+        ...original,
+        value: resolver(values),
+    };
 }
 
 export const DEFAULT_TABS: Partial<{ [K in keyof typeof COMMANDS.placeholders]: TabDefault }> = {
@@ -63,159 +370,145 @@ export const DEFAULT_TABS: Partial<{ [K in keyof typeof COMMANDS.placeholders]: 
                 sort: { idx: 1, dir: 'desc' }
             },
             "City Growth (30d)": {
-                value: CM.placeholders('DBAlliance').array()
+                ...defineConfigurableColumns('DBAlliance', 'City Growth (30d)', {
+                    variables: {
+                        window: {
+                            defaultValue: '30d',
+                            label: 'Window',
+                            desc: 'Relative time window used in all growth metrics (for example: 7d, 14d, 30d).',
+                        },
+                        end: {
+                            defaultValue: '0d',
+                            label: 'End',
+                            desc: 'Relative end offset for the selected window (typically 0d for now).',
+                        },
+                    },
+                    sort: { idx: 17, dir: 'desc' },
+                }, (tpl) => tpl
                     .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
                     .add({ cmd: 'countmembers', alias: 'Members' })
                     .add({ cmd: 'getcities', alias: 'Cities' })
-                    .add({
-                        cmd: 'getmembershipchangesbyreason',
-                        args: { reasons: 'recruited,joined', start: '30d', end: '0d' },
-                        alias: 'Joined'
-                    })
-                    .add({
-                        cmd: 'getmembershipchangesbyreason',
-                        args: { reasons: 'left', start: '30d', end: '0d' },
-                        alias: 'Left'
-                    })
-                    .add({ cmd: 'getnetmembersacquired', args: { start: '30d', end: '0d' }, alias: 'Net' })
-                    .add({
-                        cmd: 'getmembershipchangeassetcount',
-                        args: { reasons: 'joined', assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'Poached City'
-                    })
-                    .add({
-                        cmd: 'getmembershipchangeassetvalue',
-                        args: { reasons: 'joined', assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'Poached City $'
-                    })
-                    .add({
-                        cmd: 'getmembershipchangeassetcount',
-                        args: { reasons: 'recruited', assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'Recruited City'
-                    })
-                    .add({
-                        cmd: 'getmembershipchangeassetcount',
-                        args: { reasons: 'left', assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'Left City'
-                    })
-                    .add({
-                        cmd: 'getmembershipchangeassetcount',
-                        args: { reasons: 'vm_returned', assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'VM Ended City'
-                    })
-                    .add({
-                        cmd: 'getmembershipchangeassetcount',
-                        args: { reasons: 'vm_left', assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'VM City'
-                    })
-                    .add({
-                        cmd: 'getmembershipchangeassetcount',
-                        args: { reasons: 'deleted', assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'Deleted City'
-                    })
-                    .add({
-                        cmd: 'getboughtassetcount',
-                        args: { assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'City Buy'
-                    })
-                    .add({
-                        cmd: 'geteffectiveboughtassetcount',
-                        args: { assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'City Buy (remain)'
-                    })
-                    .add({
-                        cmd: 'getspendingvalue',
-                        args: { assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'City Buy $'
-                    })
-                    .add({
-                        cmd: 'geteffectivespendingvalue',
-                        args: { assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'City Buy $ (remain)'
-                    })
-                    .add({ cmd: 'getnetasset', args: { asset: 'cities', start: '30d', end: '0d' }, alias: 'Net City' })
-                    .add({
-                        cmd: 'getnetassetvalue',
-                        args: { asset: 'cities', start: '30d', end: '0d' },
-                        alias: 'Net City $'
-                    })
-                    .shorten().build2d(),
-                sort: { idx: 17, dir: 'desc' }
+                    .add({ cmd: 'getmembershipchangesbyreason', args: { reasons: 'recruited,joined', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Joined' })
+                    .add({ cmd: 'getmembershipchangesbyreason', args: { reasons: 'left', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Left' })
+                    .add({ cmd: 'getnetmembersacquired', args: { start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'joined', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Poached City' })
+                    .add({ cmd: 'getmembershipchangeassetvalue', args: { reasons: 'joined', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Poached City $' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'recruited', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Recruited City' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'left', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Left City' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'vm_returned', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'VM Ended City' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'vm_left', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'VM City' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'deleted', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Deleted City' })
+                    .add({ cmd: 'getboughtassetcount', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy' })
+                    .add({ cmd: 'geteffectiveboughtassetcount', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy (remain)' })
+                    .add({ cmd: 'getspendingvalue', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy $ (remain)' })
+                    .add({ cmd: 'getnetasset', args: { asset: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net City' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net City $' })
+                )
             },
             "Growth (30d)": {
-                value: CM.placeholders('DBAlliance').array()
+                ...defineConfigurableColumns('DBAlliance', 'Growth (30d)', {
+                    variables: {
+                        window: {
+                            defaultValue: '30d',
+                            label: 'Window',
+                            desc: 'Relative time window for alliance growth metrics.',
+                        },
+                        end: {
+                            defaultValue: '0d',
+                            label: 'End',
+                            desc: 'Relative end offset for the selected window (typically 0d for now).',
+                        },
+                    },
+                    sort: { idx: 9, dir: 'desc' },
+                }, (tpl) => tpl
                     .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
                     .add({ cmd: 'countmembers', alias: 'Members' })
                     .add({ cmd: 'getscore', alias: 'Score' })
-                    .add({ cmd: 'getnetmembersacquired', args: { start: '30d', end: '0d' }, alias: 'Net Member' })
-                    .add({ cmd: 'getnetasset', args: { asset: 'cities', start: '30d', end: '0d' }, alias: 'Net City' })
-                    .add({
-                        cmd: 'getnetassetvalue',
-                        args: { asset: 'cities', start: '30d', end: '0d' },
-                        alias: 'Net City $'
-                    })
-                    .add({
-                        cmd: 'getnetassetvalue',
-                        args: { asset: 'projects', start: '30d', end: '0d' },
-                        alias: 'Net Project $'
-                    })
-                    .add({ cmd: 'getnetassetvalue', args: { asset: 'land', start: '30d', end: '0d' }, alias: 'Net Land $' })
-                    .add({
-                        cmd: 'getnetassetvalue',
-                        args: { asset: 'infra', start: '30d', end: '0d' },
-                        alias: 'Net Infra $'
-                    })
-                    .add({ cmd: 'getnetassetvalue', args: { asset: '*', start: '30d', end: '0d' }, alias: 'Net Asset $' })
-                    .add({
-                        cmd: 'geteffectivespendingvalue',
-                        args: { assets: 'cities', start: '30d', end: '0d' },
-                        alias: 'City Buy $'
-                    })
-                    .add({
-                        cmd: 'geteffectivespendingvalue',
-                        args: { assets: 'projects', start: '30d', end: '0d' },
-                        alias: 'Project Buy $'
-                    })
-                    .add({
-                        cmd: 'geteffectivespendingvalue',
-                        args: { assets: 'land', start: '30d', end: '0d' },
-                        alias: 'Land Buy $'
-                    })
-                    .add({
-                        cmd: 'geteffectivespendingvalue',
-                        args: { assets: 'infra', start: '30d', end: '0d' },
-                        alias: 'Infra Buy-Loss $'
-                    })
-                    .add({ cmd: 'getcumulativerevenuevalue', args: { start: '30d', end: '0d' }, alias: 'Total Revenue' })
-                    .shorten().build2d(),
-                sort: { idx: 9, dir: 'desc' }
+                    .add({ cmd: 'getnetmembersacquired', args: { start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Member' })
+                    .add({ cmd: 'getnetasset', args: { asset: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net City' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net City $' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'projects', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Project $' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'land', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Land $' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'infra', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Infra $' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: '*', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Asset $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'projects', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Project Buy $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'land', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Land Buy $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'infra', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Infra Buy-Loss $' })
+                    .add({ cmd: 'getcumulativerevenuevalue', args: { start: layoutVar('window'), end: layoutVar('end') }, alias: 'Total Revenue' })
+                )
             },
             "Normalized Growth (30d)": {
-                value: CM.placeholders('DBAlliance').array()
+                ...defineConfigurableColumns('DBAlliance', 'Normalized Growth (30d)', {
+                    variables: {
+                        window: {
+                            defaultValue: '30d',
+                            label: 'Window',
+                            desc: 'Relative time window for normalized growth calculations.',
+                        },
+                        end: {
+                            defaultValue: '0d',
+                            label: 'End',
+                            desc: 'Relative end offset for the selected window (typically 0d for now).',
+                        },
+                    },
+                    sort: { idx: 2, dir: 'desc' },
+                }, (tpl) => tpl
                     .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
                     .add({ cmd: 'countmembers', alias: 'Members' })
-                    .addRaw(placeholderMention({ type: 'DBAlliance', command: ['geteffectiveboughtassetcount'], args: { assets: 'cities', start: '30d', end: '0d' } }) + "/{countmembers}", 'Cities/Member')
-                    .add({
-                        cmd: 'geteffectivespendingvalue',
-                        args: { assets: 'cities,projects,land', start: '30d', end: '0d' },
-                        alias: 'Invest/Member'
-                    })
                     .addRaw(
-                        placeholderMention({ type: 'DBAlliance', command: ['geteffectivespendingvalue'], args: { assets: 'cities,projects,land', start: '30d', end: '0d' } }) +
-                        "/" +
-                        placeholderMention({ type: 'DBAlliance', command: ['getcumulativerevenuevalue'], args: { start: '30d', end: '0d' } }),
+                        (vars) => placeholderMention({
+                            type: 'DBAlliance',
+                            command: ['geteffectiveboughtassetcount'],
+                            args: { assets: 'cities', start: vars.window, end: vars.end },
+                        }) + '/{countmembers}',
+                        'Cities/Member'
+                    )
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'cities,projects,land', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Invest/Member' })
+                    .addRaw(
+                        (vars) =>
+                            placeholderMention({
+                                type: 'DBAlliance',
+                                command: ['geteffectivespendingvalue'],
+                                args: { assets: 'cities,projects,land', start: vars.window, end: vars.end },
+                            }) +
+                            '/' +
+                            placeholderMention({
+                                type: 'DBAlliance',
+                                command: ['getcumulativerevenuevalue'],
+                                args: { start: vars.window, end: vars.end },
+                            }),
                         'Invest/Revenue'
                     )
-                    .shorten().build2d(),
-                sort: { idx: 2, dir: 'desc' }
+                )
             },
             "Cumulative Revenue (30d)": {
-                value: CM.placeholders('DBAlliance').array()
-                    .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
-                    .add({ cmd: 'getcumulativerevenuevalue', args: { start: '30d', end: '0d' }, alias: 'Value' })
-                    .addMultipleRaw(COMMANDS.options.ResourceType.options.filter(f => f !== "CREDITS").map((type) => [`{getcumulativerevenue(30d).${type}}`, type]))
-                    .shorten().build2d(),
-                sort: { idx: 1, dir: 'desc' }
+                ...defineConfigurableColumns('DBAlliance', 'Cumulative Revenue (30d)', {
+                    variables: {
+                        window: {
+                            defaultValue: '30d',
+                            label: 'Window',
+                            desc: 'Relative time window for cumulative revenue snapshots.',
+                        },
+                        end: {
+                            defaultValue: '0d',
+                            label: 'End',
+                            desc: 'Relative end offset for the selected window (typically 0d for now).',
+                        },
+                    },
+                    sort: { idx: 1, dir: 'desc' },
+                }, (tpl) => {
+                    const withValue = tpl
+                        .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
+                        .add({ cmd: 'getcumulativerevenuevalue', args: { start: layoutVar('window'), end: layoutVar('end') }, alias: 'Value' });
+
+                    const resourceColumns = COMMANDS.options.ResourceType.options.filter((f) => f !== 'CREDITS');
+                    for (const resourceType of resourceColumns) {
+                        withValue.addRaw((vars) => `{getcumulativerevenue(${vars.window}).${resourceType}}`, resourceType);
+                    }
+                    return withValue;
+                })
             },
             "City Exponent": {
                 value: CM.placeholders('DBAlliance').array()

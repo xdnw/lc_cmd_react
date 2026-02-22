@@ -1,0 +1,1 @@
+import{c}from"./createLucideIcon-B9ZL__uh.js";import"./index-SOjtd1du.js";const e=[["circle",{cx:"12",cy:"12",r:"1",key:"41hilf"}],["circle",{cx:"19",cy:"12",r:"1",key:"1wjl8i"}],["circle",{cx:"5",cy:"12",r:"1",key:"1pcz8c"}]],l=c("ellipsis",e);export{l as default};

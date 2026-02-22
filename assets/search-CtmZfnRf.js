@@ -1,0 +1,1 @@
+import{c}from"./createLucideIcon-B9ZL__uh.js";import"./index-SOjtd1du.js";const e=[["path",{d:"m21 21-4.34-4.34",key:"14j7rj"}],["circle",{cx:"11",cy:"11",r:"8",key:"4ej97u"}]],t=c("search",e);export{e as __iconNode,t as default};

@@ -98,8 +98,25 @@ export default defineConfig(({ mode }) => {
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallback: 'index.html',
-        globPatterns: ['**/*.{js,css,html,ico,png,jpg,svg}']
+        navigateFallbackDenylist: [/\/reset\.html$/],
+        globPatterns: ['**/*.{js,css,html,ico,png,jpg,svg,webmanifest}'],
+        runtimeCaching: [
+          {
+            // Always try network first for navigation requests so clients pick up the newest index.html.
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pages-navigation-cache',
+              expiration: {
+                maxEntries: 10,
+              },
+            },
+          },
+        ]
       }
     })
   ];

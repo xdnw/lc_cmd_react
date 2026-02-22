@@ -5,6 +5,7 @@ import './index.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { persistQueryClient } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
+import { registerSW } from 'virtual:pwa-register'
 
 const isDevelopment = import.meta.env.MODE === 'dev' || import.meta.env.MODE === 'dev-test';
 const queryClient = new QueryClient();
@@ -27,6 +28,26 @@ persistQueryClient({
     //     },
     // },
 });
+
+if (import.meta.env.PROD) {
+    const updateServiceWorker = registerSW({
+        immediate: true,
+        onNeedRefresh() {
+            // Force activation of the waiting SW and reload to ensure users see the newest deploy.
+            void updateServiceWorker(true);
+        },
+        onRegisteredSW(_swUrl, registration) {
+            if (!registration) {
+                return;
+            }
+
+            // Periodically ask for updates so long-lived tabs don't remain stale.
+            window.setInterval(() => {
+                void registration.update();
+            }, 60_000);
+        },
+    });
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     isDevelopment ? (

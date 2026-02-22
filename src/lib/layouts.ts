@@ -213,7 +213,7 @@ export const DEFAULT_TABS: Partial<{ [K in keyof typeof COMMANDS.placeholders]: 
                 value: CM.placeholders('DBAlliance').array()
                     .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
                     .add({ cmd: 'getcumulativerevenuevalue', args: { start: '30d', end: '0d' }, alias: 'Value' })
-                    .addMultipleRaw(COMMANDS.options.ResourceType.options.filter(f => f !== "CREDITS").map((type) => [`{cumulativerevenue.${type}}`, type]))
+                    .addMultipleRaw(COMMANDS.options.ResourceType.options.filter(f => f !== "CREDITS").map((type) => [`{getcumulativerevenue(30d).${type}}`, type]))
                     .shorten().build2d(),
                 sort: { idx: 1, dir: 'desc' }
             },

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import type { CommandInputDisplayMode } from "./fieldTypes";
 
 export default function ArgFieldShell({
@@ -13,6 +13,14 @@ export default function ArgFieldShell({
     className?: string;
     isOptional?: boolean;
 }) {
+    const handleShellClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('input, textarea, select, button')) {
+            const input = e.currentTarget.querySelector('input, textarea, select, button') as HTMLElement | null;
+            input?.focus();
+        }
+    }, []);
+
     return (
         <div
             className={cn(
@@ -21,15 +29,7 @@ export default function ArgFieldShell({
                 displayMode === "focus-pane" ? "px-1.5 py-0.5 flex flex-row items-center gap-2" : "px-1.5 py-0.5",
                 className,
             )}
-            onClick={(e) => {
-                const target = e.target as HTMLElement;
-                if (!target.closest('input, textarea, select, button')) {
-                    const input = e.currentTarget.querySelector('input, textarea, select, button') as HTMLElement;
-                    if (input) {
-                        input.focus();
-                    }
-                }
-            }}
+            onClick={handleShellClick}
         >
             {children}
         </div>

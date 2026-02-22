@@ -1,9 +1,8 @@
 import { useCallback, useMemo, useRef } from "react";
 import { OrderIdx } from './DataTable';
-import { COMMANDS } from "../../lib/commands";
 import { getQueryParams } from "../../lib/utils";
 import { DEFAULT_TABS } from "../../lib/layouts";
-import { getSortFromUrl, getColumnsFromUrl, getSelectionFromUrl, getTypeFromUrl } from "./table_util";
+import { getSortFromUrl, getColumnsFromUrl, getSelectionFromUrl, getTypeFromUrl, PlaceholderType } from "./table_util";
 import { PlaceholderTabs, PlaceholderTabsHandle } from "@/pages/custom_table/PlaceholderTabs";
 
 import { AbstractTableWithButtons, TableProps } from "@/pages/custom_table/AbstractTable";
@@ -14,7 +13,7 @@ export default function CustomTable() {
     const params = useMemo(() => getQueryParams(), []);
 
 
-    const [type] = useDeepState<keyof typeof COMMANDS.placeholders>(
+    const [type] = useDeepState<PlaceholderType>(
         getTypeFromUrl(params) ?? "DBNation"
     );
     const [selection] = useDeepState<{ [key: string]: string }>(

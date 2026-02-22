@@ -9,7 +9,7 @@ import { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, OrderIdx } from
 import { JSONValue } from "@/lib/internaltypes";
 import { sortData, toSortColumns } from "./sort";
 
-type PlaceholderType = keyof typeof CM.data.placeholders;
+export type PlaceholderType = Parameters<typeof CM.placeholders>[0];
 
 export function createTableInfo(
     newData: WebTable,

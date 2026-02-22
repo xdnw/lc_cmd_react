@@ -227,8 +227,6 @@ const SimpleChart = memo(({
     classes
 }: ChartProps) => {
 
-    const chartRef = useRef<ChartJS>(null);
-
     // Ref avoids React re-renders during high-frequency mouse hover events
     const previousActiveElements = useRef<ActiveElement[]>([]);
 
@@ -349,9 +347,22 @@ const SimpleChart = memo(({
         }
 
         const yCallback = getNumberFormatCallback(numberFormat);
+        const xTickCallback = (tickValue: string | number) => {
+            if (typeof tickValue === 'number') {
+                return timeFormatFunc(tickValue);
+            }
+            const parsed = Number(tickValue);
+            return Number.isFinite(parsed) ? timeFormatFunc(parsed) : String(tickValue);
+        };
+        const yTickCallback = (tickValue: string | number) => {
+            if (typeof tickValue === 'number') {
+                return yCallback(tickValue);
+            }
+            const parsed = Number(tickValue);
+            return Number.isFinite(parsed) ? yCallback(parsed) : String(tickValue);
+        };
 
         const parsedChartOptions: ChartOptions<keyof ChartTypeRegistry> = {
-            spanGaps: true,
             resizeDelay: 20,
             animation: false,
             responsive: true,
@@ -366,28 +377,28 @@ const SimpleChart = memo(({
                 x: {
                     beginAtZero: origin === 0,
                     stacked: type === 'STACKED_BAR' || type === 'STACKED_LINE',
+                    min: minX,
+                    max: maxX,
                     ticks: {
-                        callback: timeFormatFunc,
+                        callback: xTickCallback,
                         autoSkip: true,
                         maxTicksLimit: 50,
                         minRotation: 45,
                         maxRotation: 45,
                         sampleSize: 10,
-                        min: minX,
-                        max: maxX,
                         display: !hideLegend,
                     },
                 },
                 y: {
                     beginAtZero: true,
                     stacked: type === 'STACKED_BAR' || type === 'STACKED_LINE',
+                    min: minY,
+                    max: maxY,
                     ticks: {
-                        callback: yCallback,
+                        callback: yTickCallback,
                         autoSkip: true,
                         maxTicksLimit: 50,
                         sampleSize: 10,
-                        min: minY,
-                        max: maxY,
                         display: !hideLegend,
                     },
                 }
@@ -406,7 +417,9 @@ const SimpleChart = memo(({
                             return `${label}: ${yCallback(value)}`;
                         },
                         title: function (context: TooltipItem<keyof ChartTypeRegistry>[]) {
-                            return timeFormatFunc(context[0].parsed.x ?? 0);
+                            const x = context[0].parsed.x;
+                            const xValue = typeof x === 'number' ? x : Number(x ?? 0);
+                            return timeFormatFunc(Number.isFinite(xValue) ? xValue : 0);
                         }
                     }
                 },
@@ -432,15 +445,15 @@ const SimpleChart = memo(({
         switch (type) {
             case 'STACKED_BAR':
             case 'SIDE_BY_SIDE_BAR':
-                return <Bar ref={chartRef} data={chartData as ChartData<'bar'>} options={chartOptions as ChartOptions<'bar'>} style={canvasStyle} />;
+                return <Bar data={chartData as ChartData<'bar'>} options={chartOptions as ChartOptions<'bar'>} style={canvasStyle} />;
             case 'HORIZONTAL_BAR':
-                return <Bar ref={chartRef} data={chartData as ChartData<'bar'>} options={{ ...chartOptions, indexAxis: 'y' } as ChartOptions<'bar'>} style={canvasStyle} />;
+                return <Bar data={chartData as ChartData<'bar'>} options={{ ...chartOptions, indexAxis: 'y' } as ChartOptions<'bar'>} style={canvasStyle} />;
             case 'STACKED_LINE':
             case 'FILLED_LINE':
             case 'LINE':
-                return <Line ref={chartRef} data={chartData as ChartData<'line'>} options={chartOptions as ChartOptions<'line'>} style={canvasStyle} />;
+                return <Line data={chartData as ChartData<'line'>} options={chartOptions as ChartOptions<'line'>} style={canvasStyle} />;
             case 'SCATTER':
-                return <Scatter ref={chartRef} data={chartData as ChartData<'scatter'>} options={chartOptions as ChartOptions<'scatter'>} style={canvasStyle} />;
+                return <Scatter data={chartData as ChartData<'scatter'>} options={chartOptions as ChartOptions<'scatter'>} style={canvasStyle} />;
             default:
                 console.warn("Unknown chart type", type);
                 return null;

@@ -352,7 +352,7 @@ const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenuContent
           aria-orientation="vertical"
           style={{ ...style, display: context.open ? "block" : "none" }}
           className={cn(
-            "min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+            "min-w-32 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
             "animate-in fade-in-0 zoom-in-95",
             "data-[side=bottom]:slide-in-from-top-2",
             "data-[side=left]:slide-in-from-right-2",
@@ -568,7 +568,7 @@ const DropdownMenuSubContent = React.forwardRef<HTMLDivElement, DropdownMenuSubC
         aria-orientation="vertical"
         style={style}
         className={cn(
-          "min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+          "min-w-32 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
           "animate-in fade-in-0 zoom-in-95",
           "data-[side=bottom]:slide-in-from-top-2",
           "data-[side=left]:slide-in-from-right-2",

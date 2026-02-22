@@ -5,11 +5,11 @@ export function parseCommandString(
     input: string
 ): { [key: string]: string } | null {
     let text = input.trim();
-    
+
     // Check if it starts with the command name (with or without slash)
     const cmdName = command.name;
     const cmdPath = command.getPathString();
-    
+
     // Try to strip prefix like `/cmdName ` or `cmdName ` or `/cmdPath ` or `cmdPath `
     const prefixes = [
         `/${cmdPath} `,
@@ -17,7 +17,7 @@ export function parseCommandString(
         `/${cmdName} `,
         `${cmdName} `
     ];
-    
+
     let matchedPrefix = false;
     for (const prefix of prefixes) {
         if (text.toLowerCase().startsWith(prefix.toLowerCase())) {
@@ -26,24 +26,24 @@ export function parseCommandString(
             break;
         }
     }
-    
+
     const args = command.getArguments();
     const result: { [key: string]: string } = {};
-    
+
     // Regex to match `key:value`, `key=value`, `key: "value"`, `key: value`, `"value"`, `value`
     const tokenRegex = /(?:([a-zA-Z0-9_]+)\s*[:=]\s*)?(?:"([^"]*)"|'([^']*)'|([^\s]+))/g;
-    
+
     let match;
     let positionalIndex = 0;
     let parsedCount = 0;
     let hasNamedArgs = false;
-    
+
     while ((match = tokenRegex.exec(text)) !== null) {
         const key = match[1];
-        let value = match[2] !== undefined ? match[2] : (match[3] !== undefined ? match[3] : match[4]);
-        
+        const value = match[2] !== undefined ? match[2] : (match[3] !== undefined ? match[3] : match[4]);
+
         if (value === undefined) continue;
-        
+
         if (key) {
             // Named argument
             const arg = args.find(a => a.name.toLowerCase() === key.toLowerCase());
@@ -62,14 +62,14 @@ export function parseCommandString(
             }
         }
     }
-    
+
     // Only return parsed result if it matched the command prefix,
     // or if it has named arguments.
     // Otherwise, it's likely just a single value pasted into an input.
     if (parsedCount > 0 && (matchedPrefix || hasNamedArgs)) {
         return result;
     }
-    
+
     return null;
 }
 
@@ -77,7 +77,7 @@ export function formatCommandString(name: string, output: Record<string, string 
     let result = `/${name}`;
     for (const [key, value] of Object.entries(output)) {
         if (value === undefined || value === null || value === "") continue;
-        
+
         if (Array.isArray(value)) {
             if (value.length === 0) continue;
             // For arrays, we might want to format them differently depending on the command,

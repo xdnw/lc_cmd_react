@@ -23,6 +23,8 @@ export default function CommandPage() {
     const [cmdObj, setCmdObj] = useState<BaseCommand | null>(command !== "test" ? CM.get(command?.split(" ") as AnyCommandPath) : CM.buildTest());
     const pathJoined = useMemo(() => cmdObj?.path.join(" ") ?? "", [cmdObj]);
     const [displayMode, setDisplayMode] = useState<CommandInputDisplayMode>("card");
+    const setCardDisplayMode = useCallback(() => setDisplayMode("card"), []);
+    const setFocusPaneDisplayMode = useCallback(() => setDisplayMode("focus-pane"), []);
 
     const [initialValues, setInitialValues] = useState<{ [key: string]: string }>(queryParamsToObject(getQueryParams()) as { [key: string]: string });
     const commandStore = useMemo(() => createCommandStoreWithDef(initialValues), [initialValues]);
@@ -37,8 +39,8 @@ export default function CommandPage() {
     return (
         <>
             <div className="mb-2 flex items-center gap-1">
-                <Button size="sm" variant={displayMode === "card" ? "default" : "outline"} onClick={() => setDisplayMode("card")} tabIndex={-1}>Card</Button>
-                <Button size="sm" variant={displayMode === "focus-pane" ? "default" : "outline"} onClick={() => setDisplayMode("focus-pane")} tabIndex={-1}>Focus Pane</Button>
+                <Button size="sm" variant={displayMode === "card" ? "default" : "outline"} onClick={setCardDisplayMode} tabIndex={-1}>Card</Button>
+                <Button size="sm" variant={displayMode === "focus-pane" ? "default" : "outline"} onClick={setFocusPaneDisplayMode} tabIndex={-1}>Focus Pane</Button>
             </div>
             <CommandComponent key={cmdObj.name} command={cmdObj} filterArguments={alwaysTrue} initialValues={initialValues}
                 displayMode={displayMode}

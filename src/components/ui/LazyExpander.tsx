@@ -31,7 +31,7 @@ const LazyExpander = ({ children, content, className = "", hideTriggerChildrenWh
     }, [isExpanded, hasLoaded, content]);
 
     const chevronIcon = useMemo(() => (
-        <span className="ml-2 text-muted-foreground flex-shrink-0">
+        <span className="ml-2 text-muted-foreground shrink-0">
             {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </span>
     ), [isExpanded]);
@@ -43,7 +43,7 @@ const LazyExpander = ({ children, content, className = "", hideTriggerChildrenWh
                 role="button"
                 aria-expanded={isExpanded}
             >
-                <div className={cn("flex-grow min-w-0", hideTriggerChildrenWhenExpanded && isExpanded ? "hidden" : undefined)}>{children}</div>
+                <div className={cn("grow min-w-0", hideTriggerChildrenWhenExpanded && isExpanded ? "hidden" : undefined)}>{children}</div>
                 {chevronIcon}
             </Button>
             {expandedContent && (

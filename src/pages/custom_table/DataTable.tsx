@@ -331,7 +331,7 @@ export function DataTable({
     return <div className="border border-border rounded-md overflow-x-auto overflow-y-hidden text-xs bg-background">
       <DataGrid
         key={columnsInfo.length}
-        className={`bg-transparent text-xs min-w-[800px]`}
+        className={`bg-transparent text-xs min-w-200`}
         style={{ height: '70vh', maxHeight: '70vh', flex: '1 1 auto' }}
         ref={table}
         columns={gridColumns}

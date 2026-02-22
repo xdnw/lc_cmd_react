@@ -193,7 +193,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
             Errors updating the table may prevent some data from being displayed.
             Click the buttons below to highlight the errors in the table.
             {errors.map((error, index) => (
-                <Button key={index} data-col={error.col} data-row={error.row} variant="destructive" className="my-1 h-auto break-words w-full justify-start size-sm whitespace-normal" onClick={highlightError}>
+                <Button key={index} data-col={error.col} data-row={error.row} variant="destructive" className="my-1 h-auto wrap-break-word w-full justify-start size-sm whitespace-normal" onClick={highlightError}>
                     [col:{(error.col ?? 0) + 1}{error.row ? `row:${error.row + 1}` : ""}] {error.msg}
                 </Button>
             ))}

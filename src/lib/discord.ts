@@ -203,9 +203,9 @@ export const JSON_EXAMPLE: DiscordEmbed = {
     }]
 };
 
-const emojis: { [key: string]: string } = new Proxy({}, {
-    get: (_, key) => getEmoji(String(key)) as any
-}) as any;
+const emojis: Record<string, string> = new Proxy<Record<string, string>>({}, {
+    get: (_target, key: string | symbol) => getEmoji(String(key)) ?? ""
+});
 
 export function toHTML(txt: string, options: HtmlOptions): string {
     const esc = options && options.escapeHTML !== false;

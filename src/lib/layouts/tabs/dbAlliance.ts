@@ -6,17 +6,17 @@ import { CM } from '@/utils/Command';
 
 type TierBand = (typeof tierBands)[number];
 
-function createWindowEndVariables(windowDesc: string) {
+function createStartEndVariables(startDesc: string) {
     return {
-        window: {
+        start: {
             defaultValue: '30d',
-            label: 'Window',
-            desc: windowDesc,
+            label: 'Start',
+            desc: startDesc,
         },
         end: {
             defaultValue: '0d',
             label: 'End',
-            desc: 'Relative end offset for the selected window (typically 0d for now).',
+            desc: 'Time end (default: 0d).',
         },
     } as const;
 }
@@ -38,6 +38,20 @@ function createBaselineCurrentVariables(baselineDesc: string, currentDesc: strin
 
 function getBandMax(band: TierBand): number | undefined {
     return 'max' in band ? band.max : undefined;
+}
+
+function startEndArgs() {
+    return {
+        start: layoutVar('start'),
+        end: layoutVar('end'),
+    } as const;
+}
+
+function baselineCurrentRefs(tpl: LayoutColumnTemplateBuilder<'DBAlliance', 'current' | 'baseline'>) {
+    return {
+        current: tpl.rawVar('current'),
+        baseline: tpl.rawVar('baseline'),
+    } as const;
 }
 
 function allianceTierCountRaw<V extends string>(
@@ -120,51 +134,55 @@ export const dbAllianceTab: TabDefault = {
         },
         'City Growth (30d)': {
             ...defineConfigurableColumns('DBAlliance', 'City Growth (30d)', {
-                variables: createWindowEndVariables('Relative time window used in all growth metrics (for example: 7d, 14d, 30d).'),
+                variables: createStartEndVariables('Time start for all growth metrics (for example: 7d, 14d, 30d).'),
                 sort: { idx: 17, dir: 'desc' },
-            }, (tpl) => tpl
-                .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
-                .add({ cmd: 'countmembers', alias: 'Members' })
-                .add({ cmd: 'getcities', alias: 'Cities' })
-                .add({ cmd: 'getmembershipchangesbyreason', args: { reasons: 'recruited,joined', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Joined' })
-                .add({ cmd: 'getmembershipchangesbyreason', args: { reasons: 'left', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Left' })
-                .add({ cmd: 'getnetmembersacquired', args: { start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net' })
-                .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'joined', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Poached City' })
-                .add({ cmd: 'getmembershipchangeassetvalue', args: { reasons: 'joined', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Poached City $' })
-                .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'recruited', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Recruited City' })
-                .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'left', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Left City' })
-                .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'vm_returned', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'VM Ended City' })
-                .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'vm_left', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'VM City' })
-                .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'deleted', assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Deleted City' })
-                .add({ cmd: 'getboughtassetcount', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy' })
-                .add({ cmd: 'geteffectiveboughtassetcount', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy (remain)' })
-                .add({ cmd: 'getspendingvalue', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy $' })
-                .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy $ (remain)' })
-                .add({ cmd: 'getnetasset', args: { asset: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net City' })
-                .add({ cmd: 'getnetassetvalue', args: { asset: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net City $' })
-            ),
+            }, (tpl) => {
+                const time = startEndArgs();
+                return tpl
+                    .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
+                    .add({ cmd: 'countmembers', alias: 'Members' })
+                    .add({ cmd: 'getcities', alias: 'Cities' })
+                    .add({ cmd: 'getmembershipchangesbyreason', args: { reasons: 'recruited,joined', ...time }, alias: 'Joined' })
+                    .add({ cmd: 'getmembershipchangesbyreason', args: { reasons: 'left', ...time }, alias: 'Left' })
+                    .add({ cmd: 'getnetmembersacquired', args: time, alias: 'Net' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'joined', assets: 'cities', ...time }, alias: 'Poached City' })
+                    .add({ cmd: 'getmembershipchangeassetvalue', args: { reasons: 'joined', assets: 'cities', ...time }, alias: 'Poached City $' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'recruited', assets: 'cities', ...time }, alias: 'Recruited City' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'left', assets: 'cities', ...time }, alias: 'Left City' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'vm_returned', assets: 'cities', ...time }, alias: 'VM Ended City' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'vm_left', assets: 'cities', ...time }, alias: 'VM City' })
+                    .add({ cmd: 'getmembershipchangeassetcount', args: { reasons: 'deleted', assets: 'cities', ...time }, alias: 'Deleted City' })
+                    .add({ cmd: 'getboughtassetcount', args: { assets: 'cities', ...time }, alias: 'City Buy' })
+                    .add({ cmd: 'geteffectiveboughtassetcount', args: { assets: 'cities', ...time }, alias: 'City Buy (remain)' })
+                    .add({ cmd: 'getspendingvalue', args: { assets: 'cities', ...time }, alias: 'City Buy $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'cities', ...time }, alias: 'City Buy $ (remain)' })
+                    .add({ cmd: 'getnetasset', args: { asset: 'cities', ...time }, alias: 'Net City' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'cities', ...time }, alias: 'Net City $' });
+            }),
         },
         'Growth (30d)': {
             ...defineConfigurableColumns('DBAlliance', 'Growth (30d)', {
-                variables: createWindowEndVariables('Relative time window for alliance growth metrics.'),
+                variables: createStartEndVariables('Time start for alliance growth metrics.'),
                 sort: { idx: 9, dir: 'desc' },
-            }, (tpl) => tpl
-                .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
-                .add({ cmd: 'countmembers', alias: 'Members' })
-                .add({ cmd: 'getscore', alias: 'Score' })
-                .add({ cmd: 'getnetmembersacquired', args: { start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Member' })
-                .add({ cmd: 'getnetasset', args: { asset: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net City' })
-                .add({ cmd: 'getnetassetvalue', args: { asset: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net City $' })
-                .add({ cmd: 'getnetassetvalue', args: { asset: 'projects', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Project $' })
-                .add({ cmd: 'getnetassetvalue', args: { asset: 'land', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Land $' })
-                .add({ cmd: 'getnetassetvalue', args: { asset: 'infra', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Infra $' })
-                .add({ cmd: 'getnetassetvalue', args: { asset: '*', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Net Asset $' })
-                .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'cities', start: layoutVar('window'), end: layoutVar('end') }, alias: 'City Buy $' })
-                .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'projects', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Project Buy $' })
-                .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'land', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Land Buy $' })
-                .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'infra', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Infra Buy-Loss $' })
-                .add({ cmd: 'getcumulativerevenuevalue', args: { start: layoutVar('window'), end: layoutVar('end') }, alias: 'Total Revenue' })
-            ),
+            }, (tpl) => {
+                const time = startEndArgs();
+                return tpl
+                    .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
+                    .add({ cmd: 'countmembers', alias: 'Members' })
+                    .add({ cmd: 'getscore', alias: 'Score' })
+                    .add({ cmd: 'getnetmembersacquired', args: time, alias: 'Net Member' })
+                    .add({ cmd: 'getnetasset', args: { asset: 'cities', ...time }, alias: 'Net City' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'cities', ...time }, alias: 'Net City $' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'projects', ...time }, alias: 'Net Project $' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'land', ...time }, alias: 'Net Land $' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: 'infra', ...time }, alias: 'Net Infra $' })
+                    .add({ cmd: 'getnetassetvalue', args: { asset: '*', ...time }, alias: 'Net Asset $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'cities', ...time }, alias: 'City Buy $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'projects', ...time }, alias: 'Project Buy $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'land', ...time }, alias: 'Land Buy $' })
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'infra', ...time }, alias: 'Infra Buy-Loss $' })
+                    .add({ cmd: 'getcumulativerevenuevalue', args: time, alias: 'Total Revenue' });
+            }),
         },
         'Tier Delta (30d)': {
             ...defineConfigurableColumns('DBAlliance', 'Tier Delta (30d)', {
@@ -177,8 +195,7 @@ export const dbAllianceTab: TabDefault = {
                 const withSummary = tpl
                     .add({ cmd: 'getmarkdownurl', alias: 'Alliance' });
 
-                const current = withSummary.rawVar('current');
-                const baseline = withSummary.rawVar('baseline');
+                const { current, baseline } = baselineCurrentRefs(withSummary);
 
                 withSummary.addRaw(
                     packTierValues(
@@ -227,8 +244,7 @@ export const dbAllianceTab: TabDefault = {
                 const withSummary = tpl
                     .add({ cmd: 'getmarkdownurl', alias: 'Alliance' });
 
-                const current = withSummary.rawVar('current');
-                const baseline = withSummary.rawVar('baseline');
+                const { current, baseline } = baselineCurrentRefs(withSummary);
 
                 withSummary.addRaw(
                     packTierValues(
@@ -268,55 +284,53 @@ export const dbAllianceTab: TabDefault = {
         },
         'Normalized Growth (30d)': {
             ...defineConfigurableColumns('DBAlliance', 'Normalized Growth (30d)', {
-                variables: createWindowEndVariables('Relative time window for normalized growth calculations.'),
+                variables: createStartEndVariables('Time start for normalized growth calculations.'),
                 sort: { idx: 2, dir: 'desc' },
-            }, (tpl) => tpl
-                .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
-                .add({ cmd: 'countmembers', alias: 'Members' })
-                .addRaw(
-                    tpl.rawConcat(
-                        tpl.rawCommand('geteffectiveboughtassetcount', {
-                            assets: 'cities',
-                            start: layoutVar('window'),
-                            end: layoutVar('end'),
-                        }),
-                        '/{countmembers}'
-                    ),
-                    'Cities/Member'
-                )
-                .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'cities,projects,land', start: layoutVar('window'), end: layoutVar('end') }, alias: 'Invest/Member' })
-                .addRaw(
-                    tpl.rawConcat(
-                        tpl.rawCommand('geteffectivespendingvalue', {
-                            assets: 'cities,projects,land',
-                            start: layoutVar('window'),
-                            end: layoutVar('end'),
-                        }),
-                        '/',
-                        tpl.rawCommand('getcumulativerevenuevalue', {
-                            start: layoutVar('window'),
-                            end: layoutVar('end'),
-                        })
-                    ),
-                    'Invest/Revenue'
-                )
-            ),
+            }, (tpl) => {
+                const time = startEndArgs();
+                return tpl
+                    .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
+                    .add({ cmd: 'countmembers', alias: 'Members' })
+                    .addRaw(
+                        tpl.rawConcat(
+                            tpl.rawCommand('geteffectiveboughtassetcount', {
+                                assets: 'cities',
+                                ...time,
+                            }),
+                            '/{countmembers}'
+                        ),
+                        'Cities/Member'
+                    )
+                    .add({ cmd: 'geteffectivespendingvalue', args: { assets: 'cities,projects,land', ...time }, alias: 'Invest/Member' })
+                    .addRaw(
+                        tpl.rawConcat(
+                            tpl.rawCommand('geteffectivespendingvalue', {
+                                assets: 'cities,projects,land',
+                                ...time,
+                            }),
+                            '/',
+                            tpl.rawCommand('getcumulativerevenuevalue', time)
+                        ),
+                        'Invest/Revenue'
+                    );
+            }),
         },
         'Cumulative Revenue (30d)': {
             ...defineConfigurableColumns('DBAlliance', 'Cumulative Revenue (30d)', {
-                variables: createWindowEndVariables('Relative time window for cumulative revenue snapshots.'),
+                variables: createStartEndVariables('Time start for cumulative revenue snapshots.'),
                 sort: { idx: 1, dir: 'desc' },
             }, (tpl) => {
+                const time = startEndArgs();
                 const withValue = tpl
                     .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
-                    .add({ cmd: 'getcumulativerevenuevalue', args: { start: layoutVar('window'), end: layoutVar('end') }, alias: 'Value' });
+                    .add({ cmd: 'getcumulativerevenuevalue', args: time, alias: 'Value' });
 
                 const resourceColumns = COMMANDS.options.ResourceType.options.filter((f) => f !== 'CREDITS');
                 for (const resourceType of resourceColumns) {
                     withValue.addRaw(
                         withValue.rawConcat(
                             '{getcumulativerevenue(',
-                            withValue.rawVar('window'),
+                            withValue.rawVar('start'),
                             `).${resourceType}}`
                         ),
                         resourceType

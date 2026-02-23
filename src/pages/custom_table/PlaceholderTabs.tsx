@@ -259,18 +259,6 @@ export function ColumnsSection({
         setColumnRenderers(undefined);
     }, [columns, sort, setColumns, setSort]);
 
-    // Handle paste events in the column input
-    const handlePaste = useCallback((event: React.ClipboardEvent<HTMLInputElement>) => {
-        event.preventDefault();
-        const text = event.clipboardData.getData('text');
-        const sanitizedText = text.replace(/\r?\n|\r/g, '\t');
-        if (colInputRef.current) {
-            const { selectionStart, selectionEnd, value } = colInputRef.current;
-            const newValue = value.slice(0, selectionStart!) + sanitizedText + value.slice(selectionEnd!);
-            colInputRef.current.value = newValue;
-        }
-    }, []);
-
     // Handle keyboard input for column alias editing
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
         if (event.key.length === 1 || event.key === "Backspace") {
@@ -395,11 +383,10 @@ export function ColumnsSection({
             <LayoutConfigDialogContent
                 templateName={templateName}
                 config={config}
-                onCancel={hideDialog}
                 onApplyTemplate={applyConfiguredColumnTemplate}
             />
         );
-    }, [type, applyColumnTemplate, showDialog, hideDialog, applyConfiguredColumnTemplate]);
+    }, [type, applyColumnTemplate, showDialog, applyConfiguredColumnTemplate]);
 
     // Handle column removal
     const removeColumn = useCallback((colInfo: [string, string | null], index: number) => {
@@ -533,7 +520,6 @@ export function ColumnsSection({
                 <AddCustomColumn
                     colInputRef={colInputRef}
                     addButton={addButton}
-                    handlePaste={handlePaste}
                     handleAddColumn={handleAddColumn}
                     type={type}
                 />
@@ -682,11 +668,10 @@ function ColumnList({
     );
 }
 
-function AddCustomColumn({ colInputRef, addButton, handleAddColumn, handlePaste, type }: {
+function AddCustomColumn({ colInputRef, addButton, handleAddColumn, type }: {
     colInputRef: React.RefObject<HTMLInputElement | null>,
     addButton: React.RefObject<HTMLButtonElement | null>,
     handleAddColumn: () => void,
-    handlePaste: (event: React.ClipboardEvent<HTMLInputElement>) => void,
     type: keyof typeof COMMANDS.placeholders
 }) {
     const [inputValue, setInputValue] = useState("");
@@ -728,6 +713,22 @@ function AddCustomColumn({ colInputRef, addButton, handleAddColumn, handlePaste,
         setInputValue(e.target.value);
     }, []);
 
+    const onPaste = useCallback((event: React.ClipboardEvent<HTMLInputElement>) => {
+        event.preventDefault();
+        const input = event.currentTarget;
+        const text = event.clipboardData.getData('text');
+        const sanitizedText = text.replace(/\r?\n|\r/g, '\t');
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? start;
+        const newValue = input.value.slice(0, start) + sanitizedText + input.value.slice(end);
+        setInputValue(newValue);
+
+        // Restore caret position after React applies the controlled value update.
+        requestAnimationFrame(() => {
+            input.setSelectionRange(start + sanitizedText.length, start + sanitizedText.length);
+        });
+    }, []);
+
     // Memoize static header content.
     const headerContent = useMemo(() => (
         <>
@@ -747,12 +748,12 @@ function AddCustomColumn({ colInputRef, addButton, handleAddColumn, handlePaste,
             className="relative px-1 grow"
             placeholder="Custom column placeholders..."
             ref={colInputRef}
-            onPaste={handlePaste}
+            onPaste={onPaste}
             onKeyDown={onKeyDown}
             onChange={onChange}
             value={inputValue}
         />
-    ), [inputValue, colInputRef, handlePaste, onKeyDown, onChange]);
+    ), [inputValue, colInputRef, onPaste, onKeyDown, onChange]);
 
     // In AddCustomColumn component, add:
     const handleAddClick = useCallback(() => {
@@ -1147,12 +1148,10 @@ function LayoutConfigDialogContent({
     templateName,
     config,
     onApplyTemplate,
-    onCancel,
 }: {
     templateName: string;
     config: LayoutConfigSchema;
     onApplyTemplate: (templateName: string, values: Record<string, string>) => void;
-    onCancel: () => void;
 }) {
     const initialValues = useMemo(
         () => Object.fromEntries(Object.entries(config.variables).map(([key, value]) => [key, value.defaultValue])),
@@ -1212,7 +1211,6 @@ function LayoutConfigDialogContent({
                 })}
             </div>
             <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
                 <Button size="sm" onClick={apply}>Apply</Button>
             </div>
         </div>

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from "react";
 import { OrderIdx } from './DataTable';
 import { getQueryParams } from "../../lib/utils";
-import { DEFAULT_TABS } from "../../lib/layouts";
+import { DEFAULT_TABS } from "../../lib/layouts/defaultTabs";
 import { getSortFromUrl, getColumnsFromUrl, getSelectionFromUrl, getTypeFromUrl, PlaceholderType } from "./table_util";
 import { PlaceholderTabs, PlaceholderTabsHandle } from "@/pages/custom_table/PlaceholderTabs";
 
@@ -37,6 +37,9 @@ export default function CustomTable() {
     }());
     const defaultTab = DEFAULT_TABS[type];
     const firstColumnGroup = Object.keys(defaultTab?.columns ?? {})[0];
+    const defaultColumnRenderers = firstColumnGroup
+        ? defaultTab?.columns[firstColumnGroup]?.columnRenderers
+        : undefined;
     const [sort] = useDeepState<OrderIdx | OrderIdx[] | undefined>(
         getSortFromUrl(params) ?? (firstColumnGroup ? defaultTab?.columns[firstColumnGroup]?.sort : undefined)
     );
@@ -45,14 +48,16 @@ export default function CustomTable() {
 
     const getTableProps = useCallback(() => {
         const currentTabs = tabsRef.current;
+        const resolvedRenderers = currentTabs?.getColumnRenderers() ?? defaultColumnRenderers;
         const data: TableProps = {
             type: currentTabs?.getType() ?? type,
             selection: currentTabs?.getSelection() ?? selection,
             columns: currentTabs?.getColumns() ?? columns,
             sort: currentTabs?.getSort() ?? sort,
+            columnRenderers: resolvedRenderers,
         };
         return data;
-    }, [tabsRef, type, selection, columns, sort]);
+    }, [tabsRef, type, selection, columns, sort, defaultColumnRenderers]);
 
     const table = useMemo(() => {
         return <div className="themeDiv p-2 mt-2">

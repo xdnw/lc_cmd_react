@@ -6,6 +6,7 @@ import Color from "../renderer/Color.js";
 import { ObjectColumnRender } from "@/pages/custom_table/DataTable.js";
 import { JSONValue } from "@/lib/internaltypes.js";
 import { Link } from "react-router-dom";
+import { LAYOUT_RENDERER_DISPLAYS } from "@/lib/layoutRenderers";
 
 const LazySimpleChart = lazy(() => import("../../pages/graphs/SimpleChart.js"));
 const LazySanitizedHtml = lazy(() => import("./SanitizedHtml"));
@@ -28,6 +29,9 @@ export const RENDERERS: { [key: string]: ObjectColumnRender | undefined } = {
     duration_ms: { display: duration_ms },
     numeric_map: { display: numericMap },
     turn_to_date: { display: formatTurnsToDate },
+    ...Object.fromEntries(
+        Object.entries(LAYOUT_RENDERER_DISPLAYS).map(([id, display]) => [id, { display }]),
+    ),
 }
 
 export function percent_100(value: number): string {

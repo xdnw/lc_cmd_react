@@ -26,15 +26,14 @@ export function createTableInfo(
     const renderFuncNames = newData.renderers;
     const columnKeys = Array.from(columns.keys());
     let columnsInfo: ConfigColumns[] = header.map((col: string, index: number) => {
+        const overrideRenderer = resolveColumnRendererOverride(columnRenderers, columnKeys[index], col);
         const backendRenderer = renderFuncNames ? getRenderer(renderFuncNames[index]) : undefined;
-        const overrideRenderer = backendRenderer
-            ? undefined
-            : resolveColumnRendererOverride(columnRenderers, columnKeys[index]);
 
         return {
             title: formatColName(col),
             index: index,
-            render: backendRenderer ?? overrideRenderer,
+            // Explicit client renderer overrides backend renderer metadata when provided.
+            render: overrideRenderer ?? backendRenderer,
         };
     });
 
@@ -288,11 +287,19 @@ function applyClientColumns(
 function resolveColumnRendererOverride(
     columnRenderers: Record<string, string | ObjectColumnRender> | undefined,
     columnKey: string | undefined,
+    columnTitle: string | undefined,
 ): ObjectColumnRender | undefined {
-    if (!columnRenderers || !columnKey) return undefined;
-    const key = normalizeRendererLookupKey(columnKey);
+    if (!columnRenderers) return undefined;
+    const candidateKeys = [columnKey, columnTitle]
+        .filter((value): value is string => Boolean(value))
+        .map((value) => normalizeRendererLookupKey(value));
+    if (candidateKeys.length === 0) return undefined;
+
     const entries = Object.entries(columnRenderers);
-    const match = entries.find(([rendererKey]) => normalizeRendererLookupKey(rendererKey) === key);
+    const match = entries.find(([rendererKey]) => {
+        const normalizedRendererKey = normalizeRendererLookupKey(rendererKey);
+        return candidateKeys.includes(normalizedRendererKey);
+    });
     if (!match) return undefined;
 
     const override = match[1];
@@ -303,10 +310,14 @@ function resolveColumnRendererOverride(
 }
 
 function normalizeRendererLookupKey(value: string): string {
-    return value
-        .toLowerCase()
-        .trim()
-        .replace(/^\{/, "")
-        .replace(/\}$/, "")
-        .replace(/\(.+\)$/, "");
+    const normalized = value.toLowerCase().trim();
+
+    // For placeholder mentions, normalize away wrapping braces and argument lists.
+    if (normalized.startsWith('{') && normalized.endsWith('}')) {
+        const mention = normalized.slice(1, -1);
+        return mention.replace(/\(.+\)$/, '');
+    }
+
+    // Keep aliases/titles intact so "Name (delta)" stays distinct.
+    return normalized;
 }

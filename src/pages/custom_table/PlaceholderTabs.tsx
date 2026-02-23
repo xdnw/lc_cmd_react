@@ -24,7 +24,8 @@ import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { BlockCopyButton } from "../../components/ui/block-copy-button";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { useDialog } from "../../components/layout/DialogContext";
-import { DEFAULT_TABS, getLayoutColumnConfig, LayoutConfigSchema, resolveLayoutColumnTemplate } from "../../lib/layouts";
+import { getLayoutColumnConfig, LayoutConfigSchema, resolveLayoutColumnTemplate } from "../../lib/layouts";
+import { DEFAULT_TABS } from "../../lib/layouts/defaultTabs";
 import CommandComponent from "../../components/cmd/CommandComponent";
 import { Input } from "@/components/ui/input";
 import { getColOptions, getQueryString } from "./table_util";
@@ -39,6 +40,7 @@ export interface PlaceholderTabsHandle {
     getSelection: () => { [key: string]: string };
     getColumns: () => Map<string, string | null>;
     getSort: () => OrderIdx | OrderIdx[] | undefined;
+    getColumnRenderers: () => Record<string, string> | undefined;
 }
 
 export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
@@ -52,6 +54,12 @@ export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
     const [selection, setSelection] = useDeepState(defSelection);
     const [columns, setColumns] = useState(defColumns);
     const [sort, setSort] = useDeepState(defSort);
+    const [columnRenderers, setColumnRenderers] = useState<Record<string, string> | undefined>(() => {
+        const defaultTemplateName = Object.keys(DEFAULT_TABS[defType]?.columns ?? {})[0];
+        return defaultTemplateName
+            ? DEFAULT_TABS[defType]?.columns[defaultTemplateName]?.columnRenderers
+            : undefined;
+    });
 
     // Expose internal state through the ref
     useImperativeHandle(ref, () => ({
@@ -59,7 +67,8 @@ export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
         getSelection: () => selection,
         getColumns: () => columns,
         getSort: () => sort,
-    }), [type, selection, columns, sort]);
+        getColumnRenderers: () => columnRenderers,
+    }), [type, selection, columns, sort, columnRenderers]);
 
     // Memoized values
     const phTypes = useMemo(() => CM.getPlaceholderTypes(false), []);
@@ -102,8 +111,9 @@ export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
                 }
             })));
             setSort(f => deepEqual(f, colOption.sort) ? f : colOption.sort);
+            setColumnRenderers(colOption.columnRenderers);
         }
-    }, [setType, setSelection, setColumns, setSort]);
+    }, [setType, setSelection, setColumns, setSort, setColumnRenderers]);
 
     const createTabsTrigger = useCallback((index: number) => {
         return <TabsTrigger key={phTypes[index]} value={phTypes[index]} className='w-auto px-3'>
@@ -150,10 +160,11 @@ export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
             setColumns={setColumns}
             sort={sort}
             setSort={setSort}
+            setColumnRenderers={setColumnRenderers}
             showDialog={showDialog}
             hideDialog={hideDialog}
         />;
-    }, [type, columns, setColumns, sort, setSort, showDialog, hideDialog]);
+    }, [type, columns, setColumns, sort, setSort, setColumnRenderers, showDialog, hideDialog]);
 
     return (
         <>
@@ -170,6 +181,7 @@ export function ColumnsSection({
     setColumns,
     sort,
     setSort,
+    setColumnRenderers,
     showDialog,
     hideDialog,
 }: {
@@ -178,6 +190,7 @@ export function ColumnsSection({
     setColumns: (columns: Map<string, string | null>) => void,
     sort: OrderIdx | OrderIdx[] | undefined,
     setSort: (sort: OrderIdx | OrderIdx[] | undefined) => void,
+    setColumnRenderers: (columnRenderers: Record<string, string> | undefined) => void,
     showDialog: (title: string, message: React.ReactNode) => void,
     hideDialog: () => void,
 }) {
@@ -243,6 +256,7 @@ export function ColumnsSection({
 
         setColumns(newColumns);
         setSort(newSort);
+        setColumnRenderers(undefined);
     }, [columns, sort, setColumns, setSort]);
 
     // Handle paste events in the column input
@@ -335,6 +349,7 @@ export function ColumnsSection({
         }
 
         setColumns(newColumns);
+        setColumnRenderers(undefined);
     }, [columns, showDialog, setColumns]);
 
     // Handle template selection
@@ -355,7 +370,8 @@ export function ColumnsSection({
 
         setColumns(newColumns);
         setSort(newSort);
-    }, [type, setColumns, setSort, showDialog]);
+        setColumnRenderers(colInfo.columnRenderers);
+    }, [type, setColumns, setSort, setColumnRenderers, showDialog]);
 
     const applyConfiguredColumnTemplate = useCallback((templateName: string, values: Record<string, string>) => {
         try {
@@ -412,6 +428,7 @@ export function ColumnsSection({
 
         setColumns(newColumns);
         setSort(newSort);
+        setColumnRenderers(undefined);
     }, [columns, sort, setColumns, setSort]);
 
     // Handle column sorting
@@ -457,7 +474,8 @@ export function ColumnsSection({
     const clearAllColumns = useCallback(() => {
         setColumns(new Map());
         setSort({ idx: 0, dir: 'asc' });
-    }, [setColumns, setSort]);
+        setColumnRenderers(undefined);
+    }, [setColumns, setSort, setColumnRenderers]);
 
     // Handle adding a column from the simple list
     const addSimpleColumn = useCallback((option: [string, string]) => {
@@ -465,7 +483,8 @@ export function ColumnsSection({
         const newColumns = new Map(columns);
         newColumns.set(columnKey, null);
         setColumns(newColumns);
-    }, [columns, setColumns]);
+        setColumnRenderers(undefined);
+    }, [columns, setColumns, setColumnRenderers]);
 
     const toggleColumns = useCallback(() => {
         setCollapseColumns(f => !f);

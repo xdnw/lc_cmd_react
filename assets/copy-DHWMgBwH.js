@@ -1,1 +1,0 @@
-import{c}from"./createLucideIcon-BLmDHllb.js";import"./index-CkdKFI98.js";const e=[["rect",{width:"14",height:"14",x:"8",y:"8",rx:"2",ry:"2",key:"17jyea"}],["path",{d:"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2",key:"zix9uf"}]],r=c("copy",e);export{e as __iconNode,r as default};

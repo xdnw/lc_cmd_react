@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reset App Cache</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #0b1220;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+    }
+
+    .panel {
+      max-width: 36rem;
+      width: 100%;
+      background: #111827;
+      border: 1px solid #334155;
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      box-sizing: border-box;
+    }
+
+    .muted {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>Resetting cached app data...</h1>
+    <p id="status" class="muted">Please wait.</p>
+  </div>
+
+  <script>
+    async function clearIndexedDbBestEffort() {
+      if (!('indexedDB' in window) || typeof indexedDB.databases !== 'function') {
+        return;
+      }
+
+      try {
+        const databases = await indexedDB.databases();
+        await Promise.all(
+          databases
+            .map(function (db) { return db && db.name ? db.name : null; })
+            .filter(Boolean)
+            .map(function (name) { return new Promise(function (resolve) {
+              const req = indexedDB.deleteDatabase(name);
+              req.onsuccess = req.onerror = req.onblocked = function () { resolve(); };
+            }); })
+        );
+      } catch (_error) {
+        // Best effort only.
+      }
+    }
+
+    async function resetAndRedirect() {
+      var statusEl = document.getElementById('status');
+      try {
+        if ('serviceWorker' in navigator) {
+          var registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(function (r) { return r.unregister(); }));
+        }
+
+        if ('caches' in window) {
+          var keys = await caches.keys();
+          await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+        }
+
+        localStorage.clear();
+        sessionStorage.clear();
+        await clearIndexedDbBestEffort();
+
+        if (statusEl) {
+          statusEl.textContent = 'Reset complete. Redirecting...';
+        }
+
+        var currentPath = window.location.pathname;
+        var basePath = currentPath.endsWith('/reset.html')
+          ? currentPath.slice(0, -'/reset.html'.length) || '/'
+          : '/';
+
+        var target = basePath + (basePath.endsWith('/') ? '' : '/') + '?cache-bust=' + Date.now();
+        window.location.replace(target);
+      } catch (error) {
+        if (statusEl) {
+          statusEl.textContent = 'Reset failed. Close the tab and open the site again. Error: ' + String(error);
+        }
+      }
+    }
+
+    void resetAndRedirect();
+  </script>
+</body>
+</html>

@@ -1,20 +1,73 @@
-import { MULTI_V2} from "../../../lib/endpoints";
-import {getQueryParams} from "../../../lib/utils";
-import {Link, useParams} from "react-router-dom";
-import React, { useCallback } from "react";
+import { MULTI_V2 } from "../../../lib/endpoints";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import {renderLink} from "./multi";
+import { renderLink } from "./multi";
 import EndpointWrapper from "@/components/api/bulkwrapper";
 import { TableWith2DData } from "@/pages/custom_table/TableWith2dData";
 import LazyIcon from "@/components/ui/LazyIcon";
+import ArgInput from "@/components/cmd/ArgInput";
+import { useSyncedState } from "@/utils/StateUtil";
 
 export default function MultiV2() {
-    const { nation } = useParams<{ nation: string }>();
+    const { nation: nationParam } = useParams<{ nation: string }>();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [nation, setNation] = useSyncedState<string>(nationParam ?? "");
     const [collapse, setCollapse] = React.useState(true);
+
+    useEffect(() => {
+        if (nationParam) {
+            setNation((current) => (current !== nationParam ? nationParam : current));
+        }
+    }, [nationParam, setNation]);
+
+    const forceUpdate = useMemo(
+        () => new URLSearchParams(location.search).get("update") ?? "false",
+        [location.search]
+    );
+
+    const effectiveNation = nationParam ?? nation;
+
+    const updateNation = useCallback((nextNation: string) => {
+        const normalized = nextNation.trim();
+        if (!normalized) return;
+
+        setNation((current) => (current !== normalized ? normalized : current));
+        if (normalized !== nationParam) {
+            navigate(`/multi_v2/${encodeURIComponent(normalized)}`);
+        }
+    }, [navigate, nationParam, setNation]);
+
+    const setNationFromArgInput = useCallback((_name: string, value: string) => {
+        updateNation(value);
+    }, [updateNation]);
+
+    const nationSelector = useMemo(() => {
+        return (
+            <div className="mb-2 bg-light/10 border border-light/10 p-2 rounded">
+                <div className={`${effectiveNation ? 'text-primary/80 border-secondary' : 'text-red-500 border-red-500/25'} border w-full mb-2 p-1 relative bg-accent rounded`}>
+                    {effectiveNation ? (
+                        <>Currently selected: {effectiveNation}</>
+                    ) : (
+                        <>You must select a nation to generate the report.</>
+                    )}
+                </div>
+                <ArgInput
+                    argName="nation"
+                    breakdown={MULTI_V2.endpoint.args.nation.getTypeBreakdown()}
+                    initialValue={effectiveNation ?? ""}
+                    setOutputValue={setNationFromArgInput}
+                />
+            </div>
+        );
+    }, [effectiveNation, setNationFromArgInput]);
+
     const toggleCollapse = useCallback(() => {
         setCollapse(c => !c);
     }, [setCollapse]);
     return <>
+        {nationSelector}
         <div className="bg-light/10 border border-light/10 mb-2 rounded">
         <Button variant="ghost" size="md"
                 className="text-2xl w-full border-b border-secondary px-2 bg-primary/10 justify-start"
@@ -45,7 +98,11 @@ export default function MultiV2() {
             </p>
         </div>
         </div>
-        <EndpointWrapper endpoint={MULTI_V2} args={{nation: nation, forceUpdate: getQueryParams().get("update") ?? 'false'}}>
+        {effectiveNation && <EndpointWrapper
+            key={`${effectiveNation}:${forceUpdate}`}
+            endpoint={MULTI_V2}
+            args={{ nation: effectiveNation, forceUpdate }}
+        >
             {({data}) => {
                 const selfColumns: string[] = ["Nation", "Alliance", "Age", "Cities", "Last Active", "% Online", "Discord", "Discord Linked", "IRL Verified", "Customization", "Updated"];
                 const selfData = [[
@@ -100,6 +157,6 @@ export default function MultiV2() {
                 );
             }
         }
-        </EndpointWrapper>
+        </EndpointWrapper>}
     </>
 }

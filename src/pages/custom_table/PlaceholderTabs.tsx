@@ -34,6 +34,7 @@ import LazyIcon from '@/components/ui/LazyIcon';
 import { OrderIdx } from './DataTable';
 import { deepEqual } from '@/lib/utils';
 import ArgInput from '@/components/cmd/ArgInput';
+import type { ShowDialogFn } from '@/lib/dialog';
 
 export interface PlaceholderTabsHandle {
     getType: () => keyof typeof COMMANDS.placeholders;
@@ -191,7 +192,7 @@ export function ColumnsSection({
     sort: OrderIdx | OrderIdx[] | undefined,
     setSort: (sort: OrderIdx | OrderIdx[] | undefined) => void,
     setColumnRenderers: (columnRenderers: Record<string, string> | undefined) => void,
-    showDialog: (title: string, message: React.ReactNode) => void,
+    showDialog: ShowDialogFn,
     hideDialog: () => void,
 }) {
     const [collapseColumns, setCollapseColumns] = useState(false);
@@ -1060,7 +1061,7 @@ export function SelectionSection({
                 <TooltipProvider>
                     <BlockCopyButton
                         getText={getSelectionText}
-                        className="rounded [&_svg]:size-3 static"
+                        className="rounded [&_svg]:size-3"
                         size="sm"
                     />
                 </TooltipProvider>

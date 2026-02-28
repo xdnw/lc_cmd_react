@@ -5,20 +5,20 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex max-w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-xs font-medium select-none rounded-md ring-offset-background transition-[background-color,border-color,color,box-shadow,transform] duration-150 origin-bottom active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100",
+  "group isolate relative inline-flex max-w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-xs font-medium select-none rounded-md ring-offset-background transition-[color] duration-150 active:brightness-90 before:content-[''] before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:transition-[background-color,border-color,inset] before:duration-150 active:before:inset-[1px_1px_0px_1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:bg-primary/78",
+          "text-primary-foreground shadow-sm before:bg-primary hover:before:bg-primary/90 active:before:bg-primary/78",
         destructive:
-          "border border-destructive/35 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/92 active:bg-destructive/80 dark:border-destructive/55 dark:hover:bg-destructive/88 dark:active:bg-destructive/76",
+          "text-destructive-foreground shadow-sm before:border before:border-destructive/35 before:bg-destructive hover:before:bg-destructive/92 active:before:bg-destructive/80 dark:before:border-destructive/55 dark:hover:before:bg-destructive/88 dark:active:before:bg-destructive/76",
         outline:
-          "border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
+          "shadow-xs hover:text-accent-foreground before:border before:border-input before:bg-background hover:before:bg-accent active:before:bg-accent/80",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 active:bg-secondary/70",
+          "text-secondary-foreground shadow-xs before:bg-secondary hover:before:bg-secondary/80 active:before:bg-secondary/70",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
+          "hover:text-accent-foreground hover:before:bg-accent active:before:bg-accent/80",
         link: "text-primary underline-offset-4 hover:underline active:text-primary/80",
       },
       size: {
@@ -45,14 +45,24 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
     const classes = React.useMemo(
-      () => cn(buttonVariants({ variant, size, className })),
+      () => cn(buttonVariants({ variant, size }), className, "relative ui-button"),
       [className, variant, size]
     )
 
     const Comp = asChild ? Slot : "button"
-    return <Comp className={classes} ref={ref} {...props} />
+    return (
+      <Comp className={classes} ref={ref} {...props}>
+        {asChild ? (
+          children
+        ) : (
+          <span className="relative z-1 inline-flex items-center justify-center gap-1.5 transition-transform duration-150 origin-bottom group-active:scale-[0.96]">
+            {children}
+          </span>
+        )}
+      </Comp>
+    )
   }
 )
 Button.displayName = "button"

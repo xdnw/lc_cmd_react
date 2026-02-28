@@ -5,6 +5,12 @@ import { withKnownCommandArgs } from "@/pages/custom_table/actions/commandArgs";
 import { serializeIdSet } from "@/utils/useIdSelection";
 import type { AnyCommandPath } from "@/utils/Command";
 import {
+    getActionByDetailRole,
+    getActionsByDetailRoles,
+    getDetailSpecActions,
+    withActionPrefillArgs,
+} from "./conflictActionShared";
+import {
     resolveConflictEnumLabel,
     toPlainString,
     turnToTimestampPrefill,
@@ -30,19 +36,22 @@ export const CONFLICT_COMMANDS = {
     allianceRemove: ["conflict", "alliance", "remove"],
     allianceAddForNation: ["conflict", "alliance", "add_all_for_nation"],
     editAddForumPost: ["conflict", "edit", "add_forum_post"],
+    editRemoveForumPost: ["conflict", "edit", "remove_forum_post"],
     editAddNoneWar: ["conflict", "edit", "add_none_war"],
 } as const satisfies Record<string, AnyCommandPath>;
 
-type ConflictCommandPath = (typeof CONFLICT_COMMANDS)[keyof typeof CONFLICT_COMMANDS];
+export type ConflictCommandPath = (typeof CONFLICT_COMMANDS)[keyof typeof CONFLICT_COMMANDS];
 
-type ConflictDetailRole =
+export type ConflictDetailRole =
     | "sync"
     | "field"
     | "default"
     | "danger"
     | "alliance-add"
     | "alliance-add-for-nation"
-    | "alliance-remove-hidden";
+    | "alliance-remove-hidden"
+    | "forum-post-add"
+    | "forum-post-remove-hidden";
 
 export type ConflictFormattedValues = {
     category: ReactNode;
@@ -104,8 +113,16 @@ function requireConflictRow(row: ConflictRow | undefined): ConflictRow {
     return row;
 }
 
+export function toConflictCommandRef(conflictId: number | string): string {
+    return String(conflictId);
+}
+
+export function withConflictRef(conflictRef: string): { conflict: string } {
+    return { conflict: conflictRef };
+}
+
 function withConflict(row: ConflictRow): { conflict: string } {
-    return { conflict: String(row.id) };
+    return withConflictRef(toConflictCommandRef(row.id));
 }
 
 const CONFLICT_ACTIONS = defineConflictActions([
@@ -424,7 +441,17 @@ const CONFLICT_ACTIONS = defineConflictActions([
         scope: "row",
         permission: CONFLICT_EDIT_PERMISSION_PATH,
         requiresDialog: true,
-        detailRole: "default",
+        detailRole: "forum-post-add",
+        buildArgs: ({ row }) => withConflict(requireConflictRow(row)),
+    },
+    {
+        id: "edit-remove-forum-post",
+        label: "Remove forum post",
+        command: CONFLICT_COMMANDS.editRemoveForumPost,
+        scope: "row",
+        permission: CONFLICT_EDIT_PERMISSION_PATH,
+        requiresDialog: true,
+        detailRole: "forum-post-remove-hidden",
         buildArgs: ({ row }) => withConflict(requireConflictRow(row)),
     },
     {
@@ -456,12 +483,7 @@ export function createConflictRowActions(): readonly ConflictRowAction[] {
 }
 
 export function withConflictDialogArgs(action: ConflictRowAction, context: ConflictDialogContext): ConflictRowAction {
-    if (!action.prefillArgs) return action;
-
-    return {
-        ...action,
-        buildArgs: () => action.prefillArgs!(context),
-    };
+    return withActionPrefillArgs(action, context);
 }
 
 export function buildConflictDetailFields(
@@ -476,9 +498,7 @@ export function buildConflictDetailFields(
         },
     ];
 
-    const editableFields = actions
-        .filter((action) => action.detailRole === "field" && action.detailSpec)
-        .sort((left, right) => (left.detailSpec?.order ?? 0) - (right.detailSpec?.order ?? 0));
+    const editableFields = getDetailSpecActions(actions);
 
     for (const action of editableFields) {
         const detail = action.detailSpec;
@@ -496,33 +516,55 @@ export function buildConflictDetailFields(
 }
 
 export function getConflictHeaderSyncAction(actions: readonly ConflictRowAction[]): ConflictRowAction | undefined {
-    return actions.find((action) => action.detailRole === "sync");
+    return getActionByDetailRole(actions, "sync");
 }
 
 export function getConflictAllianceAddAction(actions: readonly ConflictRowAction[]): ConflictRowAction | undefined {
-    return actions.find((action) => action.detailRole === "alliance-add");
+    return getActionByDetailRole(actions, "alliance-add");
 }
 
 export function getConflictAllianceAddForNationAction(actions: readonly ConflictRowAction[]): ConflictRowAction | undefined {
-    return actions.find((action) => action.detailRole === "alliance-add-for-nation");
+    return getActionByDetailRole(actions, "alliance-add-for-nation");
 }
 
 export function getConflictAllianceRemoveAction(actions: readonly ConflictRowAction[]): ConflictRowAction | undefined {
-    return actions.find((action) => action.detailRole === "alliance-remove-hidden");
+    return getActionByDetailRole(actions, "alliance-remove-hidden");
+}
+
+export function getConflictForumPostAddAction(actions: readonly ConflictRowAction[]): ConflictRowAction | undefined {
+    return getActionByDetailRole(actions, "forum-post-add");
+}
+
+export function getConflictForumPostRemoveAction(actions: readonly ConflictRowAction[]): ConflictRowAction | undefined {
+    return getActionByDetailRole(actions, "forum-post-remove-hidden");
 }
 
 export function getConflictFooterActions(actions: readonly ConflictRowAction[]): readonly ConflictRowAction[] {
-    return actions.filter((action) => action.detailRole === "default" || action.detailRole === "danger");
+    return getActionsByDetailRoles(actions, ["default", "danger"]);
 }
 
 export function getConflictActionById<ActionId extends keyof ConflictActionById>(id: ActionId): ConflictActionById[ActionId] {
     return CONFLICT_ACTIONS_BY_ID[id];
 }
 
-export function buildConflictAllianceRemoveArgs(conflictId: number, allianceId: number) {
-    return withKnownCommandArgs(CONFLICT_COMMANDS.allianceRemove, { conflict: String(conflictId) }, {
+export function buildAllianceRemoveArgsForConflictRef(conflictRef: string, allianceId: number) {
+    return withKnownCommandArgs(CONFLICT_COMMANDS.allianceRemove, withConflictRef(conflictRef), {
         alliances: String(allianceId),
     });
+}
+
+export function buildForumPostRemoveArgsForConflictRef(conflictRef: string, url: string) {
+    return withKnownCommandArgs(CONFLICT_COMMANDS.editRemoveForumPost, withConflictRef(conflictRef), {
+        url,
+    });
+}
+
+export function buildConflictAllianceRemoveArgs(conflictId: number, allianceId: number) {
+    return buildAllianceRemoveArgsForConflictRef(toConflictCommandRef(conflictId), allianceId);
+}
+
+export function buildConflictForumPostRemoveArgs(conflictId: number, url: string) {
+    return buildForumPostRemoveArgsForConflictRef(toConflictCommandRef(conflictId), url);
 }
 
 // Compile-time guard: every declared command tuple must remain an AnyCommandPath and valid for command args.

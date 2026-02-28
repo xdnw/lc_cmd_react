@@ -16,6 +16,7 @@ import { queryParamsToObject } from "../../lib/utils";
 import { createCommandStoreWithDef } from "../../utils/StateUtil";
 import { COMMANDS } from '@/lib/commands';
 import type { CommandInputDisplayMode } from '@/components/cmd/field/fieldTypes';
+import type { ShowDialogFn } from '@/lib/dialog';
 import { formatCommandString } from '@/utils/CommandParser';
 
 export default function CommandPage() {
@@ -55,7 +56,7 @@ export function commandButtonAction({ name, command, responseRef, showDialog }: 
     name: string,
     command: string,
     responseRef: React.RefObject<HTMLDivElement | null>,
-    showDialog: (title: string, message: React.ReactNode, quote?: (boolean | undefined)) => void
+    showDialog: ShowDialogFn
 }) {
     const cmdInfo = getCommandAndBehavior(command);
 
@@ -226,7 +227,7 @@ export function runCommand({
 function handleDialog({ json, responseRef, showDialog }: {
     json: Msg,
     responseRef?: React.RefObject<HTMLDivElement | null>,
-    showDialog: (title: string, message: React.ReactNode, quote?: (boolean | undefined)) => void
+    showDialog: ShowDialogFn
 }): boolean {
     if (json['error'] && json['title']) {
         showDialog(json['title'] as string, JSON.stringify(json['error']));
@@ -265,7 +266,7 @@ export function handleResponse(
     { json, responseRef, showDialog }: {
         json: { [key: string]: string | object | object[] | number | number[] | string[] },
         responseRef: React.RefObject<HTMLDivElement | null>,
-        showDialog: (title: string, message: React.ReactNode, quote?: (boolean | undefined)) => void
+        showDialog: ShowDialogFn
     }) {
     if (handleDialog({ json, responseRef, showDialog })) {
         return;
@@ -280,7 +281,7 @@ export function handleResponse(
 
 export function RenderResponse({ jsonArr, showDialog }: {
     jsonArr: { [key: string]: string | object | object[] | number | number[] | string[] }[],
-    showDialog: (title: string, message: React.ReactNode, quote?: (boolean | undefined)) => void
+    showDialog: ShowDialogFn
 }) {
     const responseRef = useRef<HTMLDivElement>(null);
     return (

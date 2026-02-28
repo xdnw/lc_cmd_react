@@ -1,6 +1,7 @@
 import { DiscordEmbed } from "../components/ui/MarkupRenderer";
 import { ReactNode } from "react";
 import { getEmoji } from './emoji';
+import type { ShowDialogFn } from "@/lib/dialog";
 
 export interface HtmlOptions {
     escapeHTML: boolean;
@@ -23,7 +24,7 @@ type DiscordCallback = Partial<HtmlOptions["discordCallback"]> & {
 export function createOptions({ embed, showDialog }:
     {
         embed: DiscordEmbed,
-        showDialog?: (title: string, message: ReactNode, quote?: boolean) => void;
+        showDialog?: ShowDialogFn;
     }): HtmlOptions {
     // Will add later, but should include in interface
     // users?: { [key: string]: string };
@@ -138,7 +139,7 @@ function formatTimestamp(timestamp: number, style: string): string {
     }
 }
 
-export function markup({ txt, replaceEmoji, embed, showDialog }: { txt: string, replaceEmoji: boolean, embed?: DiscordEmbed, showDialog?: (title: string, message: ReactNode, quote?: boolean) => void }): string {
+export function markup({ txt, replaceEmoji, embed, showDialog }: { txt: string, replaceEmoji: boolean, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): string {
     if (replaceEmoji)
         txt = txt.replace(/(?<!code(?: \w+=".+")?>[^>]+)(?<!\/[^\s"]+?):((?!\/)\w+):/g, (match, p: string) => p && emojis[p] ? emojis[p] : match);
     const options: HtmlOptions = embed ? createOptions({ embed, showDialog }) : { escapeHTML: true } as HtmlOptions;

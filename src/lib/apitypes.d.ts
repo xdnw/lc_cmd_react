@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-02-21 21:27:51.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-01 03:58:33.
 
 export interface WebError {
     error: string;
@@ -411,6 +411,10 @@ export interface ConflictAlliances {
     conflict_alliances: { [index: string]: number[][] };
 }
 
+export interface ConflictPosts {
+    posts: { [index: string]: { [index: string]: any[] } };
+}
+
 export interface WebVirtualConflict {
     id: string;
     name: string;
@@ -424,6 +428,20 @@ export interface WebVirtualConflict {
     posts: { [index: string]: any[][] };
 }
 
+export interface VirtualConflictMeta {
+    nationId: number;
+    uuid: string;
+    dateModified: number;
+}
+
+export interface WebTreatyChanges {
+    treaty_changes: WebTreatyChange[];
+}
+
+export interface WebCurrentTreaties {
+    current_treaties: WebCurrentTreaty[];
+}
+
 export interface WebTaxBracket {
     taxId: number;
     dateFetched: number;
@@ -431,6 +449,22 @@ export interface WebTaxBracket {
     name: string;
     moneyRate: number;
     rssRate: number;
+}
+
+export interface WebTreatyChange {
+    timestamp: number;
+    action: string;
+    treaty_type: string;
+    from_alliance_id: number;
+    to_alliance_id: number;
+    turns_remaining: number;
+}
+
+export interface WebCurrentTreaty {
+    treaty_type: string;
+    from_alliance_id: number;
+    to_alliance_id: number;
+    turns_remaining: number;
 }
 
 export type CacheType = "None" | "Cookie" | "LocalStorage" | "SessionStorage" | "Memory";

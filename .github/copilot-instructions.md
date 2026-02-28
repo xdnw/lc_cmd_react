@@ -1,6 +1,12 @@
+Default stance: assume you’re allowed to refactor for clarity/root-cause fixes. Only optimize for minimal diffs when explicitly asked.
+Before editing, write a brief change plan: goal, invariants (externally visible behavior), boundaries/ownership, key data flow, and what will become simpler.
+Consider at least two approaches (minimal patch vs structural fix). Prefer the structural fix that makes the code easiest to understand in isolation and removes the root cause—even if it touches more code. Ask first only if it changes public APIs/contracts or crosses unclear ownership boundaries.
+Implementation rules: make behavior explicit; keep dependencies intentional and one-way; avoid reach-through/cycles; prefer deleting/merging/replacing over layering wrappers/flags/special-cases; introduce abstractions only when they eliminate real complexity.
+Priority order: correctness > local comprehensibility > architecture/root-cause > performance > speed. Reuse project patterns only when they improve clarity (don’t preserve bad structure for consistency).
+Tests: Never shape structure solely for test compatibility. Treat as guardrails/spec when behavior or boundaries are unclear; update/add after the change. Keep the tree green.
+Afterwards, confirm the intended simplification happened (cleaner boundaries/data flow, less coupling) and update docs/comments as needed.
+---
 Using react 19, ts, tailwind, shadcn/ui
-Make sure to write clean, extensible, componentized code, and find opportunities for code reuse with shared utils/components.
-
 EndpointWrapper | @/components/api/bulkwrapper | PUBLIC | Default export: EndpointWrapper<T,A,B> - props: endpoint, args, handle_error?, batch_wait_ms?, isPostOverride?, children({data,reload,isRefetching})
 useDeepMemo | @/components/api/bulkwrapper | PUBLIC | useDeepMemo(value) - deep-compare memo for deps
 BulkQueryClient / fetchBulk / fetchSingle / QueryResult | @/lib/BulkQuery.ts | PUBLIC | Batched API client + types — `fetchBulk` = deduped/batched requests with optional caching; `fetchSingle` = direct POST; exports `bulkQueryClient` singleton and `QueryResult<T>` (endpoint, query, update_ms, cache, data, error).
@@ -11,7 +17,7 @@ ApiFormInputs | @/components/api/apiform | PUBLIC | High-level form for CommonEn
 ApiForm / ApiFormHandler | @/components/api/apiform | PUBLIC | Low-level handlers; prefer ApiFormInputs unless customizing submit flow
 withAsyncData | @/components/api/Wrapped | PUBLIC | HOC: withAsyncData(Component, asyncFn, transform)
 SessionProvider / useSession | @/components/api/SessionContext | PUBLIC | App auth/session context
-DialogProvider / useDialog | @/components/layout/DialogContext | PUBLIC | Global dialog helper: showDialog(title, message)
+DialogProvider / useDialog | @/components/layout/DialogContext | PUBLIC | Global dialog helper: showDialog(title, message, options?) — supports boolean quote compatibility and `ShowDialogOptions` (`openInNewTab`, `focusNewTab`, `replaceActive`, `quote`)
 CommandComponent | @/components/cmd/CommandComponent | PUBLIC | Renders command UIs; use when showing commands and arg forms
 CommandActionButton | @/components/cmd/CommandActionButton | PUBLIC | Small action button for running/previewing commands.
 CmdList | @/components/cmd/CmdList | PUBLIC | List commands by metadata

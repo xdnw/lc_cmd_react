@@ -18,6 +18,7 @@ import Badge from '../ui/badge';
 
 export function LoginPicker() {
     const { showDialog } = useDialog();
+    const webActionButtonClass = "border-primary/45 bg-card text-foreground hover:bg-primary/12 hover:text-foreground";
 
     const discordMessage = useMemo(
         () => (
@@ -87,7 +88,7 @@ export function LoginPicker() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Button variant="default" size="sm" asChild>
+                        <Button variant="outline" size="sm" className={webActionButtonClass} asChild>
                             <a href={getDiscordAuthUrl()} aria-label="Login via Discord">
                                 <LazyIcon name="KeyRound" size={16} className="mr-2" /> Login with Discord
                             </a>
@@ -106,7 +107,7 @@ export function LoginPicker() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Button variant="default" size="sm" asChild>
+                        <Button variant="outline" size="sm" className={webActionButtonClass} asChild>
                             <Link to={`${process.env.BASE_PATH}nation_picker`}>Choose Nation</Link>
                         </Button>
                         <Button variant="outline" size="sm" onClick={openMailInfo}>Help</Button>

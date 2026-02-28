@@ -1,5 +1,6 @@
 import CommandActionButton from "@/components/cmd/CommandActionButton";
 import CommandComponent from "@/components/cmd/CommandComponent";
+import type { CommandInputDisplayMode } from "@/components/cmd/field/fieldTypes";
 import type { TableActionArgs, TableCommandAction } from "@/pages/custom_table/actions/models";
 import { CM } from "@/utils/Command";
 import { createCommandStoreWithDef } from "@/utils/StateUtil";
@@ -25,14 +26,16 @@ export default function CommandActionDialogContent<
     RowT,
     IdT extends number | string,
     P extends AnyCommandPath,
->({
+>({ 
     action,
     context,
     onSuccess,
+    displayMode,
 }: {
     action: TableCommandAction<RowT, IdT, P>;
     context: { row?: RowT; selectedIds: Set<IdT> };
     onSuccess?: (actionId: string) => void;
+    displayMode?: CommandInputDisplayMode;
 }) {
     const command = useMemo(() => CM.get(action.command), [action.command]);
     const initialValues = useMemo(
@@ -49,7 +52,13 @@ export default function CommandActionDialogContent<
     const setOutput = commandStore(selectSetOutput);
 
     const alwaysShowArgument = useCallback(() => true, []);
-    const onSuccessHandler = useMemo(() => onSuccess ? () => onSuccess(action.id) : undefined, [onSuccess, action.id]);
+    const onCompleteHandler = useMemo(() => {
+        if (!onSuccess) return undefined;
+        return (result?: { status?: "success" | "error" | "action" }) => {
+            if (result?.status === "error") return;
+            onSuccess(action.id);
+        };
+    }, [onSuccess, action.id]);
 
     return (
         <div className="space-y-2 max-h-[70vh] overflow-auto">
@@ -60,6 +69,7 @@ export default function CommandActionDialogContent<
                     filterArguments={alwaysShowArgument}
                     initialValues={initialValues}
                     setOutput={setOutput}
+                    displayMode={displayMode}
                 />
             </div>
             <div>
@@ -69,7 +79,7 @@ export default function CommandActionDialogContent<
                     label={`Run ${action.label}`}
                     classes="!ms-0"
                     showResultDialog={true}
-                    onSuccess={onSuccessHandler}
+                    onComplete={onCompleteHandler}
                 />
             </div>
         </div>

@@ -10,7 +10,8 @@ import { usePermission } from "@/utils/PermUtil";
 import { useIdSelection } from "@/utils/useIdSelection";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ConflictPageNav from "./ConflictPageNav";
 import ConflictActionsDialogButton from "./ConflictActionsDialogButton";
 import {
     CONFLICT_EDIT_PERMISSION_PATH,
@@ -29,6 +30,7 @@ import {
     toConflictId,
     type ConflictRow,
 } from "./conflictTableSchema";
+import { useConflictAutoOpen } from "./useConflictAutoOpen";
 
 const syncPermissionKey = CONFLICT_SYNC_PERMISSION_PATH.join(" ");
 const editPermissionKey = CONFLICT_EDIT_PERMISSION_PATH.join(" ");
@@ -75,6 +77,8 @@ export default function Conflicts() {
     const columnsInfoRef = useRef<ConfigColumns[]>([]);
     const [renderedRowIds, setRenderedRowIds] = useState<number[]>([]);
     const [lastSelectedRowIdx, setLastSelectedRowIdx] = useState<number | null>(null);
+    const conflictOpenersRef = useRef(new Map<number, () => void>());
+    const { targetConflictId, autoOpenIfAvailable } = useConflictAutoOpen();
 
     const canSync = Boolean(syncPermission?.success);
     const canEdit = Boolean(editPermission?.success);
@@ -147,6 +151,38 @@ export default function Conflicts() {
         return createConflictRowActions();
     }, []);
 
+    const registerConflictOpener = useCallback((id: number, open: (() => void) | null) => {
+        const openers = conflictOpenersRef.current;
+        const existing = openers.get(id);
+
+        if (!open) {
+            if (existing) {
+                openers.delete(id);
+            }
+            return;
+        }
+
+        if (existing !== open) {
+            openers.set(id, open);
+            if (targetConflictId) {
+                autoOpenIfAvailable((targetId) => {
+                    const parsedId = toConflictId(targetId);
+                    if (parsedId === null) return undefined;
+                    return conflictOpenersRef.current.get(parsedId);
+                });
+            }
+        }
+    }, [autoOpenIfAvailable, targetConflictId]);
+
+    useEffect(() => {
+        if (!targetConflictId) return;
+        autoOpenIfAvailable((targetId) => {
+            const id = toConflictId(targetId);
+            if (id === null) return undefined;
+            return conflictOpenersRef.current.get(id);
+        });
+    }, [autoOpenIfAvailable, targetConflictId]);
+
     const clientColumns = useMemo<ClientColumnOverlay[]>(() => {
         const actionsColumn: ClientColumnOverlay = {
             id: "actions",
@@ -173,6 +209,7 @@ export default function Conflicts() {
                                 canEdit={canEdit}
                                 onActionSuccess={onActionSuccess}
                                 getColumnsInfo={getColumnsInfo}
+                                onOpenReady={registerConflictOpener}
                             />
                         </div>
                     );
@@ -181,7 +218,7 @@ export default function Conflicts() {
         };
 
         return [actionsColumn];
-    }, [canEdit, canRunTableAction, getColumnsInfo, onActionSuccess, rowActions, selected.selectedIds]);
+    }, [canEdit, canRunTableAction, getColumnsInfo, onActionSuccess, registerConflictOpener, rowActions, selected.selectedIds]);
 
     const indexCellRenderer = useCallback(({ row, rowIdx, rowNumber }: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => {
         const id = toConflictId(getConflictRawValue(row, "id"));
@@ -214,6 +251,8 @@ export default function Conflicts() {
 
     return (
         <>
+            <ConflictPageNav />
+
             {(permissionErrors.length > 0 || !isLoggedIn) && (
                 <div className="mb-2 rounded border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-sm">
                     {!isLoggedIn && (

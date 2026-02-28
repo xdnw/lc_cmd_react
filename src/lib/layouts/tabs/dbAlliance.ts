@@ -60,13 +60,15 @@ function allianceTierCountRaw<V extends string>(
     minCities: number,
     maxCities?: number
 ) {
-    const cityRange = maxCities == null
-        ? `#cities>=${minCities}`
-        : `#cities>=${minCities},#cities<=${maxCities}`;
+    const cityRange = minCities <= 0 && maxCities == null
+        ? ''
+        : (maxCities == null
+            ? `,#cities>=${minCities}`
+            : `,#cities>=${minCities},#cities<=${maxCities}`);
     return tpl.rawSubCommand(
         'getnations',
         {
-            filter: `#ismember,${cityRange}`,
+            filter: `#ismember${cityRange}`,
             timestamp,
         },
         'countnations',
@@ -184,6 +186,24 @@ export const dbAllianceTab: TabDefault = {
                     .add({ cmd: 'getcumulativerevenuevalue', args: time, alias: 'Total Revenue' });
             }),
         },
+        'Membership Changes (30d)': {
+            ...defineConfigurableColumns('DBAlliance', 'Membership Changes (30d)', {
+                variables: createStartEndVariables('Time start for membership change unique nation counts.'),
+                sort: { idx: 1, dir: 'desc' },
+            }, (tpl) => {
+                const time = startEndArgs();
+                return tpl
+                    .add({ cmd: 'getmarkdownurl', alias: 'Alliance' })
+                    .add({ cmd: 'countmembers', alias: 'Members' })
+                    .add({ cmd: 'getnetmembersacquired', args: time, alias: 'Net Member' })
+                    .add({ cmd: 'getmembershipchangeuniquenationsbyreason', args: { reasons: 'recruited', ...time }, alias: 'RECRUITED' })
+                    .add({ cmd: 'getmembershipchangeuniquenationsbyreason', args: { reasons: 'joined', ...time }, alias: 'JOINED' })
+                    .add({ cmd: 'getmembershipchangeuniquenationsbyreason', args: { reasons: 'left', ...time }, alias: 'LEFT' })
+                    .add({ cmd: 'getmembershipchangeuniquenationsbyreason', args: { reasons: 'deleted', ...time }, alias: 'DELETED' })
+                    .add({ cmd: 'getmembershipchangeuniquenationsbyreason', args: { reasons: 'vm_left', ...time }, alias: 'VM_LEFT' })
+                    .add({ cmd: 'getmembershipchangeuniquenationsbyreason', args: { reasons: 'vm_returned', ...time }, alias: 'VM_RETURNED' })
+            }),
+        },
         'Tier Delta (30d)': {
             ...defineConfigurableColumns('DBAlliance', 'Tier Delta (30d)', {
                 variables: createBaselineCurrentVariables(
@@ -209,25 +229,15 @@ export const dbAllianceTab: TabDefault = {
 
                 for (const band of tierBands) {
                     const max = getBandMax(band);
-                    const currentTier = allianceTierCountRaw(
-                        withSummary,
-                        current,
-                        band.min,
-                        max
+                    withSummary.addRaw(
+                        packTierValues(
+                            withSummary,
+                            allianceTierCountRaw(withSummary, current, band.min, max),
+                            allianceTierCountRaw(withSummary, baseline, band.min, max),
+                        ),
+                        band.label,
+                        LAYOUT_RENDERERS.numberWithDeltaFromBaseline
                     );
-                    const baselineTier = allianceTierCountRaw(
-                        withSummary,
-                        baseline,
-                        band.min,
-                        max
-                    );
-
-                    withSummary
-                        .addRaw(currentTier, band.label)
-                        .addRaw(
-                            withSummary.rawConcat(currentTier, '-', baselineTier),
-                            `${band.label} Delta`
-                        );
                 }
 
                 return withSummary;

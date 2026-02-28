@@ -101,7 +101,7 @@ export default function Splash() {
           onPointerCancel={handlePointerCancel}
           onClick={handleStart}
           style={splashStyle}
-          className={`${buttonVariants({ variant: "default" })} rounded-none opacity-25 border-white no-underline border-4 ${classes.mybutton}`}
+          className={`${buttonVariants({ variant: "ghost" })} rounded-none opacity-25 border-white no-underline border-4 ${classes.mybutton}`}
         >
           &gt; INITIALIZE
         </a>

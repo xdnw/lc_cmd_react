@@ -1,17 +1,20 @@
-import React, { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useReducer, type ReactNode } from "react";
 import SimpleDialog from "../ui/simple-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Button } from "../ui/button";
+import { normalizeShowDialogOptions, type ShowDialogArg, type ShowDialogFn, type ShowDialogOptions } from "@/lib/dialog";
 
-export type ShowDialogOptions = {
-    quote?: boolean;
-    openInNewTab?: boolean;
-    focusNewTab?: boolean;
-    replaceActive?: boolean;
-};
+export type { ShowDialogArg, ShowDialogFn, ShowDialogOptions } from "@/lib/dialog";
 
 type DialogContextType = {
-    showDialog: (title: string, message: ReactNode, quoteOrOptions?: boolean | ShowDialogOptions) => void;
+    /**
+     * Show a dialog entry.
+     * - `showDialog(title, message)` uses defaults.
+     * - `showDialog(title, message, true)` preserves boolean quote compatibility.
+     * - `showDialog(title, message, { openInNewTab, focusNewTab, replaceActive, quote })`
+     *   provides explicit tab/session behavior.
+     */
+    showDialog: ShowDialogFn;
     hideDialog: () => void;
 };
 
@@ -24,127 +27,191 @@ type DialogProps = {
 
 const DialogContext = createContext<DialogContextType | undefined>(undefined);
 
-export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [dialogs, setDialogs] = useState<DialogProps[]>([]);
-    const [isDialogVisible, setDialogVisible] = useState(false);
-    const [activeDialogId, setActiveDialogId] = useState<string | null>(null);
-    const [tabHistory, setTabHistory] = useState<string[]>([]);
+type DialogState = {
+    dialogs: DialogProps[];
+    isDialogVisible: boolean;
+    activeDialogId: string | null;
+    tabHistory: string[];
+};
 
-    const showDialog = useCallback((title: string, message: ReactNode, quoteOrOptions: boolean | ShowDialogOptions = false) => {
-        const options: ShowDialogOptions = typeof quoteOrOptions === "boolean"
-            ? { quote: quoteOrOptions }
-            : quoteOrOptions;
+type DialogAction =
+    | { type: "SHOW"; title: string; message: ReactNode; options: ShowDialogOptions }
+    | { type: "HIDE" }
+    | { type: "SET_VISIBLE"; visible: boolean }
+    | { type: "CLOSE_TAB"; dialogId: string }
+    | { type: "GO_BACK" }
+    | { type: "SET_ACTIVE_TAB"; dialogId: string };
 
-        const quote = options.quote ?? false;
+const INITIAL_DIALOG_STATE: DialogState = {
+    dialogs: [],
+    isDialogVisible: false,
+    activeDialogId: null,
+    tabHistory: [],
+};
 
-        setDialogs((prevDialogs) => {
-            const hasActive = activeDialogId !== null && prevDialogs.some((dialog) => dialog.id === activeDialogId);
+const createDialogId = (): string => `dialog-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const appendHistory = (history: string[], dialogId: string): string[] => {
+    if (history[history.length - 1] === dialogId) {
+        return history;
+    }
+    return [...history, dialogId];
+};
+
+const pruneHistory = (history: string[], validIds: Set<string>): string[] => {
+    return history.filter((id) => validIds.has(id));
+};
+
+const getLastDialogId = (dialogs: DialogProps[]): string | null => {
+    return dialogs[dialogs.length - 1]?.id ?? null;
+};
+
+const removeDialogById = (state: DialogState, dialogId: string): DialogState => {
+    const nextDialogs = state.dialogs.filter((dialog) => dialog.id !== dialogId);
+    if (nextDialogs.length === 0) {
+        return INITIAL_DIALOG_STATE;
+    }
+
+    const nextDialogIdSet = new Set(nextDialogs.map((dialog) => dialog.id));
+    let nextHistory = pruneHistory(state.tabHistory.filter((id) => id !== dialogId), nextDialogIdSet);
+
+    let nextActiveDialogId = state.activeDialogId;
+    const activeWasRemoved = !nextActiveDialogId || !nextDialogIdSet.has(nextActiveDialogId);
+    if (activeWasRemoved) {
+        nextActiveDialogId = nextHistory[nextHistory.length - 1] ?? getLastDialogId(nextDialogs);
+    }
+
+    if (!nextActiveDialogId) {
+        return INITIAL_DIALOG_STATE;
+    }
+
+    nextHistory = appendHistory(nextHistory, nextActiveDialogId);
+
+    return {
+        dialogs: nextDialogs,
+        isDialogVisible: true,
+        activeDialogId: nextActiveDialogId,
+        tabHistory: nextHistory,
+    };
+};
+
+const dialogReducer = (state: DialogState, action: DialogAction): DialogState => {
+    switch (action.type) {
+        case "SHOW": {
+            const { title, message, options } = action;
+            const quote = options.quote ?? false;
+
+            const hasActive = state.activeDialogId !== null && state.dialogs.some((dialog) => dialog.id === state.activeDialogId);
             const openInNewTab = options.openInNewTab ?? false;
             const replaceActive = options.replaceActive ?? (!openInNewTab);
 
-            if (replaceActive && hasActive && activeDialogId) {
-                return prevDialogs.map((dialog) => {
-                    if (dialog.id !== activeDialogId) return dialog;
-                    return {
-                        ...dialog,
-                        title,
-                        message,
-                        quote,
-                    };
+            if (replaceActive && hasActive && state.activeDialogId) {
+                const nextDialogs = state.dialogs.map((dialog) => {
+                    if (dialog.id !== state.activeDialogId) return dialog;
+                    return { ...dialog, title, message, quote };
                 });
+                const nextDialogIdSet = new Set(nextDialogs.map((dialog) => dialog.id));
+                const nextHistory = appendHistory(pruneHistory(state.tabHistory, nextDialogIdSet), state.activeDialogId);
+                return {
+                    dialogs: nextDialogs,
+                    isDialogVisible: true,
+                    activeDialogId: state.activeDialogId,
+                    tabHistory: nextHistory,
+                };
             }
 
-            const id = `dialog-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            const nextDialogs = [...prevDialogs, { id, title, message, quote }];
-
+            const id = createDialogId();
+            const nextDialogs = [...state.dialogs, { id, title, message, quote }];
             const shouldFocusNewTab = options.focusNewTab ?? true;
-            if (shouldFocusNewTab || !hasActive) {
-                setActiveDialogId(id);
-                setTabHistory((prev) => {
-                    const next = prev[prev.length - 1] === id ? prev : [...prev, id];
-                    return next;
-                });
+            const nextActiveDialogId = shouldFocusNewTab || !hasActive
+                ? id
+                : (state.activeDialogId ?? id);
+            const nextDialogIdSet = new Set(nextDialogs.map((dialog) => dialog.id));
+            const nextHistory = appendHistory(pruneHistory(state.tabHistory, nextDialogIdSet), nextActiveDialogId);
+
+            return {
+                dialogs: nextDialogs,
+                isDialogVisible: true,
+                activeDialogId: nextActiveDialogId,
+                tabHistory: nextHistory,
+            };
+        }
+        case "HIDE":
+            return INITIAL_DIALOG_STATE;
+        case "SET_VISIBLE":
+            if (!action.visible) {
+                return INITIAL_DIALOG_STATE;
+            }
+            return {
+                ...state,
+                isDialogVisible: true,
+            };
+        case "CLOSE_TAB":
+            return removeDialogById(state, action.dialogId);
+        case "GO_BACK": {
+            if (state.dialogs.length === 0) {
+                return INITIAL_DIALOG_STATE;
             }
 
-            return nextDialogs;
-        });
+            const currentDialogId = state.activeDialogId ?? getLastDialogId(state.dialogs);
+            if (!currentDialogId) {
+                return INITIAL_DIALOG_STATE;
+            }
 
-        setDialogVisible(true);
-    }, [activeDialogId]);
+            return removeDialogById(state, currentDialogId);
+        }
+        case "SET_ACTIVE_TAB": {
+            const exists = state.dialogs.some((dialog) => dialog.id === action.dialogId);
+            if (!exists) {
+                const validIds = new Set(state.dialogs.map((dialog) => dialog.id));
+                return {
+                    ...state,
+                    tabHistory: pruneHistory(state.tabHistory, validIds),
+                };
+            }
+            return {
+                ...state,
+                activeDialogId: action.dialogId,
+                tabHistory: appendHistory(state.tabHistory, action.dialogId),
+            };
+        }
+        default:
+            return state;
+    }
+};
+
+export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [state, dispatch] = useReducer(dialogReducer, INITIAL_DIALOG_STATE);
+    const { dialogs, isDialogVisible, activeDialogId, tabHistory } = state;
+
+    const showDialog = useCallback<ShowDialogFn>((title, message, optionsArg = false) => {
+        dispatch({
+            type: "SHOW",
+            title,
+            message,
+            options: normalizeShowDialogOptions(optionsArg),
+        });
+    }, []);
 
     const hideDialog = useCallback(() => {
-        setDialogs([]);
-        setActiveDialogId(null);
-        setTabHistory([]);
-        setDialogVisible(false);
+        dispatch({ type: "HIDE" });
     }, []);
 
     const setDialogVisibleAndClear = useCallback((visible: boolean) => {
-        setDialogVisible(visible);
-        if (!visible) {
-            setDialogs([]);
-            setActiveDialogId(null);
-            setTabHistory([]);
-        }
+        dispatch({ type: "SET_VISIBLE", visible });
     }, []);
 
     const closeDialogTab = useCallback((dialogId: string) => {
-        setDialogs((prevDialogs) => {
-            const nextDialogs = prevDialogs.filter((dialog) => dialog.id !== dialogId);
-            const nextDialogIdSet = new Set(nextDialogs.map((dialog) => dialog.id));
-            if (nextDialogs.length === 0) {
-                setDialogVisible(false);
-                setActiveDialogId(null);
-                setTabHistory([]);
-                return nextDialogs;
-            }
-
-            if (activeDialogId === dialogId) {
-                const previousId = [...tabHistory]
-                    .reverse()
-                    .find((id) => id !== dialogId && nextDialogIdSet.has(id));
-                const fallbackId = previousId ?? nextDialogs[nextDialogs.length - 1].id;
-                setActiveDialogId(fallbackId);
-                setTabHistory((prev) => {
-                    const filtered = prev.filter((id) => id !== dialogId && nextDialogIdSet.has(id));
-                    const next = filtered[filtered.length - 1] === fallbackId ? filtered : [...filtered, fallbackId];
-                    return next;
-                });
-            } else {
-                setTabHistory((prev) => {
-                    const next = prev.filter((id) => id !== dialogId && nextDialogIdSet.has(id));
-                    return next;
-                });
-            }
-
-            return nextDialogs;
-        });
-    }, [activeDialogId, tabHistory]);
+        dispatch({ type: "CLOSE_TAB", dialogId });
+    }, []);
 
     const onTabChange = useCallback((nextDialogId: string) => {
-        setActiveDialogId(nextDialogId);
-        setTabHistory((prev) => {
-            const next = prev[prev.length - 1] === nextDialogId ? prev : [...prev, nextDialogId];
-            return next;
-        });
+        dispatch({ type: "SET_ACTIVE_TAB", dialogId: nextDialogId });
     }, []);
 
     const goBack = useCallback(() => {
-        setTabHistory((prev) => {
-            if (prev.length <= 1) return prev;
-            const validIds = new Set(dialogs.map((dialog) => dialog.id));
-            const pruned = prev.filter((id) => validIds.has(id));
-            if (pruned.length <= 1) {
-                const only = pruned[0] ?? dialogs[dialogs.length - 1]?.id ?? null;
-                setActiveDialogId(only);
-                return pruned;
-            }
-            const next = pruned.slice(0, -1);
-            const previousId = next[next.length - 1] ?? null;
-            setActiveDialogId(previousId);
-            return next;
-        });
-    }, [dialogs]);
+        dispatch({ type: "GO_BACK" });
+    }, []);
 
     const selectedDialogId = useMemo(() => {
         if (activeDialogId && dialogs.some((dialog) => dialog.id === activeDialogId)) {
@@ -157,7 +224,7 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return dialogs.find((dialog) => dialog.id === selectedDialogId) ?? dialogs[0];
     }, [dialogs, selectedDialogId]);
 
-    const canGoBack = tabHistory.length > 1;
+    const canGoBack = dialogs.length > 0;
 
     const closeHandlerByDialogId = useMemo(() => {
         const handlers = new Map<string, () => void>();
@@ -201,7 +268,7 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                                             <div key={dialog.id} className="inline-flex items-center gap-1 rounded border border-border px-1">
                                                 <TabsTrigger
                                                     value={dialog.id}
-                                                    className="h-7 max-w-[220px] truncate px-2"
+                                                    className="h-7 max-w-55 truncate px-2"
                                                     title={dialog.title}
                                                     onMouseDown={middleClickCloseHandlerByDialogId.get(dialog.id)}
                                                 >
@@ -209,8 +276,9 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                                                 </TabsTrigger>
                                                 <button
                                                     type="button"
-                                                    className="h-5 w-5 rounded text-xs hover:bg-muted"
+                                                    className="h-5 w-5 rounded text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                                     aria-label={`Close ${dialog.title}`}
+                                                    title={`Close ${dialog.title}`}
                                                     onClick={closeHandlerByDialogId.get(dialog.id)}
                                                 >
                                                     ×
@@ -242,4 +310,8 @@ export const useDialog = (): DialogContextType => {
         throw new Error("useDialog must be used within a DialogProvider");
     }
     return context;
+};
+
+export const useShowDialog = (): ShowDialogFn => {
+    return useDialog().showDialog;
 };

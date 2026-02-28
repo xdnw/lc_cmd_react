@@ -1,6 +1,7 @@
 import React, { ReactNode, useCallback, useMemo } from "react";
 import '@/pages/command/discord.css';
 import { markup } from "../../lib/discord";
+import type { ShowDialogFn } from "@/lib/dialog";
 import { Button } from './button';
 import { WebGraph } from "../../lib/apitypes";
 import { ButtonInfoCmd, ButtonInfoHref } from "../../lib/internaltypes";
@@ -78,7 +79,7 @@ export function CmdButton({ button, responseRef, showDialog }:
     {
         button: ButtonInfoCmd,
         responseRef: React.RefObject<HTMLDivElement | null>,
-        showDialog: (title: string, message: React.ReactNode, quote?: boolean) => void
+        showDialog: ShowDialogFn
     }): ReactNode {
 
     const submit = useCallback(() => {
@@ -105,7 +106,7 @@ export function Embed({ json, responseRef, showDialog }:
     {
         json: DiscordEmbed,
         responseRef: React.RefObject<HTMLDivElement | null>,
-        showDialog: (title: string, message: React.ReactNode, quote?: (boolean | undefined)) => void
+        showDialog: ShowDialogFn
     }) {
     console.log("BUTTONS ARE", json.buttons);
     const embeds = [];
@@ -230,7 +231,7 @@ export function Embed({ json, responseRef, showDialog }:
     );
 }
 
-export default function MarkupRenderer({ content, embed, showDialog }: { content: string, embed?: DiscordEmbed, showDialog?: (title: string, message: ReactNode, quote?: boolean) => void }): ReactNode {
+export default function MarkupRenderer({ content, embed, showDialog }: { content: string, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): ReactNode {
     const sanitized = useMemo(() => {
         return content ? (markup({
             txt: content,

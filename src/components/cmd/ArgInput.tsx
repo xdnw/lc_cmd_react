@@ -11,8 +11,9 @@ import MmrDoubleInput from "./MmrDoubleInput";
 import CityRanges from "./CityRanges";
 import ColorInput from "./ColorInput";
 import MapInput from "./MapInput";
+import SetInput from "./SetInput";
 import TriStateInput from "./TriStateInput";
-import QueryComponent from "./QueryComponent";
+import QueryComponent, { CompositeQueryComponent } from "./QueryComponent";
 import {REGEX_PATTERN} from "../../lib/regex-patterns";
 import {useMemo, memo} from "react";
 import TypedInput from "./TypedInput";
@@ -30,23 +31,14 @@ interface ArgProps {
     setOutputValue: (key: string, value: string) => void
 }
 
-export const ArgSet = memo(function ArgSet(
-    { argName, breakdown, initialValue, setOutputValue, displayMode }: ArgProps) {
-    const childOptions = useMemo(() => breakdown.child![0].getOptionData(), [breakdown]);
-    if (childOptions.options) {
-        return <ListComponentOptions argName={argName} options={childOptions.options} isMulti={true} initialValue={initialValue} setOutputValue={setOutputValue}/>
-    }
-    if (childOptions.query) {
-        return <QueryComponent element={breakdown.child![0].element} multi={true} argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />
-    }
-    return "TODO SET " + JSON.stringify(breakdown);
-});
-
 const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialValue, setOutputValue, displayMode }: ArgProps) {
     const compact = isCompactMode(displayMode);
     const options = useMemo(() => breakdown.getOptionData(), [breakdown]);
     if (options.options) {
         return <ListComponentOptions argName={argName} options={options.options} isMulti={options.multi} initialValue={initialValue} setOutputValue={setOutputValue}/>
+    }
+    if (options.composite.length > 0) {
+        return <CompositeQueryComponent composites={options.composite} multi={options.multi} argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />
     }
 
     const placeholder = breakdown.getPlaceholder();
@@ -72,7 +64,16 @@ const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialV
             return <MapInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} children={breakdown.child!} displayMode={displayMode} />
         }
         case 'set': {
-            return <ArgSet argName={argName} breakdown={breakdown} initialValue={initialValue} setOutputValue={setOutputValue} displayMode={displayMode} />
+            const setValueType = breakdown.child?.[0];
+            if (!setValueType) {
+                return <UnknownType breakdown={breakdown} argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
+            }
+
+            if (options.query) {
+                return <QueryComponent element={setValueType.element} multi={true} argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
+            }
+
+            return <SetInput argName={argName} child={setValueType} initialValue={initialValue} setOutputValue={setOutputValue} displayMode={displayMode} />;
         }
         case "color": {
             return <ColorInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />

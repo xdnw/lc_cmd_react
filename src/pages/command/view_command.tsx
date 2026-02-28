@@ -10,6 +10,7 @@ import { AnyCommandPath, CommandArguments, CommandPath } from "../../utils/Comma
 import { COMMANDS } from "../../lib/commands";
 import CommandsPage from "../commands";
 import EndpointWrapper from "@/components/api/bulkwrapper";
+import type { ShowDialogFn } from "@/lib/dialog";
 
 function toMap(searchParams: URLSearchParams): { [key: string]: string } {
     const map: { [key: string]: string } = {};
@@ -56,7 +57,7 @@ export function ViewCommand<P extends AnyCommandPath>(
     </>;
 }
 
-export function MemoizedRenderResponse({ data, showDialog }: { data: WebViewCommand, showDialog: (title: string, message: React.ReactNode, quote?: (boolean | undefined)) => void }) {
+export function MemoizedRenderResponse({ data, showDialog }: { data: WebViewCommand, showDialog: ShowDialogFn }) {
     return useMemo(() => {
         return <RenderResponse jsonArr={data.data as { [key: string]: string | object | object[] | number | number[] | string[] }[]} showDialog={showDialog} />;
     }, [data.data, showDialog]);

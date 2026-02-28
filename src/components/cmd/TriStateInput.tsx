@@ -1,6 +1,34 @@
 import { useSyncedState } from "@/utils/StateUtil";
-import { Button } from "../ui/button.tsx";
 import { useCallback } from "react";
+import { cn } from "@/lib/utils";
+
+type TriStateValue = "-1" | "0" | "1";
+
+const TRI_STATE_OPTIONS: Array<{
+    value: TriStateValue;
+    label: string;
+    icon: string;
+    activeClass: string;
+}> = [
+    {
+        value: "-1",
+        label: "No",
+        icon: "X",
+        activeClass: "border-red-500/40 bg-red-500/15 text-red-700 dark:text-red-300",
+    },
+    {
+        value: "0",
+        label: "Any",
+        icon: "/",
+        activeClass: "border-sky-500/40 bg-sky-500/15 text-sky-700 dark:text-sky-300",
+    },
+    {
+        value: "1",
+        label: "Yes",
+        icon: "\u2714",
+        activeClass: "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+    },
+];
 
 export default function TriStateInput(
     { argName, initialValue, setOutputValue, compact }:
@@ -11,33 +39,48 @@ export default function TriStateInput(
             setOutputValue: (name: string, value: string) => void
         }
 ) {
-    const [value, setValue] = useSyncedState(initialValue || '0');
+    const [value, setValue] = useSyncedState(initialValue || "0");
+    const normalizedValue: TriStateValue = value === "-1" || value === "1" ? value : "0";
 
     const handleButtonClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-        const newValue = event.currentTarget.getAttribute('data-key');
-        if (newValue) {
-            setValue(newValue);
-            setOutputValue(argName, newValue);
-        }
-    }, [setValue, setOutputValue, argName]);
+        const nextValue = event.currentTarget.value as TriStateValue;
+        setValue(nextValue);
+        setOutputValue(argName, nextValue);
+    }, [argName, setOutputValue, setValue]);
 
     return (
-        <div className="flex items-center gap-1">
-            <Button size={compact ? 'sm' : 'md'}
-                className={`m-0 ${value === '-1' ? 'bg-red-500 text-secondary' : 'bg-gray-500'}`}
-                data-key="-1"
-                onClick={handleButtonClick}
-            >X</Button>
-            <Button size={compact ? 'sm' : 'md'}
-                className={`m-0 ${value === '0' ? 'bg-blue-500 text-secondary' : 'bg-gray-500'}`}
-                data-key="0"
-                onClick={handleButtonClick}
-            >/</Button>
-            <Button size={compact ? 'sm' : 'md'}
-                className={`m-0 ${value === '1' ? 'bg-green-500 text-secondary' : 'bg-gray-500'}`}
-                data-key="1"
-                onClick={handleButtonClick}
-            >✔</Button>
+        <div
+            role="radiogroup"
+            aria-label={argName}
+            className={cn(
+                "inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/55 p-0.5",
+                compact ? "h-6.5" : "h-7"
+            )}
+        >
+            {TRI_STATE_OPTIONS.map((option) => {
+                const isActive = normalizedValue === option.value;
+                return (
+                    <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        aria-label={option.label}
+                        title={option.label}
+                        value={option.value}
+                        onClick={handleButtonClick}
+                        className={cn(
+                            "inline-flex items-center justify-center rounded-sm border text-[11px] leading-none transition-all duration-150",
+                            compact ? "h-5.5 w-5.5" : "h-6 w-6",
+                            isActive
+                                ? `font-semibold shadow-sm ${option.activeClass}`
+                                : "border-transparent text-muted-foreground hover:bg-background/80 hover:text-foreground"
+                        )}
+                    >
+                        {option.icon}
+                    </button>
+                );
+            })}
         </div>
     );
 }

@@ -177,12 +177,13 @@ export function getTypeBreakdown(ref: CommandMap, type: string): TypeBreakdown {
     if (type.endsWith('>')) {
         const openBracket = type.indexOf('<');
         const childStr = split(type.substring(openBracket + 1, type.length - 1), ",");
-        const element = type.substring(0, openBracket).trim();
-        const child = childStr.map((childType) => getTypeBreakdown(ref, childType.trim()));
-        return new TypeBreakdown(ref, element, annotations, child);
-    } else {
-        return new TypeBreakdown(ref, type, annotations, null);
+        if (childStr.length !== 1 || childStr[0] !== "?") {
+            const element = type.substring(0, openBracket).trim();
+            const child = childStr.map((childType) => getTypeBreakdown(ref, childType.trim()));
+            return new TypeBreakdown(ref, element, annotations, child);
+        }
     }
+    return new TypeBreakdown(ref, type, annotations, null);
 }
 
 export class BaseCommand {
@@ -684,7 +685,10 @@ export class CommandMap {
             if (command.command.arguments) {
                 Object.values(command.command.arguments).forEach((arg) => {
                     if (!allArgs[arg.type]) {
-                        allArgs[arg.type] = arg;
+                        const fromPath = "/" + path.join(" ");
+                        const cloned: IArgument = { ...arg };
+                        cloned.name = (cloned.name ? cloned.name : "") + (cloned.name ? " " : "") + `(from ${fromPath})`;
+                        allArgs[arg.type] = cloned;
                     }
                 });
             }

@@ -93,10 +93,11 @@ const routeConfigs: AppRouteConfig[] = [
 
   // Nation multi-boxing (anyone)
   { key: "multi", path: "/multi/:nation", element: () => import("./pages/a2/nation/multi"), protected: false },
-  { key: "multi_v2", path: "/multi_v2/:nation", element: () => import("./pages/a2/nation/multi_2"), protected: false },
+  { key: "multi_v2", path: "/multi_v2/:nation?", element: () => import("./pages/a2/nation/multi_2"), protected: false },
 
   // game conflict viewer (anyone)
   { key: "conflicts", path: "/conflicts", element: () => import("@/pages/a2/conflict/conflicts"), protected: false },
+  { key: "temporary_conflicts", path: "/temporary-conflicts", element: () => import("@/pages/a2/conflict/temporaryConflicts"), protected: false },
 
   // tasks (anyone - though view is limited if not an admin)
   { key: "status", path: "/status", element: () => import("./pages/a2/admin/status"), protected: false },

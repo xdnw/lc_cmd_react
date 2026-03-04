@@ -143,15 +143,19 @@ export function getRenderer(type: string): ObjectColumnRender | undefined {
     if (!type) return undefined;
     if (type.startsWith("enum:")) {
         const enumType = type.split(":")[1];
-        const options = (CM.data.options[enumType] as IOptionData).options ?? [];
-        // return Object.assign({
-        //     display: (value: number) => options[value],
-        // }, {isEnum: true, options: options});
-        return {
-            display: (value: string | number | boolean | number[]) => options[value as number],
-            isEnum: true,
-            options: options,
-        };
+        try {
+            const options = (CM.data.options[enumType] as IOptionData).options ?? [];
+            // return Object.assign({
+            //     display: (value: number) => options[value],
+            // }, {isEnum: true, options: options});
+            return {
+                display: (value: string | number | boolean | number[]) => options[value as number],
+                isEnum: true,
+                options: options,
+            };
+        } catch (e) {
+            throw new Error(`Failed to get options for enum type ${enumType}. Valid options: (${Object.keys(CM.data.options).join(", ")})`);
+        }
     } else {
         return RENDERERS[type] ?? RENDERERS.text;
     }

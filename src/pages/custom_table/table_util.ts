@@ -8,6 +8,7 @@ import { TableInfo } from './AbstractTable';
 import { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, OrderIdx } from "./DataTable";
 import { JSONValue } from "@/lib/internaltypes";
 import { sortData, toSortColumns } from "./sort";
+import { toSelAndModifierString } from "@/lib/selection";
 
 export type PlaceholderType = Parameters<typeof CM.placeholders>[0];
 
@@ -170,15 +171,7 @@ export function toLegacySelection(type: string, selection: { [key: string]: stri
     return modifiers ? `${type}:${baseSelection} [${modifiers}]` : `${type}:${baseSelection}`;
 }
 
-export function toSelAndModifierString(selAndModifiers: { [key: string]: string }): string | undefined {
-    let sel = undefined;
-    if (Object.keys(selAndModifiers).length === 1) {
-        sel = selAndModifiers[""];
-    } else if (Object.keys(selAndModifiers).length > 1) {
-        sel = JSON.stringify(selAndModifiers);
-    }
-    return sel;
-}
+export { toSelAndModifierString };
 
 export function getQueryString(
     { type, sel, selAndModifiers, columns, sort }: {

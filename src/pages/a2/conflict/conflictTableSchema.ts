@@ -40,8 +40,8 @@ const CONFLICT_COLUMN_SCHEMA = [
     { key: "wiki", placeholder: { cmd: "getwiki", alias: "Wiki" } },
     { key: "status", placeholder: { cmd: "getstatusdesc", alias: "Status" } },
     { key: "casusBelli", placeholder: { cmd: "getcasusbelli", alias: "CB" } },
-    { key: "c1Name", placeholder: { cmd: "getcoalitionname", args: { side: "false" }, alias: "C1" } },
-    { key: "c2Name", placeholder: { cmd: "getcoalitionname", args: { side: "true" }, alias: "C2" } },
+    { key: "c1Name", placeholder: { cmd: "getcoalitionname", args: { side: "true" }, alias: "C1" } },
+    { key: "c2Name", placeholder: { cmd: "getcoalitionname", args: { side: "false" }, alias: "C2" } },
 ] as const satisfies readonly ConflictColumnSchemaEntry[];
 
 export type ConflictColumnKey = (typeof CONFLICT_COLUMN_SCHEMA)[number]["key"];

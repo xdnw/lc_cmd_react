@@ -17,9 +17,10 @@ function handleCopyStackClick(e: React.MouseEvent<HTMLButtonElement>) {
 ReactGA.initialize(process.env.GTAG_ID as string);
 // Lazy-loaded components
 
+const LoginPicker = lazy(() => import("@/pages/login_picker"));
+
 const LoggedInRoute = ({ children }: { children: ReactNode }) => {
-  const Picker = lazy(() => import("@/pages/login_picker"));
-  return hasToken() ? <>{children}</> : <Picker />;
+  return hasToken() ? <>{children}</> : <LoginPicker />;
 };
 
 export interface AppRouteConfig {
@@ -79,6 +80,7 @@ const routeConfigs: AppRouteConfig[] = [
   // Tables (anyone)
   { key: "custom_table", path: "/custom_table", element: () => import("./pages/custom_table/TablePage"), protected: false },
   { key: "view_table", path: "/view_table", element: () => import("@/pages/view_table"), protected: false },
+  { key: "settings", path: "/settings", element: () => import("@/pages/settings"), protected: true },
 
   // Graphs (anyone)
   { key: "col_mil_graph", path: "/col_mil_graph", element: () => import("./pages/graphs/col_mil_graph"), protected: false },

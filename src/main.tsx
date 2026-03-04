@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, defaultShouldDehydrateQuery } from '@tanstack/react-query'
 import { persistQueryClient } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import { registerSW } from 'virtual:pwa-register'
@@ -20,13 +20,15 @@ persistQueryClient({
     queryClient,
     persister: localStoragePersister,
     maxAge: 1000 * 60 * 60 * 24 * 30,  // 30 days
-    // TODO FIXME add caching by endpoint cache mode
-    //   dehydrateOptions: { 
-    //     shouldDehydrateQuery: (query) => {
-    //         // Only persist queries whose key includes 'persist'
-    //         return query.queryKey.some(key => typeof key === 'string' && key.includes('persist'));
-    //     },
-    // },
+    buster: 'cache-policy-v2',
+    dehydrateOptions: {
+        shouldDehydrateQuery: (query) => {
+            if (!defaultShouldDehydrateQuery(query)) {
+                return false;
+            }
+            return query.meta?.persist === true;
+        },
+    },
 });
 
 if (import.meta.env.PROD) {

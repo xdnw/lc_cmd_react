@@ -27,10 +27,15 @@ body,
 
     --color-scheme: light;
     color-scheme: var(--color-scheme);
+
+    /* scrollbar thumb color – light theme gets a solid mid-grey, dark theme will override */
+    --scrollbar-thumb: hsl(0 0% 60%);
 }
 
 .dark {
     --color-scheme: dark;
+    /* darker thumb on dark backgrounds */
+    --scrollbar-thumb: hsl(0 0% 40%);
 }
 
 .dark * {
@@ -85,44 +90,25 @@ html {
     overflow: auto;
 }
 
-/* Scrollbars */
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background: transparent;
-    /* Make the track transparent */
-}
-
+/* Custom scrollbar styling (applied globally) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--foreground) / 0.35);
+    background-color: var(--scrollbar-thumb);
     border-radius: 999px;
-    /* Round the corners */
     border: 3px solid transparent;
-    /* Add space around the thumb */
     background-clip: content-box;
-    /* Clip the background to the content box */
+}
+::-webkit-scrollbar-thumb:hover { filter: brightness(0.85); }
+
+/* Firefox scrollbar rules, same variable-based color */
+html, body, .themeBody {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+    scrollbar-gutter: stable;
 }
 
-::-webkit-scrollbar-thumb:hover {
-    background-color: hsl(var(--foreground) / 0.5);
-}
 
-/* For Firefox */
-.light * {
-    scrollbar-color: hsl(var(--foreground) / 0.45) transparent;
-}
-
-/* Dark mode */
-.dark ::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--foreground) / 0.35);
-}
-
-.dark * {
-    scrollbar-color: hsl(var(--foreground) / 0.45) transparent;
-}
 
 ol {
     list-style-type: decimal !important;

@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-03 01:53:08.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-03 06:15:30.
 
 export interface WebError {
     error: string;
@@ -470,6 +470,10 @@ export interface WebCurrentTreaty {
 export type CacheType = "None" | "Cookie" | "LocalStorage" | "SessionStorage" | "Memory";
 
 export type GraphType = "STACKED_BAR" | "SIDE_BY_SIDE_BAR" | "HORIZONTAL_BAR" | "LINE" | "STACKED_LINE" | "FILLED_LINE" | "SCATTER";
+
+export type GuildSettingCategory = "DEFAULT" | "FOREIGN_AFFAIRS" | "WAR_ALERTS" | "BEIGE_ALERTS" | "ORBIS_ALERTS" | "WAR_ROOM" | "BANK_ACCESS" | "BANK_CONVERSION" | "BANK_OFFSHORE" | "BANK_GRANTS" | "BANK_INFO" | "TAX" | "AUDIT" | "SELF_ROLE" | "AUTO_ROLE" | "REWARD" | "RECRUIT" | "INTERVIEW" | "BOUNTY" | "TRADE" | "ARTIFICIAL_INTELLIGENCE";
+
+export type GuildSettingSubgroup = "NONE" | "DEFENSIVE_WARS" | "OFFENSIVE_WARS" | "BEIGE_VIOLATIONS" | "ENEMY_ALERT" | "EXODUS_ALERT" | "ALLIANCE_GROUND_ALERT" | "MEMBER_WITHDRAWAL" | "BANK_LIMITS" | "GRANT_TEMPLATE_LIMIT" | "DEPOSIT_DISPLAY" | "GRANT_REQUESTS" | "TAX_SELF_ASSIGN" | "TAX_AUTO_ASSIGN" | "AUTO_AUDITS" | "MANUAL_AUDITS" | "SELF_ROLE" | "ROLE_SERVER_SYNC" | "ALLIANCE_ROLE" | "NATION_CREATION" | "ALLIANCE_APPLICATION";
 
 export type NationColor = "AQUA" | "BEIGE" | "BLACK" | "BLUE" | "BROWN" | "GRAY" | "GREEN" | "LIME" | "MAROON" | "OLIVE" | "ORANGE" | "PINK" | "PURPLE" | "RED" | "WHITE" | "YELLOW" | "MINT" | "LAVENDER" | "TURQUOISE" | "GOLD";
 

@@ -6,7 +6,7 @@ import { useArgFieldState } from "./field/useArgFieldState";
 import FieldMessage from "./field/FieldMessage";
 
 export default function StringInput(
-    {argName, initialValue, filter, filterHelp, setOutputValue, compact, placeholder}:
+    {argName, initialValue, filter, filterHelp, setOutputValue, compact, placeholder, maxLength}:
     {
         argName: string,
         initialValue: string,
@@ -14,6 +14,7 @@ export default function StringInput(
         filterHelp?: string,
         compact?: boolean,
         placeholder?: string,
+        maxLength?: number,
         setOutputValue: (name: string, value: string) => void
     }
 ) {
@@ -40,6 +41,7 @@ export default function StringInput(
                 className={cn(validation.isValid ? "" : "border-destructive", compact ? "h-8 text-xs" : "")}
                 pattern={filter ? filter : ".*"}
                 placeholder={placeholder || "Type here..."}
+                maxLength={maxLength}
             />
             <FieldMessage error={validation.error} note={validation.note} compact={compact} />
         </div>

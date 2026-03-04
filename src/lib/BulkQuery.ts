@@ -401,7 +401,8 @@ export class BulkQueryClient {
             this.extraHeaders,
         );
 
-        console.log("URL ", url, this.batchEndpoint, this.apiUrl)
+        // decode post
+        console.log("URL ", url, this.batchEndpoint, this.apiUrl, "body", finalQueries) 
 
         const res = await this.fetchFn(url, {
             method: "POST",

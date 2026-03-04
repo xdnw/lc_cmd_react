@@ -1,13 +1,8 @@
-import CommandActionButton from "@/components/cmd/CommandActionButton";
-import CommandComponent from "@/components/cmd/CommandComponent";
+import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import type { CommandInputDisplayMode } from "@/components/cmd/field/fieldTypes";
-import type { TableActionArgs, TableCommandAction } from "@/pages/custom_table/actions/models";
-import { CM } from "@/utils/Command";
-import { createCommandStoreWithDef } from "@/utils/StateUtil";
-import { deepEqual } from "@/lib/utils";
+import type { TableCommandAction } from "@/pages/custom_table/actions/models";
 import type { AnyCommandPath } from "@/utils/Command";
-import { useCallback, useMemo, useState } from "react";
-import { useStoreWithEqualityFn } from "zustand/traditional";
+import { useMemo } from "react";
 
 function toInitialCommandValues(data: Record<string, string | string[] | undefined>): Record<string, string> {
     const normalized: Array<[string, string]> = [];
@@ -37,51 +32,27 @@ export default function CommandActionDialogContent<
     onSuccess?: (actionId: string) => void;
     displayMode?: CommandInputDisplayMode;
 }) {
-    const command = useMemo(() => CM.get(action.command), [action.command]);
     const initialValues = useMemo(
         () => toInitialCommandValues(action.buildArgs(context) as Record<string, string | string[] | undefined>),
         [action, context],
     );
 
-    const [commandStore] = useState(() => createCommandStoreWithDef(initialValues));
-
-    const selectOutput = useCallback((state: { output: Record<string, string | string[]> }) => state.output, []);
-    const selectSetOutput = useCallback((state: { setOutput: (key: string, value: string) => void }) => state.setOutput, []);
-
-    const output = useStoreWithEqualityFn(commandStore, selectOutput, deepEqual);
-    const setOutput = commandStore(selectSetOutput);
-
-    const alwaysShowArgument = useCallback(() => true, []);
-    const onCompleteHandler = useMemo(() => {
+    const onCompleteSuccess = useMemo(() => {
         if (!onSuccess) return undefined;
-        return (result?: { status?: "success" | "error" | "action" }) => {
-            if (result?.status === "error") return;
+        return () => {
             onSuccess(action.id);
         };
     }, [onSuccess, action.id]);
 
     return (
-        <div className="space-y-2 max-h-[70vh] overflow-auto">
-            <p className="text-sm text-muted-foreground">{action.description ?? "Configure command arguments and submit."}</p>
-            <div className="rounded border border-border p-2">
-                <CommandComponent
-                    command={command}
-                    filterArguments={alwaysShowArgument}
-                    initialValues={initialValues}
-                    setOutput={setOutput}
-                    displayMode={displayMode}
-                />
-            </div>
-            <div>
-                <CommandActionButton
-                    command={action.command}
-                    args={output as TableActionArgs<P>}
-                    label={`Run ${action.label}`}
-                    classes="!ms-0"
-                    showResultDialog={true}
-                    onComplete={onCompleteHandler}
-                />
-            </div>
-        </div>
+        <CommandDialogForm
+            commandPath={action.command}
+            initialValues={initialValues}
+            description={action.description ?? "Configure command arguments and submit."}
+            runLabel={`Run ${action.label}`}
+            displayMode={displayMode}
+            showResultDialog={true}
+            onCompleteSuccess={onCompleteSuccess}
+        />
     );
 }

@@ -20,6 +20,7 @@ export function bulkQueryOptions<T>(
     batch_wait_ms?: number,
 ): UseQueryOptions<QueryResult<T>, Error, QueryResult<T>, readonly unknown[]> {
     const isPostFinal = is_post ?? endpoint.isPost;
+    const persist = endpoint.cache_type !== "None";
     return {
         queryKey: [endpoint.name, query],
         queryFn: async (meta) => {
@@ -41,6 +42,11 @@ export function bulkQueryOptions<T>(
         refetchOnWindowFocus: !isPostFinal,
         refetchOnMount: !isPostFinal,
         staleTime: cache_duration ?? endpoint.cache_duration ?? 5000,
+        meta: {
+            persist,
+            endpointName: endpoint.name,
+            endpointCacheType: endpoint.cache_type,
+        },
         retry: (failureCount, err) =>
             !isPostFinal && (!(err instanceof BackendError) && failureCount < 3) || failureCount < 1,
     };
@@ -52,6 +58,7 @@ export function singleQueryOptions<T>(
     cache_duration?: number,
     batch_wait_ms?: number
 ): UseQueryOptions<QueryResult<T>, Error, QueryResult<T>, readonly unknown[]> {
+    const persist = endpoint.cache_type !== "None";
     return {
         queryKey: [endpoint.name, query],
         queryFn: async (meta) => {
@@ -77,6 +84,11 @@ export function singleQueryOptions<T>(
         refetchOnWindowFocus: false,
         refetchOnMount: false,
         staleTime: cache_duration ?? endpoint.cache_duration ?? 5000,
+        meta: {
+            persist,
+            endpointName: endpoint.name,
+            endpointCacheType: endpoint.cache_type,
+        },
         retry: (failureCount, err) => false,
     };
 }

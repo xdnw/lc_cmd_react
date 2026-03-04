@@ -246,25 +246,7 @@
     @apply underline underline-offset-4 decoration-muted-foreground/40 hover:decoration-muted-foreground;
   }
 
-  /* Opt-in scrollbar styling (kept separate from the global scrollbar rules in app.css) */
-  .scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--foreground) / 0.45) transparent;
-  }
-
-  .scrollbar::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-
-  .scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .scrollbar::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--foreground) / 0.35);
-    border-radius: 999px;
-    border: 3px solid transparent;
-    background-clip: content-box;
-  }
+  /* Scrollbar styling is now applied globally via App.css; the `.scrollbar` utility
+     class is effectively a no-op and retained only for backwards compatibility. */
+  /* .scrollbar { } */
 }

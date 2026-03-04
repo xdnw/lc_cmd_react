@@ -31,6 +31,7 @@ import {
     type ConflictRow,
 } from "./conflictTableSchema";
 import { useConflictAutoOpen } from "./useConflictAutoOpen";
+import { COMMANDS } from "@/lib/commands";
 
 const syncPermissionKey = CONFLICT_SYNC_PERMISSION_PATH.join(" ");
 const editPermissionKey = CONFLICT_EDIT_PERMISSION_PATH.join(" ");
@@ -48,6 +49,7 @@ function ConflictSelectButton({
     selected: boolean;
     onToggle: (id: number, rowIdx: number, shiftKey: boolean) => void;
 }) {
+    const test: typeof COMMANDS.options['GuildSetting<?>']['options'][number]  = "API_KEY";
     const onCheckboxToggle = useCallback((_id: number, shiftKey: boolean) => {
         onToggle(id, rowIdx, shiftKey);
     }, [id, onToggle, rowIdx]);

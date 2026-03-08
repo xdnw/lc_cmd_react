@@ -1,6 +1,15 @@
 import { useSyncedState } from "@/utils/StateUtil";
 import { useCallback } from "react";
 import { Button } from "../ui/button";
+import { getPastedText } from "./pasteUtils";
+
+function normalizeBooleanValue(value: string): "1" | "0" {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "y", "on", "t"].includes(normalized)) {
+        return "1";
+    }
+    return "0";
+}
 
 export default function BooleanInput(
     { argName, initialValue, setOutputValue }:
@@ -10,7 +19,7 @@ export default function BooleanInput(
             setOutputValue: (name: string, value: string) => void
         }
 ) {
-    const [value, setValue] = useSyncedState(initialValue || '');
+    const [value, setValue] = useSyncedState(normalizeBooleanValue(initialValue || ''));
     const onChange = useCallback((next: boolean) => {
         const output = next ? "1" : "0";
         setValue(output);
@@ -18,13 +27,21 @@ export default function BooleanInput(
     }, [argName, setOutputValue, setValue]);
     const setTrue = useCallback(() => onChange(true), [onChange]);
     const setFalse = useCallback(() => onChange(false), [onChange]);
+    const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
+        const pastedText = getPastedText(event);
+        if (!pastedText.trim()) return;
 
-    const checked = value === "1" || value === "true";
+        event.preventDefault();
+        event.stopPropagation();
+        onChange(normalizeBooleanValue(pastedText) === "1");
+    }, [onChange]);
+
+    const checked = value === "1";
 
     return (
-        <div className="flex items-center gap-2">
-            <Button size="sm" variant={checked ? "default" : "outline"} onClick={setTrue}>True</Button>
-            <Button size="sm" variant={!checked ? "default" : "outline"} onClick={setFalse}>False</Button>
+        <div className="flex items-center gap-2" onPasteCapture={handlePasteCapture}>
+            <Button size="sm" variant={checked ? "default" : "outline"} aria-pressed={checked} onClick={setTrue}>True</Button>
+            <Button size="sm" variant={!checked ? "default" : "outline"} aria-pressed={!checked} onClick={setFalse}>False</Button>
         </div>
     );
 }

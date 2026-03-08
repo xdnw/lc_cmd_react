@@ -6,7 +6,7 @@ import { bulkQueryOptions } from "@/lib/queries";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useEffect, useRef } from "react";
 
-export function usePermission<P extends AnyCommandPath>(path: P, options?: { showDialogOnError?: boolean }): { permission?: WebPermission, isFetching: boolean, error?: string } {
+export function usePermission<P extends AnyCommandPath>(path: P, options?: { showDialogOnError?: boolean; enabled?: boolean }): { permission?: WebPermission, isFetching: boolean, error?: string } {
     const { showDialog } = useDialog();
     const shownErrorMessagesRef = useRef<Set<string>>(new Set());
     const showDialogOnError = options?.showDialogOnError ?? false;
@@ -14,7 +14,8 @@ export function usePermission<P extends AnyCommandPath>(path: P, options?: { sho
         ...bulkQueryOptions(PERMISSION.endpoint, {
             command: path.join(" "),
         }),
-        retry: false, // Optional: prevent retries if you want
+        retry: false,
+        enabled: options?.enabled ?? true,
     });
 
     const errorFinal = useMemo(() => {

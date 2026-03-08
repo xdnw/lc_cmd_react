@@ -1,8 +1,20 @@
 import { useSyncedState } from "@/utils/StateUtil";
 import { useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { getPastedText } from "./pasteUtils";
 
 type TriStateValue = "-1" | "0" | "1";
+
+function normalizeTriStateValue(value: string): TriStateValue {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "y", "on", "t"].includes(normalized)) {
+        return "1";
+    }
+    if (["-1", "false", "no", "n", "off", "f"].includes(normalized)) {
+        return "-1";
+    }
+    return "0";
+}
 
 const TRI_STATE_OPTIONS: Array<{
     value: TriStateValue;
@@ -39,7 +51,7 @@ export default function TriStateInput(
             setOutputValue: (name: string, value: string) => void
         }
 ) {
-    const [value, setValue] = useSyncedState(initialValue || "0");
+    const [value, setValue] = useSyncedState(normalizeTriStateValue(initialValue || "0"));
     const normalizedValue: TriStateValue = value === "-1" || value === "1" ? value : "0";
 
     const handleButtonClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
@@ -48,10 +60,22 @@ export default function TriStateInput(
         setOutputValue(argName, nextValue);
     }, [argName, setOutputValue, setValue]);
 
+    const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
+        const pastedText = getPastedText(event);
+        if (!pastedText.trim()) return;
+
+        const nextValue = normalizeTriStateValue(pastedText);
+        event.preventDefault();
+        event.stopPropagation();
+        setValue(nextValue);
+        setOutputValue(argName, nextValue);
+    }, [argName, setOutputValue, setValue]);
+
     return (
         <div
             role="radiogroup"
             aria-label={argName}
+            onPasteCapture={handlePasteCapture}
             className={cn(
                 "inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/55 p-0.5",
                 compact ? "h-6.5" : "h-7"

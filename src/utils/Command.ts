@@ -123,18 +123,10 @@ export class Argument {
 
     getOptionData(): OptionData {
         const breakdown = this.getTypeBreakdown();
-        let options: IOptionData | null = null;
-        let multi = false;
-        if ((breakdown.element === "Set" || breakdown.element === "TypedFunction" || breakdown.element === "Predicate") && breakdown.child !== null) {
-            options = breakdown.child[0].getOptionData();
-            multi = true;
-        } else {
-            options = breakdown.getOptionData();
+        if ((breakdown.element === "Set" || breakdown.element === "List" || breakdown.element === "TypedFunction") && breakdown.child !== null) {
+            return breakdown.child[0].getOptionData().withMulti(true);
         }
-        if (options != null) {
-            return new OptionData(CM, options, multi);
-        }
-        return new OptionData(CM, { options: null, query: false, completions: false, guild: false, nation: false, user: false }, false);
+        return breakdown.getOptionData();
     }
 
     getTypeBreakdown(): TypeBreakdown {
@@ -153,8 +145,9 @@ class OptionData {
     multi: boolean;
     map: CommandMap;
     composite: string[];
+    typeKey: string;
 
-    constructor(map: CommandMap, data: IOptionData, multi: boolean) {
+    constructor(map: CommandMap, data: IOptionData, multi: boolean, typeKey: string) {
         this.map = map;
         this.options = data.options || undefined;
         this.query = data.query || false;
@@ -164,7 +157,58 @@ class OptionData {
         this.user = data.user || false;
         this.multi = multi;
         this.composite = data.composite || [];
+        this.typeKey = typeKey;
     }
+
+    toConfig(): IOptionData {
+        return {
+            options: this.options || null,
+            query: this.query,
+            completions: this.completions,
+            guild: this.guild,
+            nation: this.nation,
+            user: this.user,
+            composite: this.composite,
+        };
+    }
+
+    withMulti(multi: boolean): OptionData {
+        return new OptionData(this.map, this.toConfig(), multi, this.typeKey);
+    }
+}
+
+type ResolvedOptionData = {
+    typeKey: string;
+    config: IOptionData;
+};
+
+function normalizeTypeLookupKey(type: string): string {
+    return type.replace(/<\?>$/, "");
+}
+
+function getTypeLookupKeys(element: string, annotations: string | null): string[] {
+    const normalizedElement = normalizeTypeLookupKey(element);
+    const candidates = new Set<string>();
+
+    if (annotations) {
+        candidates.add(`${element}[${annotations}]`);
+        candidates.add(`${normalizedElement}[${annotations}]`);
+    }
+
+    candidates.add(element);
+    candidates.add(normalizedElement);
+
+    return Array.from(candidates).filter(Boolean);
+}
+
+function resolveOptionDataForType(element: string, annotations: string | null): ResolvedOptionData | null {
+    for (const typeKey of getTypeLookupKeys(element, annotations)) {
+        const config = resolveOptionData(typeKey);
+        if (config) {
+            return { typeKey, config };
+        }
+    }
+    return null;
 }
 
 export function getTypeBreakdown(ref: CommandMap, type: string): TypeBreakdown {
@@ -805,18 +849,17 @@ export class TypeBreakdown {
     }
 
     getOptionData(): OptionData {
-        let options: IOptionData | null = null;
-        let multi = false;
-        if ((this.element === "Set" || this.element === "TypedFunction" || this.element === "Predicate") && this.child !== null) {
-            options = resolveOptionData(this.child[0].element);
-            multi = true;
-        } else {
-            options = resolveOptionData(this.element);
+        if ((this.element === "Set" || this.element === "List" || this.element === "TypedFunction") && this.child !== null) {
+            return this.child[0].getOptionData().withMulti(true);
         }
-        if (options) {
-            return new OptionData(this.map, options, multi);
+
+        const resolved = resolveOptionDataForType(this.element, this.annotations);
+        if (resolved) {
+            return new OptionData(this.map, resolved.config, false, resolved.typeKey);
         }
-        return new OptionData(this.map, { options: null, query: false, completions: false, guild: false, nation: false, user: false }, false);
+
+        const fallbackTypeKey = getTypeLookupKeys(this.element, this.annotations)[0] ?? this.element;
+        return new OptionData(this.map, { options: null, query: false, completions: false, guild: false, nation: false, user: false }, false, fallbackTypeKey);
     }
 }
 

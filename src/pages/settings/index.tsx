@@ -16,6 +16,7 @@ import {
     normalizeGuildSettingRows,
     groupRowsByCategory,
     mergeRowIntoTableCache,
+    removeRowFromTableCache,
     type SettingRow,
 } from "./settingsDomain";
 import LoginPickerPage from "../login_picker";
@@ -66,7 +67,7 @@ export default function SettingsPage() {
     }, [listQuery.data]);
 
     const filteredRows = useMemo(() => {
-        return normalized.rows.filter((row) => showUnavailable || row.isAllowed);
+        return normalized.rows.filter((row) => showUnavailable || row.flags.isAllowed);
     }, [normalized.rows, showUnavailable]);
 
     const groupedRows = useMemo(() => groupRowsByCategory(filteredRows), [filteredRows]);
@@ -87,7 +88,13 @@ export default function SettingsPage() {
 
         const updatedRow = normalizedSingle.rows.find((row) => row.settingKey === settingKey) ?? normalizedSingle.rows[0];
         if (!updatedRow) {
-            setPerSettingWarning(`Per-setting refresh returned no rows for ${settingKey}. Use Refresh all.`);
+            setPerSettingWarning(null);
+            queryClient.setQueryData(listQueryKey, (old) => {
+                return removeRowFromTableCache({
+                    oldResult: old as QueryResult<WebTable> | undefined,
+                    settingKey,
+                });
+            });
             return;
         }
 
@@ -127,7 +134,7 @@ export default function SettingsPage() {
     return (
         <div className="space-y-3">
             <SettingsTopBar
-                invalidCount={normalized.rows.filter((row) => row.invalid).length}
+                invalidCount={normalized.rows.filter((row) => row.flags.invalid).length}
                 unsupportedIssues={normalized.unsupportedInputRows}
                 showUnavailable={showUnavailable}
                 setShowUnavailable={setShowUnavailable}

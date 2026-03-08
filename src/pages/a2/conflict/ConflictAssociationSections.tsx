@@ -1,4 +1,4 @@
-import CommandActionButton from "@/components/cmd/CommandActionButton";
+import ConfirmCommandActionButton from "@/components/cmd/ConfirmCommandActionButton";
 import { Button } from "@/components/ui/button";
 import type { ConflictPosts, WebVirtualConflict } from "@/lib/apitypes.d.ts";
 import type { TableActionArgs } from "@/pages/custom_table/actions/models";
@@ -141,26 +141,10 @@ export function ConflictForumPostsSection({
 }) {
     const [pendingRemovalUrl, setPendingRemovalUrl] = useState<string | null>(null);
 
-    const onConfirmRemoveSuccess = useCallback(() => {
-        setPendingRemovalUrl(null);
-        onActionSuccess();
-    }, [onActionSuccess]);
     const onConfirmRemoveComplete = useCallback((result?: { status?: "success" | "error" | "action" }) => {
         if (result?.status === "error") return;
-        onConfirmRemoveSuccess();
-    }, [onConfirmRemoveSuccess]);
-
-    const setPendingRemovalByUrl = useMemo(() => {
-        const handlers = new Map<string, () => void>();
-        for (const post of posts) {
-            handlers.set(post.key, () => setPendingRemovalUrl(post.key));
-        }
-        return handlers;
-    }, [posts]);
-
-    const clearPendingRemoval = useCallback(() => {
-        setPendingRemovalUrl(null);
-    }, []);
+        onActionSuccess();
+    }, [onActionSuccess]);
 
     return (
         <div className="mt-4 border-t border-border pt-4">
@@ -202,37 +186,24 @@ export function ConflictForumPostsSection({
                                 >
                                     {post.href}
                                 </a>
-                                {!isConfirming && (
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        className="h-6 px-2 text-[11px]"
-                                        onClick={setPendingRemovalByUrl.get(post.key)}
-                                        disabled={!canEdit || !forumPostRemoveAction}
-                                    >
-                                        Remove
-                                    </Button>
-                                )}
-                                {isConfirming && forumPostRemoveAction && (
-                                    <div className="flex items-start gap-1">
-                                        <CommandActionButton
-                                            command={forumPostRemoveAction.command}
-                                            args={removeArgs}
-                                            label="Confirm?"
-                                            classes="!m-0 !h-6 !px-2 !w-auto"
-                                            disabled={!canEdit}
-                                            onComplete={onConfirmRemoveComplete}
-                                            showResultDialog
-                                        />
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-6 px-2 text-[11px]"
-                                            onClick={clearPendingRemoval}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </div>
+                                {forumPostRemoveAction && (
+                                    <ConfirmCommandActionButton
+                                        command={forumPostRemoveAction.command}
+                                        args={removeArgs}
+                                        label="Remove"
+                                        disabled={!canEdit}
+                                        showResultDialog
+                                        onComplete={onConfirmRemoveComplete}
+                                        isConfirming={isConfirming}
+                                        onConfirmingChange={(next) => setPendingRemovalUrl(next ? post.key : null)}
+                                        resetOnComplete="non-error"
+                                        buttonVariant="destructive"
+                                        buttonSize="sm"
+                                        buttonClassName="h-6 px-2 text-[11px]"
+                                        classes="!m-0 !h-6 !px-2 !w-auto"
+                                        cancelSize="sm"
+                                        cancelClassName="h-6 px-2 text-[11px]"
+                                    />
                                 )}
                             </div>
                         );
@@ -289,27 +260,10 @@ export function ConflictAllianceSection({
         }));
     }, [entriesByCoalition]);
 
-    const onConfirmRemoveSuccess = useCallback(() => {
-        setPendingRemovalKey(null);
-        onActionSuccess();
-    }, [onActionSuccess]);
     const onConfirmRemoveComplete = useCallback((result?: { status?: "success" | "error" | "action" }) => {
         if (result?.status === "error") return;
-        onConfirmRemoveSuccess();
-    }, [onConfirmRemoveSuccess]);
-
-    const setPendingRemovalByKey = useMemo(() => {
-        const handlers = new Map<string, () => void>();
-        for (const entry of entries) {
-            const key = `${entry.coalition}-${entry.allianceId}`;
-            handlers.set(key, () => setPendingRemovalKey(key));
-        }
-        return handlers;
-    }, [entries]);
-
-    const clearPendingRemoval = useCallback(() => {
-        setPendingRemovalKey(null);
-    }, []);
+        onActionSuccess();
+    }, [onActionSuccess]);
 
     return (
         <div className="mt-4 border-t border-border pt-4">
@@ -349,37 +303,24 @@ export function ConflictAllianceSection({
                                         return (
                                             <div key={key} className="flex items-start gap-2 rounded px-1 py-1 hover:bg-muted">
                                                 <div className="min-w-0 flex-1 text-xs truncate">{name}</div>
-                                                {!isConfirming && (
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="sm"
-                                                        className="h-6 px-2 text-[11px]"
-                                                        onClick={setPendingRemovalByKey.get(key)}
-                                                        disabled={!canEdit || !allianceRemoveAction}
-                                                    >
-                                                        Remove
-                                                    </Button>
-                                                )}
-                                                {isConfirming && allianceRemoveAction && (
-                                                    <div className="flex items-start gap-1">
-                                                        <CommandActionButton
-                                                            command={allianceRemoveAction.command}
-                                                            args={removeArgs}
-                                                            label="Confirm?"
-                                                            classes="!m-0 !h-6 !px-2 !w-auto"
-                                                            disabled={!canEdit}
-                                                            onComplete={onConfirmRemoveComplete}
-                                                            showResultDialog
-                                                        />
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-6 px-2 text-[11px]"
-                                                            onClick={clearPendingRemoval}
-                                                        >
-                                                            Cancel
-                                                        </Button>
-                                                    </div>
+                                                {allianceRemoveAction && (
+                                                    <ConfirmCommandActionButton
+                                                        command={allianceRemoveAction.command}
+                                                        args={removeArgs}
+                                                        label="Remove"
+                                                        disabled={!canEdit}
+                                                        showResultDialog
+                                                        onComplete={onConfirmRemoveComplete}
+                                                        isConfirming={isConfirming}
+                                                        onConfirmingChange={(next) => setPendingRemovalKey(next ? key : null)}
+                                                        resetOnComplete="non-error"
+                                                        buttonVariant="destructive"
+                                                        buttonSize="sm"
+                                                        buttonClassName="h-6 px-2 text-[11px]"
+                                                        classes="!m-0 !h-6 !px-2 !w-auto"
+                                                        cancelSize="sm"
+                                                        cancelClassName="h-6 px-2 text-[11px]"
+                                                    />
                                                 )}
                                             </div>
                                         );

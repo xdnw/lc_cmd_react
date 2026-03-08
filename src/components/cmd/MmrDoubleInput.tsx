@@ -2,6 +2,19 @@ import { useSyncedStateFunc } from "@/utils/StateUtil";
 import NumberInput from "./NumberInput";
 import React, { useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { getPastedText } from "./pasteUtils";
+
+function normalizeMmrDoubleInput(initial: string): string | null {
+    const trimmed = (initial || "").trim();
+    if (!trimmed) return null;
+    if (/^\d{4}$/.test(trimmed)) {
+        return trimmed.split("").join("/");
+    }
+    if (/^(?:5(?:\.0+)?|[0-4](?:\.\d+)?)(?:\/(?:5(?:\.0+)?|[0-4](?:\.\d+)?)){3}$/.test(trimmed)) {
+        return trimmed;
+    }
+    return null;
+}
 
 export default function MmrDoubleInput(
     { argName, initialValue, setOutputValue, compact }:
@@ -14,8 +27,9 @@ export default function MmrDoubleInput(
 ) {
     const [value, setValue] = useSyncedStateFunc<(number | null)[]>(initialValue, (initial) => {
         const result: [number | null, number | null, number | null, number | null] = [null, null, null, null]
-        if (initial && initial.match(/^(?:5(?:\.0+)?|[0-4](?:\.\d+)?)(?:\/(?:5(?:\.0+)?|[0-4](?:\.\d+)?)){3}$/)) {
-            const split = initial.split('/');
+        const normalized = normalizeMmrDoubleInput(initial);
+        if (normalized) {
+            const split = normalized.split('/');
             result[0] = parseFloat(split[0]);
             result[1] = parseFloat(split[1]);
             result[2] = parseFloat(split[2]);
@@ -46,8 +60,22 @@ export default function MmrDoubleInput(
         }
     }, [value, setValue, argName, setOutputValue]);
 
+    const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
+        const pastedText = getPastedText(event);
+        if (!pastedText.trim()) return;
+
+        const normalized = normalizeMmrDoubleInput(pastedText);
+        if (!normalized) return;
+
+        const next = normalized.split("/").map((entry) => parseFloat(entry));
+        event.preventDefault();
+        event.stopPropagation();
+        setValue(next);
+        setOutputValue(argName, next.join("/"));
+    }, [argName, setOutputValue, setValue]);
+
     return (
-        <div className={cn("flex items-center", compact ? "gap-1" : "gap-2")}>
+        <div className={cn("flex items-center", compact ? "gap-1" : "gap-2")} onPasteCapture={handlePasteCapture}>
             {value.map((val, index) => {
                 return (
                     <React.Fragment key={index}>

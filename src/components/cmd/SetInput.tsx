@@ -81,7 +81,7 @@ export default function SetInput(
         if (!pastedText) return;
 
         const parsedValues = parseSetString(pastedText);
-        if (parsedValues.length <= 1) return;
+        if (parsedValues.length === 0) return;
 
         event.preventDefault();
         event.stopPropagation();

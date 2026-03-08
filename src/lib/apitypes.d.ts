@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-03 06:15:30.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-08 03:29:51.
 
 export interface WebError {
     error: string;
@@ -442,6 +442,10 @@ export interface WebCurrentTreaties {
     current_treaties: WebCurrentTreaty[];
 }
 
+export interface WebCoalitions {
+    coalitions: WebCoalition[];
+}
+
 export interface WebTaxBracket {
     taxId: number;
     dateFetched: number;
@@ -465,6 +469,18 @@ export interface WebCurrentTreaty {
     from_alliance_id: number;
     to_alliance_id: number;
     turns_remaining: number;
+}
+
+export interface WebCoalition {
+    name: string;
+    members: WebCoalitionMember[];
+}
+
+export interface WebCoalitionMember {
+    id: number;
+    name: string;
+    type: string;
+    deleted: boolean;
 }
 
 export type CacheType = "None" | "Cookie" | "LocalStorage" | "SessionStorage" | "Memory";

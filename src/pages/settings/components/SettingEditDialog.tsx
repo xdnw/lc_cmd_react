@@ -1,14 +1,13 @@
 import ArgInput from "@/components/cmd/ArgInput";
-import CommandActionButton from "@/components/cmd/CommandActionButton";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import Badge from "@/components/ui/badge";
 import { useCallback, useMemo } from "react";
 import type { ArgInputSupport } from "@/components/cmd/ArgInput";
 import type { TypeBreakdown } from "@/utils/Command";
 import type { SettingRow } from "../settingsDomain";
+import SettingClearAction from "./SettingClearAction";
 
 const SETTINGS_INFO_COMMAND: ["settings", "info"] = ["settings", "info"];
-const SETTINGS_DELETE_COMMAND: ["settings", "delete"] = ["settings", "delete"];
 
 function SettingArgInputContent({
     breakdown,
@@ -51,15 +50,11 @@ export default function SettingEditDialog({
     row: SettingRow;
     onRefreshSetting: (settingKey: string) => void;
 }) {
-    const deleteArgs = { key: row.settingKey } as never;
-
     const initialValues = useMemo(() => {
         const base: Record<string, string> = { key: row.settingKey };
-        if (row.initialEditValue) {
-            base.value = row.initialEditValue;
-        }
+        base.value = row.editor.initialValue;
         return base;
-    }, [row.settingKey, row.initialEditValue]);
+    }, [row.settingKey, row.editor.initialValue]);
 
     const handleRefreshSetting = useCallback(
         () => onRefreshSetting(row.settingKey),
@@ -72,25 +67,24 @@ export default function SettingEditDialog({
             initialValues={initialValues}
             description={`Edit ${row.settingKey}`}
             runLabel="Save"
-            runDisabled={!row.inputSupport.supported}
+            runDisabled={!row.editor.inputSupport.supported}
             showResultDialog={true}
             onCompleteSuccess={handleRefreshSetting}
             extraActions={
-                <CommandActionButton
-                    command={SETTINGS_DELETE_COMMAND}
-                    args={deleteArgs}
-                    label="Clear"
-                    showResultDialog={true}
+                <SettingClearAction
+                    settingKey={row.settingKey}
+                    hasValue={row.value.hasValue}
                     onSuccess={handleRefreshSetting}
+                    showResultDialog={true}
                 />
             }
         >
             {({ setOutput }) => (
                 <SettingArgInputContent
-                    breakdown={row.breakdown}
-                    inputSupport={row.inputSupport}
-                    argType={row.argType}
-                    initialValue={row.initialEditValue}
+                    breakdown={row.editor.breakdown}
+                    inputSupport={row.editor.inputSupport}
+                    argType={row.metadata.argType}
+                    initialValue={row.editor.initialValue}
                     setOutput={setOutput}
                 />
             )}

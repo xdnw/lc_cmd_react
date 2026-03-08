@@ -1,6 +1,7 @@
 import { useSyncedStateFunc } from "@/utils/StateUtil";
 import { useCallback } from "react";
 import NumberPairInput from "./composite/NumberPairInput";
+import { getPastedText } from "./pasteUtils";
 
 export default function TaxRateInput(
     {argName, initialValue, setOutputValue, compact}:
@@ -43,12 +44,26 @@ export default function TaxRateInput(
         setOutputValue(argName, `${next[0]}/${next[1]}`);
     }, [argName, setOutputValue, setValue, value]);
 
-    return <NumberPairInput
+    const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
+        const pastedText = getPastedText(event).trim();
+        if (!pastedText) return;
+
+        const matched = pastedText.match(/^(\d+)\/(\d+)$/);
+        if (!matched) return;
+
+        const next: [number, number] = [parseInt(matched[1], 10), parseInt(matched[2], 10)];
+        event.preventDefault();
+        event.stopPropagation();
+        setValue(next);
+        setOutputValue(argName, `${next[0]}/${next[1]}`);
+    }, [argName, setOutputValue, setValue]);
+
+    return <div onPasteCapture={handlePasteCapture}><NumberPairInput
         argName={argName}
         values={value}
         delimiter="/"
         compact={compact}
         left={{ min: 0, max: 100, onChange: moneyRate }}
         right={{ min: 0, max: 100, onChange: rssRate }}
-    />;
+    /></div>;
 }

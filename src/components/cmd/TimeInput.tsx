@@ -1,104 +1,69 @@
 import { useSyncedState } from "@/utils/StateUtil";
-import { useCallback } from "react";
+import { useCallback, useMemo, type ChangeEvent, type ClipboardEvent } from "react";
 import { Input } from "../ui/input";
 import { cn } from "@/lib/utils";
+import { normalizeTimeValue } from "@/lib/temporal";
 
-function formatDatetimeLocal(date: Date): string {
-    const pad = (num: number) => num.toString().padStart(2, "0");
-    return date.getFullYear() + "-" +
-        pad(date.getMonth() + 1) + "-" +
-        pad(date.getDate()) + "T" +
-        pad(date.getHours()) + ":" +
-        pad(date.getMinutes());
-}
-
-function normalizeTimeValue(value: string, nowMs: number = Date.now()): { displayValue: string; outputValue: string } {
-    const raw = (value ?? "").trim();
-    if (!raw) {
-        return { displayValue: "", outputValue: "" };
-    }
-
-    const toResultFromDate = (date: Date) => {
-        const timestamp = date.getTime();
-        if (!Number.isFinite(timestamp)) {
-            return { displayValue: "", outputValue: "" };
-        }
-        return {
-            displayValue: formatDatetimeLocal(date),
-            outputValue: `timestamp:${Math.floor(timestamp)}`,
-        };
-    };
-
-    // Supports timediff values like "30d", "12h", "90m", "2w", "1y".
-    const timediffMatch = raw.match(/^(-?\d+)([smhdwy])$/i);
-    if (timediffMatch) {
-        const amount = Number(timediffMatch[1]);
-        const unit = timediffMatch[2].toLowerCase();
-        if (Number.isFinite(amount)) {
-            const minute = 60 * 1000;
-            const hour = 60 * minute;
-            const day = 24 * hour;
-            const multiplier = unit === "s" ? 1000
-                : unit === "m" ? minute
-                    : unit === "h" ? hour
-                        : unit === "d" ? day
-                            : unit === "w" ? 7 * day
-                                : 365 * day;
-            return toResultFromDate(new Date(nowMs - amount * multiplier));
-        }
-    }
-
-    if (raw.startsWith("timestamp:")) {
-        const timestamp = parseInt(raw.split(":")[1], 10);
-        if (!Number.isNaN(timestamp)) {
-            return toResultFromDate(new Date(timestamp));
-        }
-        return { displayValue: "", outputValue: "" };
-    }
-
-    if (/^\d+$/.test(raw)) {
-        const timestamp = Number(raw);
-        if (Number.isFinite(timestamp)) {
-            return toResultFromDate(new Date(timestamp));
-        }
-    }
-
-    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(raw)) {
-        return normalizeTimeValue(raw.replace(" ", "T"), nowMs);
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) {
-        return toResultFromDate(new Date(raw));
-    }
-
-    return { displayValue: "", outputValue: "" };
-}
+const exampleCodeClass = "rounded bg-muted px-1 py-0.5 font-mono text-foreground";
 
 export default function TimeInput({
-    argName,
-    initialValue,
-    setOutputValue,
-    compact,
+  argName,
+  initialValue,
+  setOutputValue,
+  compact,
 }: {
-    argName: string,
-    initialValue: string,
-    compact?: boolean,
-    setOutputValue: (name: string, value: string) => void
+  argName: string;
+  initialValue: string;
+  compact?: boolean;
+  setOutputValue: (name: string, value: string) => void;
 }) {
-    const [value, setValue] = useSyncedState(normalizeTimeValue(initialValue).displayValue);
+  // useMemo here keeps the synced initial value stable even though normalizeTimeValue can depend on Date.now().
+  const initialDisplayValue = useMemo(
+    () => normalizeTimeValue(initialValue, Date.now()).displayValue,
+    [initialValue],
+  );
 
-    const onChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const localDateTimeString = e.target.value;
-        setValue(localDateTimeString);
-        setOutputValue(argName, normalizeTimeValue(localDateTimeString).outputValue);
-    }, [argName, setOutputValue, setValue]);
+  const [value, setValue] = useSyncedState(initialDisplayValue);
 
-    return (
-        <Input
-            type="datetime-local"
-            className={cn("w-full", compact ? "h-8 text-xs" : "")}
-            value={value}
-            onChange={onChange}
-        />
-    );
+  const handleChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const nextValue = e.target.value;
+    setValue(nextValue);
+    setOutputValue(argName, normalizeTimeValue(nextValue, Date.now()).outputValue);
+  }, [argName, setOutputValue, setValue]);
+
+  const handlePaste = useCallback((e: ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData("text");
+    const normalized = normalizeTimeValue(pasted, Date.now());
+
+    if (!normalized.displayValue) {
+      return;
+    }
+
+    e.preventDefault();
+    setValue(normalized.displayValue);
+    setOutputValue(argName, normalized.outputValue);
+  }, [argName, setOutputValue, setValue]);
+
+  return (
+    <div className="w-full">
+      <Input
+        type="datetime-local"
+        step={1}
+        className={cn("w-full bg-background", compact ? "h-8 text-xs" : "")}
+        value={value}
+        onChange={handleChange}
+        onPaste={handlePaste}
+        title="Pick a local date/time, or paste 1w10h, timestamp:..., or an ISO/local datetime."
+      />
+
+      {!compact && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Native picker for absolute time. You can also paste{" "}
+          <code className={exampleCodeClass}>1w10h</code>,{" "}
+          <code className={exampleCodeClass}>timestamp:1741271400000</code>, or{" "}
+          <code className={exampleCodeClass}>2025-03-06 12:30:00</code>.
+        </p>
+      )}
+    </div>
+  );
 }

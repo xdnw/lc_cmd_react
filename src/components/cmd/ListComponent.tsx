@@ -6,11 +6,16 @@ import { TypeBreakdown } from "../../utils/Command";
 import Loading from "../ui/loading";
 import { useSyncedState } from "@/utils/StateUtil";
 import {
+    toPlainSelectOptions,
     dedupeByValue,
     resolveInitialSelection,
+    resolveOptionMatch,
+    resolveSelectionInput,
     serializeSelection,
+    summarizeOptions,
     type SelectOption,
 } from "./selectValueUtils";
+import { buildPlaceholderTypeOptions } from "./argInputMetadata";
 
 // ----------------------------------------------------------------------
 // Sub-Components (Extracted to prevent inline JSX functions)
@@ -100,10 +105,7 @@ export function ListComponentBreakdown({ breakdown, argName, isMulti, initialVal
     initialValue: string;
     setOutputValue: (name: string, value: string) => void;
 }) {
-    const labelled = useMemo(() => {
-        const types = breakdown.map.getPlaceholderTypes(true);
-        return types.map((o) => ({ label: o, value: o }));
-    }, [breakdown]);
+    const labelled = useMemo(() => buildPlaceholderTypeOptions(breakdown), [breakdown]);
 
     return <ListComponent argName={argName} options={labelled} isMulti={isMulti} initialValue={initialValue} setOutputValue={setOutputValue} />;
 }
@@ -115,9 +117,7 @@ export function ListComponentOptions({ options, argName, isMulti, initialValue, 
     initialValue: string;
     setOutputValue: (name: string, value: string) => void;
 }) {
-    const labelled = useMemo(() => {
-        return options.map((o) => ({ label: o, value: o }));
-    }, [options]);
+    const labelled = useMemo(() => toPlainSelectOptions(options), [options]);
 
     return <ListComponent argName={argName} options={labelled} isMulti={isMulti} initialValue={initialValue} setOutputValue={setOutputValue} />;
 }
@@ -300,49 +300,42 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
         if (!pastedText) return;
 
         if (isMulti) {
-            // Try to split by comma or newline
-            const parts = pastedText.split(/[\n,]+/).map(p => p.trim()).filter(Boolean);
-            if (parts.length > 1) {
+            const resolution = resolveSelectionInput(pastedText, options, true, value);
+            if (resolution.unmatchedTokens.length > 0) {
+                showDialog(
+                    "Invalid value",
+                    <>
+                        Could not match: <kbd className='bg-secondary rounded px-0.5'>{resolution.unmatchedTokens.join(", ")}</kbd>
+                        <div className="mt-2 text-xs text-muted-foreground">Available options: {summarizeOptions(options)}</div>
+                    </>,
+                );
+            }
+
+            if (serializeSelection(resolution.selection, true) !== serializeSelection(value, true)) {
                 e.preventDefault();
-                
-                const newSelection = [...value];
-                let changed = false;
-                
-                for (const part of parts) {
-                    // Find matching option by value or label
-                    const option = options.find(o => 
-                        o.value.toLowerCase() === part.toLowerCase() || 
-                        (o.label && o.label.toLowerCase() === part.toLowerCase())
-                    );
-                    
-                    if (option && !newSelection.some(v => v.value === option.value)) {
-                        newSelection.push(option);
-                        changed = true;
-                    }
-                }
-                
-                if (changed) {
-                    setValue(newSelection);
-                    syncOutput(newSelection);
-                }
+                setValue(resolution.selection);
+                syncOutput(resolution.selection);
             }
         } else {
-            // Single select: try to find exact match
-            const part = pastedText.trim();
-            const option = options.find(o => 
-                o.value.toLowerCase() === part.toLowerCase() || 
-                (o.label && o.label.toLowerCase() === part.toLowerCase())
-            );
+            const match = resolveOptionMatch(pastedText.trim(), options);
             
-            if (option) {
+            if (match.option) {
                 e.preventDefault();
-                setValue([option]);
-                syncOutput([option]);
+                setValue([match.option]);
+                syncOutput([match.option]);
                 setIsOpen(false);
                 inputRef.current?.blur();
+            } else {
+                showDialog(
+                    "Invalid value",
+                    <>
+                        The value <kbd className='bg-secondary rounded px-0.5'>{pastedText.trim()}</kbd> did not match any option.
+                        <div className="mt-2 text-xs text-muted-foreground">Available options: {summarizeOptions(options)}</div>
+                    </>,
+                );
             }
         }
-    }, [isMulti, options, value, setValue, syncOutput]);
+    }, [isMulti, options, setValue, showDialog, syncOutput, value]);
 
     const handleInputCopy = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
         // If there's text selected in the input, let the default copy behavior happen

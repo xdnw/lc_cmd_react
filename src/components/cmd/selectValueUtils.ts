@@ -1,10 +1,43 @@
 export type SelectOption = {
     label: string;
     value: string;
+    aliases?: string[];
     subtext?: string;
     color?: string;
     icon?: string;
 };
+
+export function toPlainSelectOptions(values: readonly string[]): SelectOption[] {
+    return values.map((value) => ({ label: value, value }));
+}
+
+export type SelectMatchReason =
+    | "value-exact"
+    | "label-exact"
+    | "value-insensitive"
+    | "label-insensitive"
+    | "alias-exact"
+    | "alias-insensitive"
+    | "value-prefix-stripped"
+    | "label-prefix-stripped"
+    | "numeric";
+
+export type SelectMatchResult = {
+    token: string;
+    normalizedToken: string;
+    comparableToken: string;
+    option: SelectOption | null;
+    reason?: SelectMatchReason;
+};
+
+export type SelectResolution = {
+    selection: SelectOption[];
+    unmatchedTokens: string[];
+    matchedTokens: SelectMatchResult[];
+    appliedRules: string[];
+};
+
+const OPTIONAL_PREFIX_RE = /^[#/]+/;
 
 function normalizeToken(token: string): string {
     const trimmed = token.trim();
@@ -16,6 +49,21 @@ function normalizeToken(token: string): string {
         return trimmed.slice(1, -1).trim();
     }
     return trimmed;
+}
+
+function stripOptionalPrefixes(token: string): string {
+    return token.replace(OPTIONAL_PREFIX_RE, "");
+}
+
+function extractAdditionalCandidates(token: string): string[] {
+    const candidates = new Set<string>();
+
+    const eqIndex = token.lastIndexOf("=");
+    if (eqIndex >= 0 && eqIndex < token.length - 1) {
+        candidates.add(token.slice(eqIndex + 1).trim());
+    }
+
+    return Array.from(candidates).filter(Boolean);
 }
 
 function toFiniteNumber(value: string): number | null {
@@ -53,39 +101,143 @@ function resolveByNumericToken(token: string, options: SelectOption[]): SelectOp
 export function splitInitialValue(initialValue: string): string[] {
     if (!initialValue) return [];
     return initialValue
-        .split(",")
+        .split(/[\n,]+/)
         .map(normalizeToken)
         .filter((token) => token.length > 0);
 }
 
-export function resolveOptionForToken(token: string, options: SelectOption[]): SelectOption {
+export function resolveOptionMatch(token: string, options: SelectOption[]): SelectMatchResult {
     const normalizedToken = normalizeToken(token);
-    if (!normalizedToken) {
-        return { label: "", value: "" };
+    const comparableToken = stripOptionalPrefixes(normalizedToken);
+    const exactCandidates = Array.from(new Set([
+        normalizedToken,
+        comparableToken,
+        ...extractAdditionalCandidates(normalizedToken),
+        ...extractAdditionalCandidates(comparableToken),
+    ].filter(Boolean)));
+
+    for (const candidate of exactCandidates) {
+        const byValue = options.find((option) => option.value === candidate);
+        if (byValue) {
+            return { token, normalizedToken, comparableToken, option: byValue, reason: candidate === normalizedToken ? "value-exact" : "value-prefix-stripped" };
+        }
+
+        const byLabel = options.find((option) => option.label === candidate);
+        if (byLabel) {
+            return { token, normalizedToken, comparableToken, option: byLabel, reason: candidate === normalizedToken ? "label-exact" : "label-prefix-stripped" };
+        }
+
+        const byAlias = options.find((option) => option.aliases?.includes(candidate));
+        if (byAlias) {
+            return { token, normalizedToken, comparableToken, option: byAlias, reason: "alias-exact" };
+        }
     }
 
-    const byValue = options.find((option) => option.value === normalizedToken);
-    if (byValue) return byValue;
+    for (const candidate of exactCandidates) {
+        const lowerCandidate = candidate.toLowerCase();
+        const byValueInsensitive = options.find((option) => option.value.toLowerCase() === lowerCandidate);
+        if (byValueInsensitive) {
+            return { token, normalizedToken, comparableToken, option: byValueInsensitive, reason: candidate === normalizedToken ? "value-insensitive" : "value-prefix-stripped" };
+        }
 
-    const byLabel = options.find((option) => option.label === normalizedToken);
-    if (byLabel) return byLabel;
+        const byLabelInsensitive = options.find((option) => option.label.toLowerCase() === lowerCandidate);
+        if (byLabelInsensitive) {
+            return { token, normalizedToken, comparableToken, option: byLabelInsensitive, reason: candidate === normalizedToken ? "label-insensitive" : "label-prefix-stripped" };
+        }
 
-    const byValueInsensitive = options.find((option) => option.value.toLowerCase() === normalizedToken.toLowerCase());
-    if (byValueInsensitive) return byValueInsensitive;
+        const byAliasInsensitive = options.find((option) => option.aliases?.some((alias) => alias.toLowerCase() === lowerCandidate));
+        if (byAliasInsensitive) {
+            return { token, normalizedToken, comparableToken, option: byAliasInsensitive, reason: "alias-insensitive" };
+        }
+    }
 
-    const byLabelInsensitive = options.find((option) => option.label.toLowerCase() === normalizedToken.toLowerCase());
-    if (byLabelInsensitive) return byLabelInsensitive;
+    const byNumeric = resolveByNumericToken(comparableToken, options);
+    if (byNumeric) {
+        return { token, normalizedToken, comparableToken, option: byNumeric, reason: "numeric" };
+    }
 
-    const byNumeric = resolveByNumericToken(normalizedToken, options);
-    if (byNumeric) return byNumeric;
+    return { token, normalizedToken, comparableToken, option: null };
+}
 
-    return { label: normalizedToken, value: normalizedToken };
+export function resolveOptionForToken(token: string, options: SelectOption[]): SelectOption {
+    const result = resolveOptionMatch(token, options);
+    if (!result.normalizedToken) {
+        return { label: "", value: "" };
+    }
+    return result.option ?? { label: result.normalizedToken, value: result.normalizedToken };
+}
+
+export function resolveSelectionInput(initialValue: string, options: SelectOption[], isMulti: boolean, baseSelection?: SelectOption[]): SelectResolution {
+    const tokens = splitInitialValue(initialValue);
+    const selection = isMulti ? [...(baseSelection ?? [])] : [];
+    const unmatchedTokens: string[] = [];
+    const matchedTokens: SelectMatchResult[] = [];
+    const appliedRules: string[] = [];
+
+    for (const rawToken of tokens) {
+        const normalizedToken = normalizeToken(rawToken);
+        const comparableToken = stripOptionalPrefixes(normalizedToken);
+        if (!comparableToken) continue;
+
+        if (isMulti && comparableToken === "*") {
+            selection.splice(0, selection.length, ...options);
+            appliedRules.push(`expanded '*' to all ${options.length} option(s)`);
+            continue;
+        }
+
+        if (isMulti && comparableToken.startsWith("!")) {
+            const negateTarget = comparableToken.slice(1).trim();
+            if (!negateTarget) {
+                unmatchedTokens.push(rawToken);
+                continue;
+            }
+            if (selection.length === 0) {
+                selection.push(...options);
+                appliedRules.push(`started from all ${options.length} option(s) for negation`);
+            }
+            if (negateTarget === "*") {
+                selection.splice(0, selection.length);
+                appliedRules.push("cleared all options via '!*'");
+                continue;
+            }
+            const match = resolveOptionMatch(negateTarget, options);
+            matchedTokens.push({ ...match, token: rawToken });
+            if (!match.option) {
+                unmatchedTokens.push(rawToken);
+                continue;
+            }
+            const filtered = selection.filter((option) => option.value !== match.option!.value);
+            selection.splice(0, selection.length, ...filtered);
+            appliedRules.push(`excluded ${match.option.value}`);
+            continue;
+        }
+
+        const match = resolveOptionMatch(rawToken, options);
+        matchedTokens.push(match);
+        if (!match.option) {
+            unmatchedTokens.push(rawToken);
+            continue;
+        }
+
+        if (isMulti) {
+            if (!selection.some((option) => option.value === match.option!.value)) {
+                selection.push(match.option);
+            }
+        } else {
+            selection.splice(0, selection.length, match.option);
+        }
+    }
+
+    return {
+        selection: isMulti ? dedupeByValue(selection) : selection.slice(0, 1),
+        unmatchedTokens,
+        matchedTokens,
+        appliedRules,
+    };
 }
 
 export function resolveInitialSelection(initialValue: string, options: SelectOption[], isMulti: boolean): SelectOption[] {
-    const resolved = splitInitialValue(initialValue)
-        .map((token) => resolveOptionForToken(token, options))
-        .filter((option) => option.value.length > 0);
+    const resolved = resolveSelectionInput(initialValue, options, isMulti).selection;
 
     if (resolved.length === 0) return [];
     return isMulti ? dedupeByValue(resolved) : [resolved[0]];
@@ -105,4 +257,18 @@ export function serializeSelection(options: SelectOption[], isMulti: boolean): s
         return options.map((option) => option.value).join(",");
     }
     return options[0]?.value ?? "";
+}
+
+export function summarizeOptions(options: SelectOption[], limit: number = 10): string {
+    if (options.length === 0) return "(no options)";
+    const shown = options.slice(0, limit).map((option) => {
+        const label = option.label || option.value;
+        if (!option.value || option.value === label) {
+            return label;
+        }
+        return `${label} [${option.value}]`;
+    });
+    return options.length > limit
+        ? `${shown.join(", ")} ... (+${options.length - limit} more)`
+        : shown.join(", ");
 }

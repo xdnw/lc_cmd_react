@@ -1,6 +1,7 @@
 import { useSession } from "@/components/api/SessionContext";
 import { Button } from "@/components/ui/button";
-import { TABLE } from "@/lib/endpoints";
+import { PERMISSION, TABLE } from "@/lib/endpoints";
+import { bulkQueryOptions } from "@/lib/queries";
 import type { JSONValue } from "@/lib/internaltypes";
 import type { ClientColumnOverlay, ConfigColumns } from "@/pages/custom_table/DataTable";
 import BulkActionsToolbar from "@/pages/custom_table/actions/BulkActionsToolbar";
@@ -35,6 +36,8 @@ import { COMMANDS } from "@/lib/commands";
 
 const syncPermissionKey = CONFLICT_SYNC_PERMISSION_PATH.join(" ");
 const editPermissionKey = CONFLICT_EDIT_PERMISSION_PATH.join(" ");
+const syncPermQuery = { command: syncPermissionKey };
+const editPermQuery = { command: editPermissionKey };
 
 function ConflictSelectButton({
     id,
@@ -49,7 +52,6 @@ function ConflictSelectButton({
     selected: boolean;
     onToggle: (id: number, rowIdx: number, shiftKey: boolean) => void;
 }) {
-    const test: typeof COMMANDS.options['GuildSetting<?>']['options'][number]  = "API_KEY";
     const onCheckboxToggle = useCallback((_id: number, shiftKey: boolean) => {
         onToggle(id, rowIdx, shiftKey);
     }, [id, onToggle, rowIdx]);
@@ -68,10 +70,19 @@ function ConflictSelectButton({
 
 export default function Conflicts() {
     const queryClient = useQueryClient();
-    const { session } = useSession();
 
-    const { permission: syncPermission, error: syncPermissionError } = usePermission(CONFLICT_SYNC_PERMISSION_PATH, { showDialogOnError: false });
-    const { permission: editPermission, error: editPermissionError } = usePermission(CONFLICT_EDIT_PERMISSION_PATH, { showDialogOnError: false });
+    // Prefetch permissions during render so they enter the bulk queue in the
+    // same synchronous context as LoadTable's useSuspenseQuery fetch.
+    // Without this, useQuery (permissions) defers queryFn to a post-render
+    // effect, which can miss the 200ms batch window when renders are heavy.
+    void queryClient.prefetchQuery(bulkQueryOptions(PERMISSION.endpoint, syncPermQuery));
+    void queryClient.prefetchQuery(bulkQueryOptions(PERMISSION.endpoint, editPermQuery));
+
+    const { session } = useSession();
+    const isLoggedIn = Boolean(session?.user_valid || session?.nation_valid || session?.registered);
+
+    const { permission: syncPermission, isFetching: syncPermissionFetching, error: syncPermissionError } = usePermission(CONFLICT_SYNC_PERMISSION_PATH, { showDialogOnError: false });
+    const { permission: editPermission, isFetching: editPermissionFetching, error: editPermissionError } = usePermission(CONFLICT_EDIT_PERMISSION_PATH, { showDialogOnError: false });
 
     const selected = useIdSelection<number>();
 
@@ -82,8 +93,8 @@ export default function Conflicts() {
     const conflictOpenersRef = useRef(new Map<number, () => void>());
     const { targetConflictId, autoOpenIfAvailable } = useConflictAutoOpen();
 
-    const canSync = Boolean(syncPermission?.success);
-    const canEdit = Boolean(editPermission?.success);
+    const canSync = syncPermissionFetching || Boolean(syncPermission?.success);
+    const canEdit = editPermissionFetching || Boolean(editPermission?.success);
 
     const refreshTable = useCallback(async () => {
         await queryClient.invalidateQueries({ queryKey: [TABLE.endpoint.name] });
@@ -248,8 +259,6 @@ export default function Conflicts() {
         if (editPermissionError) errors.push(`Edit permission unavailable: ${editPermissionError}`);
         return errors;
     }, [editPermissionError, syncPermissionError]);
-
-    const isLoggedIn = Boolean(session?.user_valid || session?.nation_valid || session?.registered);
 
     return (
         <>

@@ -270,7 +270,7 @@ export class BulkQueryClient {
         const data = this.unpackFn(new Uint8Array(buf)) as T;
 
         // Avoid caching explicit API errors.
-        if (cacheConfig && this.extractError(data) == null) {
+        if (cacheConfig && extractBackendError(data) == null) {
             this.saveToCache(cacheConfig, data);
         }
 
@@ -364,7 +364,7 @@ export class BulkQueryClient {
                 if (value == null) {
                     error = "Empty result";
                 } else {
-                    error = this.extractError(value);
+                    error = extractBackendError(value);
                 }
 
                 if (!error) {
@@ -416,7 +416,9 @@ export class BulkQueryClient {
         }
 
         const buf = await res.arrayBuffer();
-        return this.unpackFn(new Uint8Array(buf));
+        const unpacked = this.unpackFn(new Uint8Array(buf));
+        console.log("Batch response", unpacked);
+        return unpacked;
     }
 
     private tryResolveGroupFromCache(group: PendingGroup): boolean {
@@ -679,16 +681,6 @@ export class BulkQueryClient {
     // misc internals
     // ----------------------------
 
-    private extractError(value: unknown): string | null {
-        if (!value || typeof value !== "object") return null;
-        const obj = value as Record<string, unknown>;
-        if (obj.success === false) {
-            const msg = obj.error ?? obj.message ?? "Unknown error";
-            return typeof msg === "string" ? msg : safeStringify(msg);
-        }
-        return null;
-    }
-
     private hashQuery(query: QueryParams): number {
         return hashString(stableSerializeQuery(query));
     }
@@ -704,6 +696,22 @@ export class BulkQueryClient {
     private log(...args: unknown[]): void {
         if (this.debug) console.log(...args);
     }
+}
+
+export function extractBackendError(value: unknown): string | null {
+    if (!value || typeof value !== "object") return null;
+    const obj = value as Record<string, unknown>;
+
+    if (typeof obj.error === "string" && obj.error.trim()) {
+        return obj.error;
+    }
+
+    if (obj.success === false) {
+        const msg = obj.message ?? obj.error ?? "Unknown error";
+        return typeof msg === "string" ? msg : safeStringify(msg);
+    }
+
+    return null;
 }
 
 // ----------------------------

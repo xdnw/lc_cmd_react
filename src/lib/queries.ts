@@ -1,6 +1,5 @@
 import { UseQueryOptions, UseSuspenseQueryOptions } from "@tanstack/react-query";
-import { ApiEndpoint, fetchBulk, QueryResult } from "./BulkQuery";
-import { WebError } from "./apitypes";
+import { ApiEndpoint, extractBackendError, fetchBulk, QueryResult } from "./BulkQuery";
 
 export function suspenseQueryOptions<T>(
     endpoint: ApiEndpoint<T>,
@@ -31,10 +30,10 @@ export function bulkQueryOptions<T>(
                 cache: undefined,
                 batch_wait_ms: batch_wait_ms ?? 200
             });
-            const webError = result?.data as unknown as WebError;
-            if (result.error || webError?.error != null) {
+            const backendError = extractBackendError(result?.data);
+            if (result.error || backendError != null) {
                 console.log("Error in query", result.error);
-                throw new BackendError(result?.error ?? webError?.error ?? "Unknown error");
+                throw new BackendError(result?.error ?? backendError ?? "Unknown error");
             }
             return result;
         },

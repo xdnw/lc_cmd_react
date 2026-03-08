@@ -1,86 +1,205 @@
 import type { ArgInputSupport } from "@/components/cmd/ArgInput";
 import { getArgInputSupport } from "@/components/cmd/ArgInput";
-import type { WebTable, GuildSettingCategory, GuildSettingSubgroup } from "@/lib/apitypes";
-import { getRenderer } from "@/components/ui/renderers";
-import { COMMANDS } from "@/lib/commands";
 import { QueryResult } from "@/lib/BulkQuery";
+import type { GuildSettingCategory, GuildSettingSubgroup, WebTable } from "@/lib/apitypes";
+import { COMMANDS } from "@/lib/commands";
+import type { JSONValue } from "@/lib/internaltypes";
+import { getRenderer } from "@/components/ui/renderers";
 import { CM, getTypeBreakdown, type TypeBreakdown } from "@/utils/Command";
 
 type GuildSettingPlaceholderCommand = keyof typeof COMMANDS.placeholders["GuildSetting"]["commands"];
 
-type GuildSettingColumnEntry = {
-    key: string;
-    cmd: GuildSettingPlaceholderCommand;
-    args?: Record<string, string>;
+type GuildSettingPlaceholderArgs<C extends GuildSettingPlaceholderCommand> =
+    typeof COMMANDS.placeholders["GuildSetting"]["commands"][C] extends { arguments: infer Args extends Record<string, unknown> }
+        ? { [K in keyof Args]?: string }
+        : never;
+
+type SettingColumnDefinition<
+    Key extends string = string,
+    Command extends GuildSettingPlaceholderCommand = GuildSettingPlaceholderCommand,
+> = {
+    key: Key;
+    placeholder: {
+        cmd: Command;
+        args?: GuildSettingPlaceholderArgs<Command>;
+    };
+    useRenderer?: boolean;
 };
 
-// settingKey  ← {name}      → "API_KEY"         (setting identifier, used in commands)
-// argType     ← {getwebtype} → "Set<DBNation>"  (arg type, passed to getTypeBreakdown)
-const GUILD_SETTING_COLUMN_SCHEMA: readonly GuildSettingColumnEntry[] = [
-    { key: "settingKey",    cmd: "name" },
-    { key: "argType",       cmd: "getwebtype" },
-    { key: "category",      cmd: "getcategory" },
-    { key: "subgroup",      cmd: "getsubgroup" },
-    { key: "helpFull",      cmd: "help" },
-    { key: "valueString",   cmd: "getvaluestring", args: { checkDelegate: "false"} }, // human readable
-    { key: "invalid",       cmd: "hasinvalidvalue", args: { checkDelegate: "false"} },
-    { key: "isChannelType", cmd: "ischanneltype" },
-    { key: "isAllowed",     cmd: "allowed", args: { throwException: "false" } },
-];
+function defineSettingColumn<
+    Key extends string,
+    Command extends GuildSettingPlaceholderCommand,
+>(definition: SettingColumnDefinition<Key, Command>): SettingColumnDefinition<Key, Command> {
+    return definition;
+}
 
-type GuildSettingColumnKey = "settingKey" | "argType" | "category" | "subgroup" | "helpFull" |
-    "valueString" | "invalid" | "isChannelType" | "isAllowed";
+const GUILD_SETTING_COLUMN_SCHEMA = [
+    defineSettingColumn({ key: "settingKey", placeholder: { cmd: "name" } }),
+    defineSettingColumn({ key: "argType", placeholder: { cmd: "getwebtype" } }),
+    defineSettingColumn({ key: "category", placeholder: { cmd: "getcategory" }, useRenderer: true }),
+    defineSettingColumn({ key: "subgroup", placeholder: { cmd: "getsubgroup" }, useRenderer: true }),
+    defineSettingColumn({ key: "helpFull", placeholder: { cmd: "help" } }),
+    defineSettingColumn({ key: "valueString", placeholder: { cmd: "getvaluestring", args: { checkDelegate: "false" } } }),
+    defineSettingColumn({ key: "valueRaw", placeholder: { cmd: "getvalueraw", args: { checkDelegate: "false" } } }),
+    defineSettingColumn({ key: "invalid", placeholder: { cmd: "hasinvalidvalue", args: { checkDelegate: "false" } } }),
+    defineSettingColumn({ key: "isChannelType", placeholder: { cmd: "ischanneltype" } }),
+    defineSettingColumn({ key: "isAllowed", placeholder: { cmd: "allowed", args: { throwException: "false" } } }),
+] as const;
 
-// Build column list — generates {name}, {getkeyname}, {allowed(throwException: false)} etc.
+type SettingColumnKey = (typeof GUILD_SETTING_COLUMN_SCHEMA)[number]["key"];
+type SettingColumnEntry = (typeof GUILD_SETTING_COLUMN_SCHEMA)[number] & { index: number };
+
+const guildSettingColumnEntries = GUILD_SETTING_COLUMN_SCHEMA.map((column, index) => ({
+    ...column,
+    index,
+})) as SettingColumnEntry[];
+
+const guildSettingColumnEntryByKey = Object.fromEntries(
+    guildSettingColumnEntries.map((column) => [column.key, column]),
+) as Record<SettingColumnKey, SettingColumnEntry>;
+
+function toPlaceholderString(
+    cmd: GuildSettingPlaceholderCommand,
+    args?: Record<string, string>,
+): string {
+    if (!args || Object.keys(args).length === 0) {
+        return `{${cmd}}`;
+    }
+
+    const serializedArgs = Object.entries(args)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(" ");
+
+    return `{${cmd}(${serializedArgs})}`;
+}
+
 export const guildSettingColumns = GUILD_SETTING_COLUMN_SCHEMA.reduce(
-    (builder, col) => {
-        const placeholder = col.args
-            ? `{${col.cmd}(${Object.entries(col.args).map(([k, v]) => `${k}: ${v}`).join(" ")})}`
-            : `{${col.cmd}}`;
-        return builder.addRaw(placeholder, col.key);
-    },
+    (builder, column) => builder.addRaw(
+        toPlaceholderString(column.placeholder.cmd, column.placeholder.args),
+        column.key,
+    ),
     CM.placeholders("GuildSetting").aliased(),
 );
 
-/** Column string array for the TABLE query `columns` parameter */
 export const GUILD_SETTING_COLUMNS = guildSettingColumns.array();
 
-// Positional index lookup (used by mergeRowIntoTableCache)
-const columnIndexByKey = Object.fromEntries(
-    GUILD_SETTING_COLUMN_SCHEMA.map((col, idx) => [col.key, idx]),
-) as Record<GuildSettingColumnKey, number>;
-
-function getColumnIndex(key: GuildSettingColumnKey): number {
-    return columnIndexByKey[key];
+function getColumnIndex(key: SettingColumnKey): number {
+    return guildSettingColumnEntryByKey[key].index;
 }
 
+function getRawColumnValue(rawRow: readonly JSONValue[], key: SettingColumnKey): JSONValue | undefined {
+    return rawRow[getColumnIndex(key)];
+}
 
+type BackendRendererList = readonly (string | null | undefined)[];
+
+const EMPTY_RENDERERS: BackendRendererList = [];
+
+function toText(value: unknown): string {
+    if (value == null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+}
+
+function toBoolean(value: JSONValue | undefined): boolean | undefined {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    if (typeof value === "string") {
+        const lowered = value.trim().toLowerCase();
+        if (lowered === "true" || lowered === "1" || lowered === "yes") return true;
+        if (lowered === "false" || lowered === "0" || lowered === "no") return false;
+    }
+    return undefined;
+}
+
+function readTextColumn(
+    rawRow: readonly JSONValue[],
+    key: SettingColumnKey,
+    backendRenderers: BackendRendererList,
+): string {
+    const column = guildSettingColumnEntryByKey[key];
+    const rawValue = getRawColumnValue(rawRow, key);
+
+    if (!column.useRenderer) {
+        return toText(rawValue);
+    }
+
+    const rendererType = backendRenderers[column.index];
+    const display = rendererType ? getRenderer(rendererType)?.display : undefined;
+    if (!display) {
+        return toText(rawValue);
+    }
+
+    try {
+        return toText(display(rawValue as never));
+    } catch {
+        return toText(rawValue);
+    }
+}
+
+function readBooleanColumn(
+    rawRow: readonly JSONValue[],
+    key: Extract<SettingColumnKey, "invalid" | "isChannelType" | "isAllowed">,
+    parseErrors: string[],
+): boolean {
+    const parsed = toBoolean(getRawColumnValue(rawRow, key));
+    if (parsed == null) {
+        parseErrors.push(`Failed to parse ${key} as boolean`);
+    }
+    return parsed ?? false;
+}
+
+function toSettingKey(value: string): SettingKey {
+    return value as SettingKey;
+}
 
 export type SettingKey = typeof COMMANDS.options["GuildSetting<?>"]["options"][number];
 
-export type SettingRow = {
-    /** "API_KEY" — setting identifier used in commands (from {name}) */
-    settingKey: SettingKey;
-    /** "Set<DBNation>" — arg type passed to getTypeBreakdown (from {getkeyname}) */
+export type SettingMetadata = {
     argType: string;
     category: GuildSettingCategory;
     subgroup: GuildSettingSubgroup;
     helpShort: string;
     helpFull: string;
-    valueString: string;
+};
+
+export type SettingValue = {
+    displayText: string;
+    rawText: string;
+    inputText: string;
     hasValue: boolean;
+};
+
+export type SettingFlags = {
     invalid: boolean;
     isChannelType: boolean;
     isAllowed: boolean;
-    initialEditValue: string;
-    rowParseErrors: string[];
+};
+
+export type SettingEditor = {
     breakdown: TypeBreakdown | null;
     inputSupport: ArgInputSupport;
-    rawRow: unknown[];
+    initialValue: string;
+};
+
+export type SettingRow = {
+    settingKey: SettingKey;
+    metadata: SettingMetadata;
+    value: SettingValue;
+    flags: SettingFlags;
+    editor: SettingEditor;
+    rowParseErrors: string[];
+    rawRow: JSONValue[];
 };
 
 export type UnsupportedInputIssue = {
-    settingKey: SettingKey;
+    settingKey: string;
     argType: string;
     reason: string;
 };
@@ -102,32 +221,97 @@ export type SettingsCategoryVM = {
     subgroups: SettingsSubgroupVM[];
 };
 
-function toText(value: unknown): string {
-    if (value == null) return "";
-    if (typeof value === "string") return value;
-    if (typeof value === "number" || typeof value === "boolean") return String(value);
-    try {
-        return JSON.stringify(value);
-    } catch {
-        return String(value);
-    }
+function buildSettingMetadata(
+    rawRow: readonly JSONValue[],
+    backendRenderers: BackendRendererList,
+): SettingMetadata {
+    const helpFull = readTextColumn(rawRow, "helpFull", backendRenderers);
+    const helpShortCandidate = helpFull.split("\n")[0]?.trim() ?? "";
+
+    return {
+        argType: readTextColumn(rawRow, "argType", backendRenderers),
+        category: (readTextColumn(rawRow, "category", backendRenderers) || "DEFAULT") as GuildSettingCategory,
+        subgroup: (readTextColumn(rawRow, "subgroup", backendRenderers) || "NONE") as GuildSettingSubgroup,
+        helpShort: helpShortCandidate || "No help text provided",
+        helpFull,
+    };
 }
 
-function toBoolean(value: unknown): boolean | undefined {
-    if (typeof value === "boolean") return value;
-    if (typeof value === "number") return value !== 0;
-    if (typeof value === "string") {
-        const lowered = value.trim().toLowerCase();
-        if (lowered === "true" || lowered === "1" || lowered === "yes") return true;
-        if (lowered === "false" || lowered === "0" || lowered === "no") return false;
-    }
-    return undefined;
+function buildSettingValue(
+    rawRow: readonly JSONValue[],
+    backendRenderers: BackendRendererList,
+): SettingValue {
+    const valueStringCell = getRawColumnValue(rawRow, "valueString");
+    const valueRawCell = getRawColumnValue(rawRow, "valueRaw");
+    const displayText = readTextColumn(rawRow, "valueString", backendRenderers);
+    const rawText = toText(valueRawCell);
+
+    return {
+        displayText,
+        rawText,
+        inputText: valueRawCell == null ? displayText : rawText,
+        hasValue: valueRawCell != null || valueStringCell != null,
+    };
 }
 
-function toInitialEditValue(valueString: string): string {
-    // the value string is the human-readable form returned by getvaluestring
-    // and is what should be used as the initial input value in the edit dialog.
-    return valueString;
+function buildSettingRow(
+    rawRow: readonly JSONValue[],
+    backendRenderers: BackendRendererList,
+    rowNumber: number,
+): {
+    row: SettingRow;
+    unsupportedInputIssue?: UnsupportedInputIssue;
+} {
+    const parseErrors: string[] = [];
+
+    if (rawRow.length < GUILD_SETTING_COLUMN_SCHEMA.length) {
+        parseErrors.push(
+            `Expected at least ${GUILD_SETTING_COLUMN_SCHEMA.length} columns, received ${rawRow.length}`,
+        );
+    }
+
+    const settingKeyText = readTextColumn(rawRow, "settingKey", backendRenderers);
+    if (!settingKeyText) {
+        parseErrors.push("Missing setting key (name)");
+    }
+
+    const metadata = buildSettingMetadata(rawRow, backendRenderers);
+    const value = buildSettingValue(rawRow, backendRenderers);
+    const flags: SettingFlags = {
+        invalid: readBooleanColumn(rawRow, "invalid", parseErrors),
+        isChannelType: readBooleanColumn(rawRow, "isChannelType", parseErrors),
+        isAllowed: readBooleanColumn(rawRow, "isAllowed", parseErrors),
+    };
+
+    const breakdown = metadata.argType ? getTypeBreakdown(CM, metadata.argType) : null;
+    const inputSupport = breakdown
+        ? getArgInputSupport(breakdown)
+        : { supported: false, reason: "missing type metadata" };
+
+    const row: SettingRow = {
+        settingKey: toSettingKey(settingKeyText || ""),
+        metadata,
+        value,
+        flags,
+        editor: {
+            breakdown,
+            inputSupport,
+            initialValue: value.inputText,
+        },
+        rowParseErrors: parseErrors,
+        rawRow: [...rawRow],
+    };
+
+    return {
+        row,
+        unsupportedInputIssue: inputSupport.supported
+            ? undefined
+            : {
+                settingKey: settingKeyText || `row-${rowNumber}`,
+                argType: metadata.argType,
+                reason: inputSupport.reason ?? "unsupported setting input type",
+            },
+    };
 }
 
 export function normalizeGuildSettingRows(table: WebTable): NormalizedSettingsRowsResult {
@@ -136,91 +320,32 @@ export function normalizeGuildSettingRows(table: WebTable): NormalizedSettingsRo
     const rows: SettingRow[] = [];
     const unsupportedInputRows: UnsupportedInputIssue[] = [];
 
-    console.log("Table from backend:", table);
-
-    // Build per-column decoders from the backend-supplied renderer strings.
-    // Column positions match the schema order, so renderers[columnIndexByKey[key]] gives the renderer for that column.
-    const backendRenderers = Array.isArray(table.renderers) ? table.renderers : [];
-    const decodeColumn = (key: GuildSettingColumnKey, raw: unknown): string => {
-        const rendererType = backendRenderers[columnIndexByKey[key]];
-        if (rendererType) {
-            const display = getRenderer(rendererType)?.display;
-            if (display) {
-                try { return toText(display(raw as never)); } catch { /* fall through */ }
-            }
-        }
-        return toText(raw);
-    };
-
-    // cells[0] is always the header row from the TABLE endpoint; data starts at cells[1]
+    const backendRenderers = Array.isArray(table.renderers) ? table.renderers : EMPTY_RENDERERS;
     const allCells = Array.isArray(table.cells) ? table.cells : [];
+
     if (allCells.length === 0) {
         schemaErrors.push("GuildSetting TABLE returned no rows");
     }
-    const dataRows = allCells.slice(1).filter(Array.isArray) as unknown[][];
 
-    for (let rowIndex = 0; rowIndex < dataRows.length; rowIndex++) {
-        const raw = dataRows[rowIndex];
-        const r = guildSettingColumns.createRowAdapter(raw);
-        const parseErrors: string[] = [];
+    const dataRows = allCells.slice(1);
 
-        const settingKey = toText(r.settingKey);
-        if (!settingKey) {
-            parseErrors.push("Missing setting key (name)");
+    for (let index = 0; index < dataRows.length; index++) {
+        const rawRow = dataRows[index];
+        if (!Array.isArray(rawRow)) {
+            rowParseErrors.push(`Row ${index + 1}: row was not an array`);
+            continue;
         }
 
-        const argType = toText(r.argType);
-        const category = decodeColumn("category", r.category);
-        const subgroup = decodeColumn("subgroup", r.subgroup);
-        const helpFull = toText(r.helpFull);
-        const valueString = toText(r.valueString);
-        // compute hasValue based on whether the backend provided a value string at all
-        const hasValue = r.valueString != null;
+        const { row, unsupportedInputIssue } = buildSettingRow(rawRow as JSONValue[], backendRenderers, index + 1);
+        rows.push(row);
 
-        const invalid = toBoolean(r.invalid);
-        if (invalid == null) parseErrors.push("Failed to parse hasinvalidvalue as boolean");
-
-        const isChannelType = toBoolean(r.isChannelType);
-        if (isChannelType == null) parseErrors.push("Failed to parse ischanneltype as boolean");
-
-        const isAllowed = toBoolean(r.isAllowed);
-        if (isAllowed == null) parseErrors.push("Failed to parse allowed as boolean");
-
-        const breakdown = argType ? getTypeBreakdown(CM, argType) : null;
-        const inputSupport = breakdown
-            ? getArgInputSupport(breakdown)
-            : { supported: false, reason: "missing type metadata" };
-        if (!inputSupport.supported) {
-            unsupportedInputRows.push({
-                settingKey: (settingKey || `row-${rowIndex + 1}`) as SettingKey,
-                argType,
-                reason: inputSupport.reason ?? "unsupported setting input type",
-            });
+        if (unsupportedInputIssue) {
+            unsupportedInputRows.push(unsupportedInputIssue);
         }
 
-        if (parseErrors.length > 0) {
-            rowParseErrors.push(`Row ${rowIndex + 1}: ${parseErrors.join("; ")}`);
+        if (row.rowParseErrors.length > 0) {
+            rowParseErrors.push(`Row ${index + 1}: ${row.rowParseErrors.join("; ")}`);
         }
-
-        const shortHelpCandidate = helpFull.split("\n")[0]?.trim() ?? "";
-        rows.push({
-            settingKey: (settingKey || "") as SettingKey,
-            argType,
-            category: (category || "DEFAULT") as GuildSettingCategory,
-            subgroup: (subgroup || "NONE") as GuildSettingSubgroup,
-            helpShort: shortHelpCandidate || "No help text provided",
-            helpFull,
-            valueString,
-            hasValue,
-            invalid: invalid ?? false,
-            isChannelType: isChannelType ?? false,
-            isAllowed: isAllowed ?? false,
-            initialEditValue: toInitialEditValue(valueString),
-            rowParseErrors: parseErrors,
-            breakdown,
-            inputSupport,
-            rawRow: raw,
-        });
     }
 
     return {
@@ -235,14 +360,18 @@ export function groupRowsByCategory(rows: SettingRow[]): SettingsCategoryVM[] {
     const categoryMap = new Map<GuildSettingCategory, Map<GuildSettingSubgroup, SettingRow[]>>();
 
     for (const row of rows) {
-        if (!categoryMap.has(row.category)) {
-            categoryMap.set(row.category, new Map());
+        const { category, subgroup } = row.metadata;
+
+        if (!categoryMap.has(category)) {
+            categoryMap.set(category, new Map());
         }
-        const subgroupMap = categoryMap.get(row.category)!;
-        if (!subgroupMap.has(row.subgroup)) {
-            subgroupMap.set(row.subgroup, []);
+
+        const subgroupMap = categoryMap.get(category)!;
+        if (!subgroupMap.has(subgroup)) {
+            subgroupMap.set(subgroup, []);
         }
-        subgroupMap.get(row.subgroup)!.push(row);
+
+        subgroupMap.get(subgroup)!.push(row);
     }
 
     return Array.from(categoryMap.entries())
@@ -271,14 +400,14 @@ export function mergeRowIntoTableCache({
     const keyIndex = getColumnIndex("settingKey");
     const nextCells = table.cells.map((row) => (Array.isArray(row) ? [...row] : row));
 
-    // cells[0] is the header; data starts at cells[1]
     let updated = false;
-    for (let idx = 1; idx < nextCells.length; idx++) {
-        const row = nextCells[idx];
+    for (let index = 1; index < nextCells.length; index++) {
+        const row = nextCells[index];
         if (!Array.isArray(row)) continue;
+
         const existingKey = String(row[keyIndex] ?? "");
         if (existingKey === updatedRow.settingKey) {
-            nextCells[idx] = [...updatedRow.rawRow];
+            nextCells[index] = [...updatedRow.rawRow];
             updated = true;
             break;
         }
@@ -287,6 +416,34 @@ export function mergeRowIntoTableCache({
     if (!updated) {
         nextCells.push([...updatedRow.rawRow]);
     }
+
+    return new QueryResult<WebTable>({
+        endpoint: oldResult.endpoint,
+        query: oldResult.query,
+        update_ms: oldResult.update_ms,
+        cache: oldResult.cache,
+        data: { ...table, cells: nextCells },
+        error: oldResult.error,
+    });
+}
+
+export function removeRowFromTableCache({
+    oldResult,
+    settingKey,
+}: {
+    oldResult: QueryResult<WebTable> | undefined;
+    settingKey: string;
+}): QueryResult<WebTable> | undefined {
+    if (!oldResult?.data?.cells) return oldResult;
+
+    const table = oldResult.data;
+    const keyIndex = getColumnIndex("settingKey");
+    const nextCells = table.cells
+        .filter((row, index) => {
+            if (index === 0 || !Array.isArray(row)) return true;
+            return String(row[keyIndex] ?? "") !== settingKey;
+        })
+        .map((row) => (Array.isArray(row) ? [...row] : row));
 
     return new QueryResult<WebTable>({
         endpoint: oldResult.endpoint,

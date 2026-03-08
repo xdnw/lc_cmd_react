@@ -1,5 +1,10 @@
-export function parseMapString(input: string): { [key: string]: string }[] | null {
-    let text = input.trim();
+export function parseMapString(input?: string | null): { [key: string]: string }[] | null {
+    const normalizedInput = input?.trim();
+    if (!normalizedInput) {
+        return null;
+    }
+
+    let text = normalizedInput;
     
     // Remove surrounding brackets if present
     if (text.startsWith('{') && text.endsWith('}')) {

@@ -1,0 +1,5259 @@
+{
+  "generatedAt": "2026-03-08T12:00:00.000Z",
+  "summary": {
+    "totalExamples": 257,
+    "supportedExamples": 250,
+    "unsupportedExamples": 7,
+    "renderStatuses": {
+      "pass": 250,
+      "fail": 0,
+      "unsupported": 7,
+      "query-backed": 0,
+      "uncheckable": 0,
+      "render-error": 0
+    },
+    "defaultStatuses": {
+      "pass": 230,
+      "fail": 20,
+      "unsupported": 7,
+      "query-backed": 0,
+      "uncheckable": 0,
+      "render-error": 0
+    },
+    "pasteStatuses": {
+      "pass": 230,
+      "fail": 20,
+      "unsupported": 7,
+      "query-backed": 0,
+      "uncheckable": 0,
+      "render-error": 0
+    }
+  },
+  "entries": [
+    {
+      "type": "AllianceMetric",
+      "example": "SOLDIER",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to SOLDIER."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted SOLDIER.",
+        "actualOutput": "SOLDIER"
+      }
+    },
+    {
+      "type": "AllianceMetricMode",
+      "example": "TOTAL",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to TOTAL."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted TOTAL.",
+        "actualOutput": "TOTAL"
+      }
+    },
+    {
+      "type": "AlliancePermission",
+      "example": "VIEW_BANK",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to VIEW_BANK."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted VIEW_BANK.",
+        "actualOutput": "VIEW_BANK"
+      }
+    },
+    {
+      "type": "AppMenu",
+      "example": "user",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "AppMenu",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (2) to user.",
+        "actualOutput": "user"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (2) to user.",
+        "actualOutput": "user"
+      }
+    },
+    {
+      "type": "AppMenu",
+      "example": "message",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "AppMenu",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (2) to message.",
+        "actualOutput": "message"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (2) to message.",
+        "actualOutput": "message"
+      }
+    },
+    {
+      "type": "AttackType",
+      "example": "GROUND",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to GROUND."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted GROUND.",
+        "actualOutput": "GROUND"
+      }
+    },
+    {
+      "type": "AuditType",
+      "example": "CHECK_RANK",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to CHECK_RANK."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted CHECK_RANK.",
+        "actualOutput": "CHECK_RANK"
+      }
+    },
+    {
+      "type": "AutoAuditType",
+      "example": "GRAY",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to GRAY."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted GRAY.",
+        "actualOutput": "GRAY"
+      }
+    },
+    {
+      "type": "BeigeReason",
+      "example": "VACATION_MODE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to VACATION_MODE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted VACATION_MODE.",
+        "actualOutput": "VACATION_MODE"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "true",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected Yes as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1.",
+        "actualOutput": "1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "yes",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected Yes as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1.",
+        "actualOutput": "1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "on",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected Yes as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1.",
+        "actualOutput": "1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "y",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected Yes as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1.",
+        "actualOutput": "1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "1",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected Yes as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1.",
+        "actualOutput": "1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "t",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected Yes as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1.",
+        "actualOutput": "1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "false",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected No as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted -1.",
+        "actualOutput": "-1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "no",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected No as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted -1.",
+        "actualOutput": "-1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "off",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected No as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted -1.",
+        "actualOutput": "-1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "f",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected No as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted -1.",
+        "actualOutput": "-1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "n",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected No as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted -1.",
+        "actualOutput": "-1"
+      }
+    },
+    {
+      "type": "Boolean",
+      "example": "0",
+      "controlKind": "tri-state",
+      "componentName": "TriStateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default selected Any as expected."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 0.",
+        "actualOutput": "0"
+      }
+    },
+    {
+      "type": "ChatModel",
+      "example": "gpt-4o-mini",
+      "controlKind": "text",
+      "componentName": "UnknownType",
+      "supported": false,
+      "render": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "defaultValue": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "paste": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      }
+    },
+    {
+      "type": "CityBuild",
+      "example": "city/id=371923",
+      "controlKind": "text",
+      "componentName": "UnknownType",
+      "supported": false,
+      "render": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "defaultValue": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "paste": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      }
+    },
+    {
+      "type": "CityRanges",
+      "example": "c1-10",
+      "controlKind": "city-ranges",
+      "componentName": "CityRanges",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default split into 1 and 10."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted c1-10.",
+        "actualOutput": "c1-10"
+      }
+    },
+    {
+      "type": "CityRanges",
+      "example": "c11+",
+      "controlKind": "city-ranges",
+      "componentName": "CityRanges",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default split into 11 and +."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted c11+.",
+        "actualOutput": "c11+"
+      }
+    },
+    {
+      "type": "Class<?>[PlaceholderType]",
+      "example": "nation",
+      "controlKind": "select",
+      "componentName": "ListComponentBreakdown",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to Nation."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Nation.",
+        "actualOutput": "Nation"
+      }
+    },
+    {
+      "type": "Class<?>[PlaceholderType]",
+      "example": "DBNation",
+      "controlKind": "select",
+      "componentName": "ListComponentBreakdown",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to Nation."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Nation.",
+        "actualOutput": "Nation"
+      }
+    },
+    {
+      "type": "ClearRolesEnum",
+      "example": "UNUSED",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to UNUSED."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted UNUSED.",
+        "actualOutput": "UNUSED"
+      }
+    },
+    {
+      "type": "Coalition",
+      "example": "DNR",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to DNR."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted DNR.",
+        "actualOutput": "DNR"
+      }
+    },
+    {
+      "type": "Color",
+      "example": "#420420",
+      "controlKind": "color",
+      "componentName": "ColorInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default color is #420420."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted #420420.",
+        "actualOutput": "#420420"
+      }
+    },
+    {
+      "type": "Color",
+      "example": "RED",
+      "controlKind": "color",
+      "componentName": "ColorInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default color is RED."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted RED.",
+        "actualOutput": "RED"
+      }
+    },
+    {
+      "type": "CommandBehavior",
+      "example": "DELETE_MESSAGE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to DELETE_MESSAGE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted DELETE_MESSAGE.",
+        "actualOutput": "DELETE_MESSAGE"
+      }
+    },
+    {
+      "type": "ConflictCategory",
+      "example": "GENERATED",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to GENERATED."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted GENERATED.",
+        "actualOutput": "GENERATED"
+      }
+    },
+    {
+      "type": "Continent",
+      "example": "NORTH_AMERICA",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to NORTH_AMERICA."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted NORTH_AMERICA.",
+        "actualOutput": "NORTH_AMERICA"
+      }
+    },
+    {
+      "type": "DBAlliance",
+      "example": "Singularity",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBAlliance",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (544) to AA:11657.",
+        "actualOutput": "AA:11657"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (544) to AA:11657.",
+        "actualOutput": "AA:11657"
+      }
+    },
+    {
+      "type": "DBAlliance",
+      "example": "13809",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBAlliance",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (544) to AA:13809.",
+        "actualOutput": "AA:13809"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (544) to AA:13809.",
+        "actualOutput": "AA:13809"
+      }
+    },
+    {
+      "type": "DBAlliance",
+      "example": "https://politicsandwar.com/alliance/id=13809",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBAlliance",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (544) to AA:13809.",
+        "actualOutput": "AA:13809"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (544) to AA:13809.",
+        "actualOutput": "AA:13809"
+      }
+    },
+    {
+      "type": "DBAlliancePosition",
+      "example": "1234:Member",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBAlliancePosition",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliancePosition: Failed to get options for DBAlliancePosition: Cannot invoke \"link.locutus.discord.pnw.AllianceList.getPositions()\" because \"aaList\" is null"
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliancePosition: Failed to get options for DBAlliancePosition: Cannot invoke \"link.locutus.discord.pnw.AllianceList.getPositions()\" because \"aaList\" is null"
+      }
+    },
+    {
+      "type": "DBBan",
+      "example": "1234",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBBan",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (6455) to 229898.",
+        "actualOutput": "229898"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (6455) to 229898.",
+        "actualOutput": "229898"
+      }
+    },
+    {
+      "type": "DBCity",
+      "example": "city/id=371923",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted city/id=371923.",
+        "actualOutput": "city/id=371923"
+      }
+    },
+    {
+      "type": "DBCity",
+      "example": "371923",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 371923.",
+        "actualOutput": "371923"
+      }
+    },
+    {
+      "type": "DBLoan",
+      "example": "1234",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBLoan",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "Backend returned 0 options for DBLoan."
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "Backend returned 0 options for DBLoan."
+      }
+    },
+    {
+      "type": "DBNation",
+      "example": "Borg",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBNation",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (14988) to 189573.",
+        "actualOutput": "189573"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (14988) to 189573.",
+        "actualOutput": "189573"
+      }
+    },
+    {
+      "type": "DBNation",
+      "example": "<@664156861033086987>",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBNation",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"<@664156861033086987>\". Unmatched: <@664156861033086987>. Backend options (14988): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+14978 more).",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"<@664156861033086987>\". Unmatched: <@664156861033086987>. Backend options (14988): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+14978 more).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "DBNation",
+      "example": "189573",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBNation",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (14988) to 189573.",
+        "actualOutput": "189573"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (14988) to 189573.",
+        "actualOutput": "189573"
+      }
+    },
+    {
+      "type": "DBNation",
+      "example": "https://politicsandwar.com/nation/id=189573",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "DBNation",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (14988) to 189573.",
+        "actualOutput": "189573"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (14988) to 189573.",
+        "actualOutput": "189573"
+      }
+    },
+    {
+      "type": "DBWar",
+      "example": "1234",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1234.",
+        "actualOutput": "1234"
+      }
+    },
+    {
+      "type": "DBWar",
+      "example": "https://politicsandwar.com/nation/war/timeline/war=1234",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted https://politicsandwar.com/nation/war/timeline/war=1234.",
+        "actualOutput": "https://politicsandwar.com/nation/war/timeline/war=1234"
+      }
+    },
+    {
+      "type": "DataQueryMode",
+      "example": "PLAN",
+      "controlKind": "text",
+      "componentName": "UnknownType",
+      "supported": false,
+      "render": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "defaultValue": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "paste": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      }
+    },
+    {
+      "type": "DepositType",
+      "example": "DEPOSIT",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to DEPOSIT."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted DEPOSIT.",
+        "actualOutput": "DEPOSIT"
+      }
+    },
+    {
+      "type": "DepositType",
+      "example": "#deposit",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to DEPOSIT."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted DEPOSIT.",
+        "actualOutput": "DEPOSIT"
+      }
+    },
+    {
+      "type": "double",
+      "example": "3.0",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 3.",
+        "actualOutput": "3"
+      }
+    },
+    {
+      "type": "double",
+      "example": "3*4.5-6/2",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 10.5.",
+        "actualOutput": "10.5"
+      }
+    },
+    {
+      "type": "double",
+      "example": "50.3m",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 50.3.",
+        "actualOutput": "50.3"
+      }
+    },
+    {
+      "type": "Double",
+      "example": "3.0",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 3.",
+        "actualOutput": "3"
+      }
+    },
+    {
+      "type": "Double",
+      "example": "3*4.5-6/2",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 10.5.",
+        "actualOutput": "10.5"
+      }
+    },
+    {
+      "type": "Double",
+      "example": "50.3m",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 50.3.",
+        "actualOutput": "50.3"
+      }
+    },
+    {
+      "type": "EnemyAlertChannelMode",
+      "example": "PING_USERS_IN_RANGE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to PING_USERS_IN_RANGE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted PING_USERS_IN_RANGE.",
+        "actualOutput": "PING_USERS_IN_RANGE"
+      }
+    },
+    {
+      "type": "EscrowMode",
+      "example": "NEVER",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to NEVER."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted NEVER.",
+        "actualOutput": "NEVER"
+      }
+    },
+    {
+      "type": "ExecuteMode",
+      "example": "VALIDATE",
+      "controlKind": "text",
+      "componentName": "UnknownType",
+      "supported": false,
+      "render": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "defaultValue": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "paste": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      }
+    },
+    {
+      "type": "Font",
+      "example": "Arial",
+      "controlKind": "font",
+      "componentName": "FontInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Font modifiers resolved to bold=false, italic=false."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Arial.",
+        "actualOutput": "Arial"
+      }
+    },
+    {
+      "type": "Font",
+      "example": "Arial bold",
+      "controlKind": "font",
+      "componentName": "FontInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Font modifiers resolved to bold=true, italic=false."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Arial bold.",
+        "actualOutput": "Arial bold"
+      }
+    },
+    {
+      "type": "Font",
+      "example": "Arial italic",
+      "controlKind": "font",
+      "componentName": "FontInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Font modifiers resolved to bold=false, italic=true."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Arial italic.",
+        "actualOutput": "Arial italic"
+      }
+    },
+    {
+      "type": "FlowType",
+      "example": "INTERNAL",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to INTERNAL."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted INTERNAL.",
+        "actualOutput": "INTERNAL"
+      }
+    },
+    {
+      "type": "GoogleDoc",
+      "example": "document:1X2Y3Z4",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted document:1X2Y3Z4.",
+        "actualOutput": "document:1X2Y3Z4"
+      }
+    },
+    {
+      "type": "GoogleDoc",
+      "example": "https://docs.google.com/document/d/1X2Y3Z4/edit",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted https://docs.google.com/document/d/1X2Y3Z4/edit.",
+        "actualOutput": "https://docs.google.com/document/d/1X2Y3Z4/edit"
+      }
+    },
+    {
+      "type": "GrantRequest",
+      "example": "1234",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "GrantRequest",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "Backend returned 0 options for GrantRequest."
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "Backend returned 0 options for GrantRequest."
+      }
+    },
+    {
+      "type": "GrowthAsset",
+      "example": "CITIES",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to CITIES."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted CITIES.",
+        "actualOutput": "CITIES"
+      }
+    },
+    {
+      "type": "Guild",
+      "example": "672217848311054346",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Guild",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15) to 672217848311054346.",
+        "actualOutput": "672217848311054346"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15) to 672217848311054346.",
+        "actualOutput": "672217848311054346"
+      }
+    },
+    {
+      "type": "GuildDB",
+      "example": "672217848311054346",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "GuildDB",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15) to 672217848311054346.",
+        "actualOutput": "672217848311054346"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15) to 672217848311054346.",
+        "actualOutput": "672217848311054346"
+      }
+    },
+    {
+      "type": "GuildOrAlliance",
+      "example": "guild:672217848311054346",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "GuildDB, DBAlliance",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (559) to 672217848311054346.",
+        "actualOutput": "672217848311054346"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (559) to 672217848311054346.",
+        "actualOutput": "672217848311054346"
+      }
+    },
+    {
+      "type": "GuildOrAlliance",
+      "example": "aa:11657",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "GuildDB, DBAlliance",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (559) to AA:11657.",
+        "actualOutput": "AA:11657"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (559) to AA:11657.",
+        "actualOutput": "AA:11657"
+      }
+    },
+    {
+      "type": "GuildSetting<?>",
+      "example": "ALLIANCE_ID",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to ALLIANCE_ID."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ALLIANCE_ID.",
+        "actualOutput": "ALLIANCE_ID"
+      }
+    },
+    {
+      "type": "GuildSettingCategory",
+      "example": "DEFAULT",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to DEFAULT."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted DEFAULT.",
+        "actualOutput": "DEFAULT"
+      }
+    },
+    {
+      "type": "GuildSettingSubgroup",
+      "example": "NONE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to NONE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted NONE.",
+        "actualOutput": "NONE"
+      }
+    },
+    {
+      "type": "ICommand<?>",
+      "example": "/register",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to register."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted register.",
+        "actualOutput": "register"
+      }
+    },
+    {
+      "type": "ImageType",
+      "example": "CLEAR",
+      "controlKind": "text",
+      "componentName": "UnknownType",
+      "supported": false,
+      "render": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "defaultValue": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "paste": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      }
+    },
+    {
+      "type": "ImageType",
+      "example": "CAPTCHA_NORMAL",
+      "controlKind": "text",
+      "componentName": "UnknownType",
+      "supported": false,
+      "render": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "defaultValue": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "paste": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      }
+    },
+    {
+      "type": "int",
+      "example": "3",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 3.",
+        "actualOutput": "3"
+      }
+    },
+    {
+      "type": "int",
+      "example": "3*4-6/2",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 9.",
+        "actualOutput": "9"
+      }
+    },
+    {
+      "type": "int",
+      "example": "50.3m",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 50.",
+        "actualOutput": "50"
+      }
+    },
+    {
+      "type": "Integer",
+      "example": "3",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 3.",
+        "actualOutput": "3"
+      }
+    },
+    {
+      "type": "Integer",
+      "example": "3*4-6/2",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 9.",
+        "actualOutput": "9"
+      }
+    },
+    {
+      "type": "Integer",
+      "example": "50.3m",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 50.",
+        "actualOutput": "50"
+      }
+    },
+    {
+      "type": "List<Integer>",
+      "example": "1,2,3",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1,2,3.",
+        "actualOutput": "1,2,3"
+      }
+    },
+    {
+      "type": "List<Integer>",
+      "example": "1 2 3",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1 2 3.",
+        "actualOutput": "1 2 3"
+      }
+    },
+    {
+      "type": "List<String>[TextArea]",
+      "example": "a b c",
+      "controlKind": "textarea",
+      "componentName": "TextInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a b c.",
+        "actualOutput": "a b c"
+      }
+    },
+    {
+      "type": "List<String>[TextArea]",
+      "example": "a \"b c\" d",
+      "controlKind": "textarea",
+      "componentName": "TextInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a \"b c\" d.",
+        "actualOutput": "a \"b c\" d"
+      }
+    },
+    {
+      "type": "long",
+      "example": "3",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 3.",
+        "actualOutput": "3"
+      }
+    },
+    {
+      "type": "long",
+      "example": "3*4-6/2",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 9.",
+        "actualOutput": "9"
+      }
+    },
+    {
+      "type": "long",
+      "example": "50.3k",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 50.",
+        "actualOutput": "50"
+      }
+    },
+    {
+      "type": "Long",
+      "example": "3",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 3.",
+        "actualOutput": "3"
+      }
+    },
+    {
+      "type": "Long",
+      "example": "3*4-6/2",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 9.",
+        "actualOutput": "9"
+      }
+    },
+    {
+      "type": "Long",
+      "example": "50.3k",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 50.",
+        "actualOutput": "50"
+      }
+    },
+    {
+      "type": "long[Timediff]",
+      "example": "5d",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (5d)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:432000000).",
+        "actualOutput": "timediff:432000000"
+      }
+    },
+    {
+      "type": "long[Timediff]",
+      "example": "1w10h3m25s",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (1w10h3m25s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:641005000).",
+        "actualOutput": "timediff:641005000"
+      }
+    },
+    {
+      "type": "long[Timediff]",
+      "example": "2026-03-01",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (1w1d49m16s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:694156298).",
+        "actualOutput": "timediff:694156298"
+      }
+    },
+    {
+      "type": "long[Timediff]",
+      "example": "01/03/2026",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (1w1d49m16s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:694156301).",
+        "actualOutput": "timediff:694156301"
+      }
+    },
+    {
+      "type": "long[Timediff]",
+      "example": "timediff:123456",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (2m3s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:123456).",
+        "actualOutput": "timediff:123456"
+      }
+    },
+    {
+      "type": "Long[Timediff]",
+      "example": "5d",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (5d)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:432000000).",
+        "actualOutput": "timediff:432000000"
+      }
+    },
+    {
+      "type": "Long[Timediff]",
+      "example": "1w10h3m25s",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (1w10h3m25s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:641005000).",
+        "actualOutput": "timediff:641005000"
+      }
+    },
+    {
+      "type": "Long[Timediff]",
+      "example": "2026-03-01",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (1w1d49m16s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:694156313).",
+        "actualOutput": "timediff:694156313"
+      }
+    },
+    {
+      "type": "Long[Timediff]",
+      "example": "01/03/2026",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (1w1d49m16s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:694156316).",
+        "actualOutput": "timediff:694156316"
+      }
+    },
+    {
+      "type": "Long[Timediff]",
+      "example": "timediff:123456",
+      "controlKind": "timediff",
+      "componentName": "TimeDiffInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timediff value (2m3s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timediff value (timediff:123456).",
+        "actualOutput": "timediff:123456"
+      }
+    },
+    {
+      "type": "long[Timestamp]",
+      "example": "%epoch%",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2026-03-09T00:49:16.000)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1772977756325).",
+        "actualOutput": "timestamp:1772977756325"
+      }
+    },
+    {
+      "type": "long[Timestamp]",
+      "example": "5d",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2026-03-04T00:49:16.000)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1772545756327).",
+        "actualOutput": "timestamp:1772545756327"
+      }
+    },
+    {
+      "type": "long[Timestamp]",
+      "example": "2026-03-01",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2026-03-01T00:00)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1772283600000).",
+        "actualOutput": "timestamp:1772283600000"
+      }
+    },
+    {
+      "type": "long[Timestamp]",
+      "example": "01/03/2026",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2026-03-01T00:00)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1772283600000).",
+        "actualOutput": "timestamp:1772283600000"
+      }
+    },
+    {
+      "type": "long[Timestamp]",
+      "example": "1682013943000",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2023-04-21T04:05:43.000)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1682013943000).",
+        "actualOutput": "timestamp:1682013943000"
+      }
+    },
+    {
+      "type": "long[Timestamp]",
+      "example": "timestamp:1682013943000",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2023-04-21T04:05:43.000)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1682013943000).",
+        "actualOutput": "timestamp:1682013943000"
+      }
+    },
+    {
+      "type": "Long[Timestamp]",
+      "example": "%epoch%",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2026-03-09T00:49:16.000)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1772977756338).",
+        "actualOutput": "timestamp:1772977756338"
+      }
+    },
+    {
+      "type": "Long[Timestamp]",
+      "example": "5d",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2026-03-04T00:49:16.000)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1772545756341).",
+        "actualOutput": "timestamp:1772545756341"
+      }
+    },
+    {
+      "type": "Long[Timestamp]",
+      "example": "2026-03-01",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2026-03-01T00:00)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1772283600000).",
+        "actualOutput": "timestamp:1772283600000"
+      }
+    },
+    {
+      "type": "Long[Timestamp]",
+      "example": "01/03/2026",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2026-03-01T00:00)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1772283600000).",
+        "actualOutput": "timestamp:1772283600000"
+      }
+    },
+    {
+      "type": "Long[Timestamp]",
+      "example": "1682013943000",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2023-04-21T04:05:43.000)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1682013943000).",
+        "actualOutput": "timestamp:1682013943000"
+      }
+    },
+    {
+      "type": "Long[Timestamp]",
+      "example": "timestamp:1682013943000",
+      "controlKind": "time",
+      "componentName": "TimeInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default produced a normalized timestamp input value (2023-04-21T04:05:43.000)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted a timestamp value (timestamp:1682013943000).",
+        "actualOutput": "timestamp:1682013943000"
+      }
+    },
+    {
+      "type": "Map<CityRanges,Set<BeigeReason>>",
+      "example": "c1-9:*\nc10+:INACTIVE,VACATION_MODE,APPLICANT",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted c1-9=*\nc10+=INACTIVE,VACATION_MODE,APPLICANT.",
+        "actualOutput": "c1-9=*\nc10+=INACTIVE,VACATION_MODE,APPLICANT"
+      }
+    },
+    {
+      "type": "Map<MilitaryUnit,Long>",
+      "example": "{soldiers=12,tanks=56}",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted soldiers=12\ntanks=56.",
+        "actualOutput": "soldiers=12\ntanks=56"
+      }
+    },
+    {
+      "type": "Map<NationFilter,MMRMatcher>",
+      "example": "#cities<10:505X\n#cities>=10:0250",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted #cities<10=505X\n#cities>=10:0250.",
+        "actualOutput": "#cities<10=505X\n#cities>=10:0250"
+      }
+    },
+    {
+      "type": "Map<NationFilter,Role>",
+      "example": "#cities<10:@someRole\n#cities>=10:@otherRole",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted #cities<10=@someRole\n#cities>=10:@otherRole.",
+        "actualOutput": "#cities<10=@someRole\n#cities>=10:@otherRole"
+      }
+    },
+    {
+      "type": "Map<NationFilter,TaxBracket>",
+      "example": "#cities<10:1\n#cities>=10:2",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted #cities<10=1\n#cities>=10:2.",
+        "actualOutput": "#cities<10=1\n#cities>=10:2"
+      }
+    },
+    {
+      "type": "Map<NationFilter,TaxRate>",
+      "example": "#cities<10:100/100\n#cities>=10:25/25",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted #cities<10=100/100\n#cities>=10:25/25.",
+        "actualOutput": "#cities<10=100/100\n#cities>=10:25/25"
+      }
+    },
+    {
+      "type": "Map<Research,Integer>",
+      "example": "{GROUND_COST=12,AIR_CAPACITY=2}",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted GROUND_COST=12\nAIR_CAPACITY=2.",
+        "actualOutput": "GROUND_COST=12\nAIR_CAPACITY=2"
+      }
+    },
+    {
+      "type": "Map<ResourceType,Double>",
+      "example": "{money=1.2,food=6}",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted money=1.2\nfood=6.",
+        "actualOutput": "money=1.2\nfood=6"
+      }
+    },
+    {
+      "type": "Map<ResourceType,Double>",
+      "example": "food 5,money 3",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 0 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted (empty).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "Map<ResourceType,Double>",
+      "example": "5f 3$ 10.5c",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 0 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted (empty).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "Map<ResourceType,Double>",
+      "example": "$53",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 0 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted (empty).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "Map<ResourceType,Double>",
+      "example": "{food=1}*1.5",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 1 map entry."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted {food=1}*1.5.",
+        "actualOutput": "{food=1}*1.5"
+      }
+    },
+    {
+      "type": "Map<Role,Set<Role>>",
+      "example": "@Role1=@Role2,@Role3\n@role4=@role5,@role6",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted @Role1=@Role2,@Role3\n@role4=@role5,@role6.",
+        "actualOutput": "@Role1=@Role2,@Role3\n@role4=@role5,@role6"
+      }
+    },
+    {
+      "type": "Map<String,String>",
+      "example": "foo=bar,baz=qux",
+      "controlKind": "map",
+      "componentName": "MapInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 map entries."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted foo=bar\nbaz=qux.",
+        "actualOutput": "foo=bar\nbaz=qux"
+      }
+    },
+    {
+      "type": "Member",
+      "example": "@xdnw",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Member",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"@xdnw\". Unmatched: @xdnw. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"@xdnw\". Unmatched: @xdnw. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "Member",
+      "example": "borg",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Member",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"borg\". Unmatched: borg. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"borg\". Unmatched: borg. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "MenuState",
+      "example": "NONE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to NONE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted NONE.",
+        "actualOutput": "NONE"
+      }
+    },
+    {
+      "type": "Message",
+      "example": "https://discord.com/channels/672217848311054346/973848742769885194/975827690877780050",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted https://discord.com/channels/672217848311054346/973848742769885194/975827690877780050.",
+        "actualOutput": "https://discord.com/channels/672217848311054346/973848742769885194/975827690877780050"
+      }
+    },
+    {
+      "type": "MessageTrigger",
+      "example": "CREATION",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to CREATION."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted CREATION.",
+        "actualOutput": "CREATION"
+      }
+    },
+    {
+      "type": "MilitaryUnit",
+      "example": "SOLDIER",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to SOLDIER."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted SOLDIER.",
+        "actualOutput": "SOLDIER"
+      }
+    },
+    {
+      "type": "MMRBuyMode",
+      "example": "DAILY_BUY",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to DAILY_BUY."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted DAILY_BUY.",
+        "actualOutput": "DAILY_BUY"
+      }
+    },
+    {
+      "type": "MMRDouble",
+      "example": "0.0/2.0/5.0/0.0",
+      "controlKind": "mmr-double",
+      "componentName": "MmrDoubleInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed all four MMRDouble segments."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 0/2/5/0.",
+        "actualOutput": "0/2/5/0"
+      }
+    },
+    {
+      "type": "MMRDouble",
+      "example": "5553",
+      "controlKind": "mmr-double",
+      "componentName": "MmrDoubleInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed all four MMRDouble segments."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 5/5/5/3.",
+        "actualOutput": "5/5/5/3"
+      }
+    },
+    {
+      "type": "MMRInt",
+      "example": "5553",
+      "controlKind": "mmr",
+      "componentName": "MmrInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Example matches the MMR input format."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 5553.",
+        "actualOutput": "5553"
+      }
+    },
+    {
+      "type": "MMRInt",
+      "example": "0/2/5/0",
+      "controlKind": "mmr",
+      "componentName": "MmrInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Example matches the MMR input format."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 0250.",
+        "actualOutput": "0250"
+      }
+    },
+    {
+      "type": "MMRMatcher",
+      "example": "505X",
+      "controlKind": "mmr",
+      "componentName": "MmrInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Example matches the MMR input format."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 505X.",
+        "actualOutput": "505X"
+      }
+    },
+    {
+      "type": "NationColor",
+      "example": "AQUA",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to AQUA."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted AQUA.",
+        "actualOutput": "AQUA"
+      }
+    },
+    {
+      "type": "NationLootType",
+      "example": "ESPIONAGE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to ESPIONAGE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ESPIONAGE.",
+        "actualOutput": "ESPIONAGE"
+      }
+    },
+    {
+      "type": "NationMeta",
+      "example": "INTERVIEW_DEPOSITS",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to INTERVIEW_DEPOSITS."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted INTERVIEW_DEPOSITS.",
+        "actualOutput": "INTERVIEW_DEPOSITS"
+      }
+    },
+    {
+      "type": "BeigeAlertMode",
+      "example": "NO_ALERTS",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to NO_ALERTS."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted NO_ALERTS.",
+        "actualOutput": "NO_ALERTS"
+      }
+    },
+    {
+      "type": "BeigeAlertRequiredStatus",
+      "example": "ONLINE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to ONLINE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ONLINE.",
+        "actualOutput": "ONLINE"
+      }
+    },
+    {
+      "type": "NationOrAlliance",
+      "example": "Borg",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15532) to 189573.",
+        "actualOutput": "189573"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15532) to 189573.",
+        "actualOutput": "189573"
+      }
+    },
+    {
+      "type": "NationOrAlliance",
+      "example": "https://politicsandwar.com/alliance/id=11657",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15532) to AA:11657.",
+        "actualOutput": "AA:11657"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15532) to AA:11657.",
+        "actualOutput": "AA:11657"
+      }
+    },
+    {
+      "type": "NationOrAlliance",
+      "example": "aa:11657",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15532) to AA:11657.",
+        "actualOutput": "AA:11657"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15532) to AA:11657.",
+        "actualOutput": "AA:11657"
+      }
+    },
+    {
+      "type": "NationOrAllianceOrGuild",
+      "example": "Borg",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 189573.",
+        "actualOutput": "189573"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 189573.",
+        "actualOutput": "189573"
+      }
+    },
+    {
+      "type": "NationOrAllianceOrGuild",
+      "example": "alliance/id=11657",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to AA:11657.",
+        "actualOutput": "AA:11657"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to AA:11657.",
+        "actualOutput": "AA:11657"
+      }
+    },
+    {
+      "type": "NationOrAllianceOrGuild",
+      "example": "672217848311054346",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 672217848311054346.",
+        "actualOutput": "672217848311054346"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 672217848311054346.",
+        "actualOutput": "672217848311054346"
+      }
+    },
+    {
+      "type": "NationOrAllianceOrGuildOrTaxid",
+      "example": "Borg",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB, TaxBracket",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 189573. Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "189573"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 189573. Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "189573"
+      }
+    },
+    {
+      "type": "NationOrAllianceOrGuildOrTaxid",
+      "example": "alliance/id=11657",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB, TaxBracket",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to AA:11657. Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "AA:11657"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to AA:11657. Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "AA:11657"
+      }
+    },
+    {
+      "type": "NationOrAllianceOrGuildOrTaxid",
+      "example": "672217848311054346",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB, TaxBracket",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 672217848311054346. Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "672217848311054346"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 672217848311054346. Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "672217848311054346"
+      }
+    },
+    {
+      "type": "NationOrAllianceOrGuildOrTaxid",
+      "example": "tax_id=1234",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB, TaxBracket",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"tax_id=1234\". Unmatched: tax_id=1234. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"tax_id=1234\". Unmatched: tax_id=1234. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "NationOrAllianceOrGuildOrTaxid",
+      "example": "https://politicsandwar.com/index.php?id=15&tax_id=11657",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB, TaxBracket",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to AA:11657. Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "AA:11657"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to AA:11657. Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "AA:11657"
+      }
+    },
+    {
+      "type": "Number",
+      "example": "3.0",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 3.",
+        "actualOutput": "3"
+      }
+    },
+    {
+      "type": "Number",
+      "example": "3.2*4-6/2",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 9.8.",
+        "actualOutput": "9.8"
+      }
+    },
+    {
+      "type": "Number",
+      "example": "50.3k",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 50.3.",
+        "actualOutput": "50.3"
+      }
+    },
+    {
+      "type": "Number",
+      "example": "true",
+      "controlKind": "text",
+      "componentName": "NumberInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted (empty).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "OnlineStatus",
+      "example": "ONLINE",
+      "controlKind": "text",
+      "componentName": "UnknownType",
+      "supported": false,
+      "render": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "defaultValue": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      },
+      "paste": {
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
+      }
+    },
+    {
+      "type": "Operation",
+      "example": "INTEL",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to INTEL."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted INTEL.",
+        "actualOutput": "INTEL"
+      }
+    },
+    {
+      "type": "OrbisMetric",
+      "example": "TOTAL_NATIONS",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to TOTAL_NATIONS."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted TOTAL_NATIONS.",
+        "actualOutput": "TOTAL_NATIONS"
+      }
+    },
+    {
+      "type": "Parser",
+      "example": "boolean",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to boolean."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted boolean.",
+        "actualOutput": "boolean"
+      }
+    },
+    {
+      "type": "Parser",
+      "example": "String",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to String."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted String.",
+        "actualOutput": "String"
+      }
+    },
+    {
+      "type": "Parser",
+      "example": "Set<Integer>",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to Set<Integer>."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Set<Integer>.",
+        "actualOutput": "Set<Integer>"
+      }
+    },
+    {
+      "type": "Parser",
+      "example": "String[TextArea]",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to String[TextArea]."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted String[TextArea].",
+        "actualOutput": "String[TextArea]"
+      }
+    },
+    {
+      "type": "Parser<?>",
+      "example": "boolean",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to boolean."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted boolean.",
+        "actualOutput": "boolean"
+      }
+    },
+    {
+      "type": "Parser<?>",
+      "example": "String",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to String."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted String.",
+        "actualOutput": "String"
+      }
+    },
+    {
+      "type": "Parser<?>",
+      "example": "Set<Integer>",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to Set<Integer>."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Set<Integer>.",
+        "actualOutput": "Set<Integer>"
+      }
+    },
+    {
+      "type": "Parser<?>",
+      "example": "String[TextArea]",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to String[TextArea]."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted String[TextArea].",
+        "actualOutput": "String[TextArea]"
+      }
+    },
+    {
+      "type": "Permission",
+      "example": "ADMINISTRATOR",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to ADMINISTRATOR."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ADMINISTRATOR.",
+        "actualOutput": "ADMINISTRATOR"
+      }
+    },
+    {
+      "type": "Predicate<DBNation>",
+      "example": "#position>1,#cities<=5",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted #position>1,#cities<=5.",
+        "actualOutput": "#position>1,#cities<=5"
+      }
+    },
+    {
+      "type": "Project",
+      "example": "ACTIVITY_CENTER",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to ACTIVITY_CENTER."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ACTIVITY_CENTER.",
+        "actualOutput": "ACTIVITY_CENTER"
+      }
+    },
+    {
+      "type": "Rank",
+      "example": "LEADER",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to LEADER."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted LEADER.",
+        "actualOutput": "LEADER"
+      }
+    },
+    {
+      "type": "Report",
+      "example": "292636",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Report",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (102) to 1.",
+        "actualOutput": "1"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (102) to 1.",
+        "actualOutput": "1"
+      }
+    },
+    {
+      "type": "ReportType",
+      "example": "MULTI",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to MULTI."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted MULTI.",
+        "actualOutput": "MULTI"
+      }
+    },
+    {
+      "type": "Research",
+      "example": "GROUND_EFFICIENCY",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to GROUND_EFFICIENCY."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted GROUND_EFFICIENCY.",
+        "actualOutput": "GROUND_EFFICIENCY"
+      }
+    },
+    {
+      "type": "ResourceType",
+      "example": "money",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to MONEY."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted MONEY.",
+        "actualOutput": "MONEY"
+      }
+    },
+    {
+      "type": "ResourceType",
+      "example": "aluminum",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to ALUMINUM."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ALUMINUM.",
+        "actualOutput": "ALUMINUM"
+      }
+    },
+    {
+      "type": "Role",
+      "example": "@role",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Role",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"@role\". Unmatched: @role. Backend options (34): aa [703626364179316787], la [672225317062049802], test-admin [1345342395369394198], Locutus2 [672238503119028224], Cube [672264309744599041], Drone [672263980193939469], Subject [672299142243942403], bounty-alerts [981355229184426044], AA 7413 Error 404 [694906905612648528], trade-alert [738630631155826788] ... (+24 more).",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"@role\". Unmatched: @role. Backend options (34): aa [703626364179316787], la [672225317062049802], test-admin [1345342395369394198], Locutus2 [672238503119028224], Cube [672264309744599041], Drone [672263980193939469], Subject [672299142243942403], bounty-alerts [981355229184426044], AA 7413 Error 404 [694906905612648528], trade-alert [738630631155826788] ... (+24 more).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "Role",
+      "example": "role",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Role",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"role\". Unmatched: role. Backend options (34): aa [703626364179316787], la [672225317062049802], test-admin [1345342395369394198], Locutus2 [672238503119028224], Cube [672264309744599041], Drone [672263980193939469], Subject [672299142243942403], bounty-alerts [981355229184426044], AA 7413 Error 404 [694906905612648528], trade-alert [738630631155826788] ... (+24 more).",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"role\". Unmatched: role. Backend options (34): aa [703626364179316787], la [672225317062049802], test-admin [1345342395369394198], Locutus2 [672238503119028224], Cube [672264309744599041], Drone [672263980193939469], Subject [672299142243942403], bounty-alerts [981355229184426044], AA 7413 Error 404 [694906905612648528], trade-alert [738630631155826788] ... (+24 more).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "Roles",
+      "example": "REGISTERED",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to REGISTERED."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted REGISTERED.",
+        "actualOutput": "REGISTERED"
+      }
+    },
+    {
+      "type": "RssConvertMode",
+      "example": "ALL",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to ALL."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ALL.",
+        "actualOutput": "ALL"
+      }
+    },
+    {
+      "type": "Safety",
+      "example": "QUICK",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to QUICK."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted QUICK.",
+        "actualOutput": "QUICK"
+      }
+    },
+    {
+      "type": "SelectionAlias",
+      "example": "nation:*,#cities>10",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "SelectionAlias",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "Backend returned 0 options for SelectionAlias."
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "Backend returned 0 options for SelectionAlias."
+      }
+    },
+    {
+      "type": "Set<AllianceMetric>",
+      "example": "SOLDIER",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted SOLDIER.",
+        "actualOutput": "SOLDIER"
+      }
+    },
+    {
+      "type": "Set<AlliancePermission>",
+      "example": "VIEW_BANK",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted VIEW_BANK.",
+        "actualOutput": "VIEW_BANK"
+      }
+    },
+    {
+      "type": "Set<AttackType>",
+      "example": "GROUND,VICTORY",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 2 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted GROUND,VICTORY.",
+        "actualOutput": "GROUND,VICTORY"
+      }
+    },
+    {
+      "type": "Set<AuditType>",
+      "example": "CHECK_RANK",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted CHECK_RANK.",
+        "actualOutput": "CHECK_RANK"
+      }
+    },
+    {
+      "type": "Set<AutoAuditType>",
+      "example": "GRAY",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted GRAY.",
+        "actualOutput": "GRAY"
+      }
+    },
+    {
+      "type": "Set<BeigeReason>",
+      "example": "VACATION_MODE,APPLICANT",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 2 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted VACATION_MODE,APPLICANT.",
+        "actualOutput": "VACATION_MODE,APPLICANT"
+      }
+    },
+    {
+      "type": "Set<Building>",
+      "example": "BARRACKS",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted BARRACKS.",
+        "actualOutput": "BARRACKS"
+      }
+    },
+    {
+      "type": "Set<Category>",
+      "example": "interview,warcat,public",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Category",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"interview,warcat,public\". Unmatched: warcat, public. Backend options (8): info [672301305129336844], Text Channels [672217848311054347], main [672226092031016975], dev-#cities>10,#cities<23 [672226282502619138], warcat-0 [767472475746730025], test [844421965435240458], interview [1392872928533680279], test [1406384932833460355].",
+        "actualOutput": "1392872928533680279"
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"interview,warcat,public\". Unmatched: warcat, public. Backend options (8): info [672301305129336844], Text Channels [672217848311054347], main [672226092031016975], dev-#cities>10,#cities<23 [672226282502619138], warcat-0 [767472475746730025], test [844421965435240458], interview [1392872928533680279], test [1406384932833460355].",
+        "actualOutput": "1392872928533680279"
+      }
+    },
+    {
+      "type": "Set<Continent>",
+      "example": "*",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 7 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted NORTH_AMERICA,SOUTH_AMERICA,EUROPE,AFRICA,ASIA,AUSTRALIA,ANTARCTICA.",
+        "actualOutput": "NORTH_AMERICA,SOUTH_AMERICA,EUROPE,AFRICA,ASIA,AUSTRALIA,ANTARCTICA"
+      }
+    },
+    {
+      "type": "Set<Continent>",
+      "example": "NORTH_AMERICA",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted NORTH_AMERICA.",
+        "actualOutput": "NORTH_AMERICA"
+      }
+    },
+    {
+      "type": "Set<DBAlliance>",
+      "example": "Cataclysm,790",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Cataclysm,790.",
+        "actualOutput": "Cataclysm,790"
+      }
+    },
+    {
+      "type": "Set<DBNation>",
+      "example": "borg,AA:Singularity,#position>1",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted borg,AA:Singularity,#position>1.",
+        "actualOutput": "borg,AA:Singularity,#position>1"
+      }
+    },
+    {
+      "type": "Set<DepositType>",
+      "example": "DEPOSIT",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted DEPOSIT.",
+        "actualOutput": "DEPOSIT"
+      }
+    },
+    {
+      "type": "Set<DomesticPolicy>",
+      "example": "MANIFEST_DESTINY",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted MANIFEST_DESTINY.",
+        "actualOutput": "MANIFEST_DESTINY"
+      }
+    },
+    {
+      "type": "Set<EmbeddingType>",
+      "example": "Command",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Command.",
+        "actualOutput": "Command"
+      }
+    },
+    {
+      "type": "Set<Integer>",
+      "example": "1,2,5",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 1,2,5.",
+        "actualOutput": "1,2,5"
+      }
+    },
+    {
+      "type": "Set<Member>",
+      "example": "*",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Member",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (39) to 606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344.",
+        "actualOutput": "606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (39) to 606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344.",
+        "actualOutput": "606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344"
+      }
+    },
+    {
+      "type": "Set<Member>",
+      "example": "*,#verified=0",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Member",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"*,#verified=0\". Unmatched: #verified=0. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
+        "actualOutput": "606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344"
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"*,#verified=0\". Unmatched: #verified=0. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
+        "actualOutput": "606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344"
+      }
+    },
+    {
+      "type": "Set<MembershipChangeReason>",
+      "example": "RECRUITED",
+      "controlKind": "set",
+      "componentName": "SetInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 1 set value(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted RECRUITED.",
+        "actualOutput": "RECRUITED"
+      }
+    },
+    {
+      "type": "Set<MilitaryUnit>",
+      "example": "SOLDIER,TANK,AIRCRAFT,SHIP,MISSILE,NUKE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 6 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted SOLDIER,TANK,AIRCRAFT,SHIP,MISSILE,NUKE.",
+        "actualOutput": "SOLDIER,TANK,AIRCRAFT,SHIP,MISSILE,NUKE"
+      }
+    },
+    {
+      "type": "Set<NationOrAlliance>",
+      "example": "borg,AA:Singularity",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15532) to 189573,AA:11657.",
+        "actualOutput": "189573,AA:11657"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15532) to 189573,AA:11657.",
+        "actualOutput": "189573,AA:11657"
+      }
+    },
+    {
+      "type": "Set<NationOrAllianceOrGuild>",
+      "example": "borg,AA:Singularity,672217848311054346",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 189573,AA:11657,672217848311054346.",
+        "actualOutput": "189573,AA:11657,672217848311054346"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (15547) to 189573,AA:11657,672217848311054346.",
+        "actualOutput": "189573,AA:11657,672217848311054346"
+      }
+    },
+    {
+      "type": "Set<NationOrAllianceOrGuildOrTaxid>",
+      "example": "borg,AA:Singularity,672217848311054346,tax_id=1234",
+      "controlKind": "query",
+      "componentName": "CompositeQueryComponent",
+      "querySource": "DBNation, DBAlliance, GuildDB, TaxBracket",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=1234\". Unmatched: tax_id=1234. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "189573,AA:11657,672217848311054346"
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=1234\". Unmatched: tax_id=1234. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>",
+        "actualOutput": "189573,AA:11657,672217848311054346"
+      }
+    },
+    {
+      "type": "Set<Operation>",
+      "example": "*",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 8 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted INTEL,NUKE,MISSILE,SHIPS,AIRCRAFT,TANKS,SPIES,SOLDIER.",
+        "actualOutput": "INTEL,NUKE,MISSILE,SHIPS,AIRCRAFT,TANKS,SPIES,SOLDIER"
+      }
+    },
+    {
+      "type": "Set<OrbisMetric>",
+      "example": "TOTAL_NATIONS",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted TOTAL_NATIONS.",
+        "actualOutput": "TOTAL_NATIONS"
+      }
+    },
+    {
+      "type": "Set<Project>",
+      "example": "ACTIVITY_CENTER",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ACTIVITY_CENTER.",
+        "actualOutput": "ACTIVITY_CENTER"
+      }
+    },
+    {
+      "type": "Set<Research>",
+      "example": "GROUND_EFFICIENCY",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted GROUND_EFFICIENCY.",
+        "actualOutput": "GROUND_EFFICIENCY"
+      }
+    },
+    {
+      "type": "Set<ResourceType>",
+      "example": "money",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted MONEY.",
+        "actualOutput": "MONEY"
+      }
+    },
+    {
+      "type": "Set<ResourceType>",
+      "example": "*",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 13 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted MONEY,CREDITS,FOOD,COAL,OIL,URANIUM,LEAD,IRON,BAUXITE,GASOLINE,MUNITIONS,STEEL,ALUMINUM.",
+        "actualOutput": "MONEY,CREDITS,FOOD,COAL,OIL,URANIUM,LEAD,IRON,BAUXITE,GASOLINE,MUNITIONS,STEEL,ALUMINUM"
+      }
+    },
+    {
+      "type": "Set<ResourceType>",
+      "example": "!food",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 12 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted MONEY,CREDITS,COAL,OIL,URANIUM,LEAD,IRON,BAUXITE,GASOLINE,MUNITIONS,STEEL,ALUMINUM.",
+        "actualOutput": "MONEY,CREDITS,COAL,OIL,URANIUM,LEAD,IRON,BAUXITE,GASOLINE,MUNITIONS,STEEL,ALUMINUM"
+      }
+    },
+    {
+      "type": "Set<Role>",
+      "example": "@role1,@role2",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Role",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"@role1,@role2\". Unmatched: @role1, @role2. Backend options (34): aa [703626364179316787], la [672225317062049802], test-admin [1345342395369394198], Locutus2 [672238503119028224], Cube [672264309744599041], Drone [672263980193939469], Subject [672299142243942403], bounty-alerts [981355229184426044], AA 7413 Error 404 [694906905612648528], trade-alert [738630631155826788] ... (+24 more).",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"@role1,@role2\". Unmatched: @role1, @role2. Backend options (34): aa [703626364179316787], la [672225317062049802], test-admin [1345342395369394198], Locutus2 [672238503119028224], Cube [672264309744599041], Drone [672263980193939469], Subject [672299142243942403], bounty-alerts [981355229184426044], AA 7413 Error 404 [694906905612648528], trade-alert [738630631155826788] ... (+24 more).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "Set<Roles>",
+      "example": "REGISTERED",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted REGISTERED.",
+        "actualOutput": "REGISTERED"
+      }
+    },
+    {
+      "type": "Set<SpreadSheet>",
+      "example": "sheet:1X2Y3Z4, sheet:9A8B7C6D",
+      "controlKind": "set",
+      "componentName": "SetInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default parsed 2 set value(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted sheet:1X2Y3Z4,sheet:9A8B7C6D.",
+        "actualOutput": "sheet:1X2Y3Z4,sheet:9A8B7C6D"
+      }
+    },
+    {
+      "type": "Set<Status>",
+      "example": "OPEN",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted OPEN.",
+        "actualOutput": "OPEN"
+      }
+    },
+    {
+      "type": "Set<SuccessType>",
+      "example": "UTTER_FAILURE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted UTTER_FAILURE.",
+        "actualOutput": "UTTER_FAILURE"
+      }
+    },
+    {
+      "type": "Set<WarStatus>",
+      "example": "ACTIVE,EXPIRED",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 2 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ACTIVE,EXPIRED.",
+        "actualOutput": "ACTIVE,EXPIRED"
+      }
+    },
+    {
+      "type": "Set<WarType>",
+      "example": "ATTRITION,RAID",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved 1 selected option(s)."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted RAID.",
+        "actualOutput": "RAID"
+      }
+    },
+    {
+      "type": "SheetKey",
+      "example": "FA_CONTACT_SHEET",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to FA_CONTACT_SHEET."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted FA_CONTACT_SHEET.",
+        "actualOutput": "FA_CONTACT_SHEET"
+      }
+    },
+    {
+      "type": "SpreadSheet",
+      "example": "sheet:1X2Y3Z4",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted sheet:1X2Y3Z4.",
+        "actualOutput": "sheet:1X2Y3Z4"
+      }
+    },
+    {
+      "type": "SpreadSheet",
+      "example": "https://docs.google.com/spreadsheets/d/1X2Y3Z4/edit#gid=0",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted https://docs.google.com/spreadsheets/d/1X2Y3Z4/edit#gid=0.",
+        "actualOutput": "https://docs.google.com/spreadsheets/d/1X2Y3Z4/edit#gid=0"
+      }
+    },
+    {
+      "type": "Status",
+      "example": "OPEN",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to OPEN."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted OPEN.",
+        "actualOutput": "OPEN"
+      }
+    },
+    {
+      "type": "String",
+      "example": "hello",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted hello.",
+        "actualOutput": "hello"
+      }
+    },
+    {
+      "type": "String[GuildCoalition]",
+      "example": "dnr",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted dnr.",
+        "actualOutput": "dnr"
+      }
+    },
+    {
+      "type": "String[MenuLabel]",
+      "example": "Confirm",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted Confirm.",
+        "actualOutput": "Confirm"
+      }
+    },
+    {
+      "type": "String[TextArea]",
+      "example": "hello",
+      "controlKind": "textarea",
+      "componentName": "TextInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted hello.",
+        "actualOutput": "hello"
+      }
+    },
+    {
+      "type": "String[WYSIWYG]",
+      "example": "hello",
+      "controlKind": "html",
+      "componentName": "HtmlEditor",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted hello.",
+        "actualOutput": "hello"
+      }
+    },
+    {
+      "type": "SuccessType",
+      "example": "UTTER_FAILURE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to UTTER_FAILURE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted UTTER_FAILURE.",
+        "actualOutput": "UTTER_FAILURE"
+      }
+    },
+    {
+      "type": "TaxBracket",
+      "example": "1234",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "TaxBracket",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>"
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>"
+      }
+    },
+    {
+      "type": "TaxBracket",
+      "example": "tax_id=1234",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "TaxBracket",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>"
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>"
+      }
+    },
+    {
+      "type": "TaxBracket",
+      "example": "https://politicsandwar.com/index.php?id=15&tax_id=1234",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "TaxBracket",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>"
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: Failed to get options for TaxBracket: No alliance is registered. See </settings_default registeralliance:1479499694605598789>"
+      }
+    },
+    {
+      "type": "TaxRate",
+      "example": "25/25",
+      "controlKind": "tax-rate",
+      "componentName": "TaxRateInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default split into 25 and 25."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 25/25.",
+        "actualOutput": "25/25"
+      }
+    },
+    {
+      "type": "TemplateTypes",
+      "example": "CITY",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to CITY."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted CITY.",
+        "actualOutput": "CITY"
+      }
+    },
+    {
+      "type": "TextChannel",
+      "example": "#channel",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "TextChannel",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"#channel\". Unmatched: #channel. Backend options (39): announcements [672305728668696587], registration [672229147011186728], borg-welcome-cube [672308704632373259], general [672217848311054349], ⚔│war-alerts [672225858223734804], 📬│mail-alerts [674505503400919040], 🔍│spy-ops [1151066289599676426], 🕵│def-spy-ops [1066214948851679303], fran-errors [994524624236851231], changelog [886611800819376139] ... (+29 more).",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"#channel\". Unmatched: #channel. Backend options (39): announcements [672305728668696587], registration [672229147011186728], borg-welcome-cube [672308704632373259], general [672217848311054349], ⚔│war-alerts [672225858223734804], 📬│mail-alerts [674505503400919040], 🔍│spy-ops [1151066289599676426], 🕵│def-spy-ops [1066214948851679303], fran-errors [994524624236851231], changelog [886611800819376139] ... (+29 more).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "TextChannel",
+      "example": "672310912090243092",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "TextChannel",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (39) to 672310912090243092.",
+        "actualOutput": "672310912090243092"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (39) to 672310912090243092.",
+        "actualOutput": "672310912090243092"
+      }
+    },
+    {
+      "type": "TextChannel",
+      "example": "<#672310912090243092>",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "TextChannel",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (39) to 672310912090243092.",
+        "actualOutput": "672310912090243092"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (39) to 672310912090243092.",
+        "actualOutput": "672310912090243092"
+      }
+    },
+    {
+      "type": "Treaty",
+      "example": "1234:5678",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "Treaty",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"1234:5678\". Unmatched: 1234:5678. Backend options (517): NAP:Defensive Treaty Organization/AA:14120 [31331], MDOAP:United Socialist Nations/Paddys Pub [32716], NAP:The Imperial Grand House/Chimera [31793], OFFSHORE:United Workers Network/Borgs Cat Cafe [32980], ODP:The Commonwealth of orbis/Agora [32584], MDOAP:Singularity/House Stark [32651], MDOAP:Federated States of Orbis/The Fremen [31200], MDP:Elastic Bands/The Rising Coast [31727], MDOAP:Singularity/The Fighting Pacifists [32650], PROTECTORATE:Yarr/AA:12544 [29615] ... (+507 more).",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"1234:5678\". Unmatched: 1234:5678. Backend options (517): NAP:Defensive Treaty Organization/AA:14120 [31331], MDOAP:United Socialist Nations/Paddys Pub [32716], NAP:The Imperial Grand House/Chimera [31793], OFFSHORE:United Workers Network/Borgs Cat Cafe [32980], ODP:The Commonwealth of orbis/Agora [32584], MDOAP:Singularity/House Stark [32651], MDOAP:Federated States of Orbis/The Fremen [31200], MDP:Elastic Bands/The Rising Coast [31727], MDOAP:Singularity/The Fighting Pacifists [32650], PROTECTORATE:Yarr/AA:12544 [29615] ... (+507 more).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "TreatyType",
+      "example": "NONE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to NONE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted NONE.",
+        "actualOutput": "NONE"
+      }
+    },
+    {
+      "type": "User",
+      "example": "@xdnw",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "User",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (252) to 664156861033086987.",
+        "actualOutput": "664156861033086987"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (252) to 664156861033086987.",
+        "actualOutput": "664156861033086987"
+      }
+    },
+    {
+      "type": "User",
+      "example": "xdnw",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "User",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (252) to 664156861033086987.",
+        "actualOutput": "664156861033086987"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (252) to 664156861033086987.",
+        "actualOutput": "664156861033086987"
+      }
+    },
+    {
+      "type": "User",
+      "example": "664156861033086987",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "User",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (252) to 664156861033086987.",
+        "actualOutput": "664156861033086987"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (252) to 664156861033086987.",
+        "actualOutput": "664156861033086987"
+      }
+    },
+    {
+      "type": "User",
+      "example": "Borg",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "User",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "fail",
+        "detail": "No backend match for \"Borg\". Unmatched: Borg. Backend options (252): cadn [228928965845188608], imgnAI [1054891522786611231], epicbeetle626 [501191012493033482], assisaki [1051851858735534141], kztor [202523678078926858], dr.rush [217897994375266304], booboo5298 [1123729132379971656], Ticket Tool [557628352828014614], therealiodinamacer [974805584845099028], pwmernal [1338479826637557760] ... (+242 more).",
+        "actualOutput": ""
+      },
+      "paste": {
+        "status": "fail",
+        "detail": "No backend match for \"Borg\". Unmatched: Borg. Backend options (252): cadn [228928965845188608], imgnAI [1054891522786611231], epicbeetle626 [501191012493033482], assisaki [1051851858735534141], kztor [202523678078926858], dr.rush [217897994375266304], booboo5298 [1123729132379971656], Ticket Tool [557628352828014614], therealiodinamacer [974805584845099028], pwmernal [1338479826637557760] ... (+242 more).",
+        "actualOutput": ""
+      }
+    },
+    {
+      "type": "User",
+      "example": "<@664156861033086987>",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "User",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Resolved against backend options (252) to 664156861033086987.",
+        "actualOutput": "664156861033086987"
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Resolved against backend options (252) to 664156861033086987.",
+        "actualOutput": "664156861033086987"
+      }
+    },
+    {
+      "type": "UUID",
+      "example": "123e4567-e89b-12d3-a456-426614174000",
+      "controlKind": "text",
+      "componentName": "StringInput",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default field value matched the example."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted 123e4567-e89b-12d3-a456-426614174000.",
+        "actualOutput": "123e4567-e89b-12d3-a456-426614174000"
+      }
+    },
+    {
+      "type": "WarCostByDayMode",
+      "example": "COST",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to COST."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted COST.",
+        "actualOutput": "COST"
+      }
+    },
+    {
+      "type": "WarCostMode",
+      "example": "DEALT",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to DEALT."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted DEALT.",
+        "actualOutput": "DEALT"
+      }
+    },
+    {
+      "type": "WarCostStat",
+      "example": "WAR_VALUE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to WAR_VALUE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted WAR_VALUE.",
+        "actualOutput": "WAR_VALUE"
+      }
+    },
+    {
+      "type": "WarPolicy",
+      "example": "ATTRITION",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to ATTRITION."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ATTRITION.",
+        "actualOutput": "ATTRITION"
+      }
+    },
+    {
+      "type": "WarStatus",
+      "example": "ACTIVE",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to ACTIVE."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted ACTIVE.",
+        "actualOutput": "ACTIVE"
+      }
+    },
+    {
+      "type": "WarType",
+      "example": "RAID",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
+      "supported": true,
+      "render": {
+        "status": "pass",
+        "detail": "Rendered successfully."
+      },
+      "defaultValue": {
+        "status": "pass",
+        "detail": "Default resolved to RAID."
+      },
+      "paste": {
+        "status": "pass",
+        "detail": "Paste emitted RAID.",
+        "actualOutput": "RAID"
+      }
+    }
+  ]
+}

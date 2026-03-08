@@ -2,6 +2,30 @@ import { cn } from "@/lib/utils";
 import { useCallback, type ReactNode } from "react";
 import type { CommandInputDisplayMode } from "./fieldTypes";
 
+const INTERACTIVE_DESCENDANT_SELECTOR = [
+    "input",
+    "textarea",
+    "select",
+    "button",
+    "[contenteditable='true']",
+    "[contenteditable='plaintext-only']",
+    "[role='textbox']",
+].join(", ");
+
+const PRIMARY_FOCUS_TARGET_SELECTOR = [
+    "input:not([disabled])",
+    "textarea:not([disabled])",
+    "select:not([disabled])",
+    "[contenteditable='true']",
+    "[contenteditable='plaintext-only']",
+    "[role='textbox']",
+].join(", ");
+
+const FALLBACK_FOCUS_TARGET_SELECTOR = [
+    PRIMARY_FOCUS_TARGET_SELECTOR,
+    "button:not([disabled])",
+].join(", ");
+
 export default function ArgFieldShell({
     children,
     displayMode,
@@ -17,9 +41,10 @@ export default function ArgFieldShell({
 
     const handleShellClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         const target = e.target as HTMLElement;
-        if (!target.closest('input, textarea, select, button')) {
-            const input = e.currentTarget.querySelector('input, textarea, select, button') as HTMLElement | null;
-            input?.focus();
+        if (!target.closest(INTERACTIVE_DESCENDANT_SELECTOR)) {
+            const primaryTarget = e.currentTarget.querySelector(PRIMARY_FOCUS_TARGET_SELECTOR) as HTMLElement | null;
+            const fallbackTarget = e.currentTarget.querySelector(FALLBACK_FOCUS_TARGET_SELECTOR) as HTMLElement | null;
+            (primaryTarget ?? fallbackTarget)?.focus();
         }
     }, []);
 

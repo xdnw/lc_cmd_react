@@ -244,8 +244,18 @@ export default function ConflictActionsDialogButton({
 
         const detailFields = toRowActionsDetailFields(editableFields, canRunAction, openDialogByActionId);
 
+        const noPermission = visibleActions.length > 0 && visibleActions.every((a) => !canRunAction(a));
+
+        const permissionBanner = noPermission && (
+            <p className="mb-3 rounded border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+                You don\u2019t have permission to edit this conflict. Actions are disabled.
+            </p>
+        );
+
         const openDetailsContent = (
-            <RowActionsDetailDialog
+            <>
+                {permissionBanner}
+                <RowActionsDetailDialog
                 headerActions={syncAction ? [{
                     key: syncAction.id,
                     label: "Sync",
@@ -301,7 +311,8 @@ export default function ConflictActionsDialogButton({
                         forumPostRemoveAction={forumPostRemoveAction}
                     />,
                 ]}
-            />
+                />
+            </>
         );
 
         showDialog(`Conflict: ${row.name}`, openDetailsContent, { openInNewTab: true, focusNewTab: true, replaceActive: false });

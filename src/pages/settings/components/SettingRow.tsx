@@ -1,11 +1,9 @@
-import CommandActionButton from "@/components/cmd/CommandActionButton";
 import LazyExpander from "@/components/ui/LazyExpander";
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCallback } from "react";
 import type { SettingRow } from "../settingsDomain";
-
-const SETTINGS_DELETE_COMMAND: ["settings", "delete"] = ["settings", "delete"];
+import SettingClearAction from "./SettingClearAction";
 
 export default function SettingRow({
     row,
@@ -16,9 +14,8 @@ export default function SettingRow({
     onEdit: (row: SettingRow) => void;
     onRefreshSetting: (settingKey: string) => void;
 }) {
-    const isUnsupported = !row.inputSupport.supported;
-    const unavailableReason = !row.isAllowed ? "Unavailable in current guild context" : undefined;
-    const deleteArgs = { key: row.settingKey } as never;
+    const isUnsupported = !row.editor.inputSupport.supported;
+    const unavailableReason = !row.flags.isAllowed ? "Unavailable in current guild context" : undefined;
 
     const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
     const handleRefreshSetting = useCallback(
@@ -31,26 +28,26 @@ export default function SettingRow({
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                     <div className="text-sm font-medium wrap-break-word">{row.settingKey}</div>
-                    <div className="text-xs text-muted-foreground wrap-break-word">{row.argType}</div>
+                    <div className="text-xs text-muted-foreground wrap-break-word">{row.metadata.argType}</div>
                 </div>
                 <div className="flex flex-wrap items-center gap-1 justify-end">
-                    {row.invalid && <Badge variant="destructive">Invalid</Badge>}
-                    {row.isChannelType && <Badge variant="outline">Channel</Badge>}
-                    {!row.hasValue && <Badge variant="secondary">Unset</Badge>}
+                    {row.flags.invalid && <Badge variant="destructive">Invalid</Badge>}
+                    {row.flags.isChannelType && <Badge variant="outline">Channel</Badge>}
+                    {!row.value.hasValue && <Badge variant="secondary">Unset</Badge>}
                     {isUnsupported && <Badge variant="destructive">Unsupported web input</Badge>}
                 </div>
             </div>
 
             <div className="text-xs wrap-break-word">
-                <span className="text-muted-foreground">Value:</span> {row.valueString || "(empty)"}
+                <span className="text-muted-foreground">Value:</span> {row.value.displayText || "(empty)"}
             </div>
 
-            <div className="text-xs text-muted-foreground wrap-break-word">{row.helpShort}</div>
+            <div className="text-xs text-muted-foreground wrap-break-word">{row.metadata.helpShort}</div>
 
-            {row.helpFull && row.helpFull !== row.helpShort && (
+            {row.metadata.helpFull && row.metadata.helpFull !== row.metadata.helpShort && (
                 <LazyExpander
                     className="h-7! py-0!"
-                    content={<div className="text-xs whitespace-pre-wrap wrap-break-word">{row.helpFull}</div>}
+                    content={<div className="text-xs whitespace-pre-wrap wrap-break-word">{row.metadata.helpFull}</div>}
                     hideTriggerChildrenWhenExpanded
                 >
                     <span className="text-xs">Show full help</span>
@@ -76,11 +73,9 @@ export default function SettingRow({
                         >
                             Edit
                         </Button>
-                        <CommandActionButton
-                            command={SETTINGS_DELETE_COMMAND}
-                            args={deleteArgs}
-                            label="Clear"
-                            showResultDialog={false}
+                        <SettingClearAction
+                            settingKey={row.settingKey}
+                            hasValue={row.value.hasValue}
                             onSuccess={handleRefreshSetting}
                         />
                     </>
@@ -88,7 +83,7 @@ export default function SettingRow({
             </div>
 
             {isUnsupported && (
-                <div className="text-xs text-destructive">{row.inputSupport.reason}</div>
+                <div className="text-xs text-destructive">{row.editor.inputSupport.reason}</div>
             )}
         </div>
     );

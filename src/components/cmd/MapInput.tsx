@@ -18,29 +18,14 @@ export default function MapInput(
         {
             argName: string,
             children: TypeBreakdown[],
-            initialValue: string,
+            initialValue?: string,
             displayMode?: CommandInputDisplayMode,
             setOutputValue: (name: string, value: string) => void
         }
 ) {
     const { showDialog } = useDialog();
     const compact = isCompactMode(displayMode);
-    const [value, setValue] = useSyncedStateFunc<{ [key: string]: string }[]>(initialValue, (initial) => {
-        // split by newline, have empty string be empty map
-        const result: { [key: string]: string }[] = [];
-        if (initial) {
-            const split = initial.split('\n');
-            for (const s of split) {
-                const equalsIdx = s.indexOf('=');
-                if (equalsIdx > 0) {
-                    const key = s.slice(0, equalsIdx);
-                    const mappedValue = s.slice(equalsIdx + 1);
-                    result.push({ [key]: mappedValue });
-                }
-            }
-        }
-        return result;
-    });
+    const [value, setValue] = useSyncedStateFunc<{ [key: string]: string }[]>(initialValue ?? "", (initial) => parseMapString(initial) ?? []);
 
     const [addKey, setAddKey] = useState("");
     const [addValue, setAddValue] = useState("");

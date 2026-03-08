@@ -1,0 +1,248 @@
+@layer components {
+  .suneditor-theme {
+    --se-bg: #ffffff;
+    --se-bg-muted: #f8fafc;
+    --se-bg-soft: #f1f5f9;
+    --se-fg: #0f172a;
+    --se-muted: #64748b;
+    --se-border: #e2e8f0;
+    --se-border-strong: #cbd5e1;
+    --se-active-bg: #0f172a;
+    --se-active-fg: #ffffff;
+    --se-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+    color-scheme: light;
+  }
+
+  .dark .suneditor-theme,
+  [data-theme='dark'] .suneditor-theme {
+    --se-bg: #020617;
+    --se-bg-muted: #0f172a;
+    --se-bg-soft: #1e293b;
+    --se-fg: #f1f5f9;
+    --se-muted: #94a3b8;
+    --se-border: #1e293b;
+    --se-border-strong: #334155;
+    --se-active-bg: #f1f5f9;
+    --se-active-fg: #0f172a;
+    --se-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+
+  .suneditor-theme .sun-editor,
+  .suneditor-theme .se-wrapper,
+  .suneditor-theme .se-wrapper-inner,
+  .suneditor-theme .sun-editor-editable,
+  .suneditor-theme .se-resizing-bar,
+  .suneditor-theme .se-navigation,
+  .suneditor-theme .se-submenu,
+  .suneditor-theme .se-list-layer,
+  .suneditor-theme .se-menu-list,
+  .suneditor-theme .se-dialog,
+  .suneditor-theme .se-dialog-content,
+  .suneditor-theme .se-controller,
+  .suneditor-theme .se-color-list,
+  .suneditor-theme .se-color-pallet,
+  .suneditor-theme .se-color-palette {
+    color: var(--se-fg) !important;
+    border-color: var(--se-border) !important;
+  }
+
+  .suneditor-theme .sun-editor,
+  .suneditor-theme .se-wrapper,
+  .suneditor-theme .se-wrapper-inner,
+  .suneditor-theme .sun-editor-editable,
+  .suneditor-theme .se-resizing-bar,
+  .suneditor-theme .se-navigation {
+    background: var(--se-bg) !important;
+    color: var(--se-fg) !important;
+    border-color: var(--se-border) !important;
+  }
+
+  .suneditor-theme .se-toolbar {
+    background: var(--se-bg-muted) !important;
+    border-color: var(--se-border) !important;
+    padding: 0.375rem !important;
+  }
+
+  .suneditor-theme .se-toolbar-inner,
+  .suneditor-theme .se-btn-tray {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    align-content: flex-start !important;
+    justify-content: flex-start !important;
+    gap: 0.25rem !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .suneditor-theme .se-btn-module,
+  .suneditor-theme .se-btn-module-border {
+    display: inline-flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    margin: 0 !important;
+  }
+
+  .suneditor-theme .se-btn,
+  .suneditor-theme .se-btn-select,
+  .suneditor-theme .se-controller .se-btn {
+    border: 1px solid var(--se-border) !important;
+    border-radius: 0.375rem !important;
+    background: var(--se-bg) !important;
+    color: var(--se-fg) !important;
+    box-shadow: none !important;
+  }
+
+  .suneditor-theme .se-btn {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    min-width: 0 !important;
+  }
+
+  .suneditor-theme .se-btn-select {
+    width: auto !important;
+    min-width: 2.4rem !important;
+    height: 1.75rem !important;
+    padding: 0 0.45rem !important;
+  }
+
+  .suneditor-theme.suneditor-theme--compact .se-btn {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+  }
+
+  .suneditor-theme.suneditor-theme--compact .se-btn-select {
+    min-width: 2.1rem !important;
+    height: 1.5rem !important;
+    padding: 0 0.35rem !important;
+  }
+
+  .suneditor-theme .se-btn:hover,
+  .suneditor-theme .se-btn-select:hover,
+  .suneditor-theme .se-menu-item:hover,
+  .suneditor-theme .se-list-layer button:hover,
+  .suneditor-theme .se-dialog-tabs button:hover {
+    background: var(--se-bg-soft) !important;
+  }
+
+  .suneditor-theme .se-btn.se-active,
+  .suneditor-theme .se-btn.active,
+  .suneditor-theme .se-menu-item.se-active {
+    background: var(--se-active-bg) !important;
+    color: var(--se-active-fg) !important;
+    border-color: var(--se-active-bg) !important;
+  }
+
+  .suneditor-theme .sun-editor-editable {
+    padding: 0.625rem 0.75rem !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+    color: var(--se-fg) !important;
+  }
+
+  .suneditor-theme .se-placeholder {
+    color: var(--se-muted) !important;
+  }
+
+  .suneditor-theme .se-submenu,
+  .suneditor-theme .se-list-layer,
+  .suneditor-theme .se-menu-list,
+  .suneditor-theme .se-dialog,
+  .suneditor-theme .se-dialog-content,
+  .suneditor-theme .se-controller {
+    background: var(--se-bg) !important;
+    box-shadow: var(--se-shadow) !important;
+    z-index: 60 !important;
+  }
+
+  .suneditor-theme .se-dialog-header,
+  .suneditor-theme .se-dialog-footer,
+  .suneditor-theme .se-dialog-tabs {
+    background: var(--se-bg-muted) !important;
+    color: var(--se-fg) !important;
+    border-color: var(--se-border) !important;
+  }
+
+  .suneditor-theme .se-dialog-tabs button {
+    background: transparent !important;
+    color: var(--se-muted) !important;
+    border-color: transparent !important;
+  }
+
+  .suneditor-theme .se-dialog-tabs button.active {
+    background: var(--se-bg) !important;
+    color: var(--se-fg) !important;
+    border-color: var(--se-border) !important;
+  }
+
+  .suneditor-theme .se-submenu button,
+  .suneditor-theme .se-submenu label,
+  .suneditor-theme .se-submenu span,
+  .suneditor-theme .se-submenu p,
+  .suneditor-theme .se-submenu a,
+  .suneditor-theme .se-list-layer button,
+  .suneditor-theme .se-list-layer label,
+  .suneditor-theme .se-list-layer span,
+  .suneditor-theme .se-list-layer p,
+  .suneditor-theme .se-list-layer a,
+  .suneditor-theme .se-menu-list button,
+  .suneditor-theme .se-menu-list label,
+  .suneditor-theme .se-menu-list span,
+  .suneditor-theme .se-menu-list p,
+  .suneditor-theme .se-menu-list a,
+  .suneditor-theme .se-dialog button,
+  .suneditor-theme .se-dialog label,
+  .suneditor-theme .se-dialog span,
+  .suneditor-theme .se-dialog p,
+  .suneditor-theme .se-dialog a,
+  .suneditor-theme .se-controller button,
+  .suneditor-theme .se-controller label,
+  .suneditor-theme .se-controller span,
+  .suneditor-theme .se-controller p,
+  .suneditor-theme .se-menu-item,
+  .suneditor-theme .se-list-layer button,
+  .suneditor-theme .se-btn-list {
+    background: transparent !important;
+    color: var(--se-fg) !important;
+    border-color: transparent !important;
+  }
+
+  .suneditor-theme .se-dialog input,
+  .suneditor-theme .se-dialog textarea,
+  .suneditor-theme .se-dialog select,
+  .suneditor-theme .se-submenu input,
+  .suneditor-theme .se-submenu textarea,
+  .suneditor-theme .se-submenu select,
+  .suneditor-theme .se-input-form {
+    background: var(--se-bg-muted) !important;
+    color: var(--se-fg) !important;
+    border: 1px solid var(--se-border-strong) !important;
+    border-radius: 0.375rem !important;
+    box-shadow: none !important;
+  }
+
+  .suneditor-theme .se-dialog input::placeholder,
+  .suneditor-theme .se-dialog textarea::placeholder,
+  .suneditor-theme .se-submenu input::placeholder,
+  .suneditor-theme .se-submenu textarea::placeholder {
+    color: var(--se-muted) !important;
+  }
+
+  .suneditor-theme .se-navigation,
+  .suneditor-theme .se-resizing-bar {
+    color: var(--se-muted) !important;
+  }
+
+  .suneditor-theme .se-dialog-back {
+    background: rgba(0, 0, 0, 0.45) !important;
+  }
+
+  .suneditor-theme .se-tooltip,
+  .suneditor-theme .se-tooltip-inner {
+    background: var(--se-bg-soft) !important;
+    color: var(--se-fg) !important;
+    border: 1px solid var(--se-border) !important;
+  }
+}

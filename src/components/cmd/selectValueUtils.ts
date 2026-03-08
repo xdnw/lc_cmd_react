@@ -39,7 +39,7 @@ export type SelectResolution = {
 
 const OPTIONAL_PREFIX_RE = /^[#/]+/;
 
-function normalizeToken(token: string): string {
+export function normalizeSelectToken(token: string): string {
     const trimmed = token.trim();
     // Handle quoted scalar values passed from serialized command args.
     if (
@@ -51,8 +51,12 @@ function normalizeToken(token: string): string {
     return trimmed;
 }
 
-function stripOptionalPrefixes(token: string): string {
+export function stripOptionalSelectPrefixes(token: string): string {
     return token.replace(OPTIONAL_PREFIX_RE, "");
+}
+
+export function toComparableSelectToken(token: string): string {
+    return stripOptionalSelectPrefixes(normalizeSelectToken(token));
 }
 
 function extractAdditionalCandidates(token: string): string[] {
@@ -102,13 +106,13 @@ export function splitInitialValue(initialValue: string): string[] {
     if (!initialValue) return [];
     return initialValue
         .split(/[\n,]+/)
-        .map(normalizeToken)
+        .map(normalizeSelectToken)
         .filter((token) => token.length > 0);
 }
 
 export function resolveOptionMatch(token: string, options: SelectOption[]): SelectMatchResult {
-    const normalizedToken = normalizeToken(token);
-    const comparableToken = stripOptionalPrefixes(normalizedToken);
+    const normalizedToken = normalizeSelectToken(token);
+    const comparableToken = stripOptionalSelectPrefixes(normalizedToken);
     const exactCandidates = Array.from(new Set([
         normalizedToken,
         comparableToken,
@@ -159,6 +163,35 @@ export function resolveOptionMatch(token: string, options: SelectOption[]): Sele
     return { token, normalizedToken, comparableToken, option: null };
 }
 
+function matchesPrefix(candidate: string, prefix: string): boolean {
+    return candidate.toLowerCase().startsWith(prefix.toLowerCase());
+}
+
+export function filterSelectOptions(prefix: string, options: SelectOption[]): SelectOption[] {
+    const normalizedPrefix = normalizeSelectToken(prefix);
+    const comparablePrefix = stripOptionalSelectPrefixes(normalizedPrefix);
+    const candidates = Array.from(new Set([
+        normalizedPrefix,
+        comparablePrefix,
+        ...extractAdditionalCandidates(normalizedPrefix),
+        ...extractAdditionalCandidates(comparablePrefix),
+    ].filter(Boolean)));
+
+    if (candidates.length === 0) {
+        return options;
+    }
+
+    return options.filter((option) => {
+        const haystacks = [
+            option.value,
+            option.label,
+            ...(option.aliases ?? []),
+        ].filter(Boolean);
+
+        return candidates.some((candidate) => haystacks.some((haystack) => matchesPrefix(haystack, candidate)));
+    });
+}
+
 export function resolveOptionForToken(token: string, options: SelectOption[]): SelectOption {
     const result = resolveOptionMatch(token, options);
     if (!result.normalizedToken) {
@@ -175,8 +208,8 @@ export function resolveSelectionInput(initialValue: string, options: SelectOptio
     const appliedRules: string[] = [];
 
     for (const rawToken of tokens) {
-        const normalizedToken = normalizeToken(rawToken);
-        const comparableToken = stripOptionalPrefixes(normalizedToken);
+        const normalizedToken = normalizeSelectToken(rawToken);
+        const comparableToken = stripOptionalSelectPrefixes(normalizedToken);
         if (!comparableToken) continue;
 
         if (isMulti && comparableToken === "*") {

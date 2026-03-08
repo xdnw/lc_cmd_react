@@ -5,29 +5,14 @@ import { useMemo } from "react";
 import EndpointWrapper from "../api/bulkwrapper";
 import { useQueries } from "@tanstack/react-query";
 import { bulkQueryOptions } from "@/lib/queries";
-import { resolveQueryOptionsPayload } from "./queryOptionUtils";
-import type { SelectOption } from "./selectValueUtils";
+import {
+    combineCompositeSourceResults,
+    resolveQueryOptionsPayload,
+    toCompositeSourceResult,
+    type CompositeSourceResult,
+} from "./queryOptionUtils";
 
 type QueryNoticeTone = "error" | "warning";
-
-type CompositeSourceResult = {
-    type: string;
-    options: SelectOption[];
-    error?: string;
-};
-
-type CompositeQueryState = {
-    error: unknown;
-    data?: {
-        data?: WebOptions | null;
-    };
-};
-
-type CombinedCompositeResult = {
-    options: SelectOption[];
-    blockingError?: string;
-    warning?: string;
-};
 
 function EmptyQueryOptions({ element, message }: { element: string; message?: string }) {
     return (
@@ -82,57 +67,6 @@ export default function QueryComponent(
     </EndpointWrapper>
 }
 
-function combineAndLabelData(results: CompositeSourceResult[]): CombinedCompositeResult {
-    const errors: string[] = [];
-    const options: SelectOption[] = [];
-
-    results.forEach((result) => {
-        if (result.error) {
-            errors.push(result.type ? `${result.type}: ${result.error}` : result.error);
-            return;
-        }
-        options.push(...result.options);
-    });
-
-    if (options.length === 0) {
-        return {
-            options,
-            blockingError: errors.length > 0 ? errors.join(" | ") : undefined,
-        };
-    }
-
-    return {
-        options,
-        warning: errors.length > 0 ? errors.join(" | ") : undefined,
-    };
-}
-
-function getCompositeSourceResult(type: string, query: CompositeQueryState): CompositeSourceResult {
-    if (query.error) {
-        return {
-            type,
-            options: [],
-            error: query.error instanceof Error ? query.error.message : String(query.error),
-        };
-    }
-
-    const payload = query.data?.data;
-    if (payload === undefined) {
-        return {
-            type,
-            options: [],
-            error: "No data returned by the backend.",
-        };
-    }
-
-    const resolved = resolveQueryOptionsPayload(type, payload);
-    return {
-        type,
-        options: resolved.options,
-        error: resolved.error,
-    };
-}
-
 export function CompositeQueryComponent(
     {composites, multi, argName, initialValue, setOutputValue}:
     {
@@ -155,7 +89,7 @@ export function CompositeQueryComponent(
         return <div>Loading...</div>;
     }
 
-    const results = composites.map((type, index) => getCompositeSourceResult(type, queries[index]));
+    const results = composites.map((type, index) => toCompositeSourceResult(type, queries[index]));
 
     return <CombinedCompositeComponent
                 results={results}
@@ -176,7 +110,7 @@ function CombinedCompositeComponent(
         setOutputValue: (name: string, value: string) => void
     }
 ) {
-    const combined = useMemo(() => combineAndLabelData(results), [results]);
+    const combined = useMemo(() => combineCompositeSourceResults(results), [results]);
 
     if (combined.blockingError) {
         return <EmptyQueryOptions element="composite query" message={combined.blockingError} />;

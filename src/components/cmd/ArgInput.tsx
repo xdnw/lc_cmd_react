@@ -27,6 +27,8 @@ import TimeDiffInput from "./TimeDiffInput";
 import HtmlEditor from "./HtmlEditor";
 import { resolveArgInput, type ArgInputSupport, type ArgInputResolution } from "./argInputMetadata";
 
+export type { ArgInputSupport } from "./argInputMetadata";
+
 interface ArgProps {
   argName: string;
   breakdown: TypeBreakdown;

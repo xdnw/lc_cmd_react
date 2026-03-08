@@ -1,6 +1,7 @@
 import type { SelectOption } from "./selectValueUtils";
 import { toPlainSelectOptions } from "./selectValueUtils";
 import { toPlaceholderName, type TypeBreakdown } from "@/utils/Command";
+import { getPlaceholderExpressionDescriptor } from "./expression/expressionTypes";
 
 type OptionData = ReturnType<TypeBreakdown["getOptionData"]>;
 
@@ -114,26 +115,8 @@ export function buildStaticOptions(breakdown: TypeBreakdown): SelectOption[] | n
     return toPlainSelectOptions(options);
 }
 
-function isPlaceholderExpressionType(breakdown: TypeBreakdown): boolean {
-    const children = breakdown.child;
-    const placeholderType = children?.[0]?.element;
-    if (!children || !placeholderType || !(placeholderType in breakdown.map.data.placeholders)) {
-        return false;
-    }
-
-    if (breakdown.element === "Predicate") {
-        return true;
-    }
-
-    if (breakdown.element === "Set") {
-        return true;
-    }
-
-    if (breakdown.element !== "TypedFunction" || !children[1]) {
-        return false;
-    }
-
-    return children[1].element === "String" || children[1].element === "Double";
+export function isPlaceholderExpressionType(breakdown: TypeBreakdown): boolean {
+    return getPlaceholderExpressionDescriptor(breakdown) != null;
 }
 
 export function resolveArgInput(breakdown: TypeBreakdown): ArgInputResolution {

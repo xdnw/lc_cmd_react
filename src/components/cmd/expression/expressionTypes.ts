@@ -1,31 +1,42 @@
 import type { TypeBreakdown } from "@/utils/Command";
-import { COMMANDS } from "@/lib/commands";
+import { getExpressionCompletionSourceRefs, type ExpressionValueSourceRef } from "./expressionSchema";
 
-export type ExpressionInputKind = "set" | "predicate" | "function-string" | "function-double";
+export type PlaceholderExpressionKind = "set" | "predicate" | "function-string" | "function-double";
 
-export type ExpressionInputConfig = {
-    kind: ExpressionInputKind;
-    placeholderType: string;
+export type PlaceholderExpressionDescriptor = {
+    kind: PlaceholderExpressionKind;
+    rootType: string;
     returnType?: string;
+    allowsLiteralText: boolean;
+    rootValueSources: ExpressionValueSourceRef[];
+    exampleMode: "selector-like" | "function-like" | "numeric";
 };
 
-export function getExpressionInputConfig(breakdown: TypeBreakdown): ExpressionInputConfig | null {
-    const placeholderType = breakdown.child?.[0]?.element;
-    if (!placeholderType || !(placeholderType in COMMANDS.placeholders)) {
+export function getPlaceholderExpressionDescriptor(breakdown: TypeBreakdown): PlaceholderExpressionDescriptor | null {
+    const rootType = breakdown.child?.[0]?.element;
+    if (!rootType || !(rootType in breakdown.map.data.placeholders)) {
         return null;
     }
+
+    const rootValueSources = getExpressionCompletionSourceRefs(rootType);
 
     if (breakdown.element === "Set") {
         return {
             kind: "set",
-            placeholderType,
+            rootType,
+            allowsLiteralText: false,
+            rootValueSources,
+            exampleMode: "selector-like",
         };
     }
 
     if (breakdown.element === "Predicate") {
         return {
             kind: "predicate",
-            placeholderType,
+            rootType,
+            allowsLiteralText: false,
+            rootValueSources,
+            exampleMode: "selector-like",
         };
     }
 
@@ -37,16 +48,22 @@ export function getExpressionInputConfig(breakdown: TypeBreakdown): ExpressionIn
     if (returnType === "String") {
         return {
             kind: "function-string",
-            placeholderType,
+            rootType,
             returnType,
+            allowsLiteralText: true,
+            rootValueSources,
+            exampleMode: "function-like",
         };
     }
 
     if (returnType === "Double") {
         return {
             kind: "function-double",
-            placeholderType,
+            rootType,
             returnType,
+            allowsLiteralText: true,
+            rootValueSources,
+            exampleMode: "numeric",
         };
     }
 

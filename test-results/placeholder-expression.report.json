@@ -1,0 +1,83 @@
+{
+  "generatedAt": "2026-03-08T12:00:00.000Z",
+  "summary": {
+    "total": 4,
+    "passing": 4,
+    "failing": 0
+  },
+  "entries": [
+    {
+      "name": "set selector suggestions",
+      "type": "Set<DBNation>",
+      "value": "nat",
+      "cursorToken": "nat",
+      "expectedSuggestion": "nation:",
+      "status": "pass",
+      "mode": "set-root",
+      "receiverType": "DBNation",
+      "sourceKind": "placeholder",
+      "suggestions": [
+        "nation:",
+        "nation/id=",
+        "Borg",
+        "189573",
+        "nation(5d"
+      ],
+      "hintTitle": "DBNation selector",
+      "hintMeta": "receiver: DBNation | source: placeholder",
+      "errors": []
+    },
+    {
+      "name": "predicate filter suggestions",
+      "type": "Predicate<DBNation>",
+      "value": "nation:Borg,#vm_",
+      "cursorToken": "#vm_",
+      "expectedSuggestion": "vm_turns",
+      "status": "pass",
+      "mode": "member-chain",
+      "receiverType": "DBNation",
+      "sourceKind": "placeholder",
+      "suggestions": [
+        "vm_turns"
+      ],
+      "hintTitle": "getvm_turns",
+      "hintMeta": "receiver: DBNation | returns: int | source: member",
+      "errors": []
+    },
+    {
+      "name": "function string member suggestions",
+      "type": "TypedFunction<DBNation,String>",
+      "value": "prefix {getalliance.getna} suffix",
+      "cursorToken": "getna",
+      "expectedSuggestion": "getname",
+      "status": "pass",
+      "mode": "member-chain",
+      "receiverType": "DBAlliance",
+      "sourceKind": "placeholder",
+      "suggestions": [
+        "getname",
+        "getnations"
+      ],
+      "hintTitle": "getname",
+      "hintMeta": "receiver: DBAlliance | returns: String | source: member",
+      "errors": []
+    },
+    {
+      "name": "function numeric map key suggestions",
+      "type": "TypedFunction<DBCity,Double>",
+      "value": "{getrevenue.fo}",
+      "cursorToken": "fo",
+      "expectedSuggestion": "FOOD",
+      "status": "pass",
+      "mode": "member-chain",
+      "receiverType": "Map<ResourceType, Double>",
+      "sourceKind": "map-key-options",
+      "suggestions": [
+        "FOOD"
+      ],
+      "hintTitle": "ResourceType key",
+      "hintMeta": "receiver: Map<ResourceType, Double> | returns: Map<ResourceType, Double> | source: map-key-options",
+      "errors": []
+    }
+  ]
+}

@@ -489,6 +489,142 @@ describe("expressionAnalysis", () => {
         expect(analysis.suggestions.some((suggestion) => suggestion.insertText === ", date: ")).toBe(true);
     });
 
+    it("treats explicit nested predicate operands after arithmetic as root-member expressions", () => {
+        const value = "*,#score>#getScore()/#ci";
+        const cursor = value.length;
+        const analysis = analyzeWithRegistry(
+            "Set<DBNation>",
+            value,
+            cursor,
+            {},
+        );
+
+        expect(analysis.hint?.meta).toContain("receiver: DBNation");
+        expect(analysis.suggestions.some((suggestion) => suggestion.label.toLowerCase().includes("cities"))).toBe(true);
+    });
+
+    it("keeps unclosed keyed map access with trailing comparator text in map-key completion mode", () => {
+        const mapKeySource = getExpressionValueSourceRef("Map<ResourceType, Double>");
+        const value = "*,#score>#getCity(1).getRevenue()[MO>=10";
+        const cursor = value.indexOf("MO") + 2;
+        const analysis = analyzeWithRegistry(
+            "Set<DBNation>",
+            value,
+            cursor,
+            {
+                [mapKeySource.cacheKey]: {
+                    status: "ready",
+                    sourceKind: "map-key-options",
+                    typeLabel: "ResourceType key",
+                    options: [
+                        { label: "MONEY", value: "MONEY" },
+                    ],
+                },
+            },
+        );
+
+        expect(analysis.hint?.detail).toContain("Pick a key");
+        expect(analysis.suggestions.map((suggestion) => suggestion.label)).toContain("MONEY");
+    });
+
+    it("supports nested predicate member chains inside function arguments", () => {
+        const value = "{getactivewarswith(filter:#getAlliance().getSco)}";
+        const cursor = value.indexOf("getSco") + "getSco".length;
+        const analysis = analyzeWithRegistry(
+            "TypedFunction<DBNation,Double>",
+            value,
+            cursor,
+            {
+                "placeholder:DBAlliance": {
+                    status: "ready",
+                    sourceKind: "placeholder",
+                    typeLabel: "Alliance",
+                    options: [],
+                },
+            },
+        );
+
+        expect(analysis.hint?.meta).toContain("receiver: DBAlliance");
+        expect(analysis.hint?.meta).toContain("active arg: filter: Predicate<DBNation>");
+        expect(analysis.suggestions.some((suggestion) => suggestion.label.toLowerCase().includes("score"))).toBe(true);
+    });
+
+    it("supports explicit nested predicate operands after arithmetic inside function arguments", () => {
+        const value = "{getactivewarswith(filter:#getScore()/#ci)}";
+        const cursor = value.length - 2;
+        const analysis = analyzeWithRegistry(
+            "TypedFunction<DBNation,Double>",
+            value,
+            cursor,
+            {},
+        );
+
+        expect(analysis.hint?.meta).toContain("receiver: DBNation");
+        expect(analysis.hint?.meta).toContain("active arg: filter: Predicate<DBNation>");
+        expect(analysis.suggestions.some((suggestion) => suggestion.label.toLowerCase().includes("cities"))).toBe(true);
+    });
+
+    it("keeps map-key completion active inside nested predicate arithmetic branches", () => {
+        const mapKeySource = getExpressionValueSourceRef("Map<ResourceType, Double>");
+        const value = "{getactivewarswith(filter:#getCity(1).getRevenue()[MO]/#getScore()>0)}";
+        const cursor = value.indexOf("[MO") + 3;
+        const analysis = analyzeWithRegistry(
+            "TypedFunction<DBNation,Double>",
+            value,
+            cursor,
+            {
+                [mapKeySource.cacheKey]: {
+                    status: "ready",
+                    sourceKind: "map-key-options",
+                    typeLabel: "ResourceType key",
+                    options: [
+                        { label: "MONEY", value: "MONEY" },
+                    ],
+                },
+            },
+        );
+
+        expect(analysis.hint?.detail).toContain("Pick a key");
+        expect(analysis.hint?.meta).toContain("active arg: filter: Predicate<DBNation>");
+        expect(analysis.suggestions.map((suggestion) => suggestion.label)).toContain("MONEY");
+    });
+
+    it("keeps nested predicate receiver context after map access inside arithmetic RHS branches", () => {
+        const value = "{getactivewarswith(filter:#getCity(1).getRevenue()[MONEY]/#getAl)}";
+        const cursor = value.indexOf("getAl") + "getAl".length;
+        const analysis = analyzeWithRegistry(
+            "TypedFunction<DBNation,Double>",
+            value,
+            cursor,
+            {
+                "placeholder:DBAlliance": {
+                    status: "ready",
+                    sourceKind: "placeholder",
+                    typeLabel: "Alliance",
+                    options: [],
+                },
+            },
+        );
+
+        expect(analysis.hint?.meta).toContain("receiver: DBNation");
+        expect(analysis.hint?.meta).toContain("active arg: filter: Predicate<DBNation>");
+        expect(analysis.suggestions.some((suggestion) => suggestion.label === "getalliance")).toBe(true);
+    });
+
+    it("surfaces numeric RHS validation for mixed nested predicate map-access arithmetic", () => {
+        const value = "{getactivewarswith(filter:#getCity(1).getRevenue()[MONEY]/2>oops)}";
+        const cursor = value.indexOf("oops") + "oops".length;
+        const analysis = analyzeWithRegistry(
+            "TypedFunction<DBNation,Double>",
+            value,
+            cursor,
+            {},
+        );
+
+        expect(analysis.errors.some((error) => error.includes("Invalid numeric value `oops`"))).toBe(true);
+        expect(analysis.hint?.meta).toContain("active arg: filter: Predicate<DBNation>");
+    });
+
     it("does not suggest invalid functions while editing a numeric predicate RHS", () => {
         const value = "*,#getScore>=10";
         const cursor = value.indexOf("10") + 1;

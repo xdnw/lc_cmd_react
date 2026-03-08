@@ -527,6 +527,16 @@ function looksLikePredicateToken(text: string): boolean {
     return findTopLevelOperators(trimmed, [">=", "<=", "!=", ">", "<", "="]).length > 0;
 }
 
+function getFilterFieldPrefixMatches(typeName: string, token: string): ExpressionFilterField[] {
+    const schema = getExpressionTypeSchema(typeName);
+    if (!schema) {
+        return [];
+    }
+
+    const normalized = token.toLowerCase();
+    return schema.filterFields.filter((field) => !normalized || field.key.startsWith(normalized));
+}
+
 function findTopLevelOperators(text: string, operators: string[]): TopLevelOperatorMatch[] {
     const matches: TopLevelOperatorMatch[] = [];
     let depthParen = 0;
@@ -1105,7 +1115,8 @@ function parseLeafExpressionTextContext(rootType: string, text: string, cursor: 
 function parseValueExpressionContext(rootType: string, text: string, cursor: number, inferredType?: string): ExpressionCursorContext {
     const prefixed = stripLeadingPredicatePrefix(text, cursor);
     if (prefixed.offset > 0) {
-        return shiftContextOffsets(parseValueExpressionContext(rootType, prefixed.text, prefixed.cursor, inferredType), prefixed.offset);
+        // An explicit # starts a new root-member expression even inside nested arithmetic.
+        return shiftContextOffsets(parseValueExpressionContext(rootType, prefixed.text, prefixed.cursor), prefixed.offset);
     }
 
     const arithmetic = findActiveTopLevelBinarySegment(text, cursor, ["+", "-", "*", "/"]);
@@ -1114,7 +1125,11 @@ function parseValueExpressionContext(rootType: string, text: string, cursor: num
         const segmentText = onRight ? arithmetic.rightText : arithmetic.leftText;
         const segmentStart = onRight ? arithmetic.rightStart : arithmetic.leftStart;
         const segmentCursor = Math.max(0, cursor - segmentStart);
-        return shiftContextOffsets(parseValueExpressionContext(rootType, segmentText, segmentCursor, inferredType), segmentStart);
+        const siblingText = onRight ? arithmetic.leftText : arithmetic.rightText;
+        const siblingType = trimTokenText(siblingText)
+            ? resolveExpressionType(rootType, siblingText, true).typeName
+            : inferredType;
+        return shiftContextOffsets(parseValueExpressionContext(rootType, segmentText, segmentCursor, siblingType), segmentStart);
     }
 
     return parseLeafExpressionTextContext(rootType, text, cursor, inferredType);
@@ -1326,18 +1341,22 @@ function parseArgumentContext(
             ? currentArg.to
             : valueOffset + valueSpan.to;
 
-    if (valueBreakdown.element === "Predicate" && namedArg.valueSourceRef.kind === "placeholder") {
-        if (valueText.trimStart().startsWith("#")) {
-            const token = trimTokenRange(0, valueText);
-            const predicateContext = parsePredicateExpressionContext(receiverType, token, Math.max(0, cursor - valueOffset - valueSpan.from));
+    if (valueBreakdown.element === "Predicate") {
+        const trimmedRawValue = trimTokenRange(0, rawValue);
+        if (trimmedRawValue.text.startsWith("#")) {
+            const predicateContext = parsePredicateExpressionContext(
+                receiverType,
+                trimmedRawValue,
+                Math.max(0, cursor - currentArg.valueFrom),
+            );
             return createContext({
                 ...predicateContext,
                 replaceFrom: argumentInsertPrefix
                     ? currentArg.from
-                    : valueOffset + valueSpan.from + predicateContext.replaceFrom,
+                    : currentArg.valueFrom + predicateContext.replaceFrom,
                 replaceTo: argumentInsertPrefix
                     ? currentArg.to
-                    : valueOffset + valueSpan.from + predicateContext.replaceTo,
+                    : currentArg.valueFrom + predicateContext.replaceTo,
                 activeMember: member,
                 activeArgument: namedArg,
                 structuralErrors: Array.from(new Set([...errors, ...predicateContext.structuralErrors])),
@@ -1478,6 +1497,21 @@ function parsePredicateExpressionContext(rootType: string, token: TokenRange, cu
                 ...activeContext.structuralErrors,
             ])),
             activeMember: cursorInRight ? activeContext.activeMember ?? lhsResolution.member : activeContext.activeMember,
+        });
+    }
+
+    const filterFieldToken = `#${split.expressionText}`;
+    if (token.text.trim().startsWith("#") && getFilterFieldPrefixMatches(rootType, filterFieldToken).length > 0) {
+        return createContext({
+            mode: "predicate-filter-field",
+            rootType,
+            receiverType: rootType,
+            activeToken: filterFieldToken,
+            replaceFrom: token.from,
+            replaceTo: token.to,
+            requiredSources: [getExpressionValueSourceRef(rootType)],
+            structuralErrors: [],
+            activeSourceRef: getExpressionValueSourceRef(rootType),
         });
     }
 
@@ -1868,11 +1902,6 @@ function toRootSuggestions(
     schema: ExpressionTypeSchema | null,
     optionEntry: ExpressionValueSourceRegistryEntry | undefined,
 ): ExpressionSuggestion[] {
-    const rootToken = context.rootTokenContext;
-    if (!rootToken) {
-        return [];
-    }
-
     if (context.mode === "predicate-filter-field") {
         return toFilterSuggestions(
             schema?.filterFields ?? [],
@@ -1881,6 +1910,11 @@ function toRootSuggestions(
             context.replaceTo,
             context.requiredSources.find((source) => source.kind === "placeholder"),
         );
+    }
+
+    const rootToken = context.rootTokenContext;
+    if (!rootToken) {
+        return [];
     }
 
     const suggestions: ExpressionSuggestion[] = [];
@@ -2096,7 +2130,7 @@ function finalizeValueContext(
     );
     const completedSuggestions = applyClosingBraceSuffix(prefixedSuggestions, context.needsClosingBrace);
     const validationErrors = validateArgumentValue(context, entry, completedSuggestions);
-    const standaloneValueErrors = !context.activeArgument && source?.kind !== "placeholder"
+    const standaloneValueErrors = (!context.activeArgument || context.mode === "predicate-rhs") && source?.kind !== "placeholder"
         ? validateStandaloneValue(context.receiverType, context.activeToken, entry, completedSuggestions)
         : [];
     const nextErrors = [...errors, ...validationErrors, ...standaloneValueErrors];

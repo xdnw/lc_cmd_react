@@ -32,16 +32,16 @@
       "type": "Predicate<DBNation>",
       "value": "nation:Borg,#vm_",
       "cursorToken": "#vm_",
-      "expectedSuggestion": "vm_turns",
+      "expectedSuggestion": "#vm_turns",
       "status": "pass",
-      "mode": "member-chain",
+      "mode": "predicate-filter-field",
       "receiverType": "DBNation",
       "sourceKind": "placeholder",
       "suggestions": [
-        "vm_turns"
+        "#vm_turns"
       ],
-      "hintTitle": "getvm_turns",
-      "hintMeta": "receiver: DBNation | returns: int | source: member",
+      "hintTitle": "DBNation filter",
+      "hintMeta": "receiver: DBNation | source: filter",
       "errors": []
     },
     {

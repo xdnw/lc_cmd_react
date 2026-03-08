@@ -9,7 +9,7 @@ Generated at: 2026-03-08T12:00:00.000Z
 | Case | Type | Status | Expected | Suggestions | Mode | Receiver |
 | --- | --- | --- | --- | --- | --- | --- |
 | set selector suggestions | Set<DBNation> | pass | nation: | nation:, nation/id=, Borg, 189573, nation(5d | set-root | DBNation |
-| predicate filter suggestions | Predicate<DBNation> | pass | vm_turns | vm_turns | member-chain | DBNation |
+| predicate filter suggestions | Predicate<DBNation> | pass | #vm_turns | #vm_turns | predicate-filter-field | DBNation |
 | function string member suggestions | TypedFunction<DBNation,String> | pass | getname | getname, getnations | member-chain | DBAlliance |
 | function numeric map key suggestions | TypedFunction<DBCity,Double> | pass | FOOD | FOOD | member-chain | Map<ResourceType, Double> |
 
@@ -25,10 +25,10 @@ Generated at: 2026-03-08T12:00:00.000Z
 
 ### predicate filter suggestions
 - Value: `nation:Borg,#vm_`
-- Expected suggestion: `vm_turns`
-- Suggestions: vm_turns
-- Hint: getvm_turns
-- Meta: receiver: DBNation | returns: int | source: member
+- Expected suggestion: `#vm_turns`
+- Suggestions: #vm_turns
+- Hint: DBNation filter
+- Meta: receiver: DBNation | source: filter
 - Errors: (none)
 
 ### function string member suggestions

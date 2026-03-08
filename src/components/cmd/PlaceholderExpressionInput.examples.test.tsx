@@ -55,7 +55,7 @@ const CASES = [
     type: "Predicate<DBNation>",
     value: "nation:Borg,#vm_",
     cursorToken: "#vm_",
-    expectedSuggestion: "vm_turns",
+    expectedSuggestion: "#vm_turns",
     registry: {},
   },
   {

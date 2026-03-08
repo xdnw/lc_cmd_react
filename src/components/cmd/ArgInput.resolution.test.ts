@@ -37,4 +37,11 @@ describe("ArgInput resolution", () => {
       });
     }
   });
+
+  it("keeps static-option sets on static option inputs instead of placeholder expressions", () => {
+    expect(resolveArgInput(getTypeBreakdown(CM, "Set<AttackType>"))).toMatchObject({
+      kind: "static-options",
+      componentName: "ListComponentOptions",
+    });
+  });
 });

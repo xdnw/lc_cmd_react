@@ -18,9 +18,14 @@ export function getPlaceholderExpressionDescriptor(breakdown: TypeBreakdown): Pl
         return null;
     }
 
+    const optionData = breakdown.getOptionData();
     const rootValueSources = getExpressionCompletionSourceRefs(rootType);
 
     if (breakdown.element === "Set") {
+        if (optionData.options?.length) {
+            return null;
+        }
+
         return {
             kind: "set",
             rootType,
@@ -31,6 +36,10 @@ export function getPlaceholderExpressionDescriptor(breakdown: TypeBreakdown): Pl
     }
 
     if (breakdown.element === "Predicate") {
+        if (optionData.options?.length) {
+            return null;
+        }
+
         return {
             kind: "predicate",
             rootType,

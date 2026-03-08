@@ -2008,12 +2008,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d9h30m51s)."
+        "detail": "Default produced a normalized timediff value (1w1d9h37m52s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:725451014).",
-        "actualOutput": "timediff:725451014"
+        "detail": "Paste emitted a timediff value (timediff:725872051).",
+        "actualOutput": "timediff:725872051"
       }
     },
     {
@@ -2028,12 +2028,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d9h30m51s)."
+        "detail": "Default produced a normalized timediff value (1w1d9h37m52s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:725451017).",
-        "actualOutput": "timediff:725451017"
+        "detail": "Paste emitted a timediff value (timediff:725872054).",
+        "actualOutput": "timediff:725872054"
       }
     },
     {
@@ -2108,12 +2108,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d9h30m51s)."
+        "detail": "Default produced a normalized timediff value (1w1d9h37m52s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:725451031).",
-        "actualOutput": "timediff:725451031"
+        "detail": "Paste emitted a timediff value (timediff:725872065).",
+        "actualOutput": "timediff:725872065"
       }
     },
     {
@@ -2128,12 +2128,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d9h30m51s)."
+        "detail": "Default produced a normalized timediff value (1w1d9h37m52s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:725451034).",
-        "actualOutput": "timediff:725451034"
+        "detail": "Paste emitted a timediff value (timediff:725872067).",
+        "actualOutput": "timediff:725872067"
       }
     },
     {
@@ -2168,12 +2168,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-09T09:30:51.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-09T09:37:52.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773009051043).",
-        "actualOutput": "timestamp:1773009051043"
+        "detail": "Paste emitted a timestamp value (timestamp:1773009472079).",
+        "actualOutput": "timestamp:1773009472079"
       }
     },
     {
@@ -2188,12 +2188,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-04T09:30:51.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-04T09:37:52.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772577051052).",
-        "actualOutput": "timestamp:1772577051052"
+        "detail": "Paste emitted a timestamp value (timestamp:1772577472082).",
+        "actualOutput": "timestamp:1772577472082"
       }
     },
     {
@@ -2288,12 +2288,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-09T09:30:51.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-09T09:37:52.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773009051066).",
-        "actualOutput": "timestamp:1773009051066"
+        "detail": "Paste emitted a timestamp value (timestamp:1773009472096).",
+        "actualOutput": "timestamp:1773009472096"
       }
     },
     {
@@ -2308,12 +2308,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-04T09:30:51.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-04T09:37:52.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772577051068).",
-        "actualOutput": "timestamp:1772577051068"
+        "detail": "Paste emitted a timestamp value (timestamp:1772577472099).",
+        "actualOutput": "timestamp:1772577472099"
       }
     },
     {
@@ -3932,8 +3932,8 @@
     {
       "type": "Set<AttackType>",
       "example": "GROUND,VICTORY",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -3941,7 +3941,7 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 2 selected option(s)."
       },
       "paste": {
         "status": "pass",
@@ -3952,8 +3952,8 @@
     {
       "type": "Set<AuditType>",
       "example": "CHECK_RANK",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -3961,7 +3961,7 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 1 selected option(s)."
       },
       "paste": {
         "status": "pass",
@@ -4012,8 +4012,8 @@
     {
       "type": "Set<Building>",
       "example": "BARRACKS",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -4021,7 +4021,7 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 1 selected option(s)."
       },
       "paste": {
         "status": "pass",
@@ -4054,8 +4054,8 @@
     {
       "type": "Set<Continent>",
       "example": "*",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -4063,19 +4063,19 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 7 selected option(s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted *.",
-        "actualOutput": "*"
+        "detail": "Paste emitted NORTH_AMERICA,SOUTH_AMERICA,EUROPE,AFRICA,ASIA,AUSTRALIA,ANTARCTICA.",
+        "actualOutput": "NORTH_AMERICA,SOUTH_AMERICA,EUROPE,AFRICA,ASIA,AUSTRALIA,ANTARCTICA"
       }
     },
     {
       "type": "Set<Continent>",
       "example": "NORTH_AMERICA",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -4083,7 +4083,7 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 1 selected option(s)."
       },
       "paste": {
         "status": "pass",
@@ -4256,8 +4256,8 @@
     {
       "type": "Set<MilitaryUnit>",
       "example": "SOLDIER,TANK,AIRCRAFT,SHIP,MISSILE,NUKE",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -4265,7 +4265,7 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 6 selected option(s)."
       },
       "paste": {
         "status": "pass",
@@ -4380,8 +4380,8 @@
     {
       "type": "Set<Project>",
       "example": "ACTIVITY_CENTER",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -4389,7 +4389,7 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 1 selected option(s)."
       },
       "paste": {
         "status": "pass",
@@ -4420,8 +4420,8 @@
     {
       "type": "Set<ResourceType>",
       "example": "money",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -4429,19 +4429,19 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 1 selected option(s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted money.",
-        "actualOutput": "money"
+        "detail": "Paste emitted MONEY.",
+        "actualOutput": "MONEY"
       }
     },
     {
       "type": "Set<ResourceType>",
       "example": "*",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -4449,19 +4449,19 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 13 selected option(s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted *.",
-        "actualOutput": "*"
+        "detail": "Paste emitted MONEY,CREDITS,FOOD,COAL,OIL,URANIUM,LEAD,IRON,BAUXITE,GASOLINE,MUNITIONS,STEEL,ALUMINUM.",
+        "actualOutput": "MONEY,CREDITS,FOOD,COAL,OIL,URANIUM,LEAD,IRON,BAUXITE,GASOLINE,MUNITIONS,STEEL,ALUMINUM"
       }
     },
     {
       "type": "Set<ResourceType>",
       "example": "!food",
-      "controlKind": "text",
-      "componentName": "PlaceholderExpressionInput",
+      "controlKind": "select",
+      "componentName": "ListComponentOptions",
       "supported": true,
       "render": {
         "status": "pass",
@@ -4469,12 +4469,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default field value matched the example."
+        "detail": "Default resolved 12 selected option(s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted !food.",
-        "actualOutput": "!food"
+        "detail": "Paste emitted MONEY,CREDITS,COAL,OIL,URANIUM,LEAD,IRON,BAUXITE,GASOLINE,MUNITIONS,STEEL,ALUMINUM.",
+        "actualOutput": "MONEY,CREDITS,COAL,OIL,URANIUM,LEAD,IRON,BAUXITE,GASOLINE,MUNITIONS,STEEL,ALUMINUM"
       }
     },
     {

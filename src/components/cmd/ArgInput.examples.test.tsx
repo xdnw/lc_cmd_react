@@ -936,14 +936,20 @@ describe("ArgInput example harness", () => {
 
   it("accepts multi-select paste for single and comma-separated static options", () => {
     const singleHarness = renderHarness("Set<AllianceMetric>", "");
-    const singleInput = singleHarness.container.querySelector("input[type='text']") as HTMLInputElement;
-    fireEvent.paste(singleInput, makeClipboardEventPayload("SOLDIER"));
+    fireEvent.paste(
+      getPrimaryInput(singleHarness.container) ?? singleHarness.container.firstElementChild ?? singleHarness.container,
+      makeClipboardEventPayload("SOLDIER"),
+    );
     expect(singleHarness.getLastOutput()).toBe("SOLDIER");
     singleHarness.unmount();
 
     const multiHarness = renderHarness("Set<AttackType>", "");
-    const multiInput = multiHarness.container.querySelector("input[type='text']") as HTMLInputElement;
-    fireEvent.paste(multiInput, makeClipboardEventPayload("GROUND,VICTORY"));
+    const multiInput = getPrimaryInput(multiHarness.container);
+    expect(multiInput).not.toBeNull();
+    fireEvent.paste(
+      multiInput!,
+      makeClipboardEventPayload("GROUND,VICTORY"),
+    );
     expect(multiHarness.getLastOutput()).toBe("GROUND,VICTORY");
     multiHarness.unmount();
   });

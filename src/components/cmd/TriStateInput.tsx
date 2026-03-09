@@ -2,19 +2,9 @@ import { useSyncedState } from "@/utils/StateUtil";
 import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { getPastedText } from "./pasteUtils";
+import { normalizeTriStateValue } from "./scalarInputNormalization";
 
 type TriStateValue = "-1" | "0" | "1";
-
-function normalizeTriStateValue(value: string): TriStateValue {
-    const normalized = value.trim().toLowerCase();
-    if (["1", "true", "yes", "y", "on", "t"].includes(normalized)) {
-        return "1";
-    }
-    if (["-1", "false", "no", "n", "off", "f"].includes(normalized)) {
-        return "-1";
-    }
-    return "0";
-}
 
 const TRI_STATE_OPTIONS: Array<{
     value: TriStateValue;

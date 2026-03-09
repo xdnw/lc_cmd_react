@@ -38,6 +38,8 @@ import { REGEX_PATTERN } from "@/lib/regex-patterns";
 import { normalizeTimediffValue, normalizeTimeValue } from "@/lib/temporal";
 import { parseMapString } from "@/utils/MapParser";
 import { CM, getTypeBreakdown, type TypeBreakdown } from "@/utils/Command";
+import { normalizeMapEntries, normalizeSetValues, parseSetString, serializeMapEntries } from "./collectionInputNormalization";
+import { normalizeBooleanValue, normalizeTriStateValue } from "./scalarInputNormalization";
 import { resolveQueryOptionsPayload } from "./queryOptionUtils";
 import {
   resolveInitialSelection,
@@ -177,39 +179,10 @@ afterAll(() => {
   restoreDateNow?.();
 });
 
-function normalizeBooleanValue(value: string): "1" | "0" {
-  const normalized = value.trim().toLowerCase();
-  return ["1", "true", "yes", "y", "on", "t"].includes(normalized) ? "1" : "0";
-}
-
-function normalizeTriStateValue(value: string): "-1" | "0" | "1" {
-  const normalized = value.trim().toLowerCase();
-  if (["1", "true", "yes", "y", "on", "t"].includes(normalized)) {
-    return "1";
-  }
-  if (["-1", "false", "no", "n", "off", "f"].includes(normalized)) {
-    return "-1";
-  }
-  return "0";
-}
 
 function isQueryBacked(breakdown: TypeBreakdown): boolean {
   const resolution = resolveArgInput(breakdown);
   return resolution.kind === "query" || resolution.kind === "composite-query";
-}
-
-function parseSetString(input: string): string[] {
-  if (!input) return [];
-  return Array.from(new Set(
-    input
-      .split(/[\n,]+/)
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0),
-  ));
-}
-
-function stringifyMapEntries(entries: Array<Record<string, string>>): string {
-  return entries.map((entry) => `${Object.keys(entry)[0]}=${Object.values(entry)[0]}`).join("\n");
 }
 
 function createEmptyStatusMap(): Record<Status, number> {
@@ -515,7 +488,7 @@ async function inspectDefaultState(type: string, example: string, breakdown: Typ
   }
 
   if (controlKind === "set") {
-    const expectedValues = parseSetString(example);
+    const expectedValues = normalizeSetValues(parseSetString(example), breakdown.child![0]).values;
     const removeButtons = Array.from(container.querySelectorAll("button")).filter((button) => button.textContent?.trim() === "Remove");
     return removeButtons.length === expectedValues.length
       ? { status: "pass", detail: `Default parsed ${removeButtons.length} set value(s).` }
@@ -523,7 +496,7 @@ async function inspectDefaultState(type: string, example: string, breakdown: Typ
   }
 
   if (controlKind === "map") {
-    const expectedEntries = parseMapString(example) ?? [];
+    const expectedEntries = normalizeMapEntries(parseMapString(example) ?? [], breakdown.child![0], breakdown.child![1]).entries;
     const removeButtons = Array.from(container.querySelectorAll("button")).filter((button) => button.textContent?.trim() === "Remove");
     return removeButtons.length === expectedEntries.length
       ? { status: "pass", detail: `Default parsed ${removeButtons.length} map entr${removeButtons.length === 1 ? "y" : "ies"}.` }
@@ -663,7 +636,7 @@ async function applyPasteAndCheck(type: string, example: string, breakdown: Type
 
   if (controlKind === "map") {
     fireEvent.paste(findSectionRoot(container, "Map entries"), makeClipboardEventPayload(example));
-    const expected = stringifyMapEntries(parseMapString(example) ?? []);
+    const expected = serializeMapEntries(normalizeMapEntries(parseMapString(example) ?? [], breakdown.child![0], breakdown.child![1]).entries);
     const actual = getLastOutput() ?? "";
     return actual === expected
       ? { status: "pass", detail: `Paste emitted ${expected || "(empty)"}.`, actualOutput: actual }
@@ -672,7 +645,7 @@ async function applyPasteAndCheck(type: string, example: string, breakdown: Type
 
   if (controlKind === "set") {
     fireEvent.paste(findSectionRoot(container, "Set values"), makeClipboardEventPayload(example));
-    const expected = parseSetString(example).join(",");
+    const expected = normalizeSetValues(parseSetString(example), breakdown.child![0]).values.join(",");
     const actual = getLastOutput() ?? "";
     return actual === expected
       ? { status: "pass", detail: `Paste emitted ${expected || "(empty)"}.`, actualOutput: actual }

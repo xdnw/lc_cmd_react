@@ -2,12 +2,7 @@ import { useSyncedState } from "@/utils/StateUtil";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input-otp";
 import { useCallback } from "react";
 import { getPastedText } from "./pasteUtils";
-
-function normalizeMmrValue(value: string, allowWildcard: boolean): string {
-  const upper = (value || "").toUpperCase().replace(/[\/\s,-]+/g, "");
-  const pattern = allowWildcard ? /[^0-9X]/g : /[^0-9]/g;
-  return upper.replace(pattern, "").slice(0, 4);
-}
+import { normalizeMmrValue } from "./scalarInputNormalization";
 
 export default function MmrInput(
     {argName, allowWildcard, initialValue, setOutputValue, compact}:

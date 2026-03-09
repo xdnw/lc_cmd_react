@@ -1,17 +1,15 @@
-import { useSyncedStateFunc } from "@/utils/StateUtil";
+import { useSyncedState } from "@/utils/StateUtil";
 import { TypeBreakdown } from "@/utils/Command";
 import ArgInput from "./ArgInput";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "../ui/button.tsx";
 import { useDialog } from "../layout/DialogContext";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
 import { isCompactMode } from "./field/fieldTypes";
 import { cn } from "@/lib/utils";
 import { parseMapString } from "@/utils/MapParser";
-
-function toMapString(value: { [key: string]: string }[]) {
-    return value.map((v) => Object.keys(v)[0] + "=" + Object.values(v)[0]).join('\n');
-}
+import FieldMessage from "./field/FieldMessage";
+import { normalizeCollectionScalar, normalizeMapEntries, serializeMapEntries } from "./collectionInputNormalization";
 
 export default function MapInput(
     { argName, children, initialValue, setOutputValue, displayMode }:
@@ -25,19 +23,30 @@ export default function MapInput(
 ) {
     const { showDialog } = useDialog();
     const compact = isCompactMode(displayMode);
-    const [value, setValue] = useSyncedStateFunc<{ [key: string]: string }[]>(initialValue ?? "", (initial) => parseMapString(initial) ?? []);
+    const initialNormalized = useMemo(
+        () => normalizeMapEntries(parseMapString(initialValue) ?? [], children[0], children[1]),
+        [children, initialValue],
+    );
+    const [value, setValue] = useSyncedState<{ [key: string]: string }[]>(initialNormalized.entries);
+    const [notices, setNotices] = useSyncedState(initialNormalized.notices);
 
     const [addKey, setAddKey] = useState("");
     const [addValue, setAddValue] = useState("");
+
+    const syncEntries = useCallback((nextEntries: { [key: string]: string }[]) => {
+        const normalized = normalizeMapEntries(nextEntries, children[0], children[1]);
+        setValue(normalized.entries);
+        setNotices(normalized.notices);
+        setOutputValue(argName, serializeMapEntries(normalized.entries));
+    }, [argName, children, setNotices, setOutputValue, setValue]);
 
     const removeMapValue = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
         const keyToRemove = e.currentTarget.dataset.key; // Extract the key from the button's data attribute
         if (!keyToRemove) return;
 
         const newValue = value.filter((v) => Object.keys(v)[0] !== keyToRemove);
-        setValue(newValue);
-        setOutputValue(argName, toMapString(newValue));
-    }, [argName, setOutputValue, setValue, value]);
+        syncEntries(newValue);
+    }, [syncEntries, value]);
 
     const addKeyFunc = useCallback((key: string, value: string) => {
         setAddKey(value);
@@ -58,12 +67,17 @@ export default function MapInput(
                 showDialog("Value cannot be empty", <></>);
                 return;
             }
+            const normalizedKey = normalizeCollectionScalar(keyCopy, children[0], "Key");
+            if (!normalizedKey.value) {
+                showDialog("Key cannot be empty", <></>);
+                return;
+            }
+
             const newValue = [...value, { [keyCopy]: valueCopy }];
-            setValue(newValue);
-            setOutputValue(argName, toMapString(newValue));
+            syncEntries(newValue);
             setAddKey("");
             setAddValue("");
-    }, [argName, setOutputValue, setValue, addKey, addValue, showDialog, value]);
+    }, [addKey, addValue, children, showDialog, syncEntries, value]);
 
     const handleKeyKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey && !e.isDefaultPrevented()) {
@@ -98,18 +112,13 @@ export default function MapInput(
         if (parsed) {
             event.preventDefault();
             event.stopPropagation();
-            
-            // Merge with existing values, avoiding duplicate keys
-            const existingKeys = new Set(value.map(v => Object.keys(v)[0]));
-            const newEntries = parsed.filter(v => !existingKeys.has(Object.keys(v)[0]));
-            
-            if (newEntries.length > 0) {
-                const newValue = [...value, ...newEntries];
-                setValue(newValue);
-                setOutputValue(argName, toMapString(newValue));
-            }
+
+            syncEntries(parsed);
         }
-    }, [argName, setOutputValue, setValue, value]);
+    }, [syncEntries]);
+
+    const warningText = notices.filter((notice) => notice.severity === "warning").map((notice) => notice.message).join(" ");
+    const noteText = notices.filter((notice) => notice.severity === "note").map((notice) => notice.message).join(" ");
 
     return (
         <div onPasteCapture={handlePasteCapture}>
@@ -152,6 +161,8 @@ export default function MapInput(
                     <Button size="sm" onClick={addPairFunc} tabIndex={-1} className={compact ? "h-8 text-xs" : ""}>Add Pair</Button>
                 </div>
             </div>
+            <FieldMessage error={warningText} compact={compact} />
+            <FieldMessage note={noteText} compact={compact} />
         </div>
     );
 }

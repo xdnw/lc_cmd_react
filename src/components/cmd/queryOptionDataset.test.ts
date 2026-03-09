@@ -64,4 +64,37 @@ describe("queryOptionDataset", () => {
             options: [{ label: "intel", value: "672310912090243092" }],
         });
     });
+
+    it("builds shared aliases for alliance, tax, war, and city profile tokens", () => {
+        const allianceOptions = buildQuerySelectOptions("DBAlliance", {
+            text: ["Cataclysm"],
+            key_string: ["AA:7413"],
+        });
+        expect(allianceOptions[0].aliases).toContain("alliance/id=7413");
+        expect(allianceOptions[0].aliases).toContain("https://politicsandwar.com/alliance/id=7413");
+
+        const taxOptions = buildQuerySelectOptions("TaxBracket", {
+            text: ["Bracket 26171"],
+            key_string: ["26171"],
+        });
+        expect(taxOptions[0].aliases).toContain("tax_id=26171");
+        expect(taxOptions[0].aliases).toContain("https://politicsandwar.com/index.php?id=15&tax_id=26171");
+
+        const warOptions = buildQuerySelectOptions("DBWar", {
+            text: ["War 1234"],
+            key_string: ["1234"],
+        });
+        expect(warOptions[0].aliases).toContain("war=1234");
+        expect(warOptions[0].aliases).toContain("https://politicsandwar.com/nation/war/timeline/war=1234");
+
+        const cityDataset = buildQueryOptionDataset("DBCity", {
+            text: ["City 9988"],
+            key_string: ["9988"],
+        });
+        expect(searchQueryOptionDataset("city/id=9988", cityDataset, 20)).toMatchObject({
+            hasAnyMatch: true,
+            hasExactMatch: true,
+            options: [{ label: "City 9988", value: "9988" }],
+        });
+    });
 });

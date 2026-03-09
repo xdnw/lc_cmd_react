@@ -80,6 +80,40 @@ describe("expressionAnalysis", () => {
         expect(context.activeSourceRef).toEqual(expect.objectContaining({ kind: "query-options", typeName: "DBNation" }));
     });
 
+    it("keeps compact root aliases with '=' on the query-option path", () => {
+        const descriptor = getPlaceholderExpressionDescriptor(getTypeBreakdown(CM, "Set<TaxBracket>"));
+        expect(descriptor).not.toBeNull();
+
+        const context = parseExpressionCursorContext(descriptor!, "tax_id=26171", "tax_id=26171".length);
+
+        expect(context.mode).toBe("set-root");
+        expect(context.activeToken).toBe("tax_id=26171");
+        expect(context.activeSourceRef).toEqual(expect.objectContaining({ kind: "query-options", typeName: "TaxBracket" }));
+    });
+
+    it("keeps root URLs with query params on the query-option path", () => {
+        const descriptor = getPlaceholderExpressionDescriptor(getTypeBreakdown(CM, "Set<TaxBracket>"));
+        expect(descriptor).not.toBeNull();
+
+        const value = "https://politicsandwar.com/index.php?id=15&tax_id=26171";
+        const context = parseExpressionCursorContext(descriptor!, value, value.length);
+
+        expect(context.mode).toBe("set-root");
+        expect(context.activeToken).toBe(value);
+        expect(context.activeSourceRef).toEqual(expect.objectContaining({ kind: "query-options", typeName: "TaxBracket" }));
+    });
+
+    it("keeps compact root aliases for alliance-style query tokens on the query-option path", () => {
+        const descriptor = getPlaceholderExpressionDescriptor(getTypeBreakdown(CM, "Set<DBAlliance>"));
+        expect(descriptor).not.toBeNull();
+
+        const context = parseExpressionCursorContext(descriptor!, "alliance/id=7413", "alliance/id=7413".length);
+
+        expect(context.mode).toBe("set-root");
+        expect(context.activeToken).toBe("7413");
+        expect(context.activeSourceRef).toEqual(expect.objectContaining({ kind: "query-options", typeName: "DBAlliance" }));
+    });
+
     it("keeps partial selector prefixes on placeholder completion instead of forcing option search", () => {
         const descriptor = getPlaceholderExpressionDescriptor(getTypeBreakdown(CM, "Set<DBNation>"));
         expect(descriptor).not.toBeNull();

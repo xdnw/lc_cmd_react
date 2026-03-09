@@ -3,22 +3,12 @@ import ArgInput from "./ArgInput";
 import { useDialog } from "../layout/DialogContext";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
-import { useSyncedStateFunc } from "@/utils/StateUtil";
+import { useSyncedState } from "@/utils/StateUtil";
 import type { TypeBreakdown } from "@/utils/Command";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
 import { isCompactMode } from "./field/fieldTypes";
-
-function parseSetString(input: string): string[] {
-    if (!input) return [];
-    return input
-        .split(/[\n,]+/)
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0);
-}
-
-function dedupe(values: string[]): string[] {
-    return Array.from(new Set(values));
-}
+import FieldMessage from "./field/FieldMessage";
+import { normalizeCollectionScalar, normalizeSetValues, parseSetString } from "./collectionInputNormalization";
 
 function toSetString(values: string[]): string {
     return values.join(",");
@@ -36,15 +26,18 @@ export default function SetInput(
 ) {
     const { showDialog } = useDialog();
     const compact = isCompactMode(displayMode);
+    const initialNormalized = normalizeSetValues(parseSetString(initialValue), child);
 
-    const [values, setValues] = useSyncedStateFunc<string[]>(initialValue, (initial) => dedupe(parseSetString(initial)));
+    const [values, setValues] = useSyncedState<string[]>(initialNormalized.values);
+    const [notices, setNotices] = useSyncedState(initialNormalized.notices);
     const [pendingValue, setPendingValue] = useState("");
 
     const syncValues = useCallback((nextValues: string[]) => {
-        const normalized = dedupe(nextValues.map((value) => value.trim()).filter((value) => value.length > 0));
-        setValues(normalized);
-        setOutputValue(argName, toSetString(normalized));
-    }, [argName, setOutputValue, setValues]);
+        const normalized = normalizeSetValues(nextValues, child);
+        setValues(normalized.values);
+        setNotices(normalized.notices);
+        setOutputValue(argName, toSetString(normalized.values));
+    }, [argName, child, setNotices, setOutputValue, setValues]);
 
     const removeValue = useCallback((valueToRemove: string) => {
         syncValues(values.filter((value) => value !== valueToRemove));
@@ -56,14 +49,16 @@ export default function SetInput(
             showDialog("Value cannot be empty", <></>);
             return;
         }
-        if (values.includes(valueToAdd)) {
+
+        const normalizedPending = normalizeCollectionScalar(valueToAdd, child, "Value");
+        if (values.includes(normalizedPending.value)) {
             showDialog("Duplicate value", <>This value already exists in the set.</>);
             return;
         }
 
         syncValues([...values, valueToAdd]);
         setPendingValue("");
-    }, [pendingValue, showDialog, syncValues, values]);
+    }, [child, pendingValue, showDialog, syncValues, values]);
 
     const onPendingValueChange = useCallback((key: string, value: string) => {
         setPendingValue(value);
@@ -85,8 +80,11 @@ export default function SetInput(
 
         event.preventDefault();
         event.stopPropagation();
-        syncValues([...values, ...parsedValues]);
-    }, [syncValues, values]);
+        syncValues(parsedValues);
+    }, [syncValues]);
+
+    const warningText = notices.filter((notice) => notice.severity === "warning").map((notice) => notice.message).join(" ");
+    const noteText = notices.filter((notice) => notice.severity === "note").map((notice) => notice.message).join(" ");
 
     return (
         <div onPasteCapture={handlePasteCapture}>
@@ -128,6 +126,8 @@ export default function SetInput(
                     <Button size="sm" onClick={addValue} tabIndex={-1} className={compact ? "h-8 text-xs" : ""}>Add Value</Button>
                 </div>
             </div>
+            <FieldMessage error={warningText} compact={compact} />
+            <FieldMessage note={noteText} compact={compact} />
         </div>
     );
 }

@@ -531,6 +531,23 @@ function splitFilterExpression(text: string, cursor: number): FilterExpressionSp
     };
 }
 
+function isCompactAliasLikeEqualityToken(text: string): boolean {
+    const trimmed = trimTokenText(text);
+    if (!trimmed || /\s/.test(trimmed)) {
+        return false;
+    }
+
+    const equalityOperators = findTopLevelOperators(trimmed, ["="]);
+    if (equalityOperators.length === 0) {
+        return false;
+    }
+
+    // Compact scalar aliases like `war=1234`, `tax_id=1234`, `nation/id=1234`,
+    // or full URLs with query params should resolve through query-option aliasing,
+    // not be reinterpreted as predicate comparisons at the root level.
+    return !/[<>!()\[\]{}]/.test(trimmed);
+}
+
 function looksLikePredicateToken(text: string): boolean {
     const trimmed = trimTokenText(text);
     if (!trimmed) {
@@ -541,7 +558,16 @@ function looksLikePredicateToken(text: string): boolean {
         return true;
     }
 
-    return findTopLevelOperators(trimmed, [">=", "<=", "!=", ">", "<", "="]).length > 0;
+    const operators = findTopLevelOperators(trimmed, [">=", "<=", "!=", ">", "<", "="]);
+    if (operators.length === 0) {
+        return false;
+    }
+
+    if (operators.every((operator) => operator.operator === "=") && isCompactAliasLikeEqualityToken(trimmed)) {
+        return false;
+    }
+
+    return true;
 }
 
 function getFilterFieldPrefixMatches(typeName: string, token: string): ExpressionFilterField[] {

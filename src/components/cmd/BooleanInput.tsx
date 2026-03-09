@@ -2,14 +2,7 @@ import { useSyncedState } from "@/utils/StateUtil";
 import { useCallback } from "react";
 import { Button } from "../ui/button";
 import { getPastedText } from "./pasteUtils";
-
-function normalizeBooleanValue(value: string): "1" | "0" {
-    const normalized = value.trim().toLowerCase();
-    if (["1", "true", "yes", "y", "on", "t"].includes(normalized)) {
-        return "1";
-    }
-    return "0";
-}
+import { normalizeBooleanValue } from "./scalarInputNormalization";
 
 export default function BooleanInput(
     { argName, initialValue, setOutputValue }:

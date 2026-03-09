@@ -2000,12 +2000,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d10h9m2s)."
+        "detail": "Default produced a normalized timediff value (1w1d16h41m21s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:727742042).",
-        "actualOutput": "timediff:727742042"
+        "detail": "Paste emitted a timediff value (timediff:751281417).",
+        "actualOutput": "timediff:751281417"
       }
     },
     {
@@ -2020,12 +2020,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d10h9m2s)."
+        "detail": "Default produced a normalized timediff value (1w1d16h41m21s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:727742046).",
-        "actualOutput": "timediff:727742046"
+        "detail": "Paste emitted a timediff value (timediff:751281420).",
+        "actualOutput": "timediff:751281420"
       }
     },
     {
@@ -2100,12 +2100,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d10h9m2s)."
+        "detail": "Default produced a normalized timediff value (1w1d16h41m21s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:727742061).",
-        "actualOutput": "timediff:727742061"
+        "detail": "Paste emitted a timediff value (timediff:751281438).",
+        "actualOutput": "timediff:751281438"
       }
     },
     {
@@ -2120,12 +2120,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d10h9m2s)."
+        "detail": "Default produced a normalized timediff value (1w1d16h41m21s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:727742064).",
-        "actualOutput": "timediff:727742064"
+        "detail": "Paste emitted a timediff value (timediff:751281442).",
+        "actualOutput": "timediff:751281442"
       }
     },
     {
@@ -2160,12 +2160,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-09T10:09:02.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-09T16:41:21.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773011342082).",
-        "actualOutput": "timestamp:1773011342082"
+        "detail": "Paste emitted a timestamp value (timestamp:1773034881449).",
+        "actualOutput": "timestamp:1773034881449"
       }
     },
     {
@@ -2180,12 +2180,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-04T10:09:02.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-04T16:41:21.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772579342087).",
-        "actualOutput": "timestamp:1772579342087"
+        "detail": "Paste emitted a timestamp value (timestamp:1772602881452).",
+        "actualOutput": "timestamp:1772602881452"
       }
     },
     {
@@ -2280,12 +2280,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-09T10:09:02.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-09T16:41:21.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773011342103).",
-        "actualOutput": "timestamp:1773011342103"
+        "detail": "Paste emitted a timestamp value (timestamp:1773034881466).",
+        "actualOutput": "timestamp:1773034881466"
       }
     },
     {
@@ -2300,12 +2300,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-04T10:09:02.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-04T16:41:21.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772579342107).",
-        "actualOutput": "timestamp:1772579342107"
+        "detail": "Paste emitted a timestamp value (timestamp:1772602881469).",
+        "actualOutput": "timestamp:1772602881469"
       }
     },
     {
@@ -2444,8 +2444,8 @@
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted #cities<10=505X\n#cities>=10:0250.",
-        "actualOutput": "#cities<10=505X\n#cities>=10:0250"
+        "detail": "Paste emitted #cities<10=505X\n#cities>=1002.",
+        "actualOutput": "#cities<10=505X\n#cities>=1002"
       }
     },
     {
@@ -2544,8 +2544,8 @@
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted money=1.2\nfood=6.",
-        "actualOutput": "money=1.2\nfood=6"
+        "detail": "Paste emitted MONEY=1.2\nFOOD=6.",
+        "actualOutput": "MONEY=1.2\nFOOD=6"
       }
     },
     {

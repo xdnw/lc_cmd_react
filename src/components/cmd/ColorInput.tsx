@@ -3,27 +3,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button.tsx';
 import { useCallback, useMemo } from "react";
 import { getPastedText } from "./pasteUtils";
-
-function normalizeColorValue(value: string): string {
-    const trimmed = value.trim();
-    if (!trimmed || typeof document === "undefined") return "";
-
-    const probe = document.createElement("div");
-    probe.style.color = "";
-    probe.style.color = trimmed;
-    if (!probe.style.color) return "";
-
-    document.body.appendChild(probe);
-    const computed = getComputedStyle(probe).color;
-    document.body.removeChild(probe);
-
-    const matched = computed.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/i);
-    if (!matched) return "";
-
-    return `#${[matched[1], matched[2], matched[3]]
-        .map((component) => Number(component).toString(16).padStart(2, "0"))
-        .join("")}`;
-}
+import { normalizeColorValue } from "./scalarInputNormalization";
 
 export default function ColorInput(
     {argName, initialValue, setOutputValue, compact}:

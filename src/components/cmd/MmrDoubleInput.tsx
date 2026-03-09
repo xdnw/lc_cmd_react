@@ -2,7 +2,8 @@ import { useSyncedStateFunc } from "@/utils/StateUtil";
 import NumberInput from "./NumberInput";
 import React, { useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { getPastedText } from "./pasteUtils";
+import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
+import FieldMessage from "./field/FieldMessage";
 
 function normalizeMmrDoubleInput(initial: string): string | null {
     const trimmed = (initial || "").trim();
@@ -16,6 +17,21 @@ function normalizeMmrDoubleInput(initial: string): string | null {
     return null;
 }
 
+function parseMmrDoubleControlValue(initial: string) {
+    const trimmed = (initial || "").trim();
+    const emptyValue: [number | null, number | null, number | null, number | null] = [null, null, null, null];
+    if (!trimmed) {
+        return acceptedParsedInput<(number | null)[]>(emptyValue);
+    }
+
+    const normalized = normalizeMmrDoubleInput(trimmed);
+    if (!normalized) {
+        return rejectedParsedInput<(number | null)[]>(emptyValue, "Expected 4 MMR values like 5/5/5/3 or 5553.");
+    }
+
+    return acceptedParsedInput<(number | null)[]>(normalized.split("/").map((entry) => parseFloat(entry)));
+}
+
 export default function MmrDoubleInput(
     { argName, initialValue, setOutputValue, compact }:
         {
@@ -25,18 +41,8 @@ export default function MmrDoubleInput(
             setOutputValue: (name: string, value: string) => void
         }
 ) {
-    const [value, setValue] = useSyncedStateFunc<(number | null)[]>(initialValue, (initial) => {
-        const result: [number | null, number | null, number | null, number | null] = [null, null, null, null]
-        const normalized = normalizeMmrDoubleInput(initial);
-        if (normalized) {
-            const split = normalized.split('/');
-            result[0] = parseFloat(split[0]);
-            result[1] = parseFloat(split[1]);
-            result[2] = parseFloat(split[2]);
-            result[3] = parseFloat(split[3]);
-        }
-        return result;
-    });
+    const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue, parseMmrDoubleControlValue);
+    const [value, setValue] = useSyncedStateFunc<(number | null)[]>(initialValue, () => initialResult.value);
 
     const setOutputFunc = useCallback((name: string, valueStr: string) => {
         const index = parseInt(name);
@@ -46,6 +52,7 @@ export default function MmrDoubleInput(
         const currentValues = [...value];
         
         if (currentValues[index] !== valueFloat) {
+            clearParseError();
             // Update the copy with the new value
             currentValues[index] = valueFloat;
             
@@ -58,40 +65,40 @@ export default function MmrDoubleInput(
                 : "";
             setOutputValue(argName, outputString);
         }
-    }, [value, setValue, argName, setOutputValue]);
+    }, [value, clearParseError, setValue, argName, setOutputValue]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
-        const pastedText = getPastedText(event);
-        if (!pastedText.trim()) return;
-
-        const normalized = normalizeMmrDoubleInput(pastedText);
-        if (!normalized) return;
-
-        const next = normalized.split("/").map((entry) => parseFloat(entry));
-        event.preventDefault();
-        event.stopPropagation();
-        setValue(next);
-        setOutputValue(argName, next.join("/"));
-    }, [argName, setOutputValue, setValue]);
+        handleParsedInputPaste(event, {
+            parse: parseMmrDoubleControlValue,
+            applyParsedResult,
+            onAccept: (next) => {
+                setValue(next);
+                setOutputValue(argName, next.join("/"));
+            },
+        });
+    }, [applyParsedResult, argName, setOutputValue, setValue]);
 
     return (
-        <div className={cn("flex items-center", compact ? "gap-1" : "gap-2")} onPasteCapture={handlePasteCapture}>
-            {value.map((val, index) => {
-                return (
-                    <React.Fragment key={index}>
-                        {index > 0 && <span className="text-xs text-muted-foreground">/</span>}
-                        <NumberInput
-                            argName={index + ""}
-                            min={0}
-                            max={index == 3 ? 3 : 5}
-                            initialValue={val != null ? val + "" : ""}
-                            className={compact ? "h-7 text-xs w-12" : "w-16"}
-                            setOutputValue={setOutputFunc}
-                            isFloat={true}
-                        />
-                    </React.Fragment>
-                );
-            })}
+        <div onPasteCapture={handlePasteCapture}>
+            <div className={cn("flex items-center", compact ? "gap-1" : "gap-2")}>
+                {value.map((val, index) => {
+                    return (
+                        <React.Fragment key={index}>
+                            {index > 0 && <span className="text-xs text-muted-foreground">/</span>}
+                            <NumberInput
+                                argName={index + ""}
+                                min={0}
+                                max={index == 3 ? 3 : 5}
+                                initialValue={val != null ? val + "" : ""}
+                                className={compact ? "h-7 text-xs w-12" : "w-16"}
+                                setOutputValue={setOutputFunc}
+                                isFloat={true}
+                            />
+                        </React.Fragment>
+                    );
+                })}
+            </div>
+            <FieldMessage error={parseError} compact={compact} />
         </div>
     );
 }

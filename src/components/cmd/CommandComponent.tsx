@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
 import { isCompactMode } from "./field/fieldTypes";
 import ArgFieldShell from "./field/ArgFieldShell";
-import { parseCommandString } from "../../utils/CommandParser";
+import { parseCommandStringDetailed } from "../../utils/CommandParser";
+import { useDialog } from "../layout/DialogContext";
 
 interface CommandProps {
     command: BaseCommand,
@@ -62,6 +63,7 @@ function FocusInfoBar({ arg }: { arg: Argument | null }) {
 }
 
 const CommandComponent = memo(function CommandComponent({ command, overrideName, filterArguments, initialValues, setOutput, displayMode = "card" }: CommandProps) {
+    const { showDialog } = useDialog();
     const groupedArgs = useMemo(() => buildGroupedArgs(command.getArguments()), [command]);
     const compact = isCompactMode(displayMode);
     const trackFocusedArg = displayMode === "focus-pane";
@@ -97,16 +99,23 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
         const pastedText = event.clipboardData.getData('text');
         if (!pastedText) return;
 
-        const parsed = parseCommandString(command, pastedText);
-        if (parsed) {
+        const parsed = parseCommandStringDetailed(command, pastedText);
+        if (parsed.values) {
             event.preventDefault();
             event.stopPropagation();
-            setLocalValues(prev => ({ ...prev, ...parsed }));
-            for (const [key, value] of Object.entries(parsed)) {
+            setLocalValues(prev => ({ ...prev, ...parsed.values }));
+            for (const [key, value] of Object.entries(parsed.values)) {
                 setOutput(key, value);
             }
+            return;
         }
-    }, [command, setOutput]);
+
+        if (parsed.error) {
+            event.preventDefault();
+            event.stopPropagation();
+            showDialog("Unable to parse pasted command", <>{parsed.error}</>);
+        }
+    }, [command, setOutput, showDialog]);
 
     const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
         if (event.key === 'Enter' && !event.ctrlKey && !event.shiftKey && !event.isDefaultPrevented()) {

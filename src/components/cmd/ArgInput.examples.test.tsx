@@ -907,6 +907,24 @@ describe("ArgInput example harness", () => {
     triHarness.unmount();
   });
 
+  it("accepts root-level paste for parsed feedback wrappers", () => {
+    const triHarness = renderHarness("Boolean", "");
+    fireEvent.paste(
+      triHarness.container.firstElementChild ?? triHarness.container,
+      makeClipboardEventPayload("yes"),
+    );
+    expect(triHarness.getLastOutput()).toBe("1");
+    triHarness.unmount();
+
+    const mmrDoubleHarness = renderHarness("MMRDouble", "");
+    fireEvent.paste(
+      mmrDoubleHarness.container.firstElementChild ?? mmrDoubleHarness.container,
+      makeClipboardEventPayload("5553"),
+    );
+    expect(mmrDoubleHarness.getLastOutput()).toBe("5/5/5/3");
+    mmrDoubleHarness.unmount();
+  });
+
   it("accepts multi-select paste for single and comma-separated static options", () => {
     const singleHarness = renderHarness("Set<AllianceMetric>", "");
     fireEvent.paste(

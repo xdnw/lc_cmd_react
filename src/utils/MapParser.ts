@@ -1,19 +1,76 @@
-export function parseMapString(input?: string | null): { [key: string]: string }[] | null {
-    const normalizedInput = input?.trim();
-    if (!normalizedInput) {
-        return null;
+import type { TypeBreakdown } from "./Command";
+
+type MapEntry = { [key: string]: string };
+
+export type MapParseResult = {
+    entries: MapEntry[] | null;
+    error?: string;
+};
+
+function supportsIso88591DoubleFallback(
+    keyBreakdown?: TypeBreakdown,
+    valueBreakdown?: TypeBreakdown,
+): keyBreakdown is TypeBreakdown {
+    if (!keyBreakdown || !valueBreakdown) {
+        return false;
     }
 
-    let text = normalizedInput;
-    
-    // Remove surrounding brackets if present
-    if (text.startsWith('{') && text.endsWith('}')) {
-        text = text.substring(1, text.length - 1).trim();
+    const keyOptions = keyBreakdown.getOptionData().options;
+    if (!keyOptions || keyOptions.length === 0) {
+        return false;
     }
-    
-    if (!text) return null;
-    
-    const result: { [key: string]: string }[] = [];
+
+    const lower = valueBreakdown.element.toLowerCase();
+    return lower === "double" || lower === "number";
+}
+
+function looksLikeBinaryMapPayload(input: string): boolean {
+    for (let index = 0; index < input.length; index++) {
+        const code = input.charCodeAt(index);
+        const isAllowedWhitespace = code === 9 || code === 10 || code === 13;
+        const isPrintableAscii = code >= 32 && code <= 126;
+        if (!isPrintableAscii && !isAllowedWhitespace) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function isIgnorableTextWhitespace(char: string): boolean {
+    return char === ' ' || char === '\t' || char === '\n' || char === '\r';
+}
+
+function trimMapText(input: string): string {
+    let start = 0;
+    let end = input.length;
+
+    while (start < end && isIgnorableTextWhitespace(input[start])) {
+        start++;
+    }
+    while (end > start && isIgnorableTextWhitespace(input[end - 1])) {
+        end--;
+    }
+
+    return input.slice(start, end);
+}
+
+function parseTextMap(input: string): MapParseResult {
+    const trimmedInput = trimMapText(input);
+    if (!trimmedInput) {
+        return { entries: null, error: "Map input was empty after trimming." };
+    }
+
+    let text = trimmedInput;
+    if (text.startsWith('{') && text.endsWith('}')) {
+        text = trimMapText(text.substring(1, text.length - 1));
+    }
+
+    if (!text) {
+        return { entries: null, error: "Map input was empty after trimming." };
+    }
+
+    const result: MapEntry[] = [];
     let i = 0;
 
     function skipWhitespaceAndComma() {
@@ -39,35 +96,32 @@ export function parseMapString(input?: string | null): { [key: string]: string }
                     str += text[i++];
                 }
             }
-            return str; // Unclosed quote
-        } else {
-            // Unquoted string
-            let str = '';
-            while (i < text.length) {
-                const c = text[i];
-                if (isKey) {
-                    if (c === ':' || c === '=' || c === ' ' || c === '\t' || c === '\n' || c === ',') {
-                        break;
-                    }
-                    str += c;
-                    i++;
-                } else {
-                    // Value
-                    if (c === ',' || c === ' ' || c === '\t' || c === '\n') {
-                        // Lookahead to see if this is the start of a new key
-                        // A new key is optional whitespace/comma, then a string (quoted or unquoted), then optional whitespace, then : or =
-                        const lookaheadRegex = /^[\s,]*((?:"(?:[^"\\]*(?:\\.[^"\\]*)*)")|(?:'(?:[^'\\]*(?:\\.[^'\\]*)*)')|(?:[^\s:=,]+))\s*[:=]/;
-                        const remaining = text.substring(i);
-                        if (lookaheadRegex.test(remaining)) {
-                            break; // End of value
-                        }
-                    }
-                    str += c;
-                    i++;
+            return str;
+        }
+
+        let str = '';
+        while (i < text.length) {
+            const c = text[i];
+            if (isKey) {
+                if (c === ':' || c === '=' || c === ' ' || c === '\t' || c === '\n' || c === ',') {
+                    break;
+                }
+                str += c;
+                i++;
+                continue;
+            }
+
+            if (c === ',' || c === ' ' || c === '\t' || c === '\n') {
+                const lookaheadRegex = /^[\s,]*((?:"(?:[^"\\]*(?:\\.[^"\\]*)*)")|(?:'(?:[^'\\]*(?:\\.[^'\\]*)*)')|(?:[^\s:=,]+))\s*[:=]/;
+                const remaining = text.substring(i);
+                if (lookaheadRegex.test(remaining)) {
+                    break;
                 }
             }
-            return str.trim();
+            str += c;
+            i++;
         }
+        return trimMapText(str);
     }
 
     while (i < text.length) {
@@ -75,29 +129,100 @@ export function parseMapString(input?: string | null): { [key: string]: string }
         if (i >= text.length) break;
 
         const key = readString(true);
-        if (!key) break;
+        if (!key) {
+            break;
+        }
 
-        // Skip whitespace before separator
         while (i < text.length && (text[i] === ' ' || text[i] === '\t' || text[i] === '\n')) {
             i++;
         }
 
         if (i >= text.length || (text[i] !== ':' && text[i] !== '=')) {
-            // Invalid format, missing separator
-            break;
+            return {
+                entries: null,
+                error: `Expected ':' or '=' after key "${key}".`,
+            };
         }
-        i++; // Skip separator
+        i++;
 
-        // Skip whitespace before value
         while (i < text.length && (text[i] === ' ' || text[i] === '\t' || text[i] === '\n')) {
             i++;
         }
 
         const value = readString(false);
-        if (value === null) break;
+        if (value === null) {
+            return {
+                entries: null,
+                error: `Missing value for key "${key}".`,
+            };
+        }
 
         result.push({ [key]: value });
     }
 
-    return result.length > 0 ? result : null;
+    if (result.length === 0) {
+        return {
+            entries: null,
+            error: "No map entries were parsed. Expected format like key=value, one per line or comma-separated.",
+        };
+    }
+
+    return { entries: result };
+}
+
+function decodeIso88591DoubleArray(input: string, keyOptions: string[]): MapParseResult {
+    const expectedByteLength = keyOptions.length * 8;
+    if (input.length !== expectedByteLength) {
+        return {
+            entries: null,
+            error: `Byte fallback skipped: expected ${expectedByteLength} bytes for ${keyOptions.length} keys, received ${input.length}.`,
+        };
+    }
+
+    const bytes = new Uint8Array(input.length);
+    for (let index = 0; index < input.length; index++) {
+        bytes[index] = input.charCodeAt(index) & 0xff;
+    }
+
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const entries: MapEntry[] = [];
+    for (let index = 0; index < keyOptions.length; index++) {
+        const value = view.getFloat64(index * 8, false);
+        if (!Number.isFinite(value)) {
+            return {
+                entries: null,
+                error: `Byte fallback failed: value for key "${keyOptions[index]}" decoded to a non-finite number (${String(value)}).`,
+            };
+        }
+        entries.push({ [keyOptions[index]]: value === 0 ? "" : String(value) });
+    }
+
+    return { entries };
+}
+
+export function parseMapStringDetailed(
+    input?: string | null,
+    keyBreakdown?: TypeBreakdown,
+    valueBreakdown?: TypeBreakdown,
+): MapParseResult {
+    const rawInput = input ?? "";
+    if (!trimMapText(rawInput)) {
+        return { entries: null, error: "Input was empty." };
+    }
+
+    const isBinaryLike = looksLikeBinaryMapPayload(rawInput);
+    if (supportsIso88591DoubleFallback(keyBreakdown, valueBreakdown) && isBinaryLike) {
+        const keyOptions = keyBreakdown.getOptionData().options ?? [];
+        const fallback = decodeIso88591DoubleArray(rawInput, keyOptions);
+        if (fallback.entries) {
+            return fallback;
+        }
+        return fallback;
+    }
+
+    return parseTextMap(rawInput);
+}
+
+export function parseMapString(input?: string | null): MapEntry[] | null {
+    return parseMapStringDetailed(input).entries;
 }

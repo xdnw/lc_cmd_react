@@ -7,7 +7,7 @@ import { useDialog } from "../layout/DialogContext";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
 import { isCompactMode } from "./field/fieldTypes";
 import { cn } from "@/lib/utils";
-import { parseMapString } from "@/utils/MapParser";
+import { parseMapStringDetailed } from "@/utils/MapParser";
 import FieldMessage from "./field/FieldMessage";
 import { normalizeCollectionScalar, normalizeMapEntries, serializeMapEntries } from "./collectionInputNormalization";
 
@@ -23,12 +23,32 @@ export default function MapInput(
 ) {
     const { showDialog } = useDialog();
     const compact = isCompactMode(displayMode);
-    const initialNormalized = useMemo(
-        () => normalizeMapEntries(parseMapString(initialValue) ?? [], children[0], children[1]),
+    const initialParseResult = useMemo(
+        () => parseMapStringDetailed(initialValue, children[0], children[1]),
         [children, initialValue],
     );
+    const initialNormalized = useMemo(
+        () => normalizeMapEntries(initialParseResult.entries ?? [], children[0], children[1]),
+        [children, initialParseResult.entries],
+    );
+
+    const initialNotices = useMemo(() => {
+        const hasStructuredInput = Boolean(initialValue?.trim()) && /[=:{}\n,]|[^\x20-\x7e]/.test(initialValue ?? "");
+        if (!initialParseResult.error || !hasStructuredInput) {
+            return initialNormalized.notices;
+        }
+
+        return [
+            {
+                severity: "warning" as const,
+                message: initialParseResult.error,
+            },
+            ...initialNormalized.notices,
+        ];
+    }, [initialNormalized.notices, initialParseResult.error, initialValue]);
+
     const [value, setValue] = useSyncedState<{ [key: string]: string }[]>(initialNormalized.entries);
-    const [notices, setNotices] = useSyncedState(initialNormalized.notices);
+    const [notices, setNotices] = useSyncedState(initialNotices);
 
     const [addKey, setAddKey] = useState("");
     const [addValue, setAddValue] = useState("");
@@ -108,14 +128,22 @@ export default function MapInput(
         const pastedText = event.clipboardData.getData('text');
         if (!pastedText) return;
 
-        const parsed = parseMapString(pastedText);
-        if (parsed) {
+        const parsed = parseMapStringDetailed(pastedText, children[0], children[1]);
+        if (parsed.entries) {
             event.preventDefault();
             event.stopPropagation();
 
-            syncEntries(parsed);
+            syncEntries(parsed.entries);
+            return;
         }
-    }, [syncEntries]);
+
+        const hasStructuredInput = /[=:{}\n,]|[^\x20-\x7e]/.test(pastedText);
+        if (hasStructuredInput && parsed.error) {
+            event.preventDefault();
+            event.stopPropagation();
+            showDialog("Unable to parse pasted map", <>{parsed.error}</>);
+        }
+    }, [children, showDialog, syncEntries]);
 
     const warningText = notices.filter((notice) => notice.severity === "warning").map((notice) => notice.message).join(" ");
     const noteText = notices.filter((notice) => notice.severity === "note").map((notice) => notice.message).join(" ");

@@ -7,8 +7,24 @@ import {
   normalizeTimediffValue,
   parseTemporalInput,
 } from "@/lib/temporal";
+import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
+import FieldMessage from "./field/FieldMessage";
 
 const exampleCodeClass = "rounded bg-muted px-1 py-0.5 font-mono text-foreground";
+
+function parseTimediffControlValue(raw: string) {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) {
+    return acceptedParsedInput("");
+  }
+
+  const normalized = normalizeTimediffValue(trimmed, Date.now());
+  if (!normalized.displayValue || parseTemporalInput(trimmed, Date.now()).kind === "invalid") {
+    return rejectedParsedInput("", "Could not parse the time difference. Try 1w10h3m, 90m, -2h, in 2h, or timestamp:....");
+  }
+
+  return acceptedParsedInput(normalized.displayValue);
+}
 
 export default function TimeDiffInput({
   argName,
@@ -21,10 +37,8 @@ export default function TimeDiffInput({
   compact?: boolean;
   setOutputValue: (name: string, value: string) => void;
 }) {
-  const initialDisplayValue = useMemo(
-    () => normalizeTimediffValue(initialValue, Date.now()).displayValue,
-    [initialValue],
-  );
+  const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue, parseTimediffControlValue);
+  const initialDisplayValue = useMemo(() => initialResult.value, [initialResult.value]);
 
   const [value, setValue] = useSyncedState(initialDisplayValue);
 
@@ -42,9 +56,10 @@ export default function TimeDiffInput({
 
   const handleChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
+    clearParseError();
     setValue(raw);
     setOutputValue(argName, normalizeTimediffValue(raw, Date.now()).outputValue);
-  }, [argName, setOutputValue, setValue]);
+  }, [argName, clearParseError, setOutputValue, setValue]);
 
   const handleBlur = useCallback(() => {
     const next = normalizeTimediffValue(value, Date.now());
@@ -57,17 +72,15 @@ export default function TimeDiffInput({
   }, [argName, setOutputValue, value, setValue]);
 
   const handlePaste = useCallback((e: ClipboardEvent<HTMLInputElement>) => {
-    const pasted = e.clipboardData.getData("text");
-    const next = normalizeTimediffValue(pasted, Date.now());
-
-    if (!next.displayValue) {
-      return;
-    }
-
-    e.preventDefault();
-    setValue(next.displayValue);
-    setOutputValue(argName, next.outputValue);
-  }, [argName, setOutputValue, setValue]);
+    handleParsedInputPaste(e, {
+      parse: parseTimediffControlValue,
+      applyParsedResult,
+      onAccept: (displayValue) => {
+        setValue(displayValue);
+        setOutputValue(argName, normalizeTimediffValue(displayValue, Date.now()).outputValue);
+      },
+    });
+  }, [applyParsedResult, argName, setOutputValue, setValue]);
 
   return (
     <div className="w-full">
@@ -120,6 +133,7 @@ export default function TimeDiffInput({
           )}
         </div>
       )}
+      <FieldMessage error={!hasError ? parseError : undefined} compact={compact} />
     </div>
   );
 }

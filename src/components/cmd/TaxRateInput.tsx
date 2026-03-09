@@ -1,7 +1,25 @@
 import { useSyncedStateFunc } from "@/utils/StateUtil";
 import { useCallback } from "react";
 import NumberPairInput from "./composite/NumberPairInput";
-import { getPastedText } from "./pasteUtils";
+import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
+import FieldMessage from "./field/FieldMessage";
+
+function parseTaxRateInput(raw: string) {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+        return acceptedParsedInput<[number | null, number | null]>([null, null]);
+    }
+
+    const matched = trimmed.match(/^(\d+)\/(\d+)$/);
+    if (!matched) {
+        return rejectedParsedInput<[number | null, number | null]>([null, null], "Expected a tax rate like 100/100.");
+    }
+
+    return acceptedParsedInput<[number | null, number | null]>([
+        parseInt(matched[1], 10),
+        parseInt(matched[2], 10),
+    ]);
+}
 
 export default function TaxRateInput(
     {argName, initialValue, setOutputValue, compact}:
@@ -12,51 +30,47 @@ export default function TaxRateInput(
         setOutputValue: (name: string, value: string) => void
     }
 ) {
-    const [value, setValue] = useSyncedStateFunc<[number | null, number | null]>(initialValue, (initial) => {
-        const result: [number | null, number | null] = [null, null];
-        if (initial && initial.match(/^\d+\/\d+$/)) {
-            const split = initial.split('/');
-            result[0] = parseInt(split[0], 10);
-            result[1] = parseInt(split[1], 10);
-        }
-        return result;
-    });
+    const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue, parseTaxRateInput);
+    const [value, setValue] = useSyncedStateFunc<[number | null, number | null]>(initialValue, () => initialResult.value);
     
     const moneyRate = useCallback((_name: string, t: string) => {
         const money = t ? parseInt(t, 10) : null;
         const next: [number | null, number | null] = [money, value[1]];
+        clearParseError();
         setValue(next);
         if (next[0] == null || next[1] == null) {
             setOutputValue(argName, "");
             return;
         }
         setOutputValue(argName, `${next[0]}/${next[1]}`);
-    }, [argName, setOutputValue, setValue, value]);
+    }, [argName, clearParseError, setOutputValue, setValue, value]);
 
     const rssRate = useCallback((_name: string, t: string) => {
         const rss = t ? parseInt(t, 10) : null;
         const next: [number | null, number | null] = [value[0], rss];
+        clearParseError();
         setValue(next);
         if (next[0] == null || next[1] == null) {
             setOutputValue(argName, "");
             return;
         }
         setOutputValue(argName, `${next[0]}/${next[1]}`);
-    }, [argName, setOutputValue, setValue, value]);
+    }, [argName, clearParseError, setOutputValue, setValue, value]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
-        const pastedText = getPastedText(event).trim();
-        if (!pastedText) return;
-
-        const matched = pastedText.match(/^(\d+)\/(\d+)$/);
-        if (!matched) return;
-
-        const next: [number, number] = [parseInt(matched[1], 10), parseInt(matched[2], 10)];
-        event.preventDefault();
-        event.stopPropagation();
-        setValue(next);
-        setOutputValue(argName, `${next[0]}/${next[1]}`);
-    }, [argName, setOutputValue, setValue]);
+        handleParsedInputPaste(event, {
+            parse: parseTaxRateInput,
+            applyParsedResult,
+            onAccept: (next) => {
+                setValue(next);
+                if (next[0] == null || next[1] == null) {
+                    setOutputValue(argName, "");
+                    return;
+                }
+                setOutputValue(argName, `${next[0]}/${next[1]}`);
+            },
+        });
+    }, [applyParsedResult, argName, setOutputValue, setValue]);
 
     return <div onPasteCapture={handlePasteCapture}><NumberPairInput
         argName={argName}
@@ -65,5 +79,5 @@ export default function TaxRateInput(
         compact={compact}
         left={{ min: 0, max: 100, onChange: moneyRate }}
         right={{ min: 0, max: 100, onChange: rssRate }}
-    /></div>;
+    /><FieldMessage error={parseError} compact={compact} /></div>;
 }

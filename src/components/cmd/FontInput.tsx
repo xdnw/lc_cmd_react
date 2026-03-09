@@ -3,6 +3,8 @@ import { Button } from "../ui/button";
 import { useSyncedStateFunc } from "@/utils/StateUtil";
 import ListComponent from "./ListComponent";
 import { resolveOptionMatch } from "./selectValueUtils";
+import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
+import FieldMessage from "./field/FieldMessage";
 
 type FontState = {
     base: string;
@@ -58,6 +60,25 @@ function parseFontValue(input: string, options: string[]): FontState {
     };
 }
 
+function parseFontControlValue(input: string, options: string[]) {
+    const trimmed = (input || "").trim();
+    const parsed = parseFontValue(trimmed, options);
+    if (!trimmed) {
+        return acceptedParsedInput(parsed);
+    }
+    if (!parsed.base) {
+        return rejectedParsedInput(parsed, "Expected a known font name, optionally followed by bold and/or italic.");
+    }
+
+    const labelled = options.map((value) => ({ label: value, value }));
+    const matched = resolveOptionMatch(parsed.base, labelled);
+    if (!matched.option) {
+        return rejectedParsedInput(parsed, `Unknown font \"${parsed.base}\".`);
+    }
+
+    return acceptedParsedInput({ ...parsed, base: matched.option.value });
+}
+
 export default function FontInput({
     argName,
     initialValue,
@@ -69,15 +90,18 @@ export default function FontInput({
     options: string[];
     setOutputValue: (name: string, value: string) => void;
 }) {
-    const [state, setState] = useSyncedStateFunc<FontState>(initialValue, (initial) => parseFontValue(initial, options));
+    const parseControlValue = useCallback((input: string) => parseFontControlValue(input, options), [options]);
+    const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue, parseControlValue);
+    const [state, setState] = useSyncedStateFunc<FontState>(initialValue, () => initialResult.value);
 
     const updateState = useCallback((updater: (current: FontState) => FontState) => {
         setState((current) => {
             const next = updater(current);
+            clearParseError();
             setOutputValue(argName, formatFontValue(next));
             return next;
         });
-    }, [argName, setOutputValue, setState]);
+    }, [argName, clearParseError, setOutputValue, setState]);
 
     const setBase = useCallback((_name: string, value: string) => {
         updateState((current) => ({ ...current, base: value }));
@@ -92,22 +116,15 @@ export default function FontInput({
     }, [updateState]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
-        const pastedText = event.clipboardData.getData("text/plain") || event.clipboardData.getData("text");
-        if (!pastedText?.trim()) return;
-
-        const parsed = parseFontValue(pastedText, options);
-        if (!parsed.base) return;
-
-        const labelled = options.map((value) => ({ label: value, value }));
-        const matched = resolveOptionMatch(parsed.base, labelled);
-        if (!matched.option) return;
-
-        const next = { ...parsed, base: matched.option.value };
-        event.preventDefault();
-        event.stopPropagation();
-        setState(next);
-        setOutputValue(argName, formatFontValue(next));
-    }, [argName, options, setOutputValue, setState]);
+        handleParsedInputPaste(event, {
+            parse: parseControlValue,
+            applyParsedResult,
+            onAccept: (next) => {
+                setState(next);
+                setOutputValue(argName, formatFontValue(next));
+            },
+        });
+    }, [applyParsedResult, argName, parseControlValue, setOutputValue, setState]);
 
     return (
         <div className="flex flex-col gap-2" onPasteCapture={handlePasteCapture}>
@@ -123,6 +140,7 @@ export default function FontInput({
                 <Button type="button" size="sm" variant={state.italic ? "default" : "outline"} aria-pressed={state.italic} onClick={toggleItalic}><span className="italic">I</span></Button>
                 <span className="text-xs text-muted-foreground">{formatFontValue(state) || "No font selected"}</span>
             </div>
+            <FieldMessage error={parseError} />
         </div>
     );
 }

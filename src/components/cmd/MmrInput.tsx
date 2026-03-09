@@ -1,8 +1,27 @@
 import { useSyncedState } from "@/utils/StateUtil";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../ui/input-otp";
 import { useCallback } from "react";
-import { getPastedText } from "./pasteUtils";
 import { normalizeMmrValue } from "./scalarInputNormalization";
+import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
+import FieldMessage from "./field/FieldMessage";
+
+function parseMmrControlValue(input: string, allowWildcard: boolean) {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return acceptedParsedInput("");
+  }
+
+  const normalized = normalizeMmrValue(trimmed, allowWildcard);
+  if (!normalized) {
+    return rejectedParsedInput("", `Expected a 4-slot MMR using digits${allowWildcard ? " or X" : ""}.`);
+  }
+
+  if (normalized.length < 4) {
+    return acceptedParsedInput(normalized, `MMR must have 4 slots; currently ${normalized.length}.`);
+  }
+
+  return acceptedParsedInput(normalized);
+}
 
 export default function MmrInput(
     {argName, allowWildcard, initialValue, setOutputValue, compact}:
@@ -14,25 +33,28 @@ export default function MmrInput(
         setOutputValue: (name: string, value: string) => void
     }
 ) {
-    const [value, setValue] = useSyncedState<string>(normalizeMmrValue(initialValue || "", allowWildcard));
+    const parseValue = useCallback((input: string) => parseMmrControlValue(input, allowWildcard), [allowWildcard]);
+    const { initialResult, parseError, applyParsedResult } = useParsedInputFeedback(initialValue || "", parseValue);
+    const [value, setValue] = useSyncedState<string>(initialResult.value);
 
     const onChange = useCallback((newValue: string) => {
-      const normalized = normalizeMmrValue(newValue, allowWildcard);
-      setValue(normalized)
-      setOutputValue(argName, normalized.length === 4 ? normalized : "");
-    }, [allowWildcard, setValue, argName, setOutputValue]);
+      const parsed = parseMmrControlValue(newValue, allowWildcard);
+      applyParsedResult(parsed, (normalized) => {
+        setValue(normalized);
+        setOutputValue(argName, normalized.length === 4 ? normalized : "");
+      });
+    }, [allowWildcard, applyParsedResult, setValue, argName, setOutputValue]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
-      const pastedText = getPastedText(event);
-      if (!pastedText.trim()) return;
-
-      const normalized = normalizeMmrValue(pastedText, allowWildcard);
-      if (!normalized) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      onChange(normalized);
-    }, [allowWildcard, onChange]);
+      handleParsedInputPaste(event, {
+        parse: parseValue,
+        applyParsedResult,
+        onAccept: (normalized) => {
+          setValue(normalized);
+          setOutputValue(argName, normalized.length === 4 ? normalized : "");
+        },
+      });
+    }, [applyParsedResult, argName, parseValue, setOutputValue, setValue]);
 
     return (
         <div onPasteCapture={handlePasteCapture}>
@@ -49,6 +71,7 @@ export default function MmrInput(
               <InputOTPSlot index={3} className={compact ? "h-7 w-7 text-xs" : ""} />
             </InputOTPGroup>
           </InputOTP>
+          <FieldMessage error={parseError} compact={compact} />
         </div>
       )
 }

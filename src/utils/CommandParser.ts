@@ -1,10 +1,27 @@
 import { Argument, BaseCommand } from "./Command";
 
+export type CommandParseResult = {
+    values: { [key: string]: string } | null;
+    error?: string;
+};
+
 export function parseCommandString(
     command: BaseCommand,
     input: string
 ): { [key: string]: string } | null {
+    return parseCommandStringDetailed(command, input).values;
+}
+
+export function parseCommandStringDetailed(
+    command: BaseCommand,
+    input: string,
+): CommandParseResult {
     let text = input.trim();
+    if (!text) {
+        return {
+            values: null,
+        };
+    }
 
     // Check if it starts with the command name (with or without slash)
     const cmdName = command.name;
@@ -29,6 +46,7 @@ export function parseCommandString(
 
     const args = command.getArguments();
     const result: { [key: string]: string } = {};
+    const unknownNamedArgs = new Set<string>();
 
     // Regex to match `key:value`, `key=value`, `key: "value"`, `key: value`, `"value"`, `value`
     const tokenRegex = /(?:([a-zA-Z0-9_]+)\s*[:=]\s*)?(?:"([^"]*)"|'([^']*)'|([^\s]+))/g;
@@ -51,6 +69,9 @@ export function parseCommandString(
                 result[arg.name] = value;
                 parsedCount++;
                 hasNamedArgs = true;
+            } else {
+                hasNamedArgs = true;
+                unknownNamedArgs.add(key);
             }
         } else {
             // Positional argument
@@ -67,10 +88,33 @@ export function parseCommandString(
     // or if it has named arguments.
     // Otherwise, it's likely just a single value pasted into an input.
     if (parsedCount > 0 && (matchedPrefix || hasNamedArgs)) {
-        return result;
+        if (unknownNamedArgs.size > 0) {
+            return {
+                values: null,
+                error: `Unrecognized argument name(s): ${Array.from(unknownNamedArgs).join(", ")}.`,
+            };
+        }
+        return {
+            values: result,
+        };
     }
 
-    return null;
+    if (matchedPrefix || hasNamedArgs) {
+        if (unknownNamedArgs.size > 0) {
+            return {
+                values: null,
+                error: `Unrecognized argument name(s): ${Array.from(unknownNamedArgs).join(", ")}.`,
+            };
+        }
+        return {
+            values: null,
+            error: "Input looked like a command, but no arguments were parsed. Use key:value pairs or a valid positional argument order.",
+        };
+    }
+
+    return {
+        values: null,
+    };
 }
 
 export function formatCommandString(name: string, output: Record<string, string | string[]>): string {

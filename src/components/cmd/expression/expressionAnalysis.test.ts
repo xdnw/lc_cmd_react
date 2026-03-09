@@ -70,6 +70,85 @@ describe("expressionAnalysis", () => {
         expect(analysis.hint?.detail).toContain("Type to match Nation options");
     });
 
+    it("uses backend option sources for bare root tokens that are not partial selectors", () => {
+        const descriptor = getPlaceholderExpressionDescriptor(getTypeBreakdown(CM, "Set<DBNation>"));
+        expect(descriptor).not.toBeNull();
+
+        const context = parseExpressionCursorContext(descriptor!, "Bo", "Bo".length);
+
+        expect(context.activeToken).toBe("Bo");
+        expect(context.activeSourceRef).toEqual(expect.objectContaining({ kind: "query-options", typeName: "DBNation" }));
+    });
+
+    it("keeps partial selector prefixes on placeholder completion instead of forcing option search", () => {
+        const descriptor = getPlaceholderExpressionDescriptor(getTypeBreakdown(CM, "Set<DBNation>"));
+        expect(descriptor).not.toBeNull();
+
+        const context = parseExpressionCursorContext(descriptor!, "nat", "nat".length);
+
+        expect(context.activeSourceRef).toEqual(expect.objectContaining({ kind: "placeholder", typeName: "DBNation" }));
+    });
+
+    it("suggests backend-backed options for bare root token prefixes", () => {
+        const optionSource = getExpressionCompletionSourceRefs("DBNation").find((source) => source.kind === "query-options");
+        expect(optionSource).toBeDefined();
+
+        const analysis = analyzeWithRegistry(
+            "Set<DBNation>",
+            "Bo",
+            "Bo".length,
+            {
+                [optionSource!.cacheKey]: {
+                    status: "ready",
+                    sourceKind: "query-options",
+                    typeLabel: "Nation",
+                    options: [
+                        { label: "Borg", value: "Borg", aliases: ["189573"] },
+                        { label: "Rose", value: "Rose" },
+                    ],
+                },
+                "placeholder:DBNation": {
+                    status: "ready",
+                    sourceKind: "placeholder",
+                    typeLabel: "Nation",
+                    options: [],
+                },
+            },
+        );
+
+        expect(analysis.suggestions.map((suggestion) => suggestion.insertText)).toContain("Borg");
+    });
+
+    it("allows single-character lazy query searches for selector-prefixed values", () => {
+        const optionSource = getExpressionCompletionSourceRefs("DBNation").find((source) => source.kind === "query-options");
+        expect(optionSource).toBeDefined();
+
+        const analysis = analyzeWithRegistry(
+            "Set<DBNation>",
+            "nation:b",
+            "nation:b".length,
+            {
+                [optionSource!.cacheKey]: {
+                    status: "ready",
+                    sourceKind: "query-options",
+                    typeLabel: "Nation",
+                    options: [],
+                    optionCount: 14988,
+                    workerDatasetId: optionSource!.cacheKey,
+                },
+                "placeholder:DBNation": {
+                    status: "ready",
+                    sourceKind: "placeholder",
+                    typeLabel: "Nation",
+                    options: [],
+                },
+            },
+        );
+
+        expect(analysis.lazyOptionSource?.token).toBe("b");
+        expect(analysis.lazyOptionSource?.minQueryLength).toBe(1);
+    });
+
     it("recognizes exact selector-prefixed option matches", () => {
         const optionSource = getExpressionCompletionSourceRefs("DBNation").find((source) => source.kind === "query-options");
         expect(optionSource).toBeDefined();

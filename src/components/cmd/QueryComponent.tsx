@@ -1,15 +1,11 @@
 import ListComponent from "./ListComponent";
-import {INPUT_OPTIONS} from "@/lib/endpoints";
-import {WebOptions} from "../../lib/apitypes";
-import { useMemo } from "react";
-import EndpointWrapper from "../api/bulkwrapper";
+import { INPUT_OPTIONS } from "@/lib/endpoints";
+import { WebOptions } from "../../lib/apitypes";
 import { useQueries } from "@tanstack/react-query";
 import { bulkQueryOptions } from "@/lib/queries";
 import {
     combineCompositeSourceResults,
-    resolveQueryOptionsPayload,
     toCompositeSourceResult,
-    type CompositeSourceResult,
 } from "./queryOptionUtils";
 
 type QueryNoticeTone = "error" | "warning";
@@ -44,27 +40,13 @@ export default function QueryComponent(
         setOutputValue: (name: string, value: string) => void
     }
 ) {
-    /*
-    endpoint,
-    args,
-    handle_error,
-    batch_wait_ms,
-    isPostOverride,
-    children,
-    */
-    return <EndpointWrapper endpoint={INPUT_OPTIONS} args={{type: element}} handle_error={console.error} batch_wait_ms={10}>
-        {({data: options}) => {
-            const resolved = resolveQueryOptionsPayload(element, options);
-            if (resolved.error) {
-                return <EmptyQueryOptions element={element} message={resolved.error} />;
-            }
-            if (resolved.options.length === 0) {
-                return <EmptyQueryOptions element={element} />;
-            }
-            return <ListComponent argName={argName} options={resolved.options} isMulti={multi} initialValue={initialValue}
-                                  setOutputValue={setOutputValue}/>
-        }}
-    </EndpointWrapper>
+    return <ResolvedQueryOptionsComponent
+        types={[element]}
+        multi={multi}
+        argName={argName}
+        initialValue={initialValue}
+        setOutputValue={setOutputValue}
+    />;
 }
 
 export function CompositeQueryComponent(
@@ -77,47 +59,47 @@ export function CompositeQueryComponent(
         setOutputValue: (name: string, value: string) => void
     }
 ) {
-    const queries = useQueries({
-        queries: composites.map(composite => (bulkQueryOptions<WebOptions>(
-            INPUT_OPTIONS.endpoint,
-            { type: composite },
-            false
-        )))
-    });
-
-    if (queries.some(query => query.isLoading)) {
-        return <div>Loading...</div>;
-    }
-
-    const results = composites.map((type, index) => toCompositeSourceResult(type, queries[index]));
-
-    return <CombinedCompositeComponent
-                results={results}
-                multi={multi}
-                argName={argName}
-                initialValue={initialValue}
-                setOutputValue={setOutputValue} />;
+    return <ResolvedQueryOptionsComponent
+        types={composites}
+        multi={multi}
+        argName={argName}
+        initialValue={initialValue}
+        setOutputValue={setOutputValue}
+    />;
 }
 
-
-function CombinedCompositeComponent(
-    {results, argName, multi, initialValue, setOutputValue}:
+function ResolvedQueryOptionsComponent(
+    {types, argName, multi, initialValue, setOutputValue}:
     {
-        results: CompositeSourceResult[],
+        types: string[],
         argName: string,
         multi: boolean,
         initialValue: string,
         setOutputValue: (name: string, value: string) => void
     }
 ) {
-    const combined = useMemo(() => combineCompositeSourceResults(results), [results]);
+    const queries = useQueries({
+        queries: types.map((type) => bulkQueryOptions<WebOptions>(
+            INPUT_OPTIONS.endpoint,
+            { type },
+            false,
+        )),
+    });
+
+    if (queries.some((query) => query.isLoading)) {
+        return <div>Loading...</div>;
+    }
+
+    const combined = combineCompositeSourceResults(
+        types.map((type, index) => toCompositeSourceResult(type, queries[index])),
+    );
 
     if (combined.blockingError) {
-        return <EmptyQueryOptions element="composite query" message={combined.blockingError} />;
+        return <EmptyQueryOptions element={types.length > 1 ? "composite query" : types[0]} message={combined.blockingError} />;
     }
 
     if (combined.options.length === 0) {
-        return <EmptyQueryOptions element="composite query" />;
+        return <EmptyQueryOptions element={types.length > 1 ? "composite query" : types[0]} />;
     }
 
     return (

@@ -175,6 +175,127 @@ describe("PlaceholderExpressionInput", () => {
     expect(textarea.value).toBe("nation:Borg");
   });
 
+  it("supports searching large suggestion sets without collapsing the panel", async () => {
+    const setOutputValue = vi.fn();
+    mockExpressionSources({
+      "placeholder:DBNation": {
+        status: "ready",
+        sourceKind: "placeholder",
+        typeLabel: "Nation",
+        options: [],
+      },
+      "query:DBNation": {
+        status: "ready",
+        sourceKind: "query-options",
+        typeLabel: "Nation",
+        options: Array.from({ length: 120 }, (_, index) => {
+          const value = `Nation ${String(index).padStart(3, "0")}`;
+          return { label: value, value };
+        }),
+      },
+    });
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="nation:"
+        setOutputValue={setOutputValue}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    const textarea = screen.getByRole("textbox", { name: "" }) as HTMLTextAreaElement;
+    await act(async () => {
+      fireEvent.focus(textarea);
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      fireEvent.select(textarea);
+    });
+
+    const searchInput = screen.getByRole("textbox", { name: "Search suggestions" });
+
+    await act(async () => {
+      fireEvent.focus(searchInput);
+      fireEvent.change(searchInput, { target: { value: "Nation 119" } });
+    });
+
+    expect(screen.getByText("1 / 120")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Nation 119/i }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(textarea.value).toBe("nation:Nation 119");
+    expect(setOutputValue).toHaveBeenLastCalledWith("value", "nation:Nation 119");
+  });
+
+  it("uses the panel search text as the worker fetch token for lazy query sources", async () => {
+    const setOutputValue = vi.fn();
+    const useExpressionValueSourcesSpy = vi.spyOn(expressionValueFetcher, "useExpressionValueSources");
+    useExpressionValueSourcesSpy.mockImplementation((requests, searchTokensByCacheKey = {}) => {
+      const querySource = requests.find((request) => request.kind === "query-options");
+      const placeholderSource = requests.find((request) => request.kind === "placeholder");
+
+      return {
+        ...(placeholderSource ? {
+          [placeholderSource.cacheKey]: {
+            status: "ready",
+            sourceKind: "placeholder",
+            typeLabel: "Nation",
+            options: [],
+          },
+        } : {}),
+        ...(querySource ? {
+          [querySource.cacheKey]: {
+            status: "ready",
+            sourceKind: "query-options",
+            typeLabel: "Nation",
+            options: searchTokensByCacheKey[querySource.cacheKey]
+              ? [{ label: searchTokensByCacheKey[querySource.cacheKey], value: searchTokensByCacheKey[querySource.cacheKey] }]
+              : [],
+            optionCount: 14988,
+            workerDatasetId: querySource.cacheKey,
+            hasAnyMatch: true,
+            hasExactMatch: false,
+          },
+        } : {}),
+      } satisfies ExpressionValueSourceRegistry;
+    });
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="nation:b"
+        setOutputValue={setOutputValue}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    const textarea = screen.getByRole("textbox", { name: "" }) as HTMLTextAreaElement;
+    await act(async () => {
+      fireEvent.focus(textarea);
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      fireEvent.select(textarea);
+    });
+
+    const searchInput = screen.getByRole("textbox", { name: "Search suggestions" });
+
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "Nation 119" } });
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(useExpressionValueSourcesSpy).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      { "query:DBNation": "Nation 119" },
+      true,
+    );
+    expect(screen.getByRole("button", { name: /Nation 119/i })).toBeTruthy();
+  });
+
   it("shows explicit invalid selector feedback instead of a generic valid hint", async () => {
     mockExpressionSources({
       "placeholder:DBNation": {

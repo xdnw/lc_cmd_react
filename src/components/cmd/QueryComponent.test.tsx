@@ -14,7 +14,7 @@ vi.mock("./ListComponent", () => ({
   default: (props: { options: Array<{ value: string; label: string }> }) => listComponentMock(props),
 }));
 
-import { CompositeQueryComponent } from "./QueryComponent";
+import QueryComponent, { CompositeQueryComponent } from "./QueryComponent";
 
 function makeWebOptions(values: Array<{ label: string; value: string }>) {
   return {
@@ -83,5 +83,31 @@ describe("CompositeQueryComponent", () => {
 
     expect(screen.getByRole("alert").textContent).toContain("DBNation: Nation lookup failed. | TaxBracket: TaxBracket requires a guild. Please select a guild.");
     expect(screen.queryByTestId("list-component")).toBeNull();
+  });
+
+  it("uses the same shared query path for a single query-backed input", () => {
+    useQueriesMock.mockReturnValue([
+      {
+        isLoading: false,
+        error: null,
+        data: {
+          data: makeWebOptions([{ label: "Borg", value: "189573" }]),
+        },
+      },
+    ]);
+
+    render(
+      <QueryComponent
+        element="DBNation"
+        multi={false}
+        argName="target"
+        initialValue=""
+        setOutputValue={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("list-component").textContent).toContain("options:189573");
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

@@ -13,16 +13,16 @@
       "render-error": 0
     },
     "defaultStatuses": {
-      "pass": 243,
-      "fail": 8,
+      "pass": 224,
+      "fail": 27,
       "unsupported": 7,
       "query-backed": 0,
       "uncheckable": 0,
       "render-error": 0
     },
     "pasteStatuses": {
-      "pass": 243,
-      "fail": 8,
+      "pass": 224,
+      "fail": 27,
       "unsupported": 7,
       "query-backed": 0,
       "uncheckable": 0,
@@ -102,14 +102,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (2) to user.",
-        "actualOutput": "user"
+        "status": "fail",
+        "detail": "Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (2) to user.",
-        "actualOutput": "user"
+        "status": "fail",
+        "detail": "Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild."
       }
     },
     {
@@ -124,14 +122,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (2) to message.",
-        "actualOutput": "message"
+        "status": "fail",
+        "detail": "Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (2) to message.",
-        "actualOutput": "message"
+        "status": "fail",
+        "detail": "Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild."
       }
     },
     {
@@ -790,14 +786,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (4) to 23212.",
-        "actualOutput": "23212"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (4) to 23212.",
-        "actualOutput": "23212"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild."
       }
     },
     {
@@ -812,14 +806,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (4) to 23211.",
-        "actualOutput": "23211"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (4) to 23211.",
-        "actualOutput": "23211"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild."
       }
     },
     {
@@ -1403,11 +1395,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend returned 0 options for GrantRequest."
+        "detail": "Backend request failed for GrantRequest: GrantRequest requires a guild. Please select a guild."
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend returned 0 options for GrantRequest."
+        "detail": "Backend request failed for GrantRequest: GrantRequest requires a guild. Please select a guild."
       }
     },
     {
@@ -2008,12 +2000,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d9h37m52s)."
+        "detail": "Default produced a normalized timediff value (1w1d10h9m2s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:725872051).",
-        "actualOutput": "timediff:725872051"
+        "detail": "Paste emitted a timediff value (timediff:727742042).",
+        "actualOutput": "timediff:727742042"
       }
     },
     {
@@ -2028,12 +2020,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d9h37m52s)."
+        "detail": "Default produced a normalized timediff value (1w1d10h9m2s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:725872054).",
-        "actualOutput": "timediff:725872054"
+        "detail": "Paste emitted a timediff value (timediff:727742046).",
+        "actualOutput": "timediff:727742046"
       }
     },
     {
@@ -2108,12 +2100,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d9h37m52s)."
+        "detail": "Default produced a normalized timediff value (1w1d10h9m2s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:725872065).",
-        "actualOutput": "timediff:725872065"
+        "detail": "Paste emitted a timediff value (timediff:727742061).",
+        "actualOutput": "timediff:727742061"
       }
     },
     {
@@ -2128,12 +2120,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w1d9h37m52s)."
+        "detail": "Default produced a normalized timediff value (1w1d10h9m2s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:725872067).",
-        "actualOutput": "timediff:725872067"
+        "detail": "Paste emitted a timediff value (timediff:727742064).",
+        "actualOutput": "timediff:727742064"
       }
     },
     {
@@ -2168,12 +2160,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-09T09:37:52.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-09T10:09:02.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773009472079).",
-        "actualOutput": "timestamp:1773009472079"
+        "detail": "Paste emitted a timestamp value (timestamp:1773011342082).",
+        "actualOutput": "timestamp:1773011342082"
       }
     },
     {
@@ -2188,12 +2180,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-04T09:37:52.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-04T10:09:02.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772577472082).",
-        "actualOutput": "timestamp:1772577472082"
+        "detail": "Paste emitted a timestamp value (timestamp:1772579342087).",
+        "actualOutput": "timestamp:1772579342087"
       }
     },
     {
@@ -2288,12 +2280,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-09T09:37:52.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-09T10:09:02.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773009472096).",
-        "actualOutput": "timestamp:1773009472096"
+        "detail": "Paste emitted a timestamp value (timestamp:1773011342103).",
+        "actualOutput": "timestamp:1773011342103"
       }
     },
     {
@@ -2308,12 +2300,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-04T09:37:52.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-04T10:09:02.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772577472099).",
-        "actualOutput": "timestamp:1772577472099"
+        "detail": "Paste emitted a timestamp value (timestamp:1772579342107).",
+        "actualOutput": "timestamp:1772579342107"
       }
     },
     {
@@ -2689,13 +2681,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"@xdnw\". Unmatched: @xdnw. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"@xdnw\". Unmatched: @xdnw. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
       }
     },
     {
@@ -2711,13 +2701,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"borg\". Unmatched: borg. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"borg\". Unmatched: borg. Backend options (39): canucks357 [606302056130543617], DrRush [217897994375266304], Betta [274617913833684992], Uriah 'the Fox' [811064734400118804], His Holy Decagon [265629298231214081], MinesomeMC [264234472432599070], Wouves (Wou) [1077771500121247774], test [664156861033086987], larzarisn [439423996040183839], Locutus-Backup [1163319252711903232] ... (+29 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
       }
     },
     {
@@ -3165,12 +3153,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (15548) to 189573.",
+        "detail": "Resolved against backend options (15547) to 189573. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "189573"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (15548) to 189573.",
+        "detail": "Resolved against backend options (15547) to 189573. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "189573"
       }
     },
@@ -3187,12 +3175,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (15548) to AA:11657.",
+        "detail": "Resolved against backend options (15547) to AA:11657. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "AA:11657"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (15548) to AA:11657.",
+        "detail": "Resolved against backend options (15547) to AA:11657. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "AA:11657"
       }
     },
@@ -3209,12 +3197,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (15548) to 672217848311054346.",
+        "detail": "Resolved against backend options (15547) to 672217848311054346. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "672217848311054346"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (15548) to 672217848311054346.",
+        "detail": "Resolved against backend options (15547) to 672217848311054346. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "672217848311054346"
       }
     },
@@ -3230,14 +3218,14 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15548) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "No backend match for \"tax_id=26171\". Unmatched: tax_id=26171. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "actualOutput": ""
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15548) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "No backend match for \"tax_id=26171\". Unmatched: tax_id=26171. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "actualOutput": ""
       }
     },
     {
@@ -3252,14 +3240,14 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15548) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "No backend match for \"https://politicsandwar.com/index.php?id=15&tax_id=26171\". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "actualOutput": ""
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15548) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "No backend match for \"https://politicsandwar.com/index.php?id=15&tax_id=26171\". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "actualOutput": ""
       }
     },
     {
@@ -3755,14 +3743,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (34) to 672263980193939469.",
-        "actualOutput": "672263980193939469"
+        "status": "fail",
+        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (34) to 672263980193939469.",
-        "actualOutput": "672263980193939469"
+        "status": "fail",
+        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
       }
     },
     {
@@ -3777,14 +3763,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (34) to 672263980193939469.",
-        "actualOutput": "672263980193939469"
+        "status": "fail",
+        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (34) to 672263980193939469.",
-        "actualOutput": "672263980193939469"
+        "status": "fail",
+        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
       }
     },
     {
@@ -3799,14 +3783,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (34) to 672263980193939469.",
-        "actualOutput": "672263980193939469"
+        "status": "fail",
+        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (34) to 672263980193939469.",
-        "actualOutput": "672263980193939469"
+        "status": "fail",
+        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
       }
     },
     {
@@ -3882,11 +3864,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend returned 0 options for SelectionAlias."
+        "detail": "Backend request failed for SelectionAlias: SelectionAlias requires a guild. Please select a guild."
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend returned 0 options for SelectionAlias."
+        "detail": "Backend request failed for SelectionAlias: SelectionAlias requires a guild. Please select a guild."
       }
     },
     {
@@ -4041,14 +4023,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (8) to 1392872928533680279,844421965435240458,672301305129336844.",
-        "actualOutput": "1392872928533680279,844421965435240458,672301305129336844"
+        "status": "fail",
+        "detail": "Backend request failed for Category: Category requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (8) to 1392872928533680279,844421965435240458,672301305129336844.",
-        "actualOutput": "1392872928533680279,844421965435240458,672301305129336844"
+        "status": "fail",
+        "detail": "Backend request failed for Category: Category requires a guild. Please select a guild."
       }
     },
     {
@@ -4223,14 +4203,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (39) to 606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344.",
-        "actualOutput": "606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344"
+        "status": "fail",
+        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (39) to 606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344.",
-        "actualOutput": "606302056130543617,217897994375266304,274617913833684992,811064734400118804,265629298231214081,264234472432599070,1077771500121247774,664156861033086987,439423996040183839,1163319252711903232,1283157592771657858,614161987462496288,672237266940198960,202523678078926858,783735828722483230,155149108183695360,247974380305514496,228928965845188608,257025941103050752,827607573024604210,249210957543374848,292953664492929025,662530594806300672,416682395870167042,460821518671282207,669676912737648664,770284720297607228,338281321967255552,949151508702826496,926181944197279825,412094842148093963,698211044652351488,455910542301724672,180127698159534081,1475810087502348318,577899610228654081,367796415885475840,212911465248718848,470903195644985344"
+        "status": "fail",
+        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
       }
     },
     {
@@ -4327,14 +4305,14 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15548) to 189573,AA:11657,672217848311054346,26171.",
-        "actualOutput": "189573,AA:11657,672217848311054346,26171"
+        "status": "fail",
+        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=26171\". Unmatched: tax_id=26171. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "actualOutput": "189573,AA:11657,672217848311054346"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15548) to 189573,AA:11657,672217848311054346,26171.",
-        "actualOutput": "189573,AA:11657,672217848311054346,26171"
+        "status": "fail",
+        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=26171\". Unmatched: tax_id=26171. Backend options (15547): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Jordandia [572139], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836], united republic of ved [743238], Soonermania [330328], Big Chungus [740602] ... (+15537 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "actualOutput": "189573,AA:11657,672217848311054346"
       }
     },
     {
@@ -4489,14 +4467,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (34) to 672263980193939469,672264309744599041.",
-        "actualOutput": "672263980193939469,672264309744599041"
+        "status": "fail",
+        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (34) to 672263980193939469,672264309744599041.",
-        "actualOutput": "672263980193939469,672264309744599041"
+        "status": "fail",
+        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
       }
     },
     {
@@ -4831,14 +4807,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (1) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (1) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
       }
     },
     {
@@ -4853,14 +4827,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (1) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (1) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
       }
     },
     {
@@ -4875,14 +4847,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (1) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (1) to 26171.",
-        "actualOutput": "26171"
+        "status": "fail",
+        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
       }
     },
     {
@@ -4937,14 +4907,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (39) to 672310912090243092.",
-        "actualOutput": "672310912090243092"
+        "status": "fail",
+        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (39) to 672310912090243092.",
-        "actualOutput": "672310912090243092"
+        "status": "fail",
+        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
       }
     },
     {
@@ -4959,14 +4927,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (39) to 672310912090243092.",
-        "actualOutput": "672310912090243092"
+        "status": "fail",
+        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (39) to 672310912090243092.",
-        "actualOutput": "672310912090243092"
+        "status": "fail",
+        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
       }
     },
     {
@@ -4981,14 +4947,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (39) to 672310912090243092.",
-        "actualOutput": "672310912090243092"
+        "status": "fail",
+        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (39) to 672310912090243092.",
-        "actualOutput": "672310912090243092"
+        "status": "fail",
+        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
       }
     },
     {

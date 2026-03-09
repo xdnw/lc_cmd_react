@@ -18,6 +18,8 @@ import { COMMANDS } from '@/lib/commands';
 import type { CommandInputDisplayMode } from '@/components/cmd/field/fieldTypes';
 import type { ShowDialogFn } from '@/lib/dialog';
 import { formatCommandString } from '@/utils/CommandParser';
+import { useStoreWithEqualityFn } from 'zustand/traditional';
+import { deepEqual } from '@/lib/utils';
 
 export default function CommandPage() {
     const { command } = useParams();
@@ -303,7 +305,8 @@ export function RenderResponse({ jsonArr, showDialog }: {
 }
 
 export function OutputValuesDisplay({ name, store }: { name: string, store: CommandStoreType }) {
-    const output = store((state) => state.output);
+    const output = useStoreWithEqualityFn(store, (state) => state.output, deepEqual);
+    const deferredOutput = React.useDeferredValue(output);
     const textRef = useRef<HTMLParagraphElement>(null);
     const responseRef = useRef<HTMLDivElement>(null);
     const { showDialog } = useDialog();
@@ -329,11 +332,11 @@ export function OutputValuesDisplay({ name, store }: { name: string, store: Comm
         }
     }, [responseRef]);
 
-    const commandString = useMemo(() => formatCommandString(name, output), [name, output]);
+    const commandString = useMemo(() => formatCommandString(name, deferredOutput), [name, deferredOutput]);
 
     const getText = useCallback(() => {
-        return commandString;
-    }, [commandString]);
+        return formatCommandString(name, store.getState().output);
+    }, [name, store]);
 
     return (
         <div className="relative">

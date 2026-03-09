@@ -192,6 +192,35 @@ export function filterSelectOptions(prefix: string, options: SelectOption[]): Se
     });
 }
 
+export function findFirstFilteredOption(prefix: string, options: SelectOption[]): SelectOption | null {
+    const normalizedPrefix = normalizeSelectToken(prefix);
+    const comparablePrefix = stripOptionalSelectPrefixes(normalizedPrefix);
+    const candidates = Array.from(new Set([
+        normalizedPrefix,
+        comparablePrefix,
+        ...extractAdditionalCandidates(normalizedPrefix),
+        ...extractAdditionalCandidates(comparablePrefix),
+    ].filter(Boolean)));
+
+    if (candidates.length === 0) {
+        return options[0] ?? null;
+    }
+
+    for (const option of options) {
+        const haystacks = [
+            option.value,
+            option.label,
+            ...(option.aliases ?? []),
+        ].filter(Boolean);
+
+        if (candidates.some((candidate) => haystacks.some((haystack) => matchesPrefix(haystack, candidate)))) {
+            return option;
+        }
+    }
+
+    return null;
+}
+
 export function resolveOptionForToken(token: string, options: SelectOption[]): SelectOption {
     const result = resolveOptionMatch(token, options);
     if (!result.normalizedToken) {

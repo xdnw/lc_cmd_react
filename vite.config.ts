@@ -53,7 +53,8 @@ export default defineConfig(({ mode }) => {
       return [key, JSON.stringify(value)];
     })
   );
-  processedEnvConfig['global'] = 'window';
+  // Workers do not have `window`, but `globalThis` is valid in both page and worker contexts.
+  processedEnvConfig['global'] = 'globalThis';
 
   // Define base plugins
   const plugins = [

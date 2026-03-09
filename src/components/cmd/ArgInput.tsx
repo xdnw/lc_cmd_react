@@ -16,7 +16,6 @@ import SetInput from "./SetInput";
 import TriStateInput from "./TriStateInput";
 import QueryComponent, { CompositeQueryComponent } from "./QueryComponent";
 import CustomConditionMessageInput from "./CustomConditionMessageInput";
-import {REGEX_PATTERN} from "../../lib/regex-patterns";
 import {useMemo, memo} from "react";
 import TypedInput from "./TypedInput";
 import PlaceholderExpressionInput from "@/components/cmd/PlaceholderExpressionInput";
@@ -59,6 +58,7 @@ export function getArgInputComponentName(breakdown: TypeBreakdown): ComponentRes
 function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps & { compact: boolean }): React.ReactElement {
   const { argName, breakdown, min, max, initialValue, setOutputValue, displayMode, compact } = props;
   const options = resolution.optionData;
+  const textInputConfig = resolution.textInputConfig;
 
   switch (resolution.kind) {
     case "font-options":
@@ -73,28 +73,35 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
         argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
 
     case "typed-placeholder":
+      if (!resolution.typedPlaceholderConfig) {
+        return <UnknownType breakdown={breakdown} argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
+      }
       return <TypedInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        placeholder={breakdown.child![0].element as keyof typeof COMMANDS.placeholders}
-        type={breakdown.child![1].element} compact={compact} />;
+        placeholder={resolution.typedPlaceholderConfig.placeholderName as keyof typeof COMMANDS.placeholders}
+        type={resolution.typedPlaceholderConfig.valueType} compact={compact} />;
 
     case "placeholder-expression":
       return <PlaceholderExpressionInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
         breakdown={breakdown} compact={compact} />;
 
     case "placeholder-string":
+    case "integer-list":
+    case "spreadsheet":
+    case "google-doc":
+    case "dbwar":
+    case "dbcity":
+    case "message":
+    case "uuid":
+    case "string":
       return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        compact={compact} placeholder={breakdown.element} />;
+        filter={textInputConfig?.filter} filterHelp={textInputConfig?.filterHelp}
+        compact={compact} placeholder={textInputConfig?.placeholder} />;
 
     case "wysiwyg":
       return <HtmlEditor argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
 
     case "textarea":
       return <TextComponent argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
-
-    case "integer-list":
-      return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        filter={REGEX_PATTERN.NUMBER_LIST} filterHelp="a comma separated list of numbers"
-        compact={compact} placeholder={breakdown.element} />;
 
     case "placeholder-class":
       return <ListComponentBreakdown breakdown={breakdown} argName={argName} isMulti={false}
@@ -109,7 +116,7 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
         argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
 
     case "boolean":
-      if (breakdown.element === "Boolean") {
+      if (resolution.booleanMode === "tri-state") {
         return <TriStateInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
       }
       return <BooleanInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
@@ -130,52 +137,18 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
     case "number":
       return <NumberInput argName={argName} min={min ?? undefined} max={max ?? undefined}
         initialValue={initialValue} setOutputValue={setOutputValue}
-        isFloat={breakdown.element.toLowerCase() === "double" || breakdown.element.toLowerCase() === "number"}
+        isFloat={resolution.numberIsFloat ?? false}
         className={compact ? "h-8 text-xs" : undefined} placeholder={breakdown.element} />;
-
-    case "spreadsheet":
-      return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        filter={REGEX_PATTERN.SPREADSHEET} filterHelp="a link to a google sheet"
-        compact={compact} placeholder={breakdown.element} />;
-
-    case "google-doc":
-      return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        filter={REGEX_PATTERN.GOOGLE_DOC} filterHelp="a link to a google document"
-        compact={compact} placeholder={breakdown.element} />;
-
-    case "dbwar":
-      return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        filter={REGEX_PATTERN.WAR} filterHelp="a war timeline url"
-        compact={compact} placeholder={breakdown.element} />;
-
-    case "dbcity":
-      return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        filter={REGEX_PATTERN.CITY} filterHelp="a city url"
-        compact={compact} placeholder={breakdown.element} />;
-
-    case "message":
-      return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        filter={REGEX_PATTERN.CHANNEL} filterHelp="a discord message url"
-        compact={compact} placeholder={breakdown.element} />;
 
     case "cityranges":
       return <CityRanges argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
 
-    case "uuid":
-      return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        filter={REGEX_PATTERN.UUID} filterHelp="a uuid in the form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-        compact={compact} placeholder={breakdown.element} />;
-
     case "mmr":
-      return <MmrInput allowWildcard={breakdown.element.toLowerCase() === "mmrmatcher"} argName={argName} initialValue={initialValue}
+      return <MmrInput allowWildcard={resolution.allowWildcard ?? false} argName={argName} initialValue={initialValue}
         setOutputValue={setOutputValue} compact={compact} />;
 
     case "mmr-double":
       return <MmrDoubleInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
-
-    case "string":
-      return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        compact={compact} placeholder={breakdown.element} />;
 
     case "taxrate":
       return <TaxRateInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;

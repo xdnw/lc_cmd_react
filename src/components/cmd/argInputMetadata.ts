@@ -2,6 +2,7 @@ import type { SelectOption } from "./selectValueUtils";
 import { toPlainSelectOptions } from "./selectValueUtils";
 import { toPlaceholderName, type TypeBreakdown } from "@/utils/Command";
 import { getPlaceholderExpressionDescriptor } from "./expression/expressionTypes";
+import { REGEX_PATTERN } from "@/lib/regex-patterns";
 
 type OptionData = ReturnType<TypeBreakdown["getOptionData"]>;
 
@@ -49,6 +50,18 @@ export type ArgInputResolution = {
     support: ArgInputSupport;
     optionData: OptionData;
     querySource?: string;
+    booleanMode?: "boolean" | "tri-state";
+    numberIsFloat?: boolean;
+    textInputConfig?: {
+        placeholder?: string;
+        filter?: string;
+        filterHelp?: string;
+    };
+    typedPlaceholderConfig?: {
+        placeholderName: string;
+        valueType: string;
+    };
+    allowWildcard?: boolean;
 };
 
 function unsupported(reason: string): ArgInputSupport {
@@ -165,10 +178,21 @@ export function resolveArgInput(breakdown: TypeBreakdown): ArgInputResolution {
                     optionData,
                 };
             }
-            return { kind: "typed-placeholder", componentName: "TypedInput", support: supported(), optionData };
+            return {
+                kind: "typed-placeholder",
+                componentName: "TypedInput",
+                support: supported(),
+                optionData,
+                typedPlaceholderConfig: {
+                    placeholderName: breakdown.child[0].element,
+                    valueType: breakdown.child[1].element,
+                },
+            };
         }
 
-        return { kind: "placeholder-string", componentName: "StringInput", support: supported(), optionData };
+        return buildTextInputResolution("placeholder-string", optionData, {
+            placeholder: breakdown.element,
+        });
     }
 
     if (breakdown.annotations?.includes("WYSIWYG")) {
@@ -180,7 +204,11 @@ export function resolveArgInput(breakdown: TypeBreakdown): ArgInputResolution {
     }
 
     if (isIntegerListType(breakdown)) {
-        return { kind: "integer-list", componentName: "StringInput", support: supported(), optionData };
+        return buildTextInputResolution("integer-list", optionData, {
+            placeholder: breakdown.element,
+            filter: REGEX_PATTERN.NUMBER_LIST,
+            filterHelp: "a comma separated list of numbers",
+        });
     }
 
     if (isCollectionType(breakdown)) {
@@ -212,6 +240,7 @@ export function resolveArgInput(breakdown: TypeBreakdown): ArgInputResolution {
             componentName: breakdown.element === "Boolean" ? "TriStateInput" : "BooleanInput",
             support: supported(),
             optionData,
+            booleanMode: breakdown.element === "Boolean" ? "tri-state" : "boolean",
         };
     }
 
@@ -226,23 +255,53 @@ export function resolveArgInput(breakdown: TypeBreakdown): ArgInputResolution {
     const simpleKinds: Partial<Record<string, ArgInputResolution>> = {
         map: { kind: "map", componentName: "MapInput", support: supported(), optionData },
         color: { kind: "color", componentName: "ColorInput", support: supported(), optionData },
-        double: { kind: "number", componentName: "NumberInput", support: supported(), optionData },
-        number: { kind: "number", componentName: "NumberInput", support: supported(), optionData },
-        long: { kind: "number", componentName: "NumberInput", support: supported(), optionData },
-        integer: { kind: "number", componentName: "NumberInput", support: supported(), optionData },
-        int: { kind: "number", componentName: "NumberInput", support: supported(), optionData },
-        transfersheet: { kind: "spreadsheet", componentName: "StringInput", support: supported(), optionData },
-        spreadsheet: { kind: "spreadsheet", componentName: "StringInput", support: supported(), optionData },
-        googledoc: { kind: "google-doc", componentName: "StringInput", support: supported(), optionData },
-        dbwar: { kind: "dbwar", componentName: "StringInput", support: supported(), optionData },
-        dbcity: { kind: "dbcity", componentName: "StringInput", support: supported(), optionData },
-        message: { kind: "message", componentName: "StringInput", support: supported(), optionData },
+        double: { kind: "number", componentName: "NumberInput", support: supported(), optionData, numberIsFloat: true },
+        number: { kind: "number", componentName: "NumberInput", support: supported(), optionData, numberIsFloat: true },
+        long: { kind: "number", componentName: "NumberInput", support: supported(), optionData, numberIsFloat: false },
+        integer: { kind: "number", componentName: "NumberInput", support: supported(), optionData, numberIsFloat: false },
+        int: { kind: "number", componentName: "NumberInput", support: supported(), optionData, numberIsFloat: false },
+        transfersheet: buildTextInputResolution("spreadsheet", optionData, {
+            placeholder: breakdown.element,
+            filter: REGEX_PATTERN.SPREADSHEET,
+            filterHelp: "a link to a google sheet",
+        }),
+        spreadsheet: buildTextInputResolution("spreadsheet", optionData, {
+            placeholder: breakdown.element,
+            filter: REGEX_PATTERN.SPREADSHEET,
+            filterHelp: "a link to a google sheet",
+        }),
+        googledoc: buildTextInputResolution("google-doc", optionData, {
+            placeholder: breakdown.element,
+            filter: REGEX_PATTERN.GOOGLE_DOC,
+            filterHelp: "a link to a google document",
+        }),
+        dbwar: buildTextInputResolution("dbwar", optionData, {
+            placeholder: breakdown.element,
+            filter: REGEX_PATTERN.WAR,
+            filterHelp: "a war timeline url",
+        }),
+        dbcity: buildTextInputResolution("dbcity", optionData, {
+            placeholder: breakdown.element,
+            filter: REGEX_PATTERN.CITY,
+            filterHelp: "a city url",
+        }),
+        message: buildTextInputResolution("message", optionData, {
+            placeholder: breakdown.element,
+            filter: REGEX_PATTERN.CHANNEL,
+            filterHelp: "a discord message url",
+        }),
         cityranges: { kind: "cityranges", componentName: "CityRanges", support: supported(), optionData },
-        uuid: { kind: "uuid", componentName: "StringInput", support: supported(), optionData },
-        mmrint: { kind: "mmr", componentName: "MmrInput", support: supported(), optionData },
-        mmrmatcher: { kind: "mmr", componentName: "MmrInput", support: supported(), optionData },
+        uuid: buildTextInputResolution("uuid", optionData, {
+            placeholder: breakdown.element,
+            filter: REGEX_PATTERN.UUID,
+            filterHelp: "a uuid in the form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
+        }),
+        mmrint: { kind: "mmr", componentName: "MmrInput", support: supported(), optionData, allowWildcard: false },
+        mmrmatcher: { kind: "mmr", componentName: "MmrInput", support: supported(), optionData, allowWildcard: true },
         mmrdouble: { kind: "mmr-double", componentName: "MmrDoubleInput", support: supported(), optionData },
-        string: { kind: "string", componentName: "StringInput", support: supported(), optionData },
+        string: buildTextInputResolution("string", optionData, {
+            placeholder: breakdown.element,
+        }),
         taxrate: { kind: "taxrate", componentName: "TaxRateInput", support: supported(), optionData },
         customconditionmessage: { kind: "custom-condition-message", componentName: "CustomConditionMessageInput", support: supported(), optionData },
     };
@@ -267,5 +326,19 @@ export function resolveArgInput(breakdown: TypeBreakdown): ArgInputResolution {
         componentName: "UnknownType",
         support: unsupported(`Unsupported input control for type ${breakdown.element} | ${JSON.stringify(breakdown)}`),
         optionData,
+    };
+}
+
+function buildTextInputResolution(
+    kind: Extract<ArgInputResolutionKind, "placeholder-string" | "integer-list" | "spreadsheet" | "google-doc" | "dbwar" | "dbcity" | "message" | "uuid" | "string">,
+    optionData: OptionData,
+    config: ArgInputResolution["textInputConfig"],
+): ArgInputResolution {
+    return {
+        kind,
+        componentName: "StringInput",
+        support: supported(),
+        optionData,
+        textInputConfig: config,
     };
 }

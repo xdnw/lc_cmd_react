@@ -1,6 +1,6 @@
 import ArgInput from "./ArgInput";
 import { Argument, BaseCommand } from "../../utils/Command";
-import { useCallback, useMemo, useState, useEffect, type FocusEvent } from "react";
+import { memo, useCallback, useMemo, useState, useEffect, type FocusEvent } from "react";
 import MarkupRenderer from "../ui/MarkupRenderer";
 import LazyIcon from "../ui/LazyIcon";
 import { cn } from "@/lib/utils";
@@ -61,9 +61,10 @@ function FocusInfoBar({ arg }: { arg: Argument | null }) {
     );
 }
 
-export default function CommandComponent({ command, overrideName, filterArguments, initialValues, setOutput, displayMode = "card" }: CommandProps) {
+const CommandComponent = memo(function CommandComponent({ command, overrideName, filterArguments, initialValues, setOutput, displayMode = "card" }: CommandProps) {
     const groupedArgs = useMemo(() => buildGroupedArgs(command.getArguments()), [command]);
     const compact = isCompactMode(displayMode);
+    const trackFocusedArg = displayMode === "focus-pane";
     const [focusedArgName, setFocusedArgName] = useState<string | null>(null);
     const [localValues, setLocalValues] = useState<{ [key: string]: string }>(initialValues);
 
@@ -71,17 +72,26 @@ export default function CommandComponent({ command, overrideName, filterArgument
         setLocalValues(initialValues);
     }, [initialValues]);
 
+    useEffect(() => {
+        if (!trackFocusedArg && focusedArgName != null) {
+            setFocusedArgName(null);
+        }
+    }, [focusedArgName, trackFocusedArg]);
+
     const focusedArg = useMemo(() => {
-        if (!focusedArgName) return null;
+        if (!trackFocusedArg || !focusedArgName) return null;
         return command.getArguments().find((arg) => arg.name === focusedArgName) ?? null;
-    }, [command, focusedArgName]);
+    }, [command, focusedArgName, trackFocusedArg]);
 
     const handleFocusCapture = useCallback((event: FocusEvent<HTMLDivElement>) => {
+        if (!trackFocusedArg) {
+            return;
+        }
         const argName = event.currentTarget.dataset.argName;
         if (argName) {
             setFocusedArgName(argName);
         }
-    }, []);
+    }, [trackFocusedArg]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         const pastedText = event.clipboardData.getData('text');
@@ -147,7 +157,7 @@ export default function CommandComponent({ command, overrideName, filterArgument
                                         className={cn("w-full", compact ? "mb-1" : "mb-2")}
                                         key={index + "-" + argIndex + "m"}
                                         data-arg-name={arg.name}
-                                        onFocusCapture={handleFocusCapture}
+                                        onFocusCapture={trackFocusedArg ? handleFocusCapture : undefined}
                                     >
                                         {displayMode !== "focus-pane" && (
                                             <ArgDescComponent
@@ -178,7 +188,7 @@ export default function CommandComponent({ command, overrideName, filterArgument
             }
         </div>
     );
-}
+});
 
 export function ArgDescComponent(
     { arg, includeType = false, includeDesc = false, includeExamples = false, compact = false }:
@@ -257,3 +267,5 @@ export function ArgDescComponent(
         </div>
     );
 }
+
+export default CommandComponent;

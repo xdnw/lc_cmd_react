@@ -90,6 +90,19 @@ type RawPlaceholder = {
 
 const schemaCache = new Map<string, ExpressionTypeSchema>();
 const valueSourceCache = new Map<string, ExpressionValueSourceRef>();
+const completionSourceCache = new Map<string, ExpressionValueSourceRef[]>();
+const typeBreakdownCache = new Map<string, TypeBreakdown>();
+
+function getCachedTypeBreakdown(typeName: string): TypeBreakdown {
+    const cached = typeBreakdownCache.get(typeName);
+    if (cached) {
+        return cached;
+    }
+
+    const breakdown = getTypeBreakdown(CM, typeName);
+    typeBreakdownCache.set(typeName, breakdown);
+    return breakdown;
+}
 
 function dedupeValueSources(sources: ExpressionValueSourceRef[]): ExpressionValueSourceRef[] {
     const seen = new Set<string>();
@@ -151,7 +164,7 @@ function getTypeLabel(typeName: string): string {
 }
 
 function getOptionExampleValue(typeName: string): string | null {
-    const breakdown = getTypeBreakdown(CM, typeName);
+    const breakdown = getCachedTypeBreakdown(typeName);
     const optionData = breakdown.getOptionData();
     if (optionData.options?.[0]) {
         return optionData.options[0];
@@ -207,7 +220,7 @@ export function getExpressionTypeSchema(typeName: string): ExpressionTypeSchema 
             name,
             description: rawCommand.desc ?? "",
             returnType,
-            returnBreakdown: getTypeBreakdown(CM, returnType),
+            returnBreakdown: getCachedTypeBreakdown(returnType),
             returnSourceRef: getExpressionValueSourceRef(returnType),
             arguments: Object.values(rawCommand.arguments ?? {}).map((arg) => {
                 const type = arg.type ?? "Object";
@@ -216,7 +229,7 @@ export function getExpressionTypeSchema(typeName: string): ExpressionTypeSchema 
                     type,
                     optional: Boolean(arg.optional),
                     description: arg.desc,
-                    breakdown: getTypeBreakdown(CM, type),
+                    breakdown: getCachedTypeBreakdown(type),
                     valueSourceRef: getExpressionValueSourceRef(type),
                 } satisfies ExpressionArgument;
             }),
@@ -268,7 +281,7 @@ export function getExpressionValueSourceRef(typeName: string): ExpressionValueSo
         return source;
     }
 
-    const breakdown = getTypeBreakdown(CM, typeName);
+    const breakdown = getCachedTypeBreakdown(typeName);
     if (breakdown.element === "Map" && breakdown.child?.[0]) {
         const keyType = breakdown.child[0].element;
         const keySource = getExpressionCompletionSourceRefs(keyType).find((source) => source.kind !== "placeholder")
@@ -329,16 +342,23 @@ export function getExpressionValueSourceRef(typeName: string): ExpressionValueSo
 }
 
 export function getExpressionCompletionSourceRefs(typeName: string): ExpressionValueSourceRef[] {
+    const cached = completionSourceCache.get(typeName);
+    if (cached) {
+        return cached;
+    }
+
     const sources: ExpressionValueSourceRef[] = [];
 
     if (getRawPlaceholder(typeName)) {
         sources.push(getExpressionValueSourceRef(typeName));
     }
 
-    const breakdown = getTypeBreakdown(CM, typeName);
+    const breakdown = getCachedTypeBreakdown(typeName);
     if (breakdown.element === "Map" && breakdown.child?.[0]) {
         sources.push(getExpressionValueSourceRef(typeName));
-        return dedupeValueSources(sources);
+        const result = dedupeValueSources(sources);
+        completionSourceCache.set(typeName, result);
+        return result;
     }
 
     const optionData = breakdown.getOptionData();
@@ -378,7 +398,9 @@ export function getExpressionCompletionSourceRefs(typeName: string): ExpressionV
         sources.push(getExpressionValueSourceRef(typeName));
     }
 
-    return dedupeValueSources(sources);
+    const result = dedupeValueSources(sources);
+    completionSourceCache.set(typeName, result);
+    return result;
 }
 
 export function getExpressionExample(

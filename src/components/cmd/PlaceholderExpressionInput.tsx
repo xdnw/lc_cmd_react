@@ -1,17 +1,72 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Button } from "@/components/ui/button";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useSyncedState } from "@/utils/StateUtil";
 import type { TypeBreakdown } from "@/utils/Command";
 import {
-    analyzeExpression,
+    analyzeParsedExpression,
+    getFirstLazyOptionSuggestion,
+    isLazyOptionSourceReady,
     parseExpressionCursorContext,
     type ExpressionSuggestion,
 } from "./expression/expressionAnalysis";
+import type { ExpressionValueSourceRegistry } from "./expression/expressionValueFetcher";
 import { getExpressionExample, getExpressionTypeSchema } from "./expression/expressionSchema";
 import { useExpressionValueSources } from "./expression/expressionValueFetcher";
 import { getPlaceholderExpressionDescriptor } from "./expression/expressionTypes";
+import PlaceholderSuggestionPanel from "./PlaceholderSuggestionPanel";
+
+type SourceMessage = { kind: "loading" | "warning" | "error"; text: string };
+
+const EMPTY_SOURCE_MESSAGES: SourceMessage[] = [];
+const EMPTY_REGISTRY: ExpressionValueSourceRegistry = {};
+
+function buildSearchTokensByCacheKey(
+    requiredSources: Array<{ cacheKey: string; kind: string }>,
+    activeSourceRef: { cacheKey: string; kind: string } | undefined,
+    activeToken: string,
+    panelSearchValue: string,
+): Record<string, string> {
+    if (!activeSourceRef) {
+        return {};
+    }
+
+    const activeSource = requiredSources.find((source) => source.cacheKey === activeSourceRef.cacheKey);
+    if (!activeSource || activeSource.kind !== "query-options") {
+        return {};
+    }
+
+    const workerToken = panelSearchValue.trim() || activeToken.trim();
+    return { [activeSourceRef.cacheKey]: workerToken };
+}
+
+function collectSourceMessages(
+    cacheKeys: string[],
+    registry: ExpressionValueSourceRegistry,
+): SourceMessage[] {
+    if (cacheKeys.length === 0) {
+        return EMPTY_SOURCE_MESSAGES;
+    }
+
+    const messages: SourceMessage[] = [];
+    for (const cacheKey of cacheKeys) {
+        const entry = registry[cacheKey];
+        if (!entry) {
+            continue;
+        }
+        if (entry.status === "loading") {
+            messages.push({ kind: "loading", text: `Loading ${entry.typeLabel} options...` });
+        }
+        if (entry.warning) {
+            messages.push({ kind: "warning", text: entry.warning });
+        }
+        if (entry.error) {
+            messages.push({ kind: "error", text: entry.error });
+        }
+    }
+
+    return messages.length > 0 ? messages : EMPTY_SOURCE_MESSAGES;
+}
 
 export default function PlaceholderExpressionInput({
     argName,
@@ -26,12 +81,18 @@ export default function PlaceholderExpressionInput({
     breakdown: TypeBreakdown;
     compact?: boolean;
 }) {
+    const containerRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const descriptor = useMemo(() => getPlaceholderExpressionDescriptor(breakdown), [breakdown]);
     const [value, setValue] = useSyncedState(initialValue || "");
     const [cursor, setCursor] = useState((initialValue || "").length);
-    const [isFocused, setIsFocused] = useState(false);
+    const [hasFocusWithin, setHasFocusWithin] = useState(false);
+    const [panelSearchValue, setPanelSearchValue] = useState("");
     const pendingSelectionRef = useRef<number | null>(null);
+
+    const updateCursor = useCallback((nextCursor: number) => {
+        setCursor((previousCursor) => previousCursor === nextCursor ? previousCursor : nextCursor);
+    }, []);
 
     const schema = useMemo(
         () => (descriptor ? getExpressionTypeSchema(descriptor.rootType) : null),
@@ -45,7 +106,28 @@ export default function PlaceholderExpressionInput({
         return parseExpressionCursorContext(descriptor, value, cursor);
     }, [cursor, descriptor, value]);
 
-    const sourceRegistry = useExpressionValueSources(cursorContext?.requiredSources ?? []);
+    const activeSourceCacheKey = cursorContext?.activeSourceRef?.cacheKey;
+
+    useEffect(() => {
+        setPanelSearchValue("");
+    }, [activeSourceCacheKey]);
+
+    const searchTokensByCacheKey = useMemo(() => buildSearchTokensByCacheKey(
+        cursorContext?.requiredSources ?? [],
+        cursorContext?.activeSourceRef,
+        cursorContext?.activeToken ?? "",
+        panelSearchValue,
+    ), [cursorContext, panelSearchValue]);
+
+    const sourceRegistry = useExpressionValueSources(
+        cursorContext?.requiredSources ?? [],
+        searchTokensByCacheKey,
+        hasFocusWithin,
+    );
+    const requiredSourceCacheKeys = useMemo(
+        () => cursorContext?.requiredSources.map((source) => source.cacheKey) ?? [],
+        [cursorContext],
+    );
 
     const analysis = useMemo(() => {
         if (!descriptor) {
@@ -55,8 +137,12 @@ export default function PlaceholderExpressionInput({
             };
         }
 
-        return analyzeExpression(descriptor, value, cursor, sourceRegistry);
-    }, [breakdown.element, cursor, descriptor, sourceRegistry, value]);
+        if (!cursorContext) {
+            return analyzeParsedExpression(descriptor, value, parseExpressionCursorContext(descriptor, value, cursor), sourceRegistry);
+        }
+
+        return analyzeParsedExpression(descriptor, value, cursorContext, sourceRegistry);
+    }, [breakdown.element, cursor, cursorContext, descriptor, sourceRegistry, value]);
 
     const placeholderText = useMemo(() => {
         if (!descriptor) {
@@ -66,38 +152,19 @@ export default function PlaceholderExpressionInput({
     }, [descriptor, schema]);
 
     const sourceMessages = useMemo(() => {
-        if (!cursorContext) {
-            return [] as Array<{ kind: "loading" | "warning" | "error"; text: string }>;
-        }
-
-        return cursorContext.requiredSources.flatMap((source) => {
-            const entry = sourceRegistry[source.cacheKey];
-            if (!entry) {
-                return [];
-            }
-
-            const messages: Array<{ kind: "loading" | "warning" | "error"; text: string }> = [];
-            if (entry.status === "loading") {
-                messages.push({ kind: "loading", text: `Loading ${entry.typeLabel} options...` });
-            }
-            if (entry.warning) {
-                messages.push({ kind: "warning", text: entry.warning });
-            }
-            if (entry.error) {
-                messages.push({ kind: "error", text: entry.error });
-            }
-            return messages;
-        });
-    }, [cursorContext, sourceRegistry]);
+        return collectSourceMessages(requiredSourceCacheKeys, sourceRegistry ?? EMPTY_REGISTRY);
+    }, [requiredSourceCacheKeys, sourceRegistry]);
 
     const applySuggestion = useCallback((suggestion: ExpressionSuggestion) => {
         const nextValue = `${value.slice(0, suggestion.replaceFrom)}${suggestion.insertText}${value.slice(suggestion.replaceTo)}`;
         const nextCursor = suggestion.replaceFrom + suggestion.caretOffset;
         pendingSelectionRef.current = nextCursor;
         setValue(nextValue);
-        setOutputValue(argName, nextValue);
-        setCursor(nextCursor);
-    }, [argName, setOutputValue, setValue, value]);
+        startTransition(() => {
+            setOutputValue(argName, nextValue);
+        });
+        updateCursor(nextCursor);
+    }, [argName, setOutputValue, setValue, updateCursor, value]);
 
     useEffect(() => {
         const pendingSelection = pendingSelectionRef.current;
@@ -113,55 +180,59 @@ export default function PlaceholderExpressionInput({
     const handleChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
         const nextValue = event.currentTarget.value;
         setValue(nextValue);
-        setOutputValue(argName, nextValue);
-        setCursor(event.currentTarget.selectionStart ?? nextValue.length);
-    }, [argName, setOutputValue, setValue]);
+        startTransition(() => {
+            setOutputValue(argName, nextValue);
+        });
+        updateCursor(event.currentTarget.selectionStart ?? nextValue.length);
+    }, [argName, setOutputValue, setValue, updateCursor]);
 
     const syncCursor = useCallback((event: React.SyntheticEvent<HTMLTextAreaElement>) => {
         const target = event.currentTarget;
-        setCursor(target.selectionStart ?? target.value.length);
-    }, []);
+        updateCursor(target.selectionStart ?? target.value.length);
+    }, [updateCursor]);
 
     const handleKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
-        if ((event.key === "Tab" || (event.key === "Enter" && event.ctrlKey)) && analysis.suggestions.length > 0) {
+        const firstSuggestion = analysis.suggestions[0] ?? getFirstLazyOptionSuggestion(analysis.lazyOptionSource);
+        if ((event.key === "Tab" || (event.key === "Enter" && event.ctrlKey)) && firstSuggestion) {
             event.preventDefault();
-            applySuggestion(analysis.suggestions[0]);
+            applySuggestion(firstSuggestion);
         }
-    }, [analysis.suggestions, applySuggestion]);
+    }, [analysis.lazyOptionSource, analysis.suggestions, applySuggestion]);
 
-    const handleFocus = useCallback(() => {
-        setIsFocused(true);
+    const handleFocusWithin = useCallback(() => {
+        setHasFocusWithin((previous) => previous ? previous : true);
     }, []);
 
-    const handleBlur = useCallback(() => {
-        setIsFocused(false);
-    }, []);
-
-    const preventButtonMouseDown = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
-    }, []);
-
-    const handleSuggestionClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-        const index = Number(event.currentTarget.dataset.index);
-        const suggestion = analysis.suggestions[index];
-        if (!suggestion) {
+    const handleBlurWithin = useCallback((event: FocusEvent<HTMLDivElement>) => {
+        const nextFocusedElement = event.relatedTarget;
+        if (nextFocusedElement instanceof Node && containerRef.current?.contains(nextFocusedElement)) {
             return;
         }
-        applySuggestion(suggestion);
-    }, [analysis.suggestions, applySuggestion]);
+
+        setHasFocusWithin((previous) => previous ? false : previous);
+        setPanelSearchValue("");
+    }, []);
+
+    const showSuggestionPanel = hasFocusWithin && (
+        analysis.lazyOptionSource
+            ? isLazyOptionSourceReady(analysis.lazyOptionSource)
+            : analysis.suggestions.length > 0
+    );
 
     return (
-        <div className="space-y-2">
+        <div
+            ref={containerRef}
+            className="space-y-2"
+            onFocusCapture={handleFocusWithin}
+            onBlurCapture={handleBlurWithin}
+        >
             <Textarea
                 ref={textareaRef}
                 value={value}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
                 onClick={syncCursor}
-                onKeyUp={syncCursor}
                 onSelect={syncCursor}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
                 spellCheck={false}
                 className={cn(
                     "font-mono text-xs leading-5",
@@ -172,29 +243,14 @@ export default function PlaceholderExpressionInput({
                 placeholder={placeholderText}
             />
 
-            {isFocused && analysis.suggestions.length > 0 && (
-                <div className="rounded-md border border-border bg-muted/40 p-2">
-                    <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Suggestions
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                        {analysis.suggestions.map((suggestion, index) => (
-                            <Button
-                                key={`${suggestion.kind}:${suggestion.label}:${suggestion.insertText}`}
-                                data-index={index}
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="max-w-full"
-                                onMouseDown={preventButtonMouseDown}
-                                onClick={handleSuggestionClick}
-                                title={suggestion.detail}
-                            >
-                                {suggestion.label}
-                            </Button>
-                        ))}
-                    </div>
-                </div>
+            {showSuggestionPanel && (
+                <PlaceholderSuggestionPanel
+                    suggestions={analysis.suggestions}
+                    lazyOptionSource={analysis.lazyOptionSource}
+                    searchValue={panelSearchValue}
+                    onSearchValueChange={setPanelSearchValue}
+                    onApplySuggestion={applySuggestion}
+                />
             )}
 
             {(analysis.hint || analysis.errors.length > 0 || sourceMessages.length > 0) && (

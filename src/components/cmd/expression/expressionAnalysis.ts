@@ -1,5 +1,6 @@
 import { getTypeBreakdown, CM, STRIP_PREFIXES } from "@/utils/Command";
-import { filterSelectOptions, resolveOptionMatch } from "../selectValueUtils";
+import { filterSelectOptions, findFirstFilteredOption, resolveOptionMatch } from "../selectValueUtils";
+import type { SelectOption } from "../selectValueUtils";
 import type {
     ExpressionArgument,
     ExpressionFilterField,
@@ -38,8 +39,20 @@ export type ExpressionHint = {
     meta?: string;
 };
 
+export type ExpressionLazyOptionSource = {
+    entry: ExpressionValueSourceRegistryEntry;
+    token: string;
+    replaceFrom: number;
+    replaceTo: number;
+    insertPrefix?: string;
+    labelPrefix?: string;
+    needsClosingBrace?: boolean;
+    minQueryLength?: number;
+};
+
 export type ExpressionAnalysis = {
     suggestions: ExpressionSuggestion[];
+    lazyOptionSource?: ExpressionLazyOptionSource;
     hint?: ExpressionHint;
     errors: string[];
 };
@@ -136,6 +149,10 @@ type MemberLookup = {
     member: ExpressionMember;
     matchedAlias: string;
 };
+
+const LAZY_OPTION_SUGGESTION_THRESHOLD = 200;
+const LAZY_OPTION_SEARCH_MODE_THRESHOLD = 5000;
+const LAZY_OPTION_MIN_QUERY_LENGTH = 1;
 
 function uniqueSources(sources: ExpressionValueSourceRef[]): ExpressionValueSourceRef[] {
     const seen = new Set<string>();
@@ -1234,9 +1251,7 @@ function parseRootContext(descriptor: PlaceholderExpressionDescriptor, value: st
         replaceTo: rootToken.cursorArea === "value" ? rootToken.valueRange.to : rootToken.selectorRange.to,
         requiredSources: rootSources,
         structuralErrors: [],
-        activeSourceRef: rootToken.cursorArea === "value"
-            ? rootSources.find((source) => source.kind !== "placeholder") ?? placeholderSource
-            : placeholderSource ?? rootSources[0],
+        activeSourceRef: getRootActiveSourceRef(rootToken, rootSources) ?? placeholderSource ?? rootSources[0],
         rootTokenContext: rootToken,
     });
 }
@@ -1399,9 +1414,7 @@ function parseArgumentContext(
             activeArgument: namedArg,
             requiredSources: receiverSources,
             structuralErrors: Array.from(new Set(errors)),
-            activeSourceRef: rootToken.cursorArea === "value"
-                ? receiverSources.find((source) => source.kind !== "placeholder") ?? placeholderSource
-                : placeholderSource ?? receiverSources[0],
+            activeSourceRef: getRootActiveSourceRef(rootToken, receiverSources) ?? placeholderSource ?? receiverSources[0],
             rootTokenContext: rootToken,
             argumentInsertPrefix,
         });
@@ -1629,6 +1642,41 @@ function getOptionMatchToken(rootToken: RootTokenContext): string {
     return rootToken.cursorArea === "value" ? rootToken.selectorValue : rootToken.selectorText;
 }
 
+function isStructuralSelector(selector: ExpressionSelector | undefined): boolean {
+    if (!selector) {
+        return false;
+    }
+
+    return selectorAcceptsValue(selector) || selector.insertText === "*";
+}
+
+function shouldUseRootOptionToken(rootToken: RootTokenContext): boolean {
+    return rootToken.cursorArea === "value"
+        || (!rootToken.matchedSelector && !isStructuralSelector(rootToken.partialSelector));
+}
+
+function getRootOptionToken(rootToken: RootTokenContext): string {
+    if (!shouldUseRootOptionToken(rootToken)) {
+        return "";
+    }
+
+    return rootToken.cursorArea === "value"
+        ? rootToken.selectorValue
+        : rootToken.selectorText;
+}
+
+function getRootActiveSourceRef(
+    rootToken: RootTokenContext,
+    sources: ExpressionValueSourceRef[],
+): ExpressionValueSourceRef | undefined {
+    const placeholderSource = sources.find((source) => source.kind === "placeholder");
+    if (!shouldUseRootOptionToken(rootToken)) {
+        return placeholderSource ?? sources[0];
+    }
+
+    return sources.find((source) => source.kind !== "placeholder") ?? placeholderSource ?? sources[0];
+}
+
 function getExactOptionMatch(
     rootToken: RootTokenContext | undefined,
     entry: ExpressionValueSourceRegistryEntry | undefined,
@@ -1650,6 +1698,112 @@ function getSuggestionSourceKind(source: ExpressionValueSourceRef | undefined, f
     return source?.kind ?? fallback;
 }
 
+function getEntryOptionCount(entry: ExpressionValueSourceRegistryEntry | undefined): number {
+    return entry?.optionCount ?? entry?.options.length ?? 0;
+}
+
+function shouldUseLazyOptionSource(entry: ExpressionValueSourceRegistryEntry | undefined): entry is ExpressionValueSourceRegistryEntry {
+    return Boolean(entry && getEntryOptionCount(entry) >= LAZY_OPTION_SUGGESTION_THRESHOLD);
+}
+
+function materializeOptionSuggestion(
+    option: SelectOption,
+    entry: ExpressionValueSourceRegistryEntry,
+    replaceFrom: number,
+    replaceTo: number,
+    insertPrefix: string = "",
+    labelPrefix: string = "",
+    needsClosingBrace?: boolean,
+): ExpressionSuggestion {
+    const insertText = `${insertPrefix}${option.value}${needsClosingBrace ? "}" : ""}`;
+    return {
+        label: `${labelPrefix}${option.label || option.value}`,
+        insertText,
+        detail: option.label === option.value
+            ? (insertPrefix ? `${insertPrefix}${option.value}` : undefined)
+            : `${option.label} [${insertPrefix}${option.value}]`,
+        subtext: option.subtext,
+        replaceFrom,
+        replaceTo,
+        caretOffset: insertPrefix.length + option.value.length,
+        kind: "option",
+        sourceKind: entry.sourceKind,
+    };
+}
+
+function buildLazyOptionSource(
+    entry: ExpressionValueSourceRegistryEntry | undefined,
+    token: string,
+    replaceFrom: number,
+    replaceTo: number,
+    insertPrefix?: string,
+    labelPrefix?: string,
+    needsClosingBrace?: boolean,
+): ExpressionLazyOptionSource | undefined {
+    if (!shouldUseLazyOptionSource(entry)) {
+        return undefined;
+    }
+
+    return {
+        entry,
+        token,
+        replaceFrom,
+        replaceTo,
+        insertPrefix,
+        labelPrefix,
+        needsClosingBrace,
+        minQueryLength: getEntryOptionCount(entry) >= LAZY_OPTION_SEARCH_MODE_THRESHOLD ? LAZY_OPTION_MIN_QUERY_LENGTH : undefined,
+    };
+}
+
+export function materializeLazyOptionSuggestion(
+    source: ExpressionLazyOptionSource,
+    option: SelectOption,
+): ExpressionSuggestion {
+    return materializeOptionSuggestion(
+        option,
+        source.entry,
+        source.replaceFrom,
+        source.replaceTo,
+        source.insertPrefix,
+        source.labelPrefix,
+        source.needsClosingBrace,
+    );
+}
+
+export function getFirstLazyOptionSuggestion(source: ExpressionLazyOptionSource | undefined): ExpressionSuggestion | null {
+    if (!source) {
+        return null;
+    }
+
+    if (source.minQueryLength && source.token.trim().length < source.minQueryLength && source.entry.options.length === 0) {
+        return null;
+    }
+
+    const firstOption = findFirstFilteredOption(source.token, source.entry.options);
+    if (!firstOption) {
+        return null;
+    }
+
+    return materializeLazyOptionSuggestion(source, firstOption);
+}
+
+export function isLazyOptionSourceReady(source: ExpressionLazyOptionSource | undefined): boolean {
+    if (!source) {
+        return false;
+    }
+
+    if (!source.minQueryLength) {
+        return true;
+    }
+
+    if (source.entry.options.length > 0) {
+        return true;
+    }
+
+    return source.token.trim().length >= source.minQueryLength;
+}
+
 function toFilterSuggestions(
     fields: ExpressionFilterField[],
     token: string,
@@ -1660,7 +1814,6 @@ function toFilterSuggestions(
     const prefix = token.toLowerCase();
     return fields
         .filter((field) => !prefix || field.key.startsWith(prefix))
-        .slice(0, 12)
         .map((field) => ({
             label: field.key,
             insertText: field.key,
@@ -1683,7 +1836,6 @@ function toSelectorSuggestions(
     const prefix = token.toLowerCase();
     return selectors
         .filter((selector) => !prefix || selector.insertText.toLowerCase().startsWith(prefix) || selector.label.toLowerCase().startsWith(prefix))
-        .slice(0, 12)
         .map((selector) => ({
             label: selector.insertText,
             insertText: selector.insertText,
@@ -1703,7 +1855,6 @@ function toMemberSuggestions(
     replaceTo: number,
 ): ExpressionSuggestion[] {
     return resolvePrefixMembers(schema, token)
-        .slice(0, 12)
         .map(({ member }) => {
             const preferredName = getPreferredMemberInsertName(member, token);
             const insert = buildMemberInsert(member);
@@ -1737,20 +1888,7 @@ function toOptionSuggestions(
     }
 
     return filterSelectOptions(token, entry.options)
-        .slice(0, 12)
-        .map((option) => ({
-            label: option.label || option.value,
-            insertText: `${insertPrefix}${option.value}`,
-            detail: option.label === option.value
-                ? (insertPrefix ? `${insertPrefix}${option.value}` : undefined)
-                : `${option.label} [${insertPrefix}${option.value}]`,
-            subtext: option.subtext,
-            replaceFrom,
-            replaceTo,
-            caretOffset: insertPrefix.length + option.value.length,
-            kind: "option",
-            sourceKind: entry.sourceKind,
-        }));
+        .map((option) => materializeOptionSuggestion(option, entry, replaceFrom, replaceTo, insertPrefix));
 }
 
 function toArgumentSuggestions(
@@ -1765,7 +1903,6 @@ function toArgumentSuggestions(
     return member.arguments
         .filter((arg) => !usedNames.has(arg.name))
         .filter((arg) => !normalized || normalizeIdentifier(arg.name).startsWith(normalized))
-        .slice(0, 12)
         .map((arg) => ({
             label: arg.name,
             insertText: `${arg.name}: `,
@@ -1835,20 +1972,16 @@ function validateArgumentValue(
         return [];
     }
 
-    const typeName = context.activeArgument.type;
-    if (entry?.options.length) {
-        const exactMatch = resolveOptionMatch(context.activeToken, entry.options);
-        if (!exactMatch.option && suggestions.length === 0) {
-            return [`Invalid ${typeName} value \`${context.activeToken}\``];
-        }
-        return [];
+    const optionError = validateOptionToken(context.activeArgument.type, context.activeToken, entry, suggestions);
+    if (optionError) {
+        return [optionError];
     }
 
-    if (isNumericTypeName(typeName) && !/^-?\d+(\.\d+)?$/.test(context.activeToken)) {
-        return [`Invalid numeric value \`${context.activeToken}\` for ${typeName}`];
+    if (isNumericTypeName(context.activeArgument.type) && !/^-?\d+(\.\d+)?$/.test(context.activeToken)) {
+        return [`Invalid numeric value \`${context.activeToken}\` for ${context.activeArgument.type}`];
     }
 
-    if (isBooleanTypeName(typeName) && !/^(true|false|yes|no|0|1)$/i.test(context.activeToken)) {
+    if (isBooleanTypeName(context.activeArgument.type) && !/^(true|false|yes|no|0|1)$/i.test(context.activeToken)) {
         return [`Invalid boolean value \`${context.activeToken}\``];
     }
 
@@ -1865,12 +1998,9 @@ function validateStandaloneValue(
         return [];
     }
 
-    if (entry?.options.length) {
-        const exactMatch = resolveOptionMatch(activeToken, entry.options);
-        if (!exactMatch.option && suggestions.length === 0) {
-            return [`Invalid ${typeName} value \`${activeToken}\``];
-        }
-        return [];
+    const optionError = validateOptionToken(typeName, activeToken, entry, suggestions);
+    if (optionError) {
+        return [optionError];
     }
 
     if (isNumericTypeName(typeName) && !isNumericLiteral(activeToken)) {
@@ -1882,6 +2012,41 @@ function validateStandaloneValue(
     }
 
     return [];
+}
+
+function validateOptionToken(
+    typeName: string,
+    token: string,
+    entry: ExpressionValueSourceRegistryEntry | undefined,
+    suggestions: ExpressionSuggestion[],
+): string | null {
+    if (shouldUseLazyOptionSource(entry) && entry.workerDatasetId) {
+        if (entry.status === "loading") {
+            return null;
+        }
+
+        if (entry.hasAnyMatch || suggestions.length > 0) {
+            return null;
+        }
+
+        return `Invalid ${typeName} value \`${token}\``;
+    }
+
+    if (!entry?.options.length) {
+        return null;
+    }
+
+    if (suggestions.length > 0) {
+        return null;
+    }
+
+    if (shouldUseLazyOptionSource(entry) && findFirstFilteredOption(token, entry.options)) {
+        return null;
+    }
+
+    return resolveOptionMatch(token, entry.options).option
+        ? null
+        : `Invalid ${typeName} value \`${token}\``;
 }
 
 function validateFunctionDoubleText(value: string): string[] {
@@ -1933,11 +2098,9 @@ function toRootSuggestions(
     }
 
     if (optionEntry) {
-        const token = rootToken.cursorArea === "value"
-            ? rootToken.selectorValue
-            : (!rootToken.matchedSelector ? rootToken.selectorText : "");
+        const token = getRootOptionToken(rootToken);
 
-        if (rootToken.cursorArea === "value" || !rootToken.matchedSelector) {
+        if (shouldUseRootOptionToken(rootToken) && !shouldUseLazyOptionSource(optionEntry)) {
             suggestions.push(
                 ...toOptionSuggestions(
                     optionEntry,
@@ -1953,7 +2116,7 @@ function toRootSuggestions(
     suggestions.forEach((suggestion) => {
         deduped.set(`${suggestion.kind}:${suggestion.insertText}`, suggestion);
     });
-    return Array.from(deduped.values()).slice(0, 12);
+    return Array.from(deduped.values());
 }
 
 function buildHintMeta(context: ExpressionCursorContext, sourceLabel: string): string | undefined {
@@ -1978,6 +2141,8 @@ function buildRootHint(
     context: ExpressionCursorContext,
     schema: ExpressionTypeSchema | null,
     entry: ExpressionValueSourceRegistryEntry | undefined,
+    suggestions: ExpressionSuggestion[],
+    lazyOptionSource?: ExpressionLazyOptionSource,
 ): ExpressionHint {
     const placeholderSource = context.requiredSources.find((source) => source.kind === "placeholder");
     const rootToken = context.rootTokenContext;
@@ -1993,10 +2158,10 @@ function buildRootHint(
         };
     }
 
-    const exactOptionMatch = getExactOptionMatch(rootToken, entry);
-    const hasOptionCandidates = rootToken && entry
-        ? filterSelectOptions(getOptionMatchToken(rootToken), entry.options).length > 0
-        : false;
+    const exactOptionMatch = !lazyOptionSource && rootToken && entry && getOptionMatchToken(rootToken)
+        ? getExactOptionMatch(rootToken, entry)
+        : null;
+    const hasOptionCandidates = Boolean(lazyOptionSource) || suggestions.some((suggestion) => suggestion.kind === "option");
 
     if (rootToken?.matchedSelector && rootToken.cursorArea === "value") {
         const selectorDetail = rootToken.matchedSelector.description || "Recognized selector.";
@@ -2025,7 +2190,7 @@ function buildRootHint(
         };
     }
 
-    if (rootToken?.partialSelector) {
+    if (rootToken?.partialSelector && isStructuralSelector(rootToken.partialSelector)) {
         return {
             title: `${context.receiverType} selector`,
             detail: `Continue typing a known selector such as ${rootToken.partialSelector.insertText}.`,
@@ -2120,15 +2285,30 @@ function finalizeValueContext(
     schema: ExpressionTypeSchema | null,
     errors: string[],
 ): ExpressionAnalysis {
+    const lazyOptionSource = source?.kind !== "placeholder"
+        ? buildLazyOptionSource(
+            entry,
+            context.activeToken,
+            context.replaceFrom,
+            context.replaceTo,
+            `${context.argumentInsertPrefix ?? ""}${context.suggestionInsertPrefix ?? ""}`,
+            context.suggestionLabelPrefix,
+            context.needsClosingBrace,
+        )
+        : undefined;
     const suggestions = source?.kind === "placeholder"
         ? toMemberSuggestions(schema, context.activeToken, context.replaceFrom, context.replaceTo)
-        : toOptionSuggestions(entry, context.activeToken, context.replaceFrom, context.replaceTo);
+        : (lazyOptionSource
+            ? []
+            : toOptionSuggestions(entry, context.activeToken, context.replaceFrom, context.replaceTo));
     const prefixedSuggestions = applySuggestionPrefix(
         applySuggestionPrefix(suggestions, context.argumentInsertPrefix),
         context.suggestionInsertPrefix,
         context.suggestionLabelPrefix,
     );
-    const completedSuggestions = applyClosingBraceSuffix(prefixedSuggestions, context.needsClosingBrace);
+    const completedSuggestions = lazyOptionSource
+        ? prefixedSuggestions
+        : applyClosingBraceSuffix(prefixedSuggestions, context.needsClosingBrace);
     const validationErrors = validateArgumentValue(context, entry, completedSuggestions);
     const standaloneValueErrors = (!context.activeArgument || context.mode === "predicate-rhs") && source?.kind !== "placeholder"
         ? validateStandaloneValue(context.receiverType, context.activeToken, entry, completedSuggestions)
@@ -2141,8 +2321,47 @@ function finalizeValueContext(
 
     return {
         suggestions: completedSuggestions,
+        lazyOptionSource,
         hint: buildMemberHint(context, source, schema, entry),
         errors: Array.from(new Set(nextErrors)),
+    };
+}
+
+function getRootLazyOptionSource(
+    context: ExpressionCursorContext,
+    optionEntry: ExpressionValueSourceRegistryEntry | undefined,
+): ExpressionLazyOptionSource | undefined {
+    const rootToken = context.rootTokenContext;
+    if (!rootToken || !optionEntry) {
+        return undefined;
+    }
+
+    const token = getRootOptionToken(rootToken);
+    if (!shouldUseRootOptionToken(rootToken)) {
+        return undefined;
+    }
+
+    return buildLazyOptionSource(
+        optionEntry,
+        token,
+        context.replaceFrom,
+        context.replaceTo,
+    );
+}
+
+function buildRootAnalysis(
+    context: ExpressionCursorContext,
+    schema: ExpressionTypeSchema | null,
+    rootOptionEntry: ExpressionValueSourceRegistryEntry | undefined,
+    errors: string[],
+): ExpressionAnalysis {
+    const suggestions = toRootSuggestions(context, schema, rootOptionEntry);
+    const lazyOptionSource = getRootLazyOptionSource(context, rootOptionEntry);
+    return {
+        suggestions,
+        lazyOptionSource,
+        hint: buildRootHint(context, schema, rootOptionEntry, suggestions, lazyOptionSource),
+        errors,
     };
 }
 
@@ -2153,6 +2372,15 @@ export function analyzeExpression(
     registry: ExpressionValueSourceRegistry,
 ): ExpressionAnalysis {
     const context = parseExpressionCursorContext(descriptor, value, cursor);
+    return analyzeParsedExpression(descriptor, value, context, registry);
+}
+
+export function analyzeParsedExpression(
+    descriptor: PlaceholderExpressionDescriptor,
+    value: string,
+    context: ExpressionCursorContext,
+    registry: ExpressionValueSourceRegistry,
+): ExpressionAnalysis {
     const source = context.activeSourceRef ?? context.requiredSources[0];
     const entry = getRegistryEntry(registry, source);
     const rootOptionEntry = getRootOptionEntry(context, registry);
@@ -2180,11 +2408,7 @@ export function analyzeExpression(
     }
 
     if (context.mode === "set-root" || context.mode === "predicate-root" || context.mode === "predicate-filter-field") {
-        return {
-            suggestions: toRootSuggestions(context, schema, rootOptionEntry),
-            hint: buildRootHint(context, schema, rootOptionEntry),
-            errors,
-        };
+        return buildRootAnalysis(context, schema, rootOptionEntry, errors);
     }
 
     if (context.mode === "predicate-operator") {
@@ -2218,19 +2442,16 @@ export function analyzeExpression(
     const isSelectorArgument = isPredicateArgument || context.activeArgument?.breakdown.element === "Set";
 
     if (isPredicateArgument && context.activeToken.startsWith("#")) {
+        const filterSuggestions = toFilterSuggestions(schema?.filterFields ?? [], context.activeToken, context.replaceFrom, context.replaceTo, source);
         return {
-            suggestions: toFilterSuggestions(schema?.filterFields ?? [], context.activeToken, context.replaceFrom, context.replaceTo, source),
-            hint: buildRootHint(context, schema, rootOptionEntry),
+            suggestions: filterSuggestions,
+            hint: buildRootHint(context, schema, rootOptionEntry, filterSuggestions),
             errors,
         };
     }
 
     if (isSelectorArgument && context.rootTokenContext) {
-        return {
-            suggestions: toRootSuggestions(context, schema, rootOptionEntry),
-            hint: buildRootHint(context, schema, rootOptionEntry),
-            errors,
-        };
+        return buildRootAnalysis(context, schema, rootOptionEntry, errors);
     }
 
     if (context.mode === "function-argument" && context.activeMember && !context.activeArgument) {

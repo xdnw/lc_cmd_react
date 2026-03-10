@@ -22,6 +22,13 @@ interface CommandProps {
 
 type CommandArgEntry = {
     arg: Argument;
+    breakdown: TypeBreakdown;
+    typeDesc: string;
+    examples: readonly string[];
+    description: string;
+    groupId: number | null;
+    groupTitle: string;
+    groupDescription: string;
 };
 
 const argBreakdownCache = new WeakMap<Argument, TypeBreakdown>();
@@ -42,22 +49,56 @@ function getCachedArgBreakdown(arg: Argument): TypeBreakdown {
     return breakdown;
 }
 
-function buildGroupedArgs(argsArr: CommandArgEntry[]): CommandArgEntry[][] {
-    const groupedArgs: CommandArgEntry[][] = [];
+type CommandArgGroup = {
+    key: string;
+    groupId: number | null;
+    groupTitle: string;
+    groupDescription: string;
+    entries: CommandArgEntry[];
+};
+
+function buildCommandArgEntry(command: BaseCommand, arg: Argument): CommandArgEntry {
+    const groupId = arg.arg.group ?? null;
+
+    return {
+        arg,
+        breakdown: getCachedArgBreakdown(arg),
+        typeDesc: arg.getTypeDesc(),
+        examples: arg.getExamples(),
+        description: arg.arg.desc ?? "",
+        groupId,
+        groupTitle: groupId == null ? "" : command.command.groups?.[groupId] ?? "",
+        groupDescription: groupId == null ? "" : command.command.group_descs?.[groupId] ?? "",
+    };
+}
+
+function buildGroupedArgs(argsArr: CommandArgEntry[]): CommandArgGroup[] {
+    const groupedArgs: CommandArgGroup[] = [];
     let lastGroupId = -1;
-    let lastGroup: CommandArgEntry[] = [];
+    let lastGroup: CommandArgGroup | null = null;
 
     for (let i = 0; i < argsArr.length; i++) {
         const entry = argsArr[i];
-        const group = entry.arg.arg.group;
-        if (group == null) {
-            groupedArgs.push([entry]);
-        } else if (group !== lastGroupId) {
-            lastGroup = [entry];
-            lastGroupId = group;
+        if (entry.groupId == null) {
+            groupedArgs.push({
+                key: `${entry.arg.name}-${i}`,
+                groupId: null,
+                groupTitle: "",
+                groupDescription: "",
+                entries: [entry],
+            });
+        } else if (entry.groupId !== lastGroupId || !lastGroup) {
+            lastGroup = {
+                key: `group-${entry.groupId}-${i}`,
+                groupId: entry.groupId,
+                groupTitle: entry.groupTitle,
+                groupDescription: entry.groupDescription,
+                entries: [entry],
+            };
+            lastGroupId = entry.groupId;
             groupedArgs.push(lastGroup);
         } else {
-            lastGroup.push(entry);
+            lastGroup.entries.push(entry);
         }
     }
 
@@ -84,7 +125,6 @@ const CommandArgCard = memo(function CommandArgCard({
     forceMountAll?: boolean;
 }) {
     const { arg } = entry;
-    const breakdown = useMemo(() => getCachedArgBreakdown(arg), [arg]);
 
     return (
         <div
@@ -95,7 +135,7 @@ const CommandArgCard = memo(function CommandArgCard({
         >
             {displayMode !== "focus-pane" && (
                 <ArgDescComponent
-                    arg={arg}
+                    entry={entry}
                     includeType={!compact}
                     includeDesc={!compact}
                     includeExamples={false}
@@ -108,8 +148,9 @@ const CommandArgCard = memo(function CommandArgCard({
                 )}
                 <div className="min-w-0 flex-1">
                     <ArgInput
+                        key={`${arg.name}:${initialValue}`}
                         argName={arg.name}
-                        breakdown={breakdown}
+                        breakdown={entry.breakdown}
                         min={arg.arg.min}
                         max={arg.arg.max}
                         initialValue={initialValue}
@@ -145,7 +186,7 @@ function FocusInfoBar({ arg }: { arg: Argument | null }) {
 
 const CommandComponent = memo(function CommandComponent({ command, overrideName, filterArguments, initialValues, setOutput, displayMode = "card", forceMountAll = false }: CommandProps) {
     const { showDialog } = useDialog();
-    const argEntries = useMemo(() => command.getArguments().filter(filterArguments).map((arg) => ({ arg })), [command, filterArguments]);
+    const argEntries = useMemo(() => command.getArguments().filter(filterArguments).map((arg) => buildCommandArgEntry(command, arg)), [command, filterArguments]);
     const groupedArgs = useMemo(() => buildGroupedArgs(argEntries), [argEntries]);
     const compact = isCompactMode(displayMode);
     const trackFocusedArg = displayMode === "focus-pane";
@@ -225,24 +266,24 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
             {displayMode === "focus-pane" && <FocusInfoBar arg={focusedArg} />}
             {
                 groupedArgs.map((group, index) => {
-                    const groupExists = group[0].arg.arg.group != null;
-                    const groupDescExists = command.command.group_descs && command.command.group_descs[group[0].arg.arg.group || 0];
+                    const groupExists = group.groupId != null;
+                    const groupDescExists = Boolean(group.groupDescription);
                     return (
-                        <section className={cn("space-y-2 px-0.5", compact && "space-y-1.5")} key={index + "g"}>
+                        <section className={cn("space-y-2 px-0.5", compact && "space-y-1.5")} key={group.key}>
                             {groupExists &&
                                 <div className="border-b border-border/50 pb-1">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                                        {command.command.groups?.[group[0].arg.arg.group || 0] ?? ''}
+                                        {group.groupTitle}
                                     </p>
                                     {groupDescExists &&
                                         <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {command.command.group_descs?.[group[0].arg.arg.group || 0] ?? ''}
+                                            {group.groupDescription}
                                         </p>
                                     }
                                 </div>
                             }
                             <div className={cn("space-y-2", compact && "space-y-1.5")}>
-                                {group.map((entry, argIndex) => (
+                                {group.entries.map((entry, argIndex) => (
                                     <CommandArgCard
                                         key={index + "-" + argIndex + "m"}
                                         entry={entry}
@@ -265,52 +306,37 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
 });
 
 export function ArgDescComponent(
-    { arg, includeType = false, includeDesc = false, includeExamples = false, compact = false }:
+    { entry, arg: legacyArg, includeType = false, includeDesc = false, includeExamples = false, compact = false }:
         {
-            arg: Argument,
+            entry?: CommandArgEntry,
+            arg?: Argument,
             includeType?: boolean,
             includeDesc?: boolean,
             includeExamples?: boolean,
             compact?: boolean,
         }) {
-    const desc = arg.getTypeDesc();
-    const examples = useMemo(() => {
-        const ex = arg.getExamples();
-        if (ex) {
-            return Array.isArray(ex) ? ex : [ex];
-        }
-        return [];
-    }, [arg]);
+    const resolvedEntry = entry ?? (legacyArg ? {
+        arg: legacyArg,
+        breakdown: getCachedArgBreakdown(legacyArg),
+        typeDesc: legacyArg.getTypeDesc(),
+        examples: legacyArg.getExamples(),
+        description: legacyArg.arg.desc ?? "",
+        groupId: legacyArg.arg.group ?? null,
+        groupTitle: "",
+        groupDescription: "",
+    } satisfies CommandArgEntry : null);
 
-    const optionalBadge = useMemo(() => {
-        return arg.arg.optional
-            ? <span className="inline-flex font-medium text-sky-700 dark:text-sky-300">optional</span>
-            : <span className="inline-flex font-medium text-rose-700 dark:text-rose-300">required</span>;
-    }, [arg.arg.optional]);
+    if (!resolvedEntry) {
+        return null;
+    }
 
-    const descriptionContent = useMemo(() => {
-        if (!includeDesc) return null;
-        return (
-            <div className="grid gap-x-3 gap-y-1 border-t border-border/50 pt-1.5 text-[11px] sm:grid-cols-[auto_1fr]">
-                {arg.arg.desc && <span className="font-medium text-muted-foreground">Info</span>}
-                {arg.arg.desc && <div className="min-w-0 text-muted-foreground"><MarkupRenderer content={arg.arg.desc ?? ""} /></div>}
-                {desc && <span className="font-medium text-muted-foreground">Type</span>}
-                {desc && <div className="min-w-0 text-muted-foreground"><MarkupRenderer content={desc} /></div>}
-            </div>
-        );
-    }, [includeDesc, arg.arg.desc, desc]);
+    const { arg, description, typeDesc, examples } = resolvedEntry;
+    const optionalBadge = arg.arg.optional
+        ? <span className="inline-flex font-medium text-sky-700 dark:text-sky-300">optional</span>
+        : <span className="inline-flex font-medium text-rose-700 dark:text-rose-300">required</span>;
 
-    const examplesContent = useMemo(() => {
-        if (!includeExamples || examples.length === 0) return null;
-        return (
-            <div className="flex flex-wrap items-center gap-1 pt-1 text-[11px]">
-                <span className="font-medium text-muted-foreground">Examples</span>
-                {examples.map((example) => (
-                    <kbd key={example} className="rounded-sm border border-border bg-background px-1 py-0.5 font-mono text-[10px] text-muted-foreground">{example}</kbd>
-                ))}
-            </div>
-        );
-    }, [includeExamples, examples]);
+    const hasDescriptionContent = includeDesc && (Boolean(description) || Boolean(typeDesc));
+    const hasExamplesContent = includeExamples && examples.length > 0;
 
     return (
         <div className={cn("rounded-t-md border border-border/80 border-b-0 bg-muted/55 px-2 py-1 text-xs", compact ? "w-full" : "inline-block max-w-full me-1")} style={{ marginBottom: "-1px" }}>
@@ -319,10 +345,24 @@ export function ArgDescComponent(
                 {includeType && <div className="truncate text-[10px] uppercase tracking-widest text-muted-foreground">{arg.arg.type}</div>}
                 {optionalBadge}
             </div>
-            {(descriptionContent || examplesContent) && (
+            {(hasDescriptionContent || hasExamplesContent) && (
                 <div className="mt-1.5 space-y-1.5">
-                    {descriptionContent}
-                    {examplesContent}
+                    {hasDescriptionContent && (
+                        <div className="grid gap-x-3 gap-y-1 border-t border-border/50 pt-1.5 text-[11px] sm:grid-cols-[auto_1fr]">
+                            {description && <span className="font-medium text-muted-foreground">Info</span>}
+                            {description && <div className="min-w-0 text-muted-foreground"><MarkupRenderer content={description} /></div>}
+                            {typeDesc && <span className="font-medium text-muted-foreground">Type</span>}
+                            {typeDesc && <div className="min-w-0 text-muted-foreground"><MarkupRenderer content={typeDesc} /></div>}
+                        </div>
+                    )}
+                    {hasExamplesContent && (
+                        <div className="flex flex-wrap items-center gap-1 pt-1 text-[11px]">
+                            <span className="font-medium text-muted-foreground">Examples</span>
+                            {examples.map((example) => (
+                                <kbd key={example} className="rounded-sm border border-border bg-background px-1 py-0.5 font-mono text-[10px] text-muted-foreground">{example}</kbd>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

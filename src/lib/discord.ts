@@ -140,6 +140,10 @@ function formatTimestamp(timestamp: number, style: string): string {
 }
 
 export function markup({ txt, replaceEmoji, embed, showDialog }: { txt: string, replaceEmoji: boolean, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): string {
+    if (canUseFastMarkupPath(txt, replaceEmoji)) {
+        return renderFastMarkupHtml(txt);
+    }
+
     if (replaceEmoji)
         txt = txt.replace(/(?<!code(?: \w+=".+")?>[^>]+)(?<!\/[^\s"]+?):((?!\/)\w+):/g, (match, p: string) => p && emojis[p] ? emojis[p] : match);
     const options: HtmlOptions = embed ? createOptions({ embed, showDialog }) : { escapeHTML: true } as HtmlOptions;
@@ -320,6 +324,28 @@ export function toHTML(txt: string, options: HtmlOptions): string {
 
 function normalizeNewlines(s: string): string {
     return s.replace(/\r\n?/g, '\n');
+}
+
+const FULL_MARKUP_TOKEN_RE = /```|`|<[@#/:]|<https?:|<t:|\[[^\]]+\]\([^\)]+\)|(^|\n)\s*(?:>>>?|~#)\s|(?<!\w)@(?:everyone|here)\b|\*\*?|__?|~~|\|\|/m;
+const EMOJI_TOKEN_RE = /:\w+:/;
+
+function canUseFastMarkupPath(text: string, replaceEmoji: boolean): boolean {
+    if (!text) {
+        return true;
+    }
+
+    if (replaceEmoji && EMOJI_TOKEN_RE.test(text)) {
+        return false;
+    }
+
+    return !FULL_MARKUP_TOKEN_RE.test(text);
+}
+
+function renderFastMarkupHtml(text: string): string {
+    return normalizeNewlines(text)
+        .split('\n')
+        .map((line) => linkifyAndEscape(line, true))
+        .join('<br/>');
 }
 
 function isFence(line: string): boolean {

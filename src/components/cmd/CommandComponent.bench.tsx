@@ -18,11 +18,13 @@ const entries = Array.from({ length: 120 }, (_, index) => ({
         type: "String",
         optional: false,
         group: undefined,
-        desc: "",
+        desc: index % 4 === 0
+            ? "A single line of text"
+            : "A discord guild id. See: <https://en.wikipedia.org/wiki/Template:Discord server#Getting Guild ID>",
     },
     getTypeBreakdown: () => ({ element: "String", annotations: null, child: null }),
-    getExamples: () => [],
-    getTypeDesc: () => "",
+    getExamples: () => (index % 3 === 0 ? ["example:value"] : []),
+    getTypeDesc: () => (index % 2 === 0 ? "A single line of text" : "Supports https://example.com style links"),
 }));
 
 const command = {

@@ -133,7 +133,20 @@ export function isPlaceholderExpressionType(breakdown: TypeBreakdown): boolean {
     return getPlaceholderExpressionDescriptor(breakdown) != null;
 }
 
+const ARG_INPUT_RESOLUTION_CACHE = new WeakMap<TypeBreakdown, ArgInputResolution>();
+
 export function resolveArgInput(breakdown: TypeBreakdown): ArgInputResolution {
+    const cached = ARG_INPUT_RESOLUTION_CACHE.get(breakdown);
+    if (cached) {
+        return cached;
+    }
+
+    const resolution = resolveArgInputUncached(breakdown);
+    ARG_INPUT_RESOLUTION_CACHE.set(breakdown, resolution);
+    return resolution;
+}
+
+function resolveArgInputUncached(breakdown: TypeBreakdown): ArgInputResolution {
     const optionData = breakdown.getOptionData();
     const placeholder = breakdown.getPlaceholder();
     const lower = breakdown.element.toLowerCase();

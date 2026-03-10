@@ -2,7 +2,7 @@ import React, { startTransition, useCallback, useMemo, useRef, useState } from '
 import CommandComponent from '../../components/cmd/CommandComponent'; // Import CommandComponent
 import { CommandQueryRegistryProvider } from '@/components/cmd/CommandQueryRegistry';
 import { CommandStoreType } from '@/utils/StateUtil.ts';
-import { Command, CM, AnyCommandPath, CommandPath } from '@/utils/Command.ts';
+import { Command, CM, AnyCommandPath, CommandPath, getTypeBreakdown } from '@/utils/Command.ts';
 import { useLocation, useParams } from "react-router-dom";
 import { BlockCopyButton } from "@/components/ui/block-copy-button.tsx";
 import { TooltipProvider } from "@/components/ui/tooltip.tsx";
@@ -53,7 +53,10 @@ export default function CommandPage() {
         return nextValues;
     }, [queryParams]);
     const commandStore = useMemo(() => createCommandStoreWithDef(initialValues), [initialValues]);
-    const queryBreakdowns = useMemo(() => cmdObj.getArguments().map((arg) => arg.getTypeBreakdown()), [cmdObj]);
+    const queryBreakdowns = useMemo(() => {
+        const uniqueTypes = new Set(cmdObj.getArguments().map((arg) => arg.arg.type));
+        return Array.from(uniqueTypes, (type) => getTypeBreakdown(CM, type));
+    }, [cmdObj]);
 
     React.useEffect(() => {
         if (!benchMode) {

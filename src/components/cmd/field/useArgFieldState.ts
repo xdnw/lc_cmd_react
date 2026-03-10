@@ -1,4 +1,3 @@
-import { useSyncedState } from "@/utils/StateUtil";
 import { useCallback, useState } from "react";
 import type { ValidationState } from "./argValidation";
 
@@ -9,7 +8,7 @@ const DEFAULT_VALIDATION: ValidationState = {
 };
 
 export function useArgFieldState(initialValue: string) {
-    const [value, setValue] = useSyncedState(initialValue || "");
+    const [value, setValue] = useState(initialValue || "");
     const [validation, setValidation] = useState<ValidationState>(DEFAULT_VALIDATION);
 
     const resetValidation = useCallback(() => {

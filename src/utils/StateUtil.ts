@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { deepEqual } from '@/lib/utils';
 import { JSONValue } from '@/lib/internaltypes';
 
@@ -37,28 +37,29 @@ export function useDeepState<T extends JSONValue | Map<unknown, unknown> | Set<u
  */
 export function useSyncedState<T>(initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [value, setValue] = useState<T>(initialValue);
-  const [lastInitial, setLastInitial] = useState<T>(initialValue);
+  const lastInitialRef = useRef<T>(initialValue);
 
   useEffect(() => {
-    if (!deepEqual(initialValue, lastInitial)) {
-      setValue(initialValue);
-      setLastInitial(initialValue);
+    if (!deepEqual(initialValue, lastInitialRef.current)) {
+      lastInitialRef.current = initialValue;
+      setValue((currentValue) => (deepEqual(currentValue, initialValue) ? currentValue : initialValue));
     }
-  }, [initialValue, lastInitial]);
+  }, [initialValue]);
 
   return [value, setValue];
 }
 
 export function useSyncedStateFunc<T>(initialValue: string, parseValue: (value: string) => T): [T, React.Dispatch<React.SetStateAction<T>>] {
-  const [value, setValue] = useState<T>(parseValue(initialValue));
-  const [lastInitial, setLastInitial] = useState<string>(initialValue);
+  const [value, setValue] = useState<T>(() => parseValue(initialValue));
+  const lastInitialRef = useRef<string>(initialValue);
 
   useEffect(() => {
-    if (!deepEqual(initialValue, lastInitial)) {
-      setValue(parseValue(initialValue));
-      setLastInitial(initialValue);
+    if (!deepEqual(initialValue, lastInitialRef.current)) {
+      lastInitialRef.current = initialValue;
+      const nextValue = parseValue(initialValue);
+      setValue((currentValue) => (deepEqual(currentValue, nextValue) ? currentValue : nextValue));
     }
-  }, [initialValue, lastInitial, parseValue]);
+  }, [initialValue, parseValue]);
 
   return [value, setValue];
 }

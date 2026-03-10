@@ -8,6 +8,7 @@ import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persist
 import { registerSW } from 'virtual:pwa-register'
 
 const isDevelopment = import.meta.env.MODE === 'dev' || import.meta.env.MODE === 'dev-test';
+const enableStrictModeInDev = import.meta.env.VITE_ENABLE_STRICT_MODE === '1';
 const queryClient = new QueryClient();
 
 // Create a persister that uses localStorage
@@ -52,7 +53,7 @@ if (import.meta.env.PROD) {
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-    isDevelopment ? (
+    isDevelopment && enableStrictModeInDev ? (
         <React.StrictMode>
             <QueryClientProvider client={queryClient}>
                 <App />

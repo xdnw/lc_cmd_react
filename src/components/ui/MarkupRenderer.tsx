@@ -9,6 +9,17 @@ import { ThemedChart } from "../../pages/graphs/SimpleChart";
 import { Link } from "react-router-dom";
 import { commandButtonAction } from "../../pages/command";
 
+const PLAIN_TEXT_ONLY_RE = /^[^\n<>{}\[\]`*_~|]+$/;
+const PLAIN_TEXT_URL_RE = /https?:\/\//i;
+const PLAIN_TEXT_EMOJI_RE = /:\w+:/;
+
+function canRenderPlainText(content: string): boolean {
+    return Boolean(content)
+        && PLAIN_TEXT_ONLY_RE.test(content)
+        && !PLAIN_TEXT_URL_RE.test(content)
+        && !PLAIN_TEXT_EMOJI_RE.test(content);
+}
+
 interface Author {
     name: string;
     url: string;
@@ -232,6 +243,8 @@ export function Embed({ json, responseRef, showDialog }:
 }
 
 export default function MarkupRenderer({ content, embed, showDialog }: { content: string, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): ReactNode {
+    const shouldRenderPlainText = canRenderPlainText(content);
+
     const sanitized = useMemo(() => {
         return content ? (markup({
             txt: content,
@@ -240,6 +253,15 @@ export default function MarkupRenderer({ content, embed, showDialog }: { content
             showDialog: showDialog
         })) : "";
     }, [content, embed, showDialog]);
+
+    if (!content) {
+        return null;
+    }
+
+    if (shouldRenderPlainText) {
+        return content;
+    }
+
     return (
         <span dangerouslySetInnerHTML={{ __html: sanitized }} />
     );

@@ -98,6 +98,9 @@ export class Argument {
     name: string;
     arg: IArgument;
     breakdown: TypeBreakdown | null = null;
+    keyData: IKeyData | null = null;
+    typeDesc: string | null = null;
+    examples: string[] | null = null;
 
     constructor(name: string, arg: IArgument) {
         this.name = name;
@@ -110,15 +113,30 @@ export class Argument {
     }
 
     getKeyData(): IKeyData {
-        return CM.data.keys[this.arg.type] ?? { desc: "", examples: null };
+        if (this.keyData != null) {
+            return this.keyData;
+        }
+
+        this.keyData = CM.data.keys[this.arg.type] ?? { desc: "", examples: null };
+        return this.keyData;
     }
 
     getTypeDesc(): string {
-        return this.getKeyData().desc;
+        if (this.typeDesc != null) {
+            return this.typeDesc;
+        }
+
+        this.typeDesc = this.getKeyData().desc ?? "";
+        return this.typeDesc;
     }
 
     getExamples(): string[] {
-        return this.getKeyData().examples || [];
+        if (this.examples != null) {
+            return this.examples;
+        }
+
+        this.examples = this.getKeyData().examples || [];
+        return this.examples;
     }
 
     getOptionData(): OptionData {
@@ -212,22 +230,34 @@ function resolveOptionDataForType(element: string, annotations: string | null): 
 }
 
 export function getTypeBreakdown(ref: CommandMap, type: string): TypeBreakdown {
-    let annotations: string | null = null;
-    if (type.endsWith(']')) {
-        const annotationStart = type.indexOf('[');
-        annotations = type.substring(annotationStart + 1, type.length - 1);
-        type = type.substring(0, annotationStart);
+    const cacheKey = type.trim();
+    const cachedBreakdown = TYPE_BREAKDOWN_CACHE.get(ref)?.get(cacheKey);
+    if (cachedBreakdown) {
+        return cachedBreakdown;
     }
-    if (type.endsWith('>')) {
-        const openBracket = type.indexOf('<');
-        const childStr = split(type.substring(openBracket + 1, type.length - 1), ",");
+
+    let resolvedType = cacheKey;
+    let annotations: string | null = null;
+    if (resolvedType.endsWith(']')) {
+        const annotationStart = resolvedType.indexOf('[');
+        annotations = resolvedType.substring(annotationStart + 1, resolvedType.length - 1);
+        resolvedType = resolvedType.substring(0, annotationStart);
+    }
+    if (resolvedType.endsWith('>')) {
+        const openBracket = resolvedType.indexOf('<');
+        const childStr = split(resolvedType.substring(openBracket + 1, resolvedType.length - 1), ",");
         if (childStr.length !== 1 || childStr[0] !== "?") {
-            const element = type.substring(0, openBracket).trim();
+            const element = resolvedType.substring(0, openBracket).trim();
             const child = childStr.map((childType) => getTypeBreakdown(ref, childType.trim()));
-            return new TypeBreakdown(ref, element, annotations, child);
+            const breakdown = new TypeBreakdown(ref, element, annotations, child);
+            getTypeBreakdownCache(ref).set(cacheKey, breakdown);
+            return breakdown;
         }
     }
-    return new TypeBreakdown(ref, type, annotations, null);
+
+    const breakdown = new TypeBreakdown(ref, resolvedType, annotations, null);
+    getTypeBreakdownCache(ref).set(cacheKey, breakdown);
+    return breakdown;
 }
 
 export class BaseCommand {
@@ -817,6 +847,8 @@ export class TypeBreakdown {
     element: string;
     annotations: string | null;
     child: TypeBreakdown[] | null;
+    optionData: OptionData | null = null;
+    placeholder: IPlaceholder | null | undefined = undefined;
 
     constructor(map: CommandMap, element: string, annotations: string | null, child: TypeBreakdown[] | null) {
         this.map = map;
@@ -846,25 +878,51 @@ export class TypeBreakdown {
     }
 
     getPlaceholder(): IPlaceholder | null {
-        if (this.child == null || this.element === "Map") return null;
-        // const phName = this.getPlaceholderTypeName();
-        // console.log("phName" + phName);
-        return this.map.data.placeholders[this.child[0].element];
+        if (this.placeholder !== undefined) {
+            return this.placeholder;
+        }
+
+        if (this.child == null || this.element === "Map") {
+            this.placeholder = null;
+            return this.placeholder;
+        }
+
+        this.placeholder = this.map.data.placeholders[this.child[0].element] ?? null;
+        return this.placeholder;
     }
 
     getOptionData(): OptionData {
+        if (this.optionData != null) {
+            return this.optionData;
+        }
+
         if ((this.element === "Set" || this.element === "List" || this.element === "TypedFunction") && this.child !== null) {
-            return this.child[0].getOptionData().withMulti(true);
+            this.optionData = this.child[0].getOptionData().withMulti(true);
+            return this.optionData;
         }
 
         const resolved = resolveOptionDataForType(this.element, this.annotations);
         if (resolved) {
-            return new OptionData(this.map, resolved.config, false, resolved.typeKey);
+            this.optionData = new OptionData(this.map, resolved.config, false, resolved.typeKey);
+            return this.optionData;
         }
 
         const fallbackTypeKey = getTypeLookupKeys(this.element, this.annotations)[0] ?? this.element;
-        return new OptionData(this.map, { options: null, query: false, completions: false, guild: false, nation: false, user: false }, false, fallbackTypeKey);
+        this.optionData = new OptionData(this.map, { options: null, query: false, completions: false, guild: false, nation: false, user: false }, false, fallbackTypeKey);
+        return this.optionData;
     }
+}
+
+const TYPE_BREAKDOWN_CACHE = new WeakMap<CommandMap, Map<string, TypeBreakdown>>();
+
+function getTypeBreakdownCache(map: CommandMap): Map<string, TypeBreakdown> {
+    let cache = TYPE_BREAKDOWN_CACHE.get(map);
+    if (!cache) {
+        cache = new Map<string, TypeBreakdown>();
+        TYPE_BREAKDOWN_CACHE.set(map, cache);
+    }
+
+    return cache;
 }
 
 function resolveOptionData(type: string) {

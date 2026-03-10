@@ -12,7 +12,6 @@ import type {
   DragEvent as ReactDragEvent,
   MouseEvent as ReactMouseEvent,
 } from 'react';
-import SunEditor from 'suneditor-react';
 import DOMPurify from 'dompurify';
 import 'suneditor/dist/css/suneditor.min.css';
 import './HtmlEditor.css';
@@ -28,6 +27,30 @@ export type HtmlEditorProps = {
 };
 
 type EditorMode = 'wysiwyg' | 'raw';
+
+type SunEditorComponentType = typeof import('suneditor-react').default;
+
+let sunEditorComponentPromise: Promise<SunEditorComponentType> | null = null;
+let resolvedSunEditorComponent: SunEditorComponentType | null = null;
+
+function loadSunEditorComponent(): Promise<SunEditorComponentType> {
+  if (resolvedSunEditorComponent) {
+    return Promise.resolve(resolvedSunEditorComponent);
+  }
+
+  if (!sunEditorComponentPromise) {
+    sunEditorComponentPromise = import('suneditor-react').then((module) => {
+      resolvedSunEditorComponent = module.default;
+      return module.default;
+    });
+  }
+
+  return sunEditorComponentPromise;
+}
+
+if (typeof window !== 'undefined') {
+  void loadSunEditorComponent();
+}
 
 type SunEditorInstance = {
   setContents: (html: string) => void;
@@ -100,6 +123,7 @@ const TOOLBAR_BUTTONS: string[][] = [
 
 const EMIT_DEBOUNCE_MS = 250;
 const MAX_EMBEDDED_IMAGE_BYTES = 5 * 1024 * 1024;
+const WYSIWYG_MOUNT_ROOT_MARGIN = 1800;
 
 const EMBEDDABLE_IMAGE_TYPES = new Set([
   'image/png',
@@ -369,6 +393,9 @@ function HtmlEditorComponent({
   const [html, setHtml] = useState<string>(() =>
     sanitizeEditorHtml(initialValue ?? ''),
   );
+  const [shouldMountWysiwyg, setShouldMountWysiwyg] = useState(false);
+  const [SunEditorComponent, setSunEditorComponent] =
+    useState<SunEditorComponentType | null>(() => resolvedSunEditorComponent);
 
   const editorRef = useRef<SunEditorInstance | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
@@ -381,6 +408,55 @@ function HtmlEditorComponent({
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenHost, setFullscreenHost] = useState<'body' | 'dialog'>('body');
+
+  useEffect(() => {
+    if (mode !== 'wysiwyg') {
+      return;
+    }
+
+    const shell = editorShellRef.current;
+    if (!shell) {
+      return;
+    }
+
+    const shellRect = shell.getBoundingClientRect();
+    const isNearViewport = shellRect.top <= window.innerHeight + WYSIWYG_MOUNT_ROOT_MARGIN
+      && shellRect.bottom >= -WYSIWYG_MOUNT_ROOT_MARGIN;
+
+    if (isNearViewport || typeof IntersectionObserver === 'undefined') {
+      setShouldMountWysiwyg(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) {
+        return;
+      }
+
+      setShouldMountWysiwyg(true);
+      observer.disconnect();
+    }, { rootMargin: `${WYSIWYG_MOUNT_ROOT_MARGIN}px 0px` });
+
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== 'wysiwyg' || !shouldMountWysiwyg || SunEditorComponent) {
+      return;
+    }
+
+    let cancelled = false;
+    void loadSunEditorComponent().then((component) => {
+      if (!cancelled) {
+        setSunEditorComponent(() => component);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [SunEditorComponent, mode, shouldMountWysiwyg]);
 
   const handleEnterFullscreen = useCallback(function handleEnterFullscreen(): void {
     const dialogHost = editorShellRef.current?.closest('[role="dialog"]');
@@ -556,6 +632,7 @@ function HtmlEditorComponent({
     if (sanitized !== htmlRef.current) {
       setLocalHtml(sanitized);
     }
+    setShouldMountWysiwyg(true);
     setMode('wysiwyg');
   }, [setLocalHtml]);
 
@@ -833,13 +910,19 @@ function HtmlEditorComponent({
       <div className={panelClassName}>
         {mode === 'wysiwyg' ? (
           <div className={editorSkinClassName}>
-            <SunEditor
-              defaultValue={html}
-              getSunEditorInstance={handleEditorInstance}
-              onChange={handleWysiwygChange}
-              onImageUploadBefore={handleImageUploadBefore}
-              setOptions={sunEditorOptions}
-            />
+            {shouldMountWysiwyg && SunEditorComponent ? (
+              <SunEditorComponent
+                defaultValue={html}
+                getSunEditorInstance={handleEditorInstance}
+                onChange={handleWysiwygChange}
+                onImageUploadBefore={handleImageUploadBefore}
+                setOptions={sunEditorOptions}
+              />
+            ) : (
+              <div className="flex min-h-[160px] items-center justify-center px-3 py-4 text-[12px] text-slate-500 dark:text-slate-400">
+                Loading WYSIWYG editor...
+              </div>
+            )}
           </div>
         ) : (
           <textarea

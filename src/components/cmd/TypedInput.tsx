@@ -193,38 +193,35 @@ function OptionsSelector({
                 <span className="truncate">Simple placeholders</span>
                 {collapseIcon}
             </Button>
-            <div
-                className={cn(
-                    "overflow-hidden transition-all duration-150 ease-in-out",
-                    collapseColOptions ? "max-h-0 opacity-0" : "max-h-56 rounded-md border border-border/60 bg-muted/15 p-2 opacity-100"
-                )}
-            >
-                <Input
-                    type="text"
-                    className={cn("mb-2 w-full bg-background", compact ? "h-6.5 px-2 text-xs" : "h-7")}
-                    placeholder="Filter"
-                    value={colFilter}
-                    onChange={handleColFilterChange}
-                />
-                <div className="flex flex-wrap gap-1.5">
-                    {filteredOptions.map(([key, desc]) => {
-                        const newValue = `{${key}}`;
-                        return (
-                            <Button
-                                key={key}
-                                variant={value === newValue ? "secondary" : "outline"}
-                                size="sm"
-                                data-key={key}
-                                className={cn("max-w-full", compact ? "h-6 text-[10px]" : "h-6 text-[11px]")}
-                                onClick={handleOptionClick}
-                            >
-                                <span className="truncate font-mono">{key}</span>
-                                {!compact && <span className="truncate text-[10px] opacity-60">{desc}</span>}
-                            </Button>
-                        );
-                    })}
+            {!collapseColOptions && (
+                <div className="max-h-56 rounded-md border border-border/60 bg-muted/15 p-2">
+                    <Input
+                        type="text"
+                        className={cn("mb-2 w-full bg-background", compact ? "h-6.5 px-2 text-xs" : "h-7")}
+                        placeholder="Filter"
+                        value={colFilter}
+                        onChange={handleColFilterChange}
+                    />
+                    <div className="flex flex-wrap gap-1.5">
+                        {filteredOptions.map(([key, desc]) => {
+                            const newValue = `{${key}}`;
+                            return (
+                                <Button
+                                    key={key}
+                                    variant={value === newValue ? "secondary" : "outline"}
+                                    size="sm"
+                                    data-key={key}
+                                    className={cn("max-w-full", compact ? "h-6 text-[10px]" : "h-6 text-[11px]")}
+                                    onClick={handleOptionClick}
+                                >
+                                    <span className="truncate font-mono">{key}</span>
+                                    {!compact && <span className="truncate text-[10px] opacity-60">{desc}</span>}
+                                </Button>
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

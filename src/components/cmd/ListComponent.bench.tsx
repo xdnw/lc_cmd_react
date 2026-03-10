@@ -17,6 +17,18 @@ afterEach(() => {
 });
 
 describe("list component interaction", () => {
+    bench("render closed list component with 20k local options", () => {
+        render(
+            <ListComponent
+                argName="target"
+                options={largeOptions}
+                isMulti={false}
+                initialValue=""
+                setOutputValue={() => {}}
+            />,
+        );
+    });
+
     bench("render and filter 20k local options", () => {
         render(
             <ListComponent

@@ -39,7 +39,7 @@ function collectTargetsFromSource(source: ExpressionValueSourceRef, targets: War
 
     case "composite-query-options":
       source.composite.forEach((type) => {
-        targets.push({ type, warmWorkerDataset: false });
+        targets.push({ type, warmWorkerDataset: true });
       });
       return;
 
@@ -62,7 +62,7 @@ export function collectArgInputWarmQueryTargets(breakdown: TypeBreakdown): WarmQ
 
   if (resolution.kind === "composite-query") {
     resolution.optionData.composite.forEach((type) => {
-      targets.push({ type, warmWorkerDataset: false });
+      targets.push({ type, warmWorkerDataset: true });
     });
   }
 

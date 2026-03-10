@@ -68,6 +68,62 @@ describe("CompositeQueryComponent", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("defers large composite-query option hydration to the shared worker-backed path", async () => {
+    const nationPayload = {
+      text: Array.from({ length: 4000 }, (_, index) => `Nation ${index}`),
+      key_string: Array.from({ length: 4000 }, (_, index) => `${index}`),
+    };
+    const alliancePayload = {
+      text: Array.from({ length: 3000 }, (_, index) => `Alliance ${index}`),
+      key_string: Array.from({ length: 3000 }, (_, index) => `AA:${index}`),
+    };
+    useQueriesMock.mockReturnValue([
+      {
+        isLoading: false,
+        error: null,
+        data: { data: nationPayload },
+      },
+      {
+        isLoading: false,
+        error: null,
+        data: { data: alliancePayload },
+      },
+    ]);
+    ensureQueryOptionDatasetFromPayloadMock.mockResolvedValue(6000);
+    searchQueryOptionDatasetMock
+      .mockResolvedValueOnce({
+        options: [{ label: "Borg", value: "189573" }],
+        hasAnyMatch: true,
+        hasExactMatch: false,
+      })
+      .mockResolvedValueOnce({
+        options: [{ label: "Singularity", value: "AA:11657" }],
+        hasAnyMatch: true,
+        hasExactMatch: false,
+      });
+
+    render(
+      <CompositeQueryComponent
+        composites={["DBNation", "DBAlliance"]}
+        multi={false}
+        argName="target"
+        initialValue=""
+        preloadOptions
+        setOutputValue={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledWith("query:DBNation", "DBNation", nationPayload);
+      expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledWith("query:DBAlliance", "DBAlliance", alliancePayload);
+    });
+    await waitFor(() => {
+      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "");
+      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBAlliance", "");
+    });
+    expect(screen.getByTestId("list-component").textContent).toContain("options:nation:Borg|nation:189573,AA:Singularity|AA:11657");
+  });
+
   it("prefixes composite options so overlapping source values stay distinct", () => {
     useQueriesMock.mockReturnValue([
       {

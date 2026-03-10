@@ -3,7 +3,6 @@ import { Argument, BaseCommand } from "../../utils/Command";
 import { memo, useCallback, useMemo, useState, useEffect, useRef, type CSSProperties, type FocusEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import MarkupRenderer from "../ui/MarkupRenderer";
-import LazyIcon from "../ui/LazyIcon";
 import { cn } from "@/lib/utils";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
 import { isCompactMode } from "./field/fieldTypes";
@@ -438,7 +437,6 @@ export function ArgDescComponent(
             includeExamples?: boolean,
             compact?: boolean,
         }) {
-    const [hide, setHide] = useState<boolean>(!includeType && !includeDesc && !includeExamples);
     const desc = arg.getTypeDesc();
     const examples = useMemo(() => {
         const ex = arg.getExamples();
@@ -448,23 +446,14 @@ export function ArgDescComponent(
         return [];
     }, [arg]);
 
-    const isExpanded = !hide;
-
-
     const optionalBadge = useMemo(() => {
         return arg.arg.optional
             ? <span className="inline-flex font-medium text-sky-700 dark:text-sky-300">optional</span>
             : <span className="inline-flex font-medium text-rose-700 dark:text-rose-300">required</span>;
     }, [arg.arg.optional]);
 
-    const toggleIcon = useMemo(() => {
-        return hide ?
-            <LazyIcon name="ChevronDown" className="inline-block h-3.5 w-3.5" /> :
-            <LazyIcon name="ChevronUp" className="inline-block h-3.5 w-3.5" />;
-    }, [hide]);
-
     const descriptionContent = useMemo(() => {
-        if (!isExpanded || !includeDesc) return null;
+        if (!includeDesc) return null;
         return (
             <div className="grid gap-x-3 gap-y-1 border-t border-border/50 pt-1.5 text-[11px] sm:grid-cols-[auto_1fr]">
                 {arg.arg.desc && <span className="font-medium text-muted-foreground">Info</span>}
@@ -473,10 +462,10 @@ export function ArgDescComponent(
                 {desc && <div className="min-w-0 text-muted-foreground"><MarkupRenderer content={desc} /></div>}
             </div>
         );
-    }, [isExpanded, includeDesc, arg.arg.desc, desc]);
+    }, [includeDesc, arg.arg.desc, desc]);
 
     const examplesContent = useMemo(() => {
-        if (!isExpanded || !includeExamples || examples.length === 0) return null;
+        if (!includeExamples || examples.length === 0) return null;
         return (
             <div className="flex flex-wrap items-center gap-1 pt-1 text-[11px]">
                 <span className="font-medium text-muted-foreground">Examples</span>
@@ -485,15 +474,7 @@ export function ArgDescComponent(
                 ))}
             </div>
         );
-    }, [isExpanded, includeExamples, examples]);
-
-    const toggleHidden = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        setHide(f => !f);
-    }, [setHide]);
-
-
-    const hasExtraContent = Boolean((includeDesc && (arg.arg.desc || desc)) || (includeExamples && examples.length > 0));
+    }, [includeExamples, examples]);
 
     return (
         <div className={cn("rounded-t-md border border-border/80 border-b-0 bg-muted/55 px-2 py-1 text-xs", compact ? "w-full" : "inline-block max-w-full me-1")} style={{ marginBottom: "-1px" }}>
@@ -501,10 +482,6 @@ export function ArgDescComponent(
                 <div className="min-w-0 flex-1 truncate font-medium text-foreground">{arg.name}</div>
                 {includeType && <div className="truncate text-[10px] uppercase tracking-widest text-muted-foreground">{arg.arg.type}</div>}
                 {optionalBadge}
-                {hasExtraContent && <button type="button" tabIndex={-1} className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground" onClick={toggleHidden}>
-                    {isExpanded ? "Hide details" : "Show details"}
-                    {toggleIcon}
-                </button>}
             </div>
             {(descriptionContent || examplesContent) && (
                 <div className="mt-1.5 space-y-1.5">

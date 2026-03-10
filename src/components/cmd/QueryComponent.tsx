@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ListComponent from "./ListComponent";
 import { INPUT_OPTIONS } from "@/lib/endpoints";
-import { WebOptions } from "../../lib/apitypes";
+import { WebError, WebOptions } from "../../lib/apitypes";
 import { useQueries } from "@tanstack/react-query";
 import { bulkQueryOptions } from "@/lib/queries";
 import Loading from "../ui/loading";
@@ -16,6 +16,13 @@ import { ensureQueryOptionDatasetFromPayload, searchQueryOptionDataset } from ".
 import type { SelectOption } from "./selectValueUtils";
 
 type QueryNoticeTone = "error" | "warning";
+
+type CompositePayloadSource = {
+    type: string;
+    payload?: WebOptions | WebError | unknown;
+    error?: string;
+    optionCount: number;
+};
 
 function EmptyQueryOptions({ element, message }: { element: string; message?: string }) {
     return (
@@ -59,7 +66,7 @@ export default function QueryComponent(
 }
 
 export function CompositeQueryComponent(
-    {composites, multi, argName, initialValue, setOutputValue, preloadOptions: _preloadOptions}:
+    {composites, multi, argName, initialValue, setOutputValue, preloadOptions}:
     {
         composites: string[],
         multi: boolean,
@@ -74,17 +81,19 @@ export function CompositeQueryComponent(
         multi={multi}
         argName={argName}
         initialValue={initialValue}
+        preloadOptions={preloadOptions}
         setOutputValue={setOutputValue}
     />;
 }
 
 function ResolvedQueryOptionsComponent(
-    {types, argName, multi, initialValue, setOutputValue}:
+    {types, argName, multi, initialValue, setOutputValue, preloadOptions}:
     {
         types: string[],
         argName: string,
         multi: boolean,
         initialValue: string,
+        preloadOptions?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
 ) {
@@ -96,12 +105,50 @@ function ResolvedQueryOptionsComponent(
         )),
     });
 
+    const sources = useMemo<CompositePayloadSource[]>(() => {
+        return types.map((type, index) => {
+            const query = queries[index];
+            if (query?.error) {
+                return {
+                    type,
+                    error: query.error instanceof Error ? query.error.message : String(query.error),
+                    optionCount: 0,
+                };
+            }
+
+            const payload = query?.data?.data;
+            return {
+                type,
+                payload,
+                error: payload === undefined ? "No data returned by the backend." : undefined,
+                optionCount: getQueryOptionCount(payload),
+            };
+        });
+    }, [queries, types]);
+
     if (queries.some((query) => query.isLoading)) {
         return (
             <div className="flex min-h-8 items-center rounded-md border border-dashed border-border/70 bg-muted/15 px-2 py-1.5 text-[11px] text-muted-foreground">
                 <span className="mr-2 inline-flex"><Loading /></span>
                 <span>Loading options...</span>
             </div>
+        );
+    }
+
+    const totalOptionCount = sources.reduce((sum, source) => sum + source.optionCount, 0);
+    const hasResolvedPayload = sources.some((source) => source.payload != null);
+    const shouldUseDeferredWorker = !initialValue && totalOptionCount >= ASYNC_QUERY_OPTION_THRESHOLD && hasResolvedPayload;
+
+    if (shouldUseDeferredWorker) {
+        return (
+            <DeferredCompositeQueryOptionsList
+                sources={sources}
+                multi={multi}
+                argName={argName}
+                initialValue={initialValue}
+                preloadOptions={preloadOptions}
+                setOutputValue={setOutputValue}
+            />
         );
     }
 
@@ -122,6 +169,160 @@ function ResolvedQueryOptionsComponent(
             {combined.warning && <QueryNotice tone="warning" message={combined.warning} />}
             <ListComponent argName={argName} options={combined.options} isMulti={multi} initialValue={initialValue}
                           setOutputValue={setOutputValue}/>
+        </div>
+    );
+}
+
+function DeferredCompositeQueryOptionsList({
+    sources,
+    multi,
+    argName,
+    initialValue,
+    preloadOptions,
+    setOutputValue,
+}: {
+    sources: CompositePayloadSource[];
+    multi: boolean;
+    argName: string;
+    initialValue: string;
+    preloadOptions?: boolean;
+    setOutputValue: (name: string, value: string) => void;
+}) {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const focusAfterLoadRef = useRef(false);
+    const requestVersionRef = useRef(0);
+    const [isActivated, setIsActivated] = useState(Boolean(preloadOptions));
+    const [searchValue, setSearchValue] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [combinedResult, setCombinedResult] = useState(() => combineCompositeSourceResults([]));
+
+    useEffect(() => {
+        const currentVersion = requestVersionRef.current + 1;
+        requestVersionRef.current = currentVersion;
+        setLoading(true);
+        setError(null);
+
+        void Promise.allSettled(sources.map(async (source) => {
+            if (source.error) {
+                return {
+                    type: source.type,
+                    options: [],
+                    error: source.error,
+                };
+            }
+
+            await ensureQueryOptionDatasetFromPayload(`query:${source.type}`, source.type, source.payload);
+            const result = await searchQueryOptionDataset(`query:${source.type}`, searchValue);
+
+            return {
+                type: source.type,
+                options: result.options,
+            };
+        }))
+            .then((results) => {
+                if (requestVersionRef.current !== currentVersion) {
+                    return;
+                }
+
+                const nextCombined = combineCompositeSourceResults(results.map((result, index) => {
+                    if (result.status === "fulfilled") {
+                        return result.value;
+                    }
+
+                    return {
+                        type: sources[index]?.type ?? "composite",
+                        options: [],
+                        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+                    };
+                }));
+
+                setCombinedResult(nextCombined);
+                setLoading(false);
+            })
+            .catch((nextError: unknown) => {
+                if (requestVersionRef.current !== currentVersion) {
+                    return;
+                }
+                setError(nextError instanceof Error ? nextError.message : String(nextError));
+                setLoading(false);
+            });
+    }, [searchValue, sources]);
+
+    useEffect(() => {
+        if (loading || !focusAfterLoadRef.current) {
+            return;
+        }
+
+        focusAfterLoadRef.current = false;
+        const handle = window.requestAnimationFrame(() => {
+            const target = containerRef.current?.querySelector("input:not([disabled])") as HTMLElement | null;
+            target?.focus();
+        });
+
+        return () => window.cancelAnimationFrame(handle);
+    }, [loading]);
+
+    const activate = useCallback((focusAfterLoad: boolean) => {
+        if (focusAfterLoad) {
+            focusAfterLoadRef.current = true;
+        }
+        setIsActivated(true);
+    }, []);
+
+    const handlePointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+        if (isActivated) {
+            return;
+        }
+        event.preventDefault();
+        activate(true);
+    }, [activate, isActivated]);
+
+    const handleFocusCapture = useCallback(() => {
+        if (!isActivated) {
+            activate(true);
+        }
+    }, [activate, isActivated]);
+
+    const handleSearchValueChange = useCallback((nextValue: string) => {
+        setSearchValue(nextValue);
+    }, []);
+
+    if (error) {
+        return <EmptyQueryOptions element="composite query" message={error} />;
+    }
+
+    if (isActivated && !loading) {
+        if (combinedResult.blockingError) {
+            return <EmptyQueryOptions element="composite query" message={combinedResult.blockingError} />;
+        }
+
+        if (combinedResult.options.length === 0) {
+            return <EmptyQueryOptions element="composite query" />;
+        }
+    }
+
+    return (
+        <div ref={containerRef} onPointerDownCapture={handlePointerDownCapture} onFocusCapture={handleFocusCapture}>
+            {isActivated ? (
+                <div className="flex flex-col gap-2">
+                    {combinedResult.warning && !loading && <QueryNotice tone="warning" message={combinedResult.warning} />}
+                    <ListComponent
+                        argName={argName}
+                        options={combinedResult.options}
+                        isMulti={multi}
+                        initialValue={initialValue}
+                        setOutputValue={setOutputValue}
+                        onSearchValueChange={handleSearchValueChange}
+                        optionsArePrefiltered
+                        loadingOptions={loading}
+                    />
+                </div>
+            ) : (
+                <div className="flex min-h-8 items-center rounded-md border border-dashed border-border/70 bg-muted/15 px-2 py-1.5 text-[11px] text-muted-foreground">
+                    <span>{loading ? "Preparing options..." : "Focus to open options"}</span>
+                </div>
+            )}
         </div>
     );
 }

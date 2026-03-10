@@ -36,6 +36,7 @@ interface ArgProps {
   max?: number;
   initialValue: string;
   displayMode?: CommandInputDisplayMode;
+  forceMountAll?: boolean;
   setOutputValue: (key: string, value: string) => void;
 }
 
@@ -57,7 +58,7 @@ export function getArgInputComponentName(breakdown: TypeBreakdown): ComponentRes
 }
 
 function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps & { compact: boolean }): React.ReactElement {
-  const { argName, breakdown, min, max, initialValue, setOutputValue, displayMode, compact } = props;
+  const { argName, breakdown, min, max, initialValue, setOutputValue, displayMode, compact, forceMountAll } = props;
   const options = resolution.optionData;
   const textInputConfig = resolution.textInputConfig;
 
@@ -71,7 +72,7 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
 
     case "composite-query":
       return <CompositeQueryComponent composites={options.composite} multi={options.multi}
-        argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
+        argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} preloadOptions={forceMountAll} />;
 
     case "typed-placeholder":
       if (!resolution.typedPlaceholderConfig) {
@@ -83,7 +84,7 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
 
     case "placeholder-expression":
       return <PlaceholderExpressionInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        breakdown={breakdown} compact={compact} />;
+        breakdown={breakdown} compact={compact} forceMountAll={forceMountAll} />;
 
     case "placeholder-string":
     case "integer-list":
@@ -114,7 +115,7 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
 
     case "query":
       return <QueryComponent element={options.typeKey} multi={options.multi}
-        argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
+        argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} preloadOptions={forceMountAll} />;
 
     case "boolean":
       if (resolution.booleanMode === "tri-state") {
@@ -169,7 +170,7 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialValue, setOutputValue, displayMode }: ArgProps) {
+const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialValue, setOutputValue, displayMode, forceMountAll }: ArgProps) {
   const compact = isCompactMode(displayMode);
   const resolution = useMemo(() => resolveArgInput(breakdown), [breakdown]);
 
@@ -182,6 +183,7 @@ const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialV
     setOutputValue,
     displayMode,
     compact,
+    forceMountAll,
   });
 });
 

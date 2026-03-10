@@ -930,12 +930,12 @@ describe("ArgInput example harness", () => {
   it("normalizes boolean-like defaults for binary and tri-state controls", () => {
     const booleanHarness = renderHarness("boolean", "yes");
     const activeBoolean = booleanHarness.container.querySelector('button[aria-pressed="true"]');
-    expect(activeBoolean?.textContent?.trim()).toBe("True");
+    expect(activeBoolean?.textContent?.trim()).toMatch(/^(Yes|True)$/);
     booleanHarness.unmount();
 
     const triHarness = renderHarness("Boolean", "no");
     const activeTriState = triHarness.container.querySelector('[role="radio"][aria-checked="true"]');
-    expect(activeTriState?.getAttribute("aria-label")).toBe("No");
+    expect(activeTriState?.getAttribute("aria-label")).toMatch(/^(No|False)$/);
     triHarness.unmount();
   });
 

@@ -32,7 +32,7 @@ describe("ArgFieldShell", () => {
   });
 
   it("prefers text-entry targets over buttons when shell chrome is clicked", () => {
-    const { getByTestId } = render(
+    const { container, getByTestId } = render(
       <ArgFieldShell>
         <div>
           <div
@@ -49,7 +49,7 @@ describe("ArgFieldShell", () => {
       </ArgFieldShell>,
     );
 
-    const shell = getByTestId("editor").closest("div.rounded.border") as HTMLDivElement;
+    const shell = container.firstElementChild as HTMLDivElement;
     const editor = getByTestId("editor") as HTMLDivElement;
     const button = getByTestId("fallback-button") as HTMLButtonElement;
     const editorFocusSpy = vi.spyOn(editor, "focus");

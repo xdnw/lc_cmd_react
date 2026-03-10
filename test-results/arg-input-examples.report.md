@@ -7,32 +7,43 @@ Generated at: 2026-03-08T12:00:00.000Z
 - Total examples: 260
 - Supported examples: 255
 - Unsupported examples: 5
-- Default failures: 29
-- Paste failures: 31
+- Default failures: 40
+- Paste failures: 40
 - Unsupported or paste-unfriendly cases: 5
 
 ## Default Failures
 
 - AppMenu | "user" | QueryComponent [AppMenu] | Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild.
 - AppMenu | "message" | QueryComponent [AppMenu] | Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild.
+- Boolean | "true" | TriStateInput | Expected Yes to be selected by default, but got True.
+- Boolean | "yes" | TriStateInput | Expected Yes to be selected by default, but got True.
+- Boolean | "on" | TriStateInput | Expected Yes to be selected by default, but got True.
+- Boolean | "y" | TriStateInput | Expected Yes to be selected by default, but got True.
+- Boolean | "1" | TriStateInput | Expected Yes to be selected by default, but got True.
+- Boolean | "t" | TriStateInput | Expected Yes to be selected by default, but got True.
+- Boolean | "false" | TriStateInput | Expected No to be selected by default, but got False.
+- Boolean | "no" | TriStateInput | Expected No to be selected by default, but got False.
+- Boolean | "off" | TriStateInput | Expected No to be selected by default, but got False.
+- Boolean | "f" | TriStateInput | Expected No to be selected by default, but got False.
+- Boolean | "n" | TriStateInput | Expected No to be selected by default, but got False.
 - DBAlliancePosition | "23212" | QueryComponent [DBAlliancePosition] | Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild.
 - DBAlliancePosition | "Meow" | QueryComponent [DBAlliancePosition] | Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild.
 - DBLoan | "1234" | QueryComponent [DBLoan] | Backend returned 0 options for DBLoan.
-- DBNation | "<@664156861033086987>" | QueryComponent [DBNation] | No backend match for "<@664156861033086987>". Unmatched: <@664156861033086987>. Backend options (18258): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18248 more).
+- DBNation | "<@664156861033086987>" | QueryComponent [DBNation] | No backend match for "<@664156861033086987>". Unmatched: <@664156861033086987>. Backend options (18271): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18261 more).
 - GrantRequest | "1234" | QueryComponent [GrantRequest] | Backend request failed for GrantRequest: GrantRequest requires a guild. Please select a guild.
 - Map<Research,Integer> | "{GROUND_COST=12,AIR_CAPACITY=2}" | MapInput | Expected 2 map entries, rendered 1.
 - Map<ResourceType,Double> | "{money=1.2,food=6}" | MapInput | Expected 2 map entries, rendered 0.
 - Member | "@xdnw" | QueryComponent [Member] | Backend request failed for Member: Member requires a guild. Please select a guild.
 - Member | "borg" | QueryComponent [Member] | Backend request failed for Member: Member requires a guild. Please select a guild.
-- NationOrAllianceOrGuildOrTaxid | "tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "tax_id=26171". Unmatched: tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
-- NationOrAllianceOrGuildOrTaxid | "https://politicsandwar.com/index.php?id=15&tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "https://politicsandwar.com/index.php?id=15&tax_id=26171". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
+- NationOrAllianceOrGuildOrTaxid | "tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "tax_id=26171". Unmatched: tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
+- NationOrAllianceOrGuildOrTaxid | "https://politicsandwar.com/index.php?id=15&tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "https://politicsandwar.com/index.php?id=15&tax_id=26171". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
 - Role | "@drone" | QueryComponent [Role] | Backend request failed for Role: Role requires a guild. Please select a guild.
 - Role | "drone" | QueryComponent [Role] | Backend request failed for Role: Role requires a guild. Please select a guild.
 - Role | "672263980193939469" | QueryComponent [Role] | Backend request failed for Role: Role requires a guild. Please select a guild.
 - SelectionAlias | "nation:*,#cities>10" | QueryComponent [SelectionAlias] | Backend request failed for SelectionAlias: SelectionAlias requires a guild. Please select a guild.
 - Set<Category> | "interview,test,info" | QueryComponent [Category] | Backend request failed for Category: Category requires a guild. Please select a guild.
 - Set<Member> | "*" | QueryComponent [Member] | Backend request failed for Member: Member requires a guild. Please select a guild.
-- Set<NationOrAllianceOrGuildOrTaxid> | "borg,AA:Singularity,672217848311054346,tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "borg,AA:Singularity,672217848311054346,tax_id=26171". Unmatched: tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
+- Set<NationOrAllianceOrGuildOrTaxid> | "borg,AA:Singularity,672217848311054346,tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "borg,AA:Singularity,672217848311054346,tax_id=26171". Unmatched: tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
 - Set<Role> | "@drone,@cube" | QueryComponent [Role] | Backend request failed for Role: Role requires a guild. Please select a guild.
 - TaxBracket | "26171" | QueryComponent [TaxBracket] | Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild.
 - TaxBracket | "tax_id=26171" | QueryComponent [TaxBracket] | Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild.
@@ -50,24 +61,33 @@ Generated at: 2026-03-08T12:00:00.000Z
 - DBAlliancePosition | "23212" | QueryComponent [DBAlliancePosition] | Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild.
 - DBAlliancePosition | "Meow" | QueryComponent [DBAlliancePosition] | Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild.
 - DBLoan | "1234" | QueryComponent [DBLoan] | Backend returned 0 options for DBLoan.
-- DBNation | "<@664156861033086987>" | QueryComponent [DBNation] | No backend match for "<@664156861033086987>". Unmatched: <@664156861033086987>. Backend options (18258): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18248 more).
+- DBNation | "<@664156861033086987>" | QueryComponent [DBNation] | No backend match for "<@664156861033086987>". Unmatched: <@664156861033086987>. Backend options (18271): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18261 more).
 - GrantRequest | "1234" | QueryComponent [GrantRequest] | Backend request failed for GrantRequest: GrantRequest requires a guild. Please select a guild.
+- Map<CityRanges,Set<BeigeReason>> | "c1-9:*\nc10+:INACTIVE,VACATION_MODE,APPLICANT" | MapInput | Expected pasted map output c1-9=*,c10+=INACTIVE,VACATION_MODE,APPLICANT, got (empty).
 - Map<MilitaryUnit,Long> | "{soldiers=12,tanks=56}" | MapInput | Expected pasted map output soldiers=12,tanks=56, got (empty).
+- Map<NationFilter,MMRMatcher> | "#cities<10:505X\n#cities>=10:0250" | MapInput | Expected pasted map output #cities<10=505X,#cities>=1002, got (empty).
+- Map<NationFilter,Role> | "#cities<10:@someRole\n#cities>=10:@otherRole" | MapInput | Expected pasted map output #cities<10=@someRole,#cities>=10:@otherRole, got (empty).
+- Map<NationFilter,TaxBracket> | "#cities<10:1\n#cities>=10:2" | MapInput | Expected pasted map output #cities<10=1,#cities>=10:2, got (empty).
+- Map<NationFilter,TaxRate> | "#cities<10:100/100\n#cities>=10:25/25" | MapInput | Expected pasted map output #cities<10=100/100,#cities>=10:25/25, got (empty).
 - Map<Research,Integer> | "{GROUND_COST=12,AIR_CAPACITY=2}" | MapInput | Expected pasted map output GROUND_COST=12,AIR_CAPACITY=2, got (empty).
 - Map<ResourceType,Double> | "{money=1.2,food=6}" | MapInput | Expected pasted map output MONEY=1.2,FOOD=6, got (empty).
 - Map<ResourceType,Double> | "{food=1}*1.5" | MapInput | Expected pasted map output {food=1}*1.5, got (empty).
+- Map<Role,Set<Role>> | "@drone=@cube,@la\n@cube=@la,@drone" | MapInput | Expected pasted map output @drone=@cube,@la,@cube=@la,@drone, got (empty).
+- Map<String,String> | "foo=bar,baz=qux" | MapInput | Expected pasted map output foo=bar,baz=qux, got (empty).
 - Member | "@xdnw" | QueryComponent [Member] | Backend request failed for Member: Member requires a guild. Please select a guild.
 - Member | "borg" | QueryComponent [Member] | Backend request failed for Member: Member requires a guild. Please select a guild.
-- NationOrAllianceOrGuildOrTaxid | "tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "tax_id=26171". Unmatched: tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
-- NationOrAllianceOrGuildOrTaxid | "https://politicsandwar.com/index.php?id=15&tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "https://politicsandwar.com/index.php?id=15&tax_id=26171". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
+- NationOrAllianceOrGuildOrTaxid | "tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "tax_id=26171". Unmatched: tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
+- NationOrAllianceOrGuildOrTaxid | "https://politicsandwar.com/index.php?id=15&tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "https://politicsandwar.com/index.php?id=15&tax_id=26171". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
 - Role | "@drone" | QueryComponent [Role] | Backend request failed for Role: Role requires a guild. Please select a guild.
 - Role | "drone" | QueryComponent [Role] | Backend request failed for Role: Role requires a guild. Please select a guild.
 - Role | "672263980193939469" | QueryComponent [Role] | Backend request failed for Role: Role requires a guild. Please select a guild.
 - SelectionAlias | "nation:*,#cities>10" | QueryComponent [SelectionAlias] | Backend request failed for SelectionAlias: SelectionAlias requires a guild. Please select a guild.
 - Set<Category> | "interview,test,info" | QueryComponent [Category] | Backend request failed for Category: Category requires a guild. Please select a guild.
 - Set<Member> | "*" | QueryComponent [Member] | Backend request failed for Member: Member requires a guild. Please select a guild.
-- Set<NationOrAllianceOrGuildOrTaxid> | "borg,AA:Singularity,672217848311054346,tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "borg,AA:Singularity,672217848311054346,tax_id=26171". Unmatched: tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
+- Set<MembershipChangeReason> | "RECRUITED" | SetInput | Expected pasted set output RECRUITED, got (empty).
+- Set<NationOrAllianceOrGuildOrTaxid> | "borg,AA:Singularity,672217848311054346,tax_id=26171" | CompositeQueryComponent [DBNation, DBAlliance, GuildDB, TaxBracket] | No backend match for "borg,AA:Singularity,672217848311054346,tax_id=26171". Unmatched: tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.
 - Set<Role> | "@drone,@cube" | QueryComponent [Role] | Backend request failed for Role: Role requires a guild. Please select a guild.
+- Set<SpreadSheet> | "sheet:1X2Y3Z4, sheet:9A8B7C6D" | SetInput | Expected pasted set output sheet:1X2Y3Z4,sheet:9A8B7C6D, got (empty).
 - TaxBracket | "26171" | QueryComponent [TaxBracket] | Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild.
 - TaxBracket | "tax_id=26171" | QueryComponent [TaxBracket] | Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild.
 - TaxBracket | "https://politicsandwar.com/index.php?id=15&tax_id=26171" | QueryComponent [TaxBracket] | Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild.

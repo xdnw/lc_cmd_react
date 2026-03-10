@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, KeyboardEventHandler, useEffect, useCallback, memo } from "react";
+import React, { useDeferredValue, useRef, useState, useMemo, KeyboardEventHandler, useEffect, useCallback, memo } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useDialog } from "../layout/DialogContext";
 import { Button } from "../ui/button";
@@ -125,12 +125,15 @@ export function ListComponentOptions({ options, argName, isMulti, initialValue, 
 // Main List Component
 // ----------------------------------------------------------------------
 
-export default function ListComponent({ argName, options, isMulti, initialValue, setOutputValue }: {
+export default function ListComponent({ argName, options, isMulti, initialValue, setOutputValue, onSearchValueChange, optionsArePrefiltered = false, loadingOptions = false }: {
     argName: string;
     options: SelectOption[];
     isMulti: boolean;
     initialValue: string;
     setOutputValue: (name: string, value: string) => void;
+    onSearchValueChange?: (value: string) => void;
+    optionsArePrefiltered?: boolean;
+    loadingOptions?: boolean;
 }) {
     const { showDialog } = useDialog();
 
@@ -142,12 +145,24 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
     const [inputValue, setInputValue] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(0);
+    const deferredInputValue = useDeferredValue(inputValue);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const virtuosoRef = useRef<VirtuosoHandle>(null);
 
     const selectedValueSet = useMemo(() => new Set(value.map((v) => v.value)), [value]);
+    const searchIndex = useMemo(() => {
+        if (optionsArePrefiltered) {
+            return [] as Array<{ option: SelectOption; labelLower: string; valueLower: string; aliasLower: string[] }>;
+        }
+        return options.map((option) => ({
+            option,
+            labelLower: (option.label || option.value).toLowerCase(),
+            valueLower: option.value.toLowerCase(),
+            aliasLower: (option.aliases ?? []).map((alias) => alias.toLowerCase()),
+        }));
+    }, [options, optionsArePrefiltered]);
 
     const syncOutput = useCallback((selection: SelectOption[]) => {
         setOutputValue(argName, serializeSelection(selection, isMulti));
@@ -155,23 +170,28 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
 
     const filteredOptions = useMemo(() => {
         if (!options) return [];
-        if (!inputValue) return options;
+        if (optionsArePrefiltered) {
+            return options;
+        }
+        if (!deferredInputValue) return options;
 
         const exactMatches: SelectOption[] = [];
         const partialMatches: SelectOption[] = [];
-        const inputLower = inputValue.toLowerCase();
+        const inputLower = deferredInputValue.toLowerCase();
 
-        for (const option of options) {
-            const checkAgainst = option.label || option.value;
-            const checkLower = checkAgainst.toLowerCase();
+        for (const entry of searchIndex) {
+            const { option, labelLower, valueLower, aliasLower } = entry;
+            const isMatch = labelLower.includes(inputLower)
+                || valueLower.includes(inputLower)
+                || aliasLower.some((alias) => alias.includes(inputLower));
 
-            if (checkLower.includes(inputLower)) {
-                if (checkLower === inputLower) exactMatches.push(option);
+            if (isMatch) {
+                if (labelLower === inputLower || valueLower === inputLower || aliasLower.some((alias) => alias === inputLower)) exactMatches.push(option);
                 else partialMatches.push(option);
             }
         }
         return exactMatches.concat(partialMatches);
-    }, [options, inputValue]);
+    }, [deferredInputValue, options, optionsArePrefiltered, searchIndex]);
 
     useEffect(() => {
         setHighlightedIndex(0);
@@ -282,17 +302,21 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
     // Stable handlers to avoid inline functions in JSX
     const handleContainerClick = useCallback(() => {
         setIsOpen(true);
+        onSearchValueChange?.(inputValue);
         inputRef.current?.focus();
-    }, []);
+    }, [inputValue, onSearchValueChange]);
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setInputValue(e.target.value);
+        const nextValue = e.target.value;
+        setInputValue(nextValue);
         setIsOpen(true);
-    }, []);
+        onSearchValueChange?.(nextValue);
+    }, [onSearchValueChange]);
 
     const handleInputFocus = useCallback(() => {
         setIsOpen(true);
-    }, []);
+        onSearchValueChange?.(inputValue);
+    }, [inputValue, onSearchValueChange]);
 
     const handleInputPaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
         const pastedText = e.clipboardData.getData('text');
@@ -429,6 +453,8 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
             {isOpen && (
                 <div className="absolute left-0 right-0 top-9 z-50 overflow-hidden rounded-md border border-border/70 bg-background shadow-lg">
                     {!options ? (
+                        <div className="p-4 flex justify-center"><Loading /></div>
+                    ) : loadingOptions ? (
                         <div className="p-4 flex justify-center"><Loading /></div>
                     ) : filteredOptions.length === 0 ? (
                         <div className="p-3 text-center text-xs text-muted-foreground">No matching options.</div>

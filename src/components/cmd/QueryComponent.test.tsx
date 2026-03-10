@@ -1,10 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useQueriesMock = vi.fn();
 const listComponentMock = vi.fn(({ options }: { options: Array<{ value: string; label: string }> }) => (
   <div data-testid="list-component">options:{options.map((option) => `${option.label}|${option.value}`).join(",")}</div>
 ));
+const ensureQueryOptionDatasetFromPayloadMock = vi.fn();
+const searchQueryOptionDatasetMock = vi.fn();
 
 vi.mock("@tanstack/react-query", () => ({
   useQueries: (...args: unknown[]) => useQueriesMock(...args),
@@ -12,6 +14,11 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("./ListComponent", () => ({
   default: (props: { options: Array<{ value: string; label: string }> }) => listComponentMock(props),
+}));
+
+vi.mock("./queryOptionWorkerClient", () => ({
+  ensureQueryOptionDatasetFromPayload: (...args: unknown[]) => ensureQueryOptionDatasetFromPayloadMock(...args),
+  searchQueryOptionDataset: (...args: unknown[]) => searchQueryOptionDatasetMock(...args),
 }));
 
 import QueryComponent, { CompositeQueryComponent } from "./QueryComponent";
@@ -27,6 +34,8 @@ describe("CompositeQueryComponent", () => {
   beforeEach(() => {
     useQueriesMock.mockReset();
     listComponentMock.mockClear();
+    ensureQueryOptionDatasetFromPayloadMock.mockReset();
+    searchQueryOptionDatasetMock.mockReset();
   });
 
   it("shows a warning and keeps working options when only some composites fail", () => {
@@ -149,5 +158,88 @@ describe("CompositeQueryComponent", () => {
     expect(screen.getByTestId("list-component").textContent).toContain("options:Borg|189573");
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("defers large single-query option hydration to the shared worker-backed path", async () => {
+    const payload = {
+      text: Array.from({ length: 6000 }, (_, index) => `Nation ${index}`),
+      key_string: Array.from({ length: 6000 }, (_, index) => `${index}`),
+    };
+    useQueriesMock.mockReturnValue([
+      {
+        isLoading: false,
+        error: null,
+        data: { data: payload },
+      },
+    ]);
+    ensureQueryOptionDatasetFromPayloadMock.mockResolvedValue(6000);
+    searchQueryOptionDatasetMock.mockResolvedValue({
+      options: [{ label: "Borg", value: "189573" }],
+      hasAnyMatch: true,
+      hasExactMatch: false,
+    });
+
+    render(
+      <QueryComponent
+        element="DBNation"
+        multi={false}
+        argName="target"
+        initialValue=""
+        preloadOptions
+        setOutputValue={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledWith("query:DBNation", "DBNation", payload);
+    });
+    await waitFor(() => {
+      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "");
+    });
+    expect(screen.getByTestId("list-component").textContent).toContain("options:Borg|189573");
+  });
+
+  it("prewarms deferred large query-backed inputs before focus and activates on demand", async () => {
+    const payload = {
+      text: Array.from({ length: 6000 }, (_, index) => `Nation ${index}`),
+      key_string: Array.from({ length: 6000 }, (_, index) => `${index}`),
+    };
+    useQueriesMock.mockReturnValue([
+      {
+        isLoading: false,
+        error: null,
+        data: { data: payload },
+      },
+    ]);
+    ensureQueryOptionDatasetFromPayloadMock.mockResolvedValue(6000);
+    searchQueryOptionDatasetMock.mockResolvedValue({
+      options: [{ label: "Borg", value: "189573" }],
+      hasAnyMatch: true,
+      hasExactMatch: false,
+    });
+
+    render(
+      <QueryComponent
+        element="DBNation"
+        multi={false}
+        argName="target"
+        initialValue=""
+        setOutputValue={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "");
+    });
+
+    fireEvent.focus(screen.getByText(/Focus to open options|Preparing options/i));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("list-component").textContent).toContain("options:Borg|189573");
+    });
   });
 });

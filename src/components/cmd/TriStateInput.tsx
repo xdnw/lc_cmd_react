@@ -14,7 +14,7 @@ const TRI_STATE_OPTIONS: Array<{
 }> = [
     {
         value: "-1",
-        label: "No",
+        label: "False",
         icon: "X",
         activeClass: "border-red-500/40 bg-red-500/15 text-red-700 dark:text-red-300",
     },
@@ -26,7 +26,7 @@ const TRI_STATE_OPTIONS: Array<{
     },
     {
         value: "1",
-        label: "Yes",
+        label: "True",
         icon: "\u2714",
         activeClass: "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
     },

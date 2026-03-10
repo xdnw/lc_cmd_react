@@ -128,6 +128,38 @@ describe("PlaceholderExpressionInput", () => {
     expect(screen.getByPlaceholderText(/Example:/)).toBeTruthy();
   });
 
+  it("stays idle for empty values until the field is focused", async () => {
+    const useExpressionValueSourcesSpy = vi.spyOn(expressionValueFetcher, "useExpressionValueSources");
+    useExpressionValueSourcesSpy.mockReturnValue({});
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue=""
+        setOutputValue={vi.fn()}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    expect(useExpressionValueSourcesSpy).toHaveBeenLastCalledWith([], {}, false);
+
+    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    await act(async () => {
+      fireEvent.focus(textarea);
+      textarea.setSelectionRange(0, 0);
+      fireEvent.select(textarea);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(useExpressionValueSourcesSpy).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "placeholder" }),
+      ]),
+      {},
+      true,
+    );
+  });
+
   it("shows selector completions and query-backed option completions at the root", async () => {
     const setOutputValue = vi.fn();
     mockExpressionSources({

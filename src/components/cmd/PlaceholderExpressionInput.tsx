@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useSyncedState } from "@/utils/StateUtil";
@@ -8,6 +8,7 @@ import {
     getFirstLazyOptionSuggestion,
     isLazyOptionSourceReady,
     parseExpressionCursorContext,
+    type ExpressionAnalysis,
     type ExpressionSuggestion,
 } from "./expression/expressionAnalysis";
 import type { ExpressionValueSourceRegistry } from "./expression/expressionValueFetcher";
@@ -20,6 +21,7 @@ type SourceMessage = { kind: "loading" | "warning" | "error"; text: string };
 
 const EMPTY_SOURCE_MESSAGES: SourceMessage[] = [];
 const EMPTY_REGISTRY: ExpressionValueSourceRegistry = {};
+const EMPTY_ANALYSIS: ExpressionAnalysis = { suggestions: [], errors: [] };
 
 function buildSearchTokensByCacheKey(
     requiredSources: Array<{ cacheKey: string; kind: string }>,
@@ -74,12 +76,14 @@ export default function PlaceholderExpressionInput({
     setOutputValue,
     breakdown,
     compact,
+    forceMountAll,
 }: {
     argName: string;
     initialValue: string;
     setOutputValue: (name: string, value: string) => void;
     breakdown: TypeBreakdown;
     compact?: boolean;
+    forceMountAll?: boolean;
 }) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -89,6 +93,8 @@ export default function PlaceholderExpressionInput({
     const [hasFocusWithin, setHasFocusWithin] = useState(false);
     const [panelSearchValue, setPanelSearchValue] = useState("");
     const pendingSelectionRef = useRef<number | null>(null);
+    const deferredValue = useDeferredValue(value);
+    const shouldAnalyze = forceMountAll || hasFocusWithin || deferredValue.trim().length > 0;
 
     const updateCursor = useCallback((nextCursor: number) => {
         setCursor((previousCursor) => previousCursor === nextCursor ? previousCursor : nextCursor);
@@ -100,11 +106,11 @@ export default function PlaceholderExpressionInput({
     );
 
     const cursorContext = useMemo(() => {
-        if (!descriptor) {
+        if (!descriptor || !shouldAnalyze) {
             return null;
         }
-        return parseExpressionCursorContext(descriptor, value, cursor);
-    }, [cursor, descriptor, value]);
+        return parseExpressionCursorContext(descriptor, deferredValue, cursor);
+    }, [cursor, deferredValue, descriptor, shouldAnalyze]);
 
     const activeSourceCacheKey = cursorContext?.activeSourceRef?.cacheKey;
 
@@ -122,7 +128,7 @@ export default function PlaceholderExpressionInput({
     const sourceRegistry = useExpressionValueSources(
         cursorContext?.requiredSources ?? [],
         searchTokensByCacheKey,
-        hasFocusWithin,
+        shouldAnalyze && hasFocusWithin,
     );
     const requiredSourceCacheKeys = useMemo(
         () => cursorContext?.requiredSources.map((source) => source.cacheKey) ?? [],
@@ -137,12 +143,16 @@ export default function PlaceholderExpressionInput({
             };
         }
 
-        if (!cursorContext) {
-            return analyzeParsedExpression(descriptor, value, parseExpressionCursorContext(descriptor, value, cursor), sourceRegistry);
+        if (!shouldAnalyze) {
+            return EMPTY_ANALYSIS;
         }
 
-        return analyzeParsedExpression(descriptor, value, cursorContext, sourceRegistry);
-    }, [breakdown.element, cursor, cursorContext, descriptor, sourceRegistry, value]);
+        if (!cursorContext) {
+            return analyzeParsedExpression(descriptor, deferredValue, parseExpressionCursorContext(descriptor, deferredValue, cursor), sourceRegistry);
+        }
+
+        return analyzeParsedExpression(descriptor, deferredValue, cursorContext, sourceRegistry);
+    }, [breakdown.element, cursor, cursorContext, deferredValue, descriptor, shouldAnalyze, sourceRegistry]);
 
     const placeholderText = useMemo(() => {
         if (!descriptor) {
@@ -213,7 +223,7 @@ export default function PlaceholderExpressionInput({
         setPanelSearchValue("");
     }, []);
 
-    const showSuggestionPanel = hasFocusWithin && (
+    const showSuggestionPanel = shouldAnalyze && hasFocusWithin && (
         analysis.lazyOptionSource
             ? isLazyOptionSourceReady(analysis.lazyOptionSource)
             : analysis.suggestions.length > 0

@@ -233,12 +233,9 @@ export class BulkQueryClient {
         const queryHash = this.hashQuery(query);
         const cacheConfig = useCache ? this.normalizeCache(endpoint, queryHash, cache!) : undefined;
 
-        console.log("fetchSingle", endpoint);
-
         if (cacheConfig) {
             const cached = this.loadFromCache<T>(cacheConfig);
             if (cached != null) {
-                console.log("cache hit for fetchSingle", endpoint);
                 return cached;
             }
         }
@@ -400,10 +397,6 @@ export class BulkQueryClient {
             },
             this.extraHeaders,
         );
-
-        // decode post
-        console.log("URL ", url, this.batchEndpoint, this.apiUrl, "body", finalQueries) 
-
         const res = await this.fetchFn(url, {
             method: "POST",
             headers,
@@ -416,9 +409,7 @@ export class BulkQueryClient {
         }
 
         const buf = await res.arrayBuffer();
-        const unpacked = this.unpackFn(new Uint8Array(buf));
-        console.log("Batch response", unpacked);
-        return unpacked;
+        return this.unpackFn(new Uint8Array(buf));
     }
 
     private tryResolveGroupFromCache(group: PendingGroup): boolean {

@@ -61,6 +61,7 @@ describe("collection input normalization", () => {
                     children={[getTypeBreakdown(CM, "ResourceType"), getTypeBreakdown(CM, "Double")]}
                     initialValue="money=1,coal=2"
                     setOutputValue={setOutputValue}
+                    preferStaticKeyLayout={false}
                 />
             </DialogProvider>,
         );
@@ -68,8 +69,8 @@ describe("collection input normalization", () => {
         fireEvent.paste(container.firstElementChild as HTMLElement, makeClipboardEventPayload("mOnEy=5*6"));
 
         expect(setOutputValue).toHaveBeenLastCalledWith("resources", "MONEY=30");
-        expect(screen.queryByText("COAL: 2")).toBeNull();
-        expect(screen.queryByText("MONEY: 30")).not.toBeNull();
+        expect(screen.queryByText("COAL")).toBeNull();
+        expect(screen.queryByText("30")).not.toBeNull();
     });
 
     it("serializes comma-separated map output when pasting multiple pairs", () => {
@@ -81,6 +82,7 @@ describe("collection input normalization", () => {
                     children={[getTypeBreakdown(CM, "ResourceType"), getTypeBreakdown(CM, "Double")]}
                     initialValue=""
                     setOutputValue={setOutputValue}
+                    preferStaticKeyLayout={false}
                 />
             </DialogProvider>,
         );
@@ -117,6 +119,7 @@ describe("collection input normalization", () => {
                     children={[getTypeBreakdown(CM, "ResourceType"), getTypeBreakdown(CM, "Double")]}
                     initialValue=""
                     setOutputValue={vi.fn()}
+                    preferStaticKeyLayout={false}
                 />
             </DialogProvider>,
         );
@@ -124,7 +127,7 @@ describe("collection input normalization", () => {
         fireEvent.paste(container.firstElementChild as HTMLElement, makeClipboardEventPayload("money=bar"));
 
         expect(screen.queryByText(/may be invalid for Double/i)).not.toBeNull();
-        expect(screen.queryByText("MONEY: bar")).not.toBeNull();
+        expect(screen.queryByText("bar")).not.toBeNull();
     });
 
     it("renders eligible static-key maps as fixed key rows with empty unset values", () => {
@@ -144,8 +147,8 @@ describe("collection input normalization", () => {
         );
 
         expect(screen.queryByText("Add Pair")).toBeNull();
-        expect(screen.getByText("Key")).toBeTruthy();
-        expect(screen.getByText("Value")).toBeTruthy();
+        expect(screen.getByText(staticKeys[0])).toBeTruthy();
+        expect(screen.getByText(staticKeys[1])).toBeTruthy();
         expect((screen.getByLabelText(`value-${staticKeys[0]}`) as HTMLInputElement).value).toBe("");
         expect((screen.getByLabelText(`value-${staticKeys[1]}`) as HTMLInputElement).value).toBe("");
     });

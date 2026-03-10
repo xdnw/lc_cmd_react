@@ -13,16 +13,16 @@
       "render-error": 0
     },
     "defaultStatuses": {
-      "pass": 226,
-      "fail": 29,
+      "pass": 215,
+      "fail": 40,
       "unsupported": 5,
       "query-backed": 0,
       "uncheckable": 0,
       "render-error": 0
     },
     "pasteStatuses": {
-      "pass": 224,
-      "fail": 31,
+      "pass": 215,
+      "fail": 40,
       "unsupported": 5,
       "query-backed": 0,
       "uncheckable": 0,
@@ -221,8 +221,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected Yes as expected."
+        "status": "fail",
+        "detail": "Expected Yes to be selected by default, but got True."
       },
       "paste": {
         "status": "pass",
@@ -241,8 +241,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected Yes as expected."
+        "status": "fail",
+        "detail": "Expected Yes to be selected by default, but got True."
       },
       "paste": {
         "status": "pass",
@@ -261,8 +261,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected Yes as expected."
+        "status": "fail",
+        "detail": "Expected Yes to be selected by default, but got True."
       },
       "paste": {
         "status": "pass",
@@ -281,8 +281,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected Yes as expected."
+        "status": "fail",
+        "detail": "Expected Yes to be selected by default, but got True."
       },
       "paste": {
         "status": "pass",
@@ -301,8 +301,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected Yes as expected."
+        "status": "fail",
+        "detail": "Expected Yes to be selected by default, but got True."
       },
       "paste": {
         "status": "pass",
@@ -321,8 +321,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected Yes as expected."
+        "status": "fail",
+        "detail": "Expected Yes to be selected by default, but got True."
       },
       "paste": {
         "status": "pass",
@@ -341,8 +341,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected No as expected."
+        "status": "fail",
+        "detail": "Expected No to be selected by default, but got False."
       },
       "paste": {
         "status": "pass",
@@ -361,8 +361,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected No as expected."
+        "status": "fail",
+        "detail": "Expected No to be selected by default, but got False."
       },
       "paste": {
         "status": "pass",
@@ -381,8 +381,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected No as expected."
+        "status": "fail",
+        "detail": "Expected No to be selected by default, but got False."
       },
       "paste": {
         "status": "pass",
@@ -401,8 +401,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected No as expected."
+        "status": "fail",
+        "detail": "Expected No to be selected by default, but got False."
       },
       "paste": {
         "status": "pass",
@@ -421,8 +421,8 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default selected No as expected."
+        "status": "fail",
+        "detail": "Expected No to be selected by default, but got False."
       },
       "paste": {
         "status": "pass",
@@ -950,12 +950,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18258) to 189573.",
+        "detail": "Resolved against backend options (18271) to 189573.",
         "actualOutput": "189573"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18258) to 189573.",
+        "detail": "Resolved against backend options (18271) to 189573.",
         "actualOutput": "189573"
       }
     },
@@ -972,12 +972,12 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"<@664156861033086987>\". Unmatched: <@664156861033086987>. Backend options (18258): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18248 more).",
+        "detail": "No backend match for \"<@664156861033086987>\". Unmatched: <@664156861033086987>. Backend options (18271): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18261 more).",
         "actualOutput": ""
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"<@664156861033086987>\". Unmatched: <@664156861033086987>. Backend options (18258): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18248 more).",
+        "detail": "No backend match for \"<@664156861033086987>\". Unmatched: <@664156861033086987>. Backend options (18271): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18261 more).",
         "actualOutput": ""
       }
     },
@@ -994,12 +994,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18258) to 189573.",
+        "detail": "Resolved against backend options (18271) to 189573.",
         "actualOutput": "189573"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18258) to 189573.",
+        "detail": "Resolved against backend options (18271) to 189573.",
         "actualOutput": "189573"
       }
     },
@@ -1016,12 +1016,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18258) to 189573.",
+        "detail": "Resolved against backend options (18271) to 189573.",
         "actualOutput": "189573"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18258) to 189573.",
+        "detail": "Resolved against backend options (18271) to 189573.",
         "actualOutput": "189573"
       }
     },
@@ -2041,12 +2041,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w3d2h47m2s)."
+        "detail": "Default produced a normalized timediff value (1w3d4h48m57s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:874022000).",
-        "actualOutput": "timediff:874022000"
+        "detail": "Paste emitted a timediff value (timediff:881337000).",
+        "actualOutput": "timediff:881337000"
       }
     },
     {
@@ -2061,12 +2061,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w3d2h47m2s)."
+        "detail": "Default produced a normalized timediff value (1w3d4h48m57s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:874022000).",
-        "actualOutput": "timediff:874022000"
+        "detail": "Paste emitted a timediff value (timediff:881337000).",
+        "actualOutput": "timediff:881337000"
       }
     },
     {
@@ -2141,12 +2141,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w3d2h47m2s)."
+        "detail": "Default produced a normalized timediff value (1w3d4h48m57s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:874022000).",
-        "actualOutput": "timediff:874022000"
+        "detail": "Paste emitted a timediff value (timediff:881337000).",
+        "actualOutput": "timediff:881337000"
       }
     },
     {
@@ -2161,12 +2161,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w3d2h47m2s)."
+        "detail": "Default produced a normalized timediff value (1w3d4h48m57s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:874022000).",
-        "actualOutput": "timediff:874022000"
+        "detail": "Paste emitted a timediff value (timediff:881337000).",
+        "actualOutput": "timediff:881337000"
       }
     },
     {
@@ -2201,12 +2201,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-11T02:47:02.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-11T04:48:57.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773157622000).",
-        "actualOutput": "timestamp:1773157622000"
+        "detail": "Paste emitted a timestamp value (timestamp:1773164937000).",
+        "actualOutput": "timestamp:1773164937000"
       }
     },
     {
@@ -2221,12 +2221,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-06T02:47:02.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-06T04:48:57.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772725622000).",
-        "actualOutput": "timestamp:1772725622000"
+        "detail": "Paste emitted a timestamp value (timestamp:1772732937000).",
+        "actualOutput": "timestamp:1772732937000"
       }
     },
     {
@@ -2321,12 +2321,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-11T02:47:02.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-11T04:48:57.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773157622000).",
-        "actualOutput": "timestamp:1773157622000"
+        "detail": "Paste emitted a timestamp value (timestamp:1773164937000).",
+        "actualOutput": "timestamp:1773164937000"
       }
     },
     {
@@ -2341,12 +2341,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-06T02:47:02.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-06T04:48:57.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772725622000).",
-        "actualOutput": "timestamp:1772725622000"
+        "detail": "Paste emitted a timestamp value (timestamp:1772732937000).",
+        "actualOutput": "timestamp:1772732937000"
       }
     },
     {
@@ -2444,9 +2444,9 @@
         "detail": "Default parsed 2 map entries."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted c1-9=*,c10+=INACTIVE,VACATION_MODE,APPLICANT.",
-        "actualOutput": "c1-9=*,c10+=INACTIVE,VACATION_MODE,APPLICANT"
+        "status": "fail",
+        "detail": "Expected pasted map output c1-9=*,c10+=INACTIVE,VACATION_MODE,APPLICANT, got (empty).",
+        "actualOutput": ""
       }
     },
     {
@@ -2484,9 +2484,9 @@
         "detail": "Default parsed 2 map entries."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted #cities<10=505X,#cities>=1002.",
-        "actualOutput": "#cities<10=505X,#cities>=1002"
+        "status": "fail",
+        "detail": "Expected pasted map output #cities<10=505X,#cities>=1002, got (empty).",
+        "actualOutput": ""
       }
     },
     {
@@ -2504,9 +2504,9 @@
         "detail": "Default parsed 2 map entries."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted #cities<10=@someRole,#cities>=10:@otherRole.",
-        "actualOutput": "#cities<10=@someRole,#cities>=10:@otherRole"
+        "status": "fail",
+        "detail": "Expected pasted map output #cities<10=@someRole,#cities>=10:@otherRole, got (empty).",
+        "actualOutput": ""
       }
     },
     {
@@ -2524,9 +2524,9 @@
         "detail": "Default parsed 2 map entries."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted #cities<10=1,#cities>=10:2.",
-        "actualOutput": "#cities<10=1,#cities>=10:2"
+        "status": "fail",
+        "detail": "Expected pasted map output #cities<10=1,#cities>=10:2, got (empty).",
+        "actualOutput": ""
       }
     },
     {
@@ -2544,9 +2544,9 @@
         "detail": "Default parsed 2 map entries."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted #cities<10=100/100,#cities>=10:25/25.",
-        "actualOutput": "#cities<10=100/100,#cities>=10:25/25"
+        "status": "fail",
+        "detail": "Expected pasted map output #cities<10=100/100,#cities>=10:25/25, got (empty).",
+        "actualOutput": ""
       }
     },
     {
@@ -2684,9 +2684,9 @@
         "detail": "Default parsed 2 map entries."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted @drone=@cube,@la,@cube=@la,@drone.",
-        "actualOutput": "@drone=@cube,@la,@cube=@la,@drone"
+        "status": "fail",
+        "detail": "Expected pasted map output @drone=@cube,@la,@cube=@la,@drone, got (empty).",
+        "actualOutput": ""
       }
     },
     {
@@ -2704,9 +2704,9 @@
         "detail": "Default parsed 2 map entries."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted foo=bar,baz=qux.",
-        "actualOutput": "foo=bar,baz=qux"
+        "status": "fail",
+        "detail": "Expected pasted map output foo=bar,baz=qux, got (empty).",
+        "actualOutput": ""
       }
     },
     {
@@ -3062,12 +3062,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18802) to 189573.",
+        "detail": "Resolved against backend options (18815) to 189573.",
         "actualOutput": "189573"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18802) to 189573.",
+        "detail": "Resolved against backend options (18815) to 189573.",
         "actualOutput": "189573"
       }
     },
@@ -3084,12 +3084,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18802) to AA:11657.",
+        "detail": "Resolved against backend options (18815) to AA:11657.",
         "actualOutput": "AA:11657"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18802) to AA:11657.",
+        "detail": "Resolved against backend options (18815) to AA:11657.",
         "actualOutput": "AA:11657"
       }
     },
@@ -3106,12 +3106,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18802) to AA:11657.",
+        "detail": "Resolved against backend options (18815) to AA:11657.",
         "actualOutput": "AA:11657"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18802) to AA:11657.",
+        "detail": "Resolved against backend options (18815) to AA:11657.",
         "actualOutput": "AA:11657"
       }
     },
@@ -3128,12 +3128,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 189573.",
+        "detail": "Resolved against backend options (18830) to 189573.",
         "actualOutput": "189573"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 189573.",
+        "detail": "Resolved against backend options (18830) to 189573.",
         "actualOutput": "189573"
       }
     },
@@ -3150,12 +3150,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to AA:11657.",
+        "detail": "Resolved against backend options (18830) to AA:11657.",
         "actualOutput": "AA:11657"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to AA:11657.",
+        "detail": "Resolved against backend options (18830) to AA:11657.",
         "actualOutput": "AA:11657"
       }
     },
@@ -3172,12 +3172,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 672217848311054346.",
+        "detail": "Resolved against backend options (18830) to 672217848311054346.",
         "actualOutput": "672217848311054346"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 672217848311054346.",
+        "detail": "Resolved against backend options (18830) to 672217848311054346.",
         "actualOutput": "672217848311054346"
       }
     },
@@ -3194,12 +3194,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 189573. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "Resolved against backend options (18830) to 189573. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "189573"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 189573. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "Resolved against backend options (18830) to 189573. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "189573"
       }
     },
@@ -3216,12 +3216,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to AA:11657. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "Resolved against backend options (18830) to AA:11657. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "AA:11657"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to AA:11657. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "Resolved against backend options (18830) to AA:11657. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "AA:11657"
       }
     },
@@ -3238,12 +3238,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 672217848311054346. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "Resolved against backend options (18830) to 672217848311054346. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "672217848311054346"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 672217848311054346. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "Resolved against backend options (18830) to 672217848311054346. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "672217848311054346"
       }
     },
@@ -3260,12 +3260,12 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"tax_id=26171\". Unmatched: tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "No backend match for \"tax_id=26171\". Unmatched: tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": ""
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"tax_id=26171\". Unmatched: tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "No backend match for \"tax_id=26171\". Unmatched: tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": ""
       }
     },
@@ -3282,12 +3282,12 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"https://politicsandwar.com/index.php?id=15&tax_id=26171\". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "No backend match for \"https://politicsandwar.com/index.php?id=15&tax_id=26171\". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": ""
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"https://politicsandwar.com/index.php?id=15&tax_id=26171\". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "No backend match for \"https://politicsandwar.com/index.php?id=15&tax_id=26171\". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": ""
       }
     },
@@ -4268,9 +4268,9 @@
         "detail": "Default parsed 1 set value(s)."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted RECRUITED.",
-        "actualOutput": "RECRUITED"
+        "status": "fail",
+        "detail": "Expected pasted set output RECRUITED, got (empty).",
+        "actualOutput": ""
       }
     },
     {
@@ -4326,12 +4326,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 189573,AA:11657,672217848311054346.",
+        "detail": "Resolved against backend options (18830) to 189573,AA:11657,672217848311054346.",
         "actualOutput": "189573,AA:11657,672217848311054346"
       },
       "paste": {
         "status": "pass",
-        "detail": "Resolved against backend options (18817) to 189573,AA:11657,672217848311054346.",
+        "detail": "Resolved against backend options (18830) to 189573,AA:11657,672217848311054346.",
         "actualOutput": "189573,AA:11657,672217848311054346"
       }
     },
@@ -4348,12 +4348,12 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=26171\". Unmatched: tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=26171\". Unmatched: tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "189573,AA:11657,672217848311054346"
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=26171\". Unmatched: tax_id=26171. Backend options (18817): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18807 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
+        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=26171\". Unmatched: tax_id=26171. Backend options (18830): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18820 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
         "actualOutput": "189573,AA:11657,672217848311054346"
       }
     },
@@ -4552,9 +4552,9 @@
         "detail": "Default parsed 2 set value(s)."
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted sheet:1X2Y3Z4,sheet:9A8B7C6D.",
-        "actualOutput": "sheet:1X2Y3Z4,sheet:9A8B7C6D"
+        "status": "fail",
+        "detail": "Expected pasted set output sheet:1X2Y3Z4,sheet:9A8B7C6D, got (empty).",
+        "actualOutput": ""
       }
     },
     {

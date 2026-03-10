@@ -23,14 +23,81 @@ import { deepEqual } from '@/lib/utils';
 
 export default function CommandPage() {
     const { command } = useParams();
+    const queryParams = useMemo(() => getQueryParams(), []);
+    const forceMountAll = queryParams.get("mount") === "all" || queryParams.get("forceMount") === "all" || queryParams.get("forceMountAll") === "1";
+    const benchMode = queryParams.get("bench") === "1";
     const [cmdObj, setCmdObj] = useState<BaseCommand | null>(command !== "test" ? CM.get(command?.split(" ") as AnyCommandPath) : CM.buildTest());
     const pathJoined = useMemo(() => cmdObj?.path.join(" ") ?? "", [cmdObj]);
     const [displayMode, setDisplayMode] = useState<CommandInputDisplayMode>("card");
     const setCardDisplayMode = useCallback(() => setDisplayMode("card"), []);
     const setFocusPaneDisplayMode = useCallback(() => setDisplayMode("focus-pane"), []);
 
-    const [initialValues, setInitialValues] = useState<{ [key: string]: string }>(queryParamsToObject(getQueryParams()) as { [key: string]: string });
+    const [initialValues, setInitialValues] = useState<{ [key: string]: string }>(() => {
+        const nextValues = queryParamsToObject(queryParams) as { [key: string]: string };
+        delete nextValues.bench;
+        delete nextValues.mount;
+        delete nextValues.forceMount;
+        delete nextValues.forceMountAll;
+        return nextValues;
+    });
     const commandStore = useMemo(() => createCommandStoreWithDef(initialValues), [initialValues]);
+
+    React.useEffect(() => {
+        if (!benchMode) {
+            return;
+        }
+
+        const benchStart = performance.now();
+        const longTasks: Array<{ name: string; duration: number; startTime: number }> = [];
+        const publishBench = () => {
+            (window as Window & { __lcCommandBench?: unknown }).__lcCommandBench = {
+                command: pathJoined,
+                forceMountAll,
+                displayMode,
+                elapsedMs: performance.now() - benchStart,
+                inputCount: document.querySelectorAll("input, textarea, [role='textbox']").length,
+                buttonCount: document.querySelectorAll("button").length,
+                scrollHeight: document.documentElement.scrollHeight,
+                longTasks: [...longTasks],
+                refresh: publishBench,
+            };
+        };
+        const perfObserver = typeof PerformanceObserver !== "undefined"
+            ? new PerformanceObserver((list) => {
+                list.getEntries().forEach((entry) => {
+                    longTasks.push({
+                        name: entry.name,
+                        duration: entry.duration,
+                        startTime: entry.startTime,
+                    });
+                });
+                publishBench();
+            })
+            : null;
+
+        try {
+            perfObserver?.observe({ entryTypes: ["longtask"] });
+        } catch {
+            // Long task observers are not always available in every environment.
+        }
+
+        const rafOne = window.requestAnimationFrame(() => {
+            const rafTwo = window.requestAnimationFrame(() => {
+                publishBench();
+            });
+            (window as Window & { __lcCommandBenchRafTwo?: number }).__lcCommandBenchRafTwo = rafTwo;
+        });
+
+        return () => {
+            perfObserver?.disconnect();
+            window.cancelAnimationFrame(rafOne);
+            const rafTwo = (window as Window & { __lcCommandBenchRafTwo?: number }).__lcCommandBenchRafTwo;
+            if (rafTwo != null) {
+                window.cancelAnimationFrame(rafTwo);
+            }
+            publishBench();
+        };
+    }, [benchMode, displayMode, forceMountAll, pathJoined]);
 
     if (!cmdObj) {
         console.log("Not command");
@@ -47,6 +114,7 @@ export default function CommandPage() {
             </div>
             <CommandComponent key={cmdObj.name} command={cmdObj} filterArguments={alwaysTrue} initialValues={initialValues}
                 displayMode={displayMode}
+                forceMountAll={forceMountAll}
                 setOutput={commandStore((state) => state.setOutput)}
             />
             <OutputValuesDisplay name={pathJoined} store={commandStore} />

@@ -58,8 +58,8 @@ export default function BooleanInput(
                 aria-label={argName}
                 className="inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/25 p-0.5"
             >
-                <Button size="sm" variant={checked ? "secondary" : "ghost"} aria-pressed={checked} onClick={setTrue} className={segmentClass}>Yes</Button>
-                <Button size="sm" variant={!checked ? "secondary" : "ghost"} aria-pressed={!checked} onClick={setFalse} className={segmentClass}>No</Button>
+                <Button size="sm" variant={checked ? "secondary" : "ghost"} aria-pressed={checked} onClick={setTrue} className={segmentClass}>True</Button>
+                <Button size="sm" variant={!checked ? "secondary" : "ghost"} aria-pressed={!checked} onClick={setFalse} className={segmentClass}>False</Button>
             </div>
             <FieldMessage error={parseError} />
         </div>

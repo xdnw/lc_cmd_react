@@ -109,6 +109,35 @@ function createRequestId(prefix: string): string {
     return `${prefix}:${nextRequestId}`;
 }
 
+function postEnsureDataset(datasetId: string, queryType: string, payload: WebOptions | WebError | unknown): Promise<number> {
+    const backendError = extractBackendError(payload);
+    if (backendError) {
+        return Promise.reject(new Error(backendError));
+    }
+    if (payload == null) {
+        return Promise.reject(new Error(`No ${queryType} options were returned by the backend.`));
+    }
+
+    return postWorkerRequest<EnsureDatasetResponse>({
+        id: createRequestId("ensure"),
+        type: "ensure-dataset",
+        datasetId,
+        queryType,
+        payload,
+    }).then((response) => response.optionCount);
+}
+
+export function ensureQueryOptionDatasetFromPayload(datasetId: string, queryType: string, payload: WebOptions | WebError | unknown): Promise<number> {
+    const cached = ensuredDatasets.get(datasetId);
+    if (cached) {
+        return cached;
+    }
+
+    const promise = postEnsureDataset(datasetId, queryType, payload);
+    ensuredDatasets.set(datasetId, promise);
+    return promise;
+}
+
 export function ensureQueryOptionDataset(datasetId: string, queryType: string): Promise<number> {
     const cached = ensuredDatasets.get(datasetId);
     if (cached) {
@@ -121,24 +150,13 @@ export function ensureQueryOptionDataset(datasetId: string, queryType: string): 
         cache: undefined,
         batch_wait_ms: 200,
     })
-        .then(async (result) => {
-            const backendError = extractBackendError(result.data);
-            if (result.error || backendError) {
-                throw new Error(result.error ?? backendError ?? `Failed to fetch ${queryType} options`);
-            }
-            if (result.data == null) {
-                throw new Error(`No ${queryType} options were returned by the backend.`);
+        .then((result) => {
+            if (result.error) {
+                throw new Error(result.error);
             }
 
-            return postWorkerRequest<EnsureDatasetResponse>({
-                id: createRequestId("ensure"),
-                type: "ensure-dataset",
-                datasetId,
-                queryType,
-                payload: result.data,
-            });
-        })
-        .then((response) => response.optionCount);
+            return postEnsureDataset(datasetId, queryType, result.data);
+        });
 
     ensuredDatasets.set(datasetId, promise);
     return promise;

@@ -27,9 +27,11 @@
     "placeholder-args": "node ./scripts/placeholder-args.cjs",
     "list-placeholder-types": "node ./scripts/list-placeholder-types.cjs",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run --dir src",
     "test:inputs": "vitest run src/components/cmd/ArgInput.examples.test.tsx",
     "test:inputs:watch": "vitest src/components/cmd/ArgInput.examples.test.tsx",
-    "bench:placeholder": "vitest bench --run src/components/cmd/expression/expressionAnalysis.bench.ts src/components/cmd/PlaceholderSuggestionPanel.bench.ts src/components/cmd/PlaceholderExpressionInput.bench.tsx src/components/cmd/CommandDialogForm.bench.tsx"
+    "bench:placeholder": "vitest bench --run src/components/cmd/expression/expressionAnalysis.bench.ts src/components/cmd/PlaceholderSuggestionPanel.bench.ts src/components/cmd/PlaceholderExpressionInput.bench.tsx src/components/cmd/CommandDialogForm.bench.tsx",
+    "bench:cmd": "vitest bench --run src/components/cmd/expression/expressionAnalysis.bench.ts src/components/cmd/PlaceholderSuggestionPanel.bench.ts src/components/cmd/PlaceholderExpressionInput.bench.tsx src/components/cmd/CommandDialogForm.bench.tsx src/components/cmd/ListComponent.bench.tsx src/components/cmd/QueryComponent.bench.tsx src/components/cmd/CommandComponent.bench.tsx"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

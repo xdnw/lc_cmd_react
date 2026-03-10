@@ -59,4 +59,23 @@ describe("queryOptionWorkerClient", () => {
             batch_wait_ms: 200,
         }));
     });
+
+    it("hydrates worker datasets directly from an existing payload without refetching", async () => {
+        fetchBulkMock.mockResolvedValue({
+            data: {
+                text: ["unused"],
+                key_string: ["unused"],
+            },
+            error: null,
+        });
+
+        const { ensureQueryOptionDatasetFromPayload } = await import("./queryOptionWorkerClient");
+        const optionCount = await ensureQueryOptionDatasetFromPayload("query:DBAlliance", "DBAlliance", {
+            text: ["Cataclysm", "Aurora"],
+            key_string: ["AA:7", "AA:9"],
+        });
+
+        expect(optionCount).toBe(2);
+        expect(fetchBulkMock).not.toHaveBeenCalled();
+    });
 });

@@ -2,8 +2,26 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useQueriesMock = vi.fn();
-const listComponentMock = vi.fn(({ options }: { options: Array<{ value: string; label: string }> }) => (
-  <div data-testid="list-component">options:{options.map((option) => `${option.label}|${option.value}`).join(",")}</div>
+const listComponentMock = vi.fn(({
+  options,
+  onSearchValueChange,
+  loadingOptions,
+  emptyMessage,
+}: {
+  options: Array<{ value: string; label: string }>;
+  onSearchValueChange?: (value: string) => void;
+  loadingOptions?: boolean;
+  emptyMessage?: string;
+}) => (
+  <div>
+    <input
+      aria-label="Search options"
+      onChange={(event) => onSearchValueChange?.(event.currentTarget.value)}
+    />
+    {loadingOptions ? <div data-testid="loading-options">loading</div> : null}
+    {emptyMessage ? <div data-testid="empty-message">{emptyMessage}</div> : null}
+    <div data-testid="list-component">options:{options.map((option) => `${option.label}|${option.value}`).join(",")}</div>
+  </div>
 ));
 const ensureQueryOptionDatasetFromPayloadMock = vi.fn();
 const searchQueryOptionDatasetMock = vi.fn();
@@ -13,7 +31,12 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("./ListComponent", () => ({
-  default: (props: { options: Array<{ value: string; label: string }> }) => listComponentMock(props),
+  default: (props: {
+    options: Array<{ value: string; label: string }>;
+    onSearchValueChange?: (value: string) => void;
+    loadingOptions?: boolean;
+    emptyMessage?: string;
+  }) => listComponentMock(props),
 }));
 
 vi.mock("./queryOptionWorkerClient", () => ({
@@ -21,6 +44,7 @@ vi.mock("./queryOptionWorkerClient", () => ({
   searchQueryOptionDataset: (...args: unknown[]) => searchQueryOptionDatasetMock(...args),
 }));
 
+import { CommandQueryRegistryProvider } from "./CommandQueryRegistry";
 import QueryComponent, { CompositeQueryComponent } from "./QueryComponent";
 
 function makeWebOptions(values: Array<{ label: string; value: string }>) {
@@ -117,9 +141,14 @@ describe("CompositeQueryComponent", () => {
       expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledWith("query:DBNation", "DBNation", nationPayload);
       expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledWith("query:DBAlliance", "DBAlliance", alliancePayload);
     });
+
+    expect(screen.getByTestId("empty-message").textContent).toContain("Type at least 1 character to search 7,000 options.");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search options" }), { target: { value: "Bo" } });
+
     await waitFor(() => {
-      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "");
-      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBAlliance", "");
+      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "Bo");
+      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBAlliance", "Bo");
     });
     expect(screen.getByTestId("list-component").textContent).toContain("options:nation:Borg|nation:189573,AA:Singularity|AA:11657");
   });
@@ -216,6 +245,33 @@ describe("CompositeQueryComponent", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("reuses shared command query registry results instead of creating a per-input query hook", () => {
+    useQueriesMock.mockReturnValue([
+      {
+        isLoading: false,
+        error: null,
+        data: {
+          data: makeWebOptions([{ label: "Borg", value: "189573" }]),
+        },
+      },
+    ]);
+
+    render(
+      <CommandQueryRegistryProvider queryTypes={["DBNation"]}>
+        <QueryComponent
+          element="DBNation"
+          multi={false}
+          argName="target"
+          initialValue=""
+          setOutputValue={vi.fn()}
+        />
+      </CommandQueryRegistryProvider>,
+    );
+
+    expect(useQueriesMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("list-component").textContent).toContain("options:Borg|189573");
+  });
+
   it("defers large single-query option hydration to the shared worker-backed path", async () => {
     const payload = {
       text: Array.from({ length: 6000 }, (_, index) => `Nation ${index}`),
@@ -246,16 +302,24 @@ describe("CompositeQueryComponent", () => {
       />,
     );
 
+    expect(useQueriesMock).toHaveBeenCalledTimes(1);
+
     await waitFor(() => {
       expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledWith("query:DBNation", "DBNation", payload);
     });
+
+    expect(searchQueryOptionDatasetMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("empty-message").textContent).toContain("Type at least 1 character to search 6,000 options.");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search options" }), { target: { value: "Bo" } });
+
     await waitFor(() => {
-      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "");
+      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "Bo");
     });
     expect(screen.getByTestId("list-component").textContent).toContain("options:Borg|189573");
   });
 
-  it("prewarms deferred large query-backed inputs before focus and activates on demand", async () => {
+  it("renders the search control immediately and only warms the worker dataset once the user interacts", async () => {
     const payload = {
       text: Array.from({ length: 6000 }, (_, index) => `Nation ${index}`),
       key_string: Array.from({ length: 6000 }, (_, index) => `${index}`),
@@ -284,16 +348,20 @@ describe("CompositeQueryComponent", () => {
       />,
     );
 
+    expect(useQueriesMock).toHaveBeenCalledTimes(1);
+    expect(ensureQueryOptionDatasetFromPayloadMock).not.toHaveBeenCalled();
+    expect(searchQueryOptionDatasetMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Focus to open options|Preparing options/i)).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Search options" })).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search options" }), { target: { value: "Bo" } });
+
     await waitFor(() => {
       expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledTimes(1);
     });
 
-    expect(searchQueryOptionDatasetMock).not.toHaveBeenCalled();
-
-    fireEvent.focus(screen.getByText(/Focus to open options|Preparing options/i));
-
     await waitFor(() => {
-      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "");
+      expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "Bo");
     });
 
     await waitFor(() => {

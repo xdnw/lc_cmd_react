@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ListComponent from "./ListComponent";
+import { useCommandQueryResults, type CommandQueryLookupResult } from "./CommandQueryRegistry";
 import { INPUT_OPTIONS } from "@/lib/endpoints";
 import { extractBackendError } from "@/lib/BulkQuery";
 import { WebError, WebOptions } from "../../lib/apitypes";
@@ -8,6 +9,8 @@ import { bulkQueryOptions } from "@/lib/queries";
 import Loading from "../ui/loading";
 import {
     ASYNC_QUERY_OPTION_THRESHOLD,
+    type CombinedCompositeResult,
+    type CompositeQueryState,
     combineCompositeSourceResults,
     getQueryOptionCount,
     resolveQueryOptionsPayload,
@@ -17,13 +20,13 @@ import {
 } from "./queryOptionUtils";
 import { ensureQueryOptionDatasetFromPayload, searchQueryOptionDataset } from "./queryOptionWorkerClient";
 import type { SelectOption } from "./selectValueUtils";
-import { scheduleInteractionTransition, scheduleWhenIdle } from "./interactionScheduling";
+import { scheduleWhenIdle } from "./interactionScheduling";
 
 type QueryNoticeTone = "error" | "warning";
 
 type CompositePayloadSource = {
     type: string;
-    payload?: WebOptions | WebError | unknown;
+    payload?: WebOptions | WebError | null;
     error?: string;
     optionCount: number;
 };
@@ -33,6 +36,12 @@ type CompositeSearchResult = {
     options: SelectOption[];
     error?: string;
 };
+
+const QUERY_WARMUP_ROOT_MARGIN = "1400px 0px";
+const EMPTY_OPTIONS: SelectOption[] = [];
+const EMPTY_COMPOSITE_RESULT: CombinedCompositeResult = { options: EMPTY_OPTIONS };
+
+type QueryLookupResult = CommandQueryLookupResult;
 
 function useIdleDatasetWarmup(enabled: boolean, warmup: () => Promise<unknown>) {
     useEffect(() => {
@@ -44,6 +53,45 @@ function useIdleDatasetWarmup(enabled: boolean, warmup: () => Promise<unknown>) 
             void warmup().catch(() => undefined);
         });
     }, [enabled, warmup]);
+}
+
+function useNearViewportWarmup(containerRef: React.RefObject<HTMLElement | null>, enabled: boolean): boolean {
+    const [isNearViewport, setIsNearViewport] = useState<boolean>(() => !enabled || typeof IntersectionObserver === "undefined");
+
+    useEffect(() => {
+        if (!enabled) {
+            setIsNearViewport(true);
+            return;
+        }
+
+        if (typeof IntersectionObserver === "undefined") {
+            setIsNearViewport(true);
+            return;
+        }
+
+        if (isNearViewport) {
+            return;
+        }
+
+        const node = containerRef.current;
+        if (!node) {
+            return;
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            if (!entries.some((entry) => entry.isIntersecting)) {
+                return;
+            }
+
+            setIsNearViewport(true);
+            observer.disconnect();
+        }, { rootMargin: QUERY_WARMUP_ROOT_MARGIN });
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [containerRef, enabled, isNearViewport]);
+
+    return isNearViewport;
 }
 
 function getSourceError(payload: WebOptions | WebError | unknown): string | undefined {
@@ -172,14 +220,78 @@ function ResolvedQueryOptionsComponent(
         setOutputValue: (name: string, value: string) => void
     }
 ) {
+    const sharedQueries = useCommandQueryResults(types);
+
+    if (sharedQueries) {
+        return (
+            <ResolvedQueryOptionsContent
+                types={types}
+                queries={sharedQueries}
+                multi={multi}
+                argName={argName}
+                initialValue={initialValue}
+                preloadOptions={preloadOptions}
+                setOutputValue={setOutputValue}
+            />
+        );
+    }
+
+    return (
+        <ResolvedQueryOptionsWithLocalQueries
+            types={types}
+            multi={multi}
+            argName={argName}
+            initialValue={initialValue}
+            preloadOptions={preloadOptions}
+            setOutputValue={setOutputValue}
+        />
+    );
+}
+
+function ResolvedQueryOptionsWithLocalQueries(
+    {types, argName, multi, initialValue, setOutputValue, preloadOptions}:
+    {
+        types: string[],
+        argName: string,
+        multi: boolean,
+        initialValue: string,
+        preloadOptions?: boolean,
+        setOutputValue: (name: string, value: string) => void
+    }
+) {
     const queries = useQueries({
-        queries: types.map((type) => bulkQueryOptions<WebOptions>(
+        queries: types.map((type) => bulkQueryOptions<WebOptions | WebError>(
             INPUT_OPTIONS.endpoint,
             { type },
             false,
         )),
-    });
+    }) as QueryLookupResult[];
 
+    return (
+        <ResolvedQueryOptionsContent
+            types={types}
+            queries={queries}
+            multi={multi}
+            argName={argName}
+            initialValue={initialValue}
+            preloadOptions={preloadOptions}
+            setOutputValue={setOutputValue}
+        />
+    );
+}
+
+function ResolvedQueryOptionsContent(
+    {types, queries, argName, multi, initialValue, setOutputValue, preloadOptions}:
+    {
+        types: string[],
+        queries: QueryLookupResult[],
+        argName: string,
+        multi: boolean,
+        initialValue: string,
+        preloadOptions?: boolean,
+        setOutputValue: (name: string, value: string) => void
+    }
+) {
     const sources = useMemo<CompositePayloadSource[]>(() => {
         return types.map((type, index) => {
             const query = queries[index];
@@ -229,7 +341,7 @@ function ResolvedQueryOptionsComponent(
     }
 
     const combined = combineCompositeSourceResults(
-        types.map((type, index) => toCompositeSourceResult(type, queries[index])),
+        types.map((type, index) => toCompositeSourceResult(type, queries[index] as CompositeQueryState)),
     );
 
     if (combined.blockingError) {
@@ -265,14 +377,12 @@ function DeferredCompositeQueryOptionsList({
     setOutputValue: (name: string, value: string) => void;
 }) {
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const focusAfterLoadRef = useRef(false);
     const requestVersionRef = useRef(0);
-    const scheduledActivationRef = useRef<(() => void) | null>(null);
-    const [isActivated, setIsActivated] = useState(Boolean(preloadOptions));
     const [searchValue, setSearchValue] = useState("");
-    const [loading, setLoading] = useState(Boolean(preloadOptions));
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [combinedResult, setCombinedResult] = useState(() => combineCompositeSourceResults([]));
+    const [combinedResult, setCombinedResult] = useState<CombinedCompositeResult>(() => EMPTY_COMPOSITE_RESULT);
+    const [hasInteracted, setHasInteracted] = useState(Boolean(preloadOptions));
     const sourceErrors = useMemo(() => sources.flatMap((source) => source.error ? [`${source.type}: ${source.error}`] : []), [sources]);
     const hasUsableSource = useMemo(() => sources.some((source) => !source.error && source.optionCount > 0), [sources]);
     const totalOptionCount = useMemo(() => sources.reduce((sum, source) => sum + source.optionCount, 0), [sources]);
@@ -294,19 +404,16 @@ function DeferredCompositeQueryOptionsList({
     }, [searchValue, totalOptionCount]);
 
     const warmDatasets = useCallback(() => warmCompositeDatasets(sources), [sources]);
+    const isNearViewport = useNearViewportWarmup(containerRef, !preloadOptions);
+    const shouldWarmDatasets = !blockingError && (Boolean(preloadOptions) || hasInteracted || isNearViewport);
 
-    useIdleDatasetWarmup(!isActivated && !blockingError, warmDatasets);
-
-    useEffect(() => {
-        return () => {
-            scheduledActivationRef.current?.();
-            scheduledActivationRef.current = null;
-        };
-    }, []);
+    useIdleDatasetWarmup(shouldWarmDatasets, warmDatasets);
 
     useEffect(() => {
-        if (!isActivated) {
-            setLoading(false);
+        if (!shouldSearchDeferredQueryOptions(searchValue, totalOptionCount)) {
+            setError((current) => current == null ? current : null);
+            setLoading((current) => current ? false : current);
+            setCombinedResult((current) => current.options.length === 0 ? current : EMPTY_COMPOSITE_RESULT);
             return;
         }
 
@@ -314,12 +421,6 @@ function DeferredCompositeQueryOptionsList({
         requestVersionRef.current = currentVersion;
         setLoading(true);
         setError(null);
-
-        if (!shouldSearchDeferredQueryOptions(searchValue, totalOptionCount)) {
-            setCombinedResult(combineCompositeSourceResults([]));
-            setLoading(false);
-            return;
-        }
 
         void searchCompositeDatasets(sources, searchValue)
             .then((results) => {
@@ -339,91 +440,44 @@ function DeferredCompositeQueryOptionsList({
                 setError(nextError instanceof Error ? nextError.message : String(nextError));
                 setLoading(false);
             });
-    }, [isActivated, searchValue, sources, totalOptionCount]);
-
-    useEffect(() => {
-        if (loading || !focusAfterLoadRef.current) {
-            return;
-        }
-
-        focusAfterLoadRef.current = false;
-        const handle = window.requestAnimationFrame(() => {
-            const target = containerRef.current?.querySelector("input:not([disabled])") as HTMLElement | null;
-            target?.focus();
-        });
-
-        return () => window.cancelAnimationFrame(handle);
-    }, [loading]);
-
-    const activate = useCallback((focusAfterLoad: boolean) => {
-        if (focusAfterLoad) {
-            focusAfterLoadRef.current = true;
-        }
-        if (isActivated || scheduledActivationRef.current) {
-            return;
-        }
-
-        scheduledActivationRef.current = scheduleInteractionTransition(() => {
-            scheduledActivationRef.current = null;
-            setIsActivated(true);
-        });
-    }, [isActivated]);
-
-    const handlePointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-        if (isActivated) {
-            return;
-        }
-        event.preventDefault();
-        activate(true);
-    }, [activate, isActivated]);
-
-    const handleFocusCapture = useCallback(() => {
-        if (!isActivated) {
-            activate(true);
-        }
-    }, [activate, isActivated]);
+    }, [searchValue, sources, totalOptionCount]);
 
     const handleSearchValueChange = useCallback((nextValue: string) => {
+        setHasInteracted(true);
         setSearchValue(nextValue);
+    }, []);
+
+    const handleFocusCapture = useCallback(() => {
+        setHasInteracted(true);
     }, []);
 
     if (error) {
         return <EmptyQueryOptions element="composite query" message={error} />;
     }
 
-    if (!isActivated && blockingError) {
+    if (blockingError) {
         return <EmptyQueryOptions element="composite query" message={blockingError} />;
     }
 
-    if (isActivated && !loading) {
-        if (combinedResult.blockingError) {
-            return <EmptyQueryOptions element="composite query" message={combinedResult.blockingError} />;
-        }
+    if (!loading && combinedResult.blockingError) {
+        return <EmptyQueryOptions element="composite query" message={combinedResult.blockingError} />;
     }
 
     return (
-        <div ref={containerRef} onPointerDownCapture={handlePointerDownCapture} onFocusCapture={handleFocusCapture}>
-            {!isActivated && backgroundWarning && <QueryNotice tone="warning" message={backgroundWarning} />}
-            {isActivated ? (
-                <div className="flex flex-col gap-2">
-                    {combinedResult.warning && !loading && <QueryNotice tone="warning" message={combinedResult.warning} />}
-                    <ListComponent
-                        argName={argName}
-                        options={combinedResult.options}
-                        isMulti={multi}
-                        initialValue={initialValue}
-                        setOutputValue={setOutputValue}
-                        onSearchValueChange={handleSearchValueChange}
-                        optionsArePrefiltered
-                        loadingOptions={loading}
-                        emptyMessage={emptyMessage}
-                    />
-                </div>
-            ) : (
-                <div className="flex min-h-8 items-center rounded-md border border-dashed border-border/70 bg-muted/15 px-2 py-1.5 text-[11px] text-muted-foreground">
-                    <span>Focus to open options</span>
-                </div>
-            )}
+        <div ref={containerRef} className="flex flex-col gap-2" onFocusCapture={handleFocusCapture}>
+            {backgroundWarning && <QueryNotice tone="warning" message={backgroundWarning} />}
+            {combinedResult.warning && !loading && <QueryNotice tone="warning" message={combinedResult.warning} />}
+            <ListComponent
+                argName={argName}
+                options={combinedResult.options}
+                isMulti={multi}
+                initialValue={initialValue}
+                setOutputValue={setOutputValue}
+                onSearchValueChange={handleSearchValueChange}
+                optionsArePrefiltered
+                loadingOptions={loading}
+                emptyMessage={emptyMessage}
+            />
         </div>
     );
 }
@@ -439,14 +493,78 @@ function SingleQueryOptionsComponent(
         setOutputValue: (name: string, value: string) => void
     }
 ) {
+    const sharedQueries = useCommandQueryResults([element]);
+
+    if (sharedQueries) {
+        return (
+            <SingleQueryOptionsContent
+                element={element}
+                query={sharedQueries[0]}
+                multi={multi}
+                argName={argName}
+                initialValue={initialValue}
+                preloadOptions={preloadOptions}
+                setOutputValue={setOutputValue}
+            />
+        );
+    }
+
+    return (
+        <SingleQueryOptionsWithLocalQuery
+            element={element}
+            multi={multi}
+            argName={argName}
+            initialValue={initialValue}
+            preloadOptions={preloadOptions}
+            setOutputValue={setOutputValue}
+        />
+    );
+}
+
+function SingleQueryOptionsWithLocalQuery(
+    {element, multi, argName, initialValue, setOutputValue, preloadOptions}:
+    {
+        element: string,
+        multi: boolean,
+        argName: string,
+        initialValue: string,
+        preloadOptions?: boolean,
+        setOutputValue: (name: string, value: string) => void
+    }
+) {
     const queries = useQueries({
-        queries: [bulkQueryOptions<WebOptions>(
+        queries: [bulkQueryOptions<WebOptions | WebError>(
             INPUT_OPTIONS.endpoint,
             { type: element },
             false,
         )],
-    });
-    const query = queries[0];
+    }) as QueryLookupResult[];
+
+    return (
+        <SingleQueryOptionsContent
+            element={element}
+            query={queries[0]}
+            multi={multi}
+            argName={argName}
+            initialValue={initialValue}
+            preloadOptions={preloadOptions}
+            setOutputValue={setOutputValue}
+        />
+    );
+}
+
+function SingleQueryOptionsContent(
+    {element, query, multi, argName, initialValue, setOutputValue, preloadOptions}:
+    {
+        element: string,
+        query: QueryLookupResult | undefined,
+        multi: boolean,
+        argName: string,
+        initialValue: string,
+        preloadOptions?: boolean,
+        setOutputValue: (name: string, value: string) => void
+    }
+) {
 
     if (!query || query.isLoading) {
         return (
@@ -516,14 +634,12 @@ function DeferredQueryOptionsList({
 }) {
     const datasetId = useMemo(() => `query:${element}`, [element]);
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const focusAfterLoadRef = useRef(false);
     const requestVersionRef = useRef(0);
-    const scheduledActivationRef = useRef<(() => void) | null>(null);
-    const [isActivated, setIsActivated] = useState(Boolean(preloadOptions));
     const [searchValue, setSearchValue] = useState("");
-    const [loading, setLoading] = useState(Boolean(preloadOptions));
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [options, setOptions] = useState<SelectOption[]>([]);
+    const [options, setOptions] = useState<SelectOption[]>(EMPTY_OPTIONS);
+    const [hasInteracted, setHasInteracted] = useState(Boolean(preloadOptions));
     const optionCount = useMemo(() => getQueryOptionCount(payload), [payload]);
     const emptyMessage = useMemo(() => {
         if (shouldSearchDeferredQueryOptions(searchValue, optionCount)) {
@@ -534,19 +650,16 @@ function DeferredQueryOptionsList({
     }, [optionCount, searchValue]);
 
     const warmDataset = useCallback(() => ensureQueryOptionDatasetFromPayload(datasetId, element, payload), [datasetId, element, payload]);
+    const isNearViewport = useNearViewportWarmup(containerRef, !preloadOptions);
+    const shouldWarmDataset = Boolean(preloadOptions) || hasInteracted || isNearViewport;
 
-    useIdleDatasetWarmup(!isActivated, warmDataset);
-
-    useEffect(() => {
-        return () => {
-            scheduledActivationRef.current?.();
-            scheduledActivationRef.current = null;
-        };
-    }, []);
+    useIdleDatasetWarmup(shouldWarmDataset, warmDataset);
 
     useEffect(() => {
-        if (!isActivated) {
-            setLoading(false);
+        if (!shouldSearchDeferredQueryOptions(searchValue, optionCount)) {
+            setError((current) => current == null ? current : null);
+            setLoading((current) => current ? false : current);
+            setOptions((current) => current.length === 0 ? current : EMPTY_OPTIONS);
             return;
         }
 
@@ -554,12 +667,6 @@ function DeferredQueryOptionsList({
         requestVersionRef.current = currentVersion;
         setLoading(true);
         setError(null);
-
-        if (!shouldSearchDeferredQueryOptions(searchValue, optionCount)) {
-            setOptions([]);
-            setLoading(false);
-            return;
-        }
 
         warmDataset()
             .then(() => searchQueryOptionDataset(datasetId, searchValue))
@@ -577,52 +684,15 @@ function DeferredQueryOptionsList({
                 setError(nextError instanceof Error ? nextError.message : String(nextError));
                 setLoading(false);
             });
-    }, [datasetId, isActivated, optionCount, searchValue, warmDataset]);
-
-    useEffect(() => {
-        if (loading || !focusAfterLoadRef.current) {
-            return;
-        }
-
-        focusAfterLoadRef.current = false;
-        const handle = window.requestAnimationFrame(() => {
-            const target = containerRef.current?.querySelector("input:not([disabled])") as HTMLElement | null;
-            target?.focus();
-        });
-
-        return () => window.cancelAnimationFrame(handle);
-    }, [loading]);
-
-    const activate = useCallback((focusAfterLoad: boolean) => {
-        if (focusAfterLoad) {
-            focusAfterLoadRef.current = true;
-        }
-        if (isActivated || scheduledActivationRef.current) {
-            return;
-        }
-
-        scheduledActivationRef.current = scheduleInteractionTransition(() => {
-            scheduledActivationRef.current = null;
-            setIsActivated(true);
-        });
-    }, [isActivated]);
-
-    const handlePointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-        if (isActivated) {
-            return;
-        }
-        event.preventDefault();
-        activate(true);
-    }, [activate, isActivated]);
-
-    const handleFocusCapture = useCallback(() => {
-        if (!isActivated) {
-            activate(true);
-        }
-    }, [activate, isActivated]);
+    }, [datasetId, optionCount, searchValue, warmDataset]);
 
     const handleSearchValueChange = useCallback((nextValue: string) => {
+        setHasInteracted(true);
         setSearchValue(nextValue);
+    }, []);
+
+    const handleFocusCapture = useCallback(() => {
+        setHasInteracted(true);
     }, []);
 
     if (error) {
@@ -630,24 +700,18 @@ function DeferredQueryOptionsList({
     }
 
     return (
-        <div ref={containerRef} onPointerDownCapture={handlePointerDownCapture} onFocusCapture={handleFocusCapture}>
-            {isActivated ? (
-                <ListComponent
-                    argName={argName}
-                    options={options}
-                    isMulti={multi}
-                    initialValue={initialValue}
-                    setOutputValue={setOutputValue}
-                    onSearchValueChange={handleSearchValueChange}
-                    optionsArePrefiltered
-                    loadingOptions={loading}
-                    emptyMessage={emptyMessage}
-                />
-            ) : (
-                <div className="flex min-h-8 items-center rounded-md border border-dashed border-border/70 bg-muted/15 px-2 py-1.5 text-[11px] text-muted-foreground">
-                    <span>Focus to open options</span>
-                </div>
-            )}
+        <div ref={containerRef} onFocusCapture={handleFocusCapture}>
+            <ListComponent
+                argName={argName}
+                options={options}
+                isMulti={multi}
+                initialValue={initialValue}
+                setOutputValue={setOutputValue}
+                onSearchValueChange={handleSearchValueChange}
+                optionsArePrefiltered
+                loadingOptions={loading}
+                emptyMessage={emptyMessage}
+            />
         </div>
     );
 }

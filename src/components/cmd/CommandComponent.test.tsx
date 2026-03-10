@@ -1,5 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../utils/Command", () => ({
@@ -11,10 +10,6 @@ vi.mock("./ArgInput", () => ({
   default: ({ argName }: { argName: string }) => <input aria-label={argName} />,
 }));
 
-vi.mock("./argInputWarmup", () => ({
-  prefetchArgInputData: vi.fn(),
-}));
-
 import CommandComponent from "./CommandComponent";
 
 vi.mock("../layout/DialogContext", () => ({
@@ -24,14 +19,7 @@ vi.mock("../layout/DialogContext", () => ({
 }));
 
 describe("CommandComponent", () => {
-  it("resolves arg type breakdowns lazily and reuses cached results across focus rerenders", async () => {
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
+  it("renders inputs immediately and reuses cached breakdowns across focus rerenders", () => {
     const getTypeBreakdownSpy = vi.fn(() => ({ element: "String", annotations: null, child: null }));
     const firstArg = {
       name: "first",
@@ -54,33 +42,23 @@ describe("CommandComponent", () => {
     };
 
     render(
-      <QueryClientProvider client={queryClient}>
-        <CommandComponent
-          command={command as never}
-          filterArguments={() => true}
-          initialValues={{}}
-          displayMode="focus-pane"
-          setOutput={vi.fn()}
-        />
-      </QueryClientProvider>,
+      <CommandComponent
+        command={command as never}
+        filterArguments={() => true}
+        initialValues={{}}
+        displayMode="focus-pane"
+        setOutput={vi.fn()}
+      />,
     );
 
-    expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(1);
+    expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Loading input...")).toBeNull();
 
     const inputs = screen.getAllByRole("textbox");
+    expect(inputs).toHaveLength(2);
+
     fireEvent.focus(inputs[0]);
 
-    expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(1);
-
-    const deferredShell = screen.getByText("Loading input...").parentElement;
-    if (!deferredShell) {
-      throw new Error("Expected deferred input shell");
-    }
-
-    fireEvent.focus(deferredShell);
-
-    await waitFor(() => {
-      expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(2);
-    });
+    expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(2);
   });
 });

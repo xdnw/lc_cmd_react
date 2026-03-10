@@ -1,5 +1,7 @@
 import { AppRouteConfig } from '@/App';
 import { useEffect, useMemo, useRef } from 'react';
+import { useLocation, useNavigationType } from 'react-router-dom';
+import { scheduleWhenIdle } from './cmd/interactionScheduling';
 
 // Simplified Default Config
 interface SimplePrefetchConfig {
@@ -57,25 +59,6 @@ function getNetworkHints(): { saveData: boolean; slowNetwork: boolean } {
     return { saveData, slowNetwork };
 }
 
-function scheduleWhenIdle(cb: () => void): () => void {
-    if (typeof window === 'undefined') return () => undefined;
-
-    const win = window as Window & {
-        requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
-        cancelIdleCallback?: (id: number) => void;
-    };
-
-    if (win.requestIdleCallback) {
-        const id = win.requestIdleCallback(() => cb(), { timeout: 2000 });
-        return () => {
-            win.cancelIdleCallback?.(id);
-        };
-    }
-
-    const timeoutId = window.setTimeout(cb, 300);
-    return () => window.clearTimeout(timeoutId);
-}
-
 export default function AutoRoutePrefetcher({
     // Remove initialPrefetchKeys prop
     routeConfigs = [],
@@ -86,9 +69,14 @@ export default function AutoRoutePrefetcher({
     config?: Partial<SimplePrefetchConfig>
 }) {
     const mergedConfig = { ...SIMPLE_DEFAULT_CONFIG, ...config };
+    const location = useLocation();
+    const navigationType = useNavigationType();
     const prefetchQueue = useRef<string[]>([]);
     const activePrefetches = useRef<number>(0);
     const prefetchedRoutes = useRef<Set<string>>(new Set());
+    const isLatencySensitiveRoute = useMemo(() => {
+        return /^\/(command|view_command)(\/|$)/.test(location.pathname);
+    }, [location.pathname]);
 
     const orderedRouteKeys = useMemo(() => {
         return [...routeConfigs]
@@ -146,6 +134,12 @@ export default function AutoRoutePrefetcher({
         const highPriorityCap = saveData || slowNetwork
             ? Math.min(3, mergedConfig.highPriorityCount)
             : mergedConfig.highPriorityCount;
+        const startDelayMs = mergedConfig.initialDelayMs
+            + (navigationType === 'POP' ? 2500 : 0)
+            + (isLatencySensitiveRoute ? 3500 : 0);
+        const lowPriorityDelayMs = mergedConfig.lowPriorityDelayMs
+            + (navigationType === 'POP' ? 4000 : 0)
+            + (isLatencySensitiveRoute ? 6000 : 0);
 
         const highPriorityKeys = orderedRouteKeys.slice(0, highPriorityCap);
         const lowPriorityKeys = orderedRouteKeys.slice(highPriorityCap);
@@ -165,13 +159,13 @@ export default function AutoRoutePrefetcher({
                 });
 
                 if (cancelled) cancelLowPriorityIdle();
-            }, mergedConfig.lowPriorityDelayMs);
+            }, lowPriorityDelayMs);
 
             if (cancelled) {
                 cancelIdle();
                 window.clearTimeout(lowPriorityTimer);
             }
-        }, mergedConfig.initialDelayMs);
+        }, startDelayMs);
 
         return () => {
             cancelled = true;
@@ -183,6 +177,8 @@ export default function AutoRoutePrefetcher({
         mergedConfig.initialDelayMs,
         mergedConfig.lowPriorityDelayMs,
         mergedConfig.maxConcurrentPrefetches,
+        isLatencySensitiveRoute,
+        navigationType,
         orderedRouteKeys,
         routeConfigs,
     ]);

@@ -651,6 +651,7 @@ export class CommandMap {
 
     cmd_cache: Map<string, Command<AnyCommandPath>> = new Map();
     ph_cache: Map<string, PlaceholderMap<keyof typeof COMMANDS.placeholders>> = new Map();
+    test_command_cache: BaseCommand | null = null;
 
     constructor(commands: ICommandMap) {
         this.data = commands;
@@ -722,6 +723,10 @@ export class CommandMap {
     }
 
     buildTest(): BaseCommand {
+        if (this.test_command_cache) {
+            return this.test_command_cache;
+        }
+
         const allArgs: { [key: string]: IArgument } = {};
         for (const path of this.getCommandPaths()) {
             const command = this.get(path);
@@ -745,7 +750,8 @@ export class CommandMap {
         Object.entries(allArgs).forEach(([key, arg]) => {
             builder.argument(key, arg.optional == null ? false : arg.optional, arg.desc ?? "", arg.type, arg.def, arg.choices, arg.filter);
         });
-        return builder.build();
+        this.test_command_cache = builder.build();
+        return this.test_command_cache;
 
     }
 }

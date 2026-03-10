@@ -1,8 +1,9 @@
 import React, { startTransition, useCallback, useMemo, useRef, useState } from 'react';
 import CommandComponent from '../../components/cmd/CommandComponent'; // Import CommandComponent
+import { CommandQueryRegistryProvider } from '@/components/cmd/CommandQueryRegistry';
 import { CommandStoreType } from '@/utils/StateUtil.ts';
-import { Command, CM, AnyCommandPath, CommandPath, BaseCommand } from '@/utils/Command.ts';
-import { useParams } from "react-router-dom";
+import { Command, CM, AnyCommandPath, CommandPath } from '@/utils/Command.ts';
+import { useLocation, useParams } from "react-router-dom";
 import { BlockCopyButton } from "@/components/ui/block-copy-button.tsx";
 import { TooltipProvider } from "@/components/ui/tooltip.tsx";
 import { Button } from "../../components/ui/button";
@@ -23,10 +24,17 @@ import { deepEqual } from '@/lib/utils';
 
 export default function CommandPage() {
     const { command } = useParams();
-    const queryParams = useMemo(() => getQueryParams(), []);
+    const location = useLocation();
+    const queryParams = useMemo(() => getQueryParams(), [location.key]);
     const forceMountAll = queryParams.get("mount") === "all" || queryParams.get("forceMount") === "all" || queryParams.get("forceMountAll") === "1";
     const benchMode = queryParams.get("bench") === "1";
-    const [cmdObj, setCmdObj] = useState<BaseCommand | null>(command !== "test" ? CM.get(command?.split(" ") as AnyCommandPath) : CM.buildTest());
+    const cmdObj = useMemo(() => {
+        if (command === "test") {
+            return CM.buildTest();
+        }
+
+        return CM.get(command?.split(" ") as AnyCommandPath);
+    }, [command]);
     const pathJoined = useMemo(() => cmdObj?.path.join(" ") ?? "", [cmdObj]);
     const [displayMode, setDisplayMode] = useState<CommandInputDisplayMode>("card");
     const setCardDisplayMode = useCallback(() => {
@@ -36,15 +44,16 @@ export default function CommandPage() {
         startTransition(() => setDisplayMode("focus-pane"));
     }, []);
 
-    const [initialValues, setInitialValues] = useState<{ [key: string]: string }>(() => {
+    const initialValues = useMemo<{ [key: string]: string }>(() => {
         const nextValues = queryParamsToObject(queryParams) as { [key: string]: string };
         delete nextValues.bench;
         delete nextValues.mount;
         delete nextValues.forceMount;
         delete nextValues.forceMountAll;
         return nextValues;
-    });
+    }, [queryParams]);
     const commandStore = useMemo(() => createCommandStoreWithDef(initialValues), [initialValues]);
+    const queryBreakdowns = useMemo(() => cmdObj.getArguments().map((arg) => arg.getTypeBreakdown()), [cmdObj]);
 
     React.useEffect(() => {
         if (!benchMode) {
@@ -116,11 +125,13 @@ export default function CommandPage() {
                 <Button size="sm" variant={displayMode === "card" ? "default" : "outline"} onClick={setCardDisplayMode} tabIndex={-1}>Card</Button>
                 <Button size="sm" variant={displayMode === "focus-pane" ? "default" : "outline"} onClick={setFocusPaneDisplayMode} tabIndex={-1}>Focus Pane</Button>
             </div>
-            <CommandComponent key={cmdObj.name} command={cmdObj} filterArguments={alwaysTrue} initialValues={initialValues}
-                displayMode={displayMode}
-                forceMountAll={forceMountAll}
-                setOutput={commandStore((state) => state.setOutput)}
-            />
+            <CommandQueryRegistryProvider breakdowns={queryBreakdowns}>
+                <CommandComponent key={cmdObj.name} command={cmdObj} filterArguments={alwaysTrue} initialValues={initialValues}
+                    displayMode={displayMode}
+                    forceMountAll={forceMountAll}
+                    setOutput={commandStore((state) => state.setOutput)}
+                />
+            </CommandQueryRegistryProvider>
             <OutputValuesDisplay name={pathJoined} store={commandStore} />
         </>
     );

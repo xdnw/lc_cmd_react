@@ -1,7 +1,6 @@
 import ArgInput from "./ArgInput";
 import { Argument, BaseCommand } from "../../utils/Command";
-import { memo, useCallback, useMemo, useState, useEffect, useRef, type FocusEvent } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { memo, useCallback, useMemo, useState, useEffect, type CSSProperties, type FocusEvent } from "react";
 import MarkupRenderer from "../ui/MarkupRenderer";
 import { cn } from "@/lib/utils";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
@@ -10,8 +9,6 @@ import ArgFieldShell from "./field/ArgFieldShell";
 import { parseCommandStringDetailed } from "../../utils/CommandParser";
 import { useDialog } from "../layout/DialogContext";
 import type { TypeBreakdown } from "@/utils/Command";
-import { prefetchArgInputData } from "./argInputWarmup";
-import { scheduleInteractionTransition } from "./interactionScheduling";
 
 interface CommandProps {
     command: BaseCommand,
@@ -27,19 +24,12 @@ type CommandArgEntry = {
     arg: Argument;
 };
 
-const EAGER_ARG_INPUT_COUNT = 12;
-const ARG_PREFETCH_ROOT_MARGIN = "2200px 0px";
-const ARG_INPUT_ROOT_MARGIN = "700px 0px";
-const FOCUSABLE_INPUT_SELECTOR = [
-    "input:not([disabled])",
-    "textarea:not([disabled])",
-    "select:not([disabled])",
-    "[contenteditable='true']",
-    "[contenteditable='plaintext-only']",
-    "[role='textbox']",
-].join(", ");
-
 const argBreakdownCache = new WeakMap<Argument, TypeBreakdown>();
+const ARG_CARD_VISIBILITY_STYLE: CSSProperties = {
+    contain: "layout style paint",
+    contentVisibility: "auto",
+    containIntrinsicSize: "168px",
+};
 
 function getCachedArgBreakdown(arg: Argument): TypeBreakdown {
     const cached = argBreakdownCache.get(arg);
@@ -74,175 +64,6 @@ function buildGroupedArgs(argsArr: CommandArgEntry[]): CommandArgEntry[][] {
     return groupedArgs;
 }
 
-const DeferredArgInput = memo(function DeferredArgInput({
-    arg,
-    argName,
-    min,
-    max,
-    initialValue,
-    displayMode,
-    setOutputValue,
-    eager,
-    forceMountAll,
-}: {
-    arg: Argument;
-    argName: string;
-    min?: number;
-    max?: number;
-    initialValue: string;
-    displayMode?: CommandInputDisplayMode;
-    setOutputValue: (key: string, value: string) => void;
-    eager: boolean;
-    forceMountAll?: boolean;
-}) {
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const queryClient = useQueryClient();
-    const focusAfterMountRef = useRef(false);
-    const scheduledMountRef = useRef<(() => void) | null>(null);
-    const [shouldPrefetch, setShouldPrefetch] = useState<boolean>(() => eager || Boolean(initialValue));
-    const [isMounted, setIsMounted] = useState<boolean>(() => eager || Boolean(initialValue));
-    const shouldResolveBreakdown = shouldPrefetch || isMounted;
-    const breakdown = useMemo(
-        () => (shouldResolveBreakdown ? getCachedArgBreakdown(arg) : null),
-        [arg, shouldResolveBreakdown],
-    );
-
-    useEffect(() => {
-        return () => {
-            scheduledMountRef.current?.();
-            scheduledMountRef.current = null;
-        };
-    }, []);
-
-    useEffect(() => {
-        if (isMounted && !shouldPrefetch) {
-            setShouldPrefetch(true);
-        }
-    }, [isMounted, shouldPrefetch]);
-
-    useEffect(() => {
-        if (shouldPrefetch || typeof IntersectionObserver === "undefined") {
-            return;
-        }
-
-        const node = containerRef.current;
-        if (!node) {
-            return;
-        }
-
-        const observer = new IntersectionObserver((entries) => {
-            if (!entries.some((entry) => entry.isIntersecting)) {
-                return;
-            }
-            setShouldPrefetch(true);
-            observer.disconnect();
-        }, { rootMargin: ARG_PREFETCH_ROOT_MARGIN });
-
-        observer.observe(node);
-        return () => observer.disconnect();
-    }, [shouldPrefetch]);
-
-    useEffect(() => {
-        if (!shouldPrefetch || !breakdown) {
-            return;
-        }
-
-        void prefetchArgInputData(queryClient, breakdown);
-    }, [breakdown, queryClient, shouldPrefetch]);
-
-    useEffect(() => {
-        if (isMounted || typeof IntersectionObserver === "undefined") {
-            return;
-        }
-
-        const node = containerRef.current;
-        if (!node) {
-            return;
-        }
-
-        const observer = new IntersectionObserver((entries) => {
-            if (!entries.some((entry) => entry.isIntersecting)) {
-                return;
-            }
-            setIsMounted(true);
-            observer.disconnect();
-        }, { rootMargin: ARG_INPUT_ROOT_MARGIN });
-
-        observer.observe(node);
-        return () => observer.disconnect();
-    }, [isMounted]);
-
-    useEffect(() => {
-        if (!isMounted || !focusAfterMountRef.current) {
-            return;
-        }
-
-        focusAfterMountRef.current = false;
-        const handle = window.requestAnimationFrame(() => {
-            const target = containerRef.current?.querySelector(FOCUSABLE_INPUT_SELECTOR) as HTMLElement | null;
-            target?.focus();
-        });
-
-        return () => window.cancelAnimationFrame(handle);
-    }, [isMounted]);
-
-    const mountInput = useCallback((focusAfterMount: boolean) => {
-        if (focusAfterMount) {
-            focusAfterMountRef.current = true;
-        }
-        if (isMounted || scheduledMountRef.current) {
-            return;
-        }
-
-        scheduledMountRef.current = scheduleInteractionTransition(() => {
-            scheduledMountRef.current = null;
-            setIsMounted(true);
-        });
-    }, [isMounted]);
-
-    const handlePointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-        if (isMounted) {
-            return;
-        }
-        event.preventDefault();
-        mountInput(true);
-    }, [isMounted, mountInput]);
-
-    const handleFocusCapture = useCallback(() => {
-        if (!isMounted) {
-            mountInput(true);
-        }
-    }, [isMounted, mountInput]);
-
-    return (
-        <div
-            ref={containerRef}
-            onPointerDownCapture={handlePointerDownCapture}
-            onFocusCapture={handleFocusCapture}
-        >
-            {isMounted ? (
-                <ArgInput
-                    argName={argName}
-                    breakdown={breakdown ?? getCachedArgBreakdown(arg)}
-                    min={min}
-                    max={max}
-                    initialValue={initialValue}
-                    displayMode={displayMode}
-                    forceMountAll={forceMountAll}
-                    setOutputValue={setOutputValue}
-                />
-            ) : (
-                <div
-                    className="flex min-h-8 items-center rounded-md border border-dashed border-border/60 bg-muted/20 px-2 py-1 text-xs text-muted-foreground"
-                    aria-hidden="true"
-                >
-                    Loading input...
-                </div>
-            )}
-        </div>
-    );
-});
-
 const CommandArgCard = memo(function CommandArgCard({
     entry,
     displayMode,
@@ -251,7 +72,6 @@ const CommandArgCard = memo(function CommandArgCard({
     handleFocusCapture,
     initialValue,
     setOutput,
-    eager,
     forceMountAll,
 }: {
     entry: CommandArgEntry;
@@ -261,16 +81,17 @@ const CommandArgCard = memo(function CommandArgCard({
     handleFocusCapture: (event: FocusEvent<HTMLDivElement>) => void;
     initialValue: string;
     setOutput: (key: string, value: string) => void;
-    eager: boolean;
     forceMountAll?: boolean;
 }) {
     const { arg } = entry;
+    const breakdown = useMemo(() => getCachedArgBreakdown(arg), [arg]);
 
     return (
         <div
             className={cn("w-full rounded-md border border-border/60 bg-background/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]", compact ? "p-px" : "p-0.5")}
             data-arg-name={arg.name}
             onFocusCapture={trackFocusedArg ? handleFocusCapture : undefined}
+            style={ARG_CARD_VISIBILITY_STYLE}
         >
             {displayMode !== "focus-pane" && (
                 <ArgDescComponent
@@ -286,16 +107,15 @@ const CommandArgCard = memo(function CommandArgCard({
                     <span className="w-24 shrink-0 truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{arg.name}</span>
                 )}
                 <div className="min-w-0 flex-1">
-                    <DeferredArgInput
-                        arg={arg}
+                    <ArgInput
                         argName={arg.name}
+                        breakdown={breakdown}
                         min={arg.arg.min}
                         max={arg.arg.max}
                         initialValue={initialValue}
                         displayMode={displayMode}
-                        setOutputValue={setOutput}
-                        eager={forceMountAll || eager}
                         forceMountAll={forceMountAll}
+                        setOutputValue={setOutput}
                     />
                 </div>
             </ArgFieldShell>
@@ -400,7 +220,7 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
     }, []);
 
     return (
-        <div className={cn("space-y-2.5", compact && "space-y-1.5")} onPasteCapture={handlePasteCapture} onKeyDown={handleKeyDown}>
+        <div className={cn("space-y-2.5", compact && "space-y-1.5")} data-command-root="true" onPasteCapture={handlePasteCapture} onKeyDown={handleKeyDown}>
             <h2 className={cn("text-sm font-semibold tracking-tight", compact && "text-xs")}>{overrideName ?? command.name}</h2>
             {displayMode === "focus-pane" && <FocusInfoBar arg={focusedArg} />}
             {
@@ -432,7 +252,6 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
                                         handleFocusCapture={handleFocusCapture}
                                         initialValue={localValues[entry.arg.name] ?? ""}
                                         setOutput={setOutput}
-                                        eager={index === 0 && argIndex < EAGER_ARG_INPUT_COUNT}
                                         forceMountAll={forceMountAll}
                                     />
                                 ))}

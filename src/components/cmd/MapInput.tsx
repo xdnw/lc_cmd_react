@@ -170,8 +170,8 @@ const StaticMapRow = memo(function StaticMapRow(
     }, [mapKey, onValueChange]);
 
     return (
-        <div className={cn("grid gap-2", compact ? "grid-cols-[minmax(0,9rem)_1fr] items-center" : "grid-cols-[minmax(0,12rem)_1fr] items-center")}>
-            <div className={cn("truncate text-xs font-medium text-muted-foreground", compact ? "pr-1" : "pr-2")}>{mapKey}</div>
+        <div className={cn("grid gap-2", compact ? "grid-cols-[minmax(0,7rem)_1fr] items-center" : "grid-cols-[minmax(0,9rem)_1fr] items-center")}>
+            <div className={cn("truncate text-[11px] font-medium text-muted-foreground", compact ? "pr-1" : "pr-2")}>{mapKey}</div>
             <ArgInput
                 argName={`value-${mapKey}`}
                 breakdown={valueBreakdown}
@@ -268,29 +268,23 @@ function StaticKeyMapInput(
     const extraItems = useMemo(() => toEntryItems(state.extraEntries), [state.extraEntries]);
 
     return (
-        <div onPasteCapture={handlePasteCapture}>
-            <div className="mb-2">
-                <div className={cn("mb-1 grid gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground", compact ? "grid-cols-[minmax(0,9rem)_1fr]" : "grid-cols-[minmax(0,12rem)_1fr]")}>
-                    <span>Key</span>
-                    <span>Value</span>
-                </div>
-                <div className="space-y-2">
-                    {staticKeys.map((key) => (
-                        <StaticMapRow
-                            key={key}
-                            mapKey={key}
-                            value={state.keyedValues[key] ?? ""}
-                            valueBreakdown={children[1]}
-                            displayMode={displayMode}
-                            compact={compact}
-                            onValueChange={handleValueChange}
-                        />
-                    ))}
-                </div>
+        <div className="space-y-2" onPasteCapture={handlePasteCapture}>
+            <div className="space-y-1.5">
+                {staticKeys.map((key) => (
+                    <StaticMapRow
+                        key={key}
+                        mapKey={key}
+                        value={state.keyedValues[key] ?? ""}
+                        valueBreakdown={children[1]}
+                        displayMode={displayMode}
+                        compact={compact}
+                        onValueChange={handleValueChange}
+                    />
+                ))}
             </div>
             {extraItems.length > 0 && (
-                <div className="relative mb-2">
-                    <p className="mb-1 text-xs font-medium text-muted-foreground">Additional entries</p>
+                <div className="space-y-1">
+                    <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Extra entries</p>
                     <KeyValueEntryList
                         items={extraItems}
                         emptyText=""
@@ -417,9 +411,8 @@ function DynamicMapInput(
     const { warningText, noteText } = useMemo(() => summarizeCollectionNotices(notices), [notices]);
 
     return (
-        <div onPasteCapture={handlePasteCapture}>
-            <div className="relative mb-2">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">Map entries</p>
+        <div className="space-y-2" onPasteCapture={handlePasteCapture}>
+            <div className="relative">
                 <KeyValueEntryList
                     items={toEntryItems(value)}
                     emptyText="No entries yet."
@@ -427,17 +420,15 @@ function DynamicMapInput(
                     onRemove={removeMapValue}
                 />
             </div>
-            <div className={cn("grid gap-2", compact ? "grid-cols-[1fr_1fr_auto] items-end" : "grid-cols-[1fr_1fr_auto] items-end")}>
+            <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
                 <div onKeyDown={handleKeyKeyDown}>
-                    <p className="mb-1 text-xs text-muted-foreground">Key</p>
                     <ArgInput argName="key" breakdown={children[0]} min={undefined} max={undefined} initialValue={addKey} displayMode={displayMode} setOutputValue={addKeyFunc} />
                 </div>
                 <div onKeyDown={handleValueKeyDown}>
-                    <p className="mb-1 text-xs text-muted-foreground">Value</p>
                     <ArgInput argName="value" breakdown={children[1]} min={undefined} max={undefined} initialValue={addValue} displayMode={displayMode} setOutputValue={addValueFunc} />
                 </div>
                 <div className="flex justify-end">
-                    <Button size="sm" onClick={addPairFunc} tabIndex={-1} className={compact ? "h-8 text-xs" : ""}>Add Pair</Button>
+                    <Button size="sm" onClick={addPairFunc} tabIndex={-1} className="h-6 px-2 text-[11px]">Add</Button>
                 </div>
             </div>
             <FieldMessage error={warningText} compact={compact} />

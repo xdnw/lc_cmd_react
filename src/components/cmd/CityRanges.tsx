@@ -67,12 +67,12 @@ export default function CityRanges(
         });
     }, [applyParsedResult, syncValue]);
 
-    return <div onPasteCapture={handlePasteCapture}><NumberPairInput
+    return <div className="space-y-1" onPasteCapture={handlePasteCapture}><NumberPairInput
         argName={argName}
         values={value}
-        delimiter={value[1] == null ? "+" : "-"}
+        delimiter="-"
         compact={compact}
-        left={{ min: 0, max: 100, onChange: input1, prefix: "c" }}
-        right={{ min: 0, max: 100, onChange: input2 }}
+        left={{ min: 0, max: 100, onChange: input1, prefix: "c", placeholder: "1" }}
+        right={{ min: 0, max: 100, onChange: input2, placeholder: "+" }}
     /><FieldMessage error={parseError} compact={compact} /></div>;
 }

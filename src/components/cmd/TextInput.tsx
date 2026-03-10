@@ -31,12 +31,16 @@ export default function TextInput(
     }, [filter, argName, setOutputValue, setValue, setValidation, resetValidation]);
 
     return (
-        <div>
+        <div className="space-y-1.5">
             <Textarea
                 value={value}
                 onChange={onChange}
-                className={cn(validation.isValid ? "" : "border-destructive", compact ? "min-h-[60px] text-xs" : "")}
-                placeholder="Type here..."
+                className={cn(
+                    "rounded-md bg-background transition-[border-color,box-shadow] duration-150",
+                    validation.isValid ? "" : "border-destructive",
+                    compact ? "min-h-16 px-2 py-1.5 text-xs" : "min-h-20 px-2.5 py-2"
+                )}
+                placeholder="Enter text"
             />
             <FieldMessage error={validation.error} note={validation.note} compact={compact} />
         </div>

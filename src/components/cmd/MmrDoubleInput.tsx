@@ -1,5 +1,5 @@
 import { useSyncedStateFunc } from "@/utils/StateUtil";
-import NumberInput from "./NumberInput";
+import { Input } from "../ui/input";
 import React, { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
@@ -44,19 +44,22 @@ export default function MmrDoubleInput(
     const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue, parseMmrDoubleControlValue);
     const [value, setValue] = useSyncedStateFunc<(number | null)[]>(initialValue, () => initialResult.value);
 
-    const setOutputFunc = useCallback((name: string, valueStr: string) => {
-        const index = parseInt(name);
+    const slotMax = useCallback((index: number) => index === 3 ? 3 : 5, []);
+
+    const setOutputFunc = useCallback((index: number, valueStr: string) => {
         const valueFloat = valueStr ? parseFloat(valueStr) : null;
+        if (valueFloat != null) {
+            const max = slotMax(index);
+            if (Number.isNaN(valueFloat) || valueFloat < 0 || valueFloat > max) {
+                return;
+            }
+        }
         
-        // Create a copy of the current value to check and modify
         const currentValues = [...value];
         
         if (currentValues[index] !== valueFloat) {
             clearParseError();
-            // Update the copy with the new value
             currentValues[index] = valueFloat;
-            
-            // Set the new state
             setValue(currentValues);
             
             const isComplete = currentValues.every((entry) => entry != null);
@@ -65,7 +68,21 @@ export default function MmrDoubleInput(
                 : "";
             setOutputValue(argName, outputString);
         }
-    }, [value, clearParseError, setValue, argName, setOutputValue]);
+    }, [value, clearParseError, setValue, argName, setOutputValue, slotMax]);
+
+    const handleSlotChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        const index = Number(event.currentTarget.dataset.index);
+        const nextValue = event.currentTarget.value.trim();
+        if (Number.isNaN(index)) {
+            return;
+        }
+
+        if (nextValue && !/^\d*(?:\.\d*)?$/.test(nextValue)) {
+            return;
+        }
+
+        setOutputFunc(index, nextValue);
+    }, [setOutputFunc]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         handleParsedInputPaste(event, {
@@ -73,31 +90,38 @@ export default function MmrDoubleInput(
             applyParsedResult,
             onAccept: (next) => {
                 setValue(next);
-                setOutputValue(argName, next.join("/"));
+                setOutputValue(argName, next.every((entry) => entry != null) ? next.join("/") : "");
             },
         });
     }, [applyParsedResult, argName, setOutputValue, setValue]);
 
     return (
-        <div onPasteCapture={handlePasteCapture}>
-            <div className={cn("flex items-center", compact ? "gap-1" : "gap-2")}>
+        <div className="space-y-1" onPasteCapture={handlePasteCapture}>
+            <div className={cn("inline-flex items-center rounded-md border border-border/70 bg-background p-1", compact ? "gap-1" : "gap-1.5")}>
                 {value.map((val, index) => {
+                    const max = slotMax(index);
                     return (
                         <React.Fragment key={index}>
                             {index > 0 && <span className="text-xs text-muted-foreground">/</span>}
-                            <NumberInput
-                                argName={index + ""}
-                                min={0}
-                                max={index == 3 ? 3 : 5}
-                                initialValue={val != null ? val + "" : ""}
-                                className={compact ? "h-7 text-xs w-12" : "w-16"}
-                                setOutputValue={setOutputFunc}
-                                isFloat={true}
+                            <Input
+                                type="text"
+                                inputMode="decimal"
+                                data-index={index}
+                                value={val != null ? `${val}` : ""}
+                                onChange={handleSlotChange}
+                                className={cn(
+                                    "bg-background text-center font-mono",
+                                    compact ? "h-6 w-9 px-1 text-[11px]" : "h-7 w-11 px-1.5 text-[13px]"
+                                )}
+                                placeholder={index === 3 ? "3" : "5"}
+                                title={`MMR slot ${index + 1}, max ${max}`}
+                                aria-label={`MMR slot ${index + 1}`}
                             />
                         </React.Fragment>
                     );
                 })}
             </div>
+            {!compact && <p className="text-[11px] text-muted-foreground">Slots 1-3 max at 5, slot 4 maxes at 3.</p>}
             <FieldMessage error={parseError} compact={compact} />
         </div>
     );

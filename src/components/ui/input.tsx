@@ -9,14 +9,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const isBooleanControl = type === "checkbox" || type === "radio";
     const baseClass = isBooleanControl
       ? "relative h-4 w-4 border bg-background border-input"
-      : "relative block h-7 w-full border bg-background border-input px-2";
+      : "relative block h-7 w-full border bg-background border-input/90 px-2 shadow-[0_1px_0_rgba(0,0,0,0.02)]";
 
     return (
       <input
         type={type}
         className={cn(
           baseClass,
-          "text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+          "text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         ref={ref}

@@ -12,9 +12,17 @@ export default function FieldMessage({
     if (!error && !note) return null;
 
     return (
-        <div className={cn("mt-1 text-xs", compact ? "leading-tight" : "leading-normal")}>
-            {error && <p className="font-medium text-destructive">{error}</p>}
-            {!error && note && <p className="text-muted-foreground">{note}</p>}
+        <div className={cn("mt-1 text-[11px]", compact ? "leading-tight" : "leading-normal")}>
+            {error && (
+                <p className="border-l-2 border-destructive/60 pl-2 font-medium text-destructive">
+                    {error}
+                </p>
+            )}
+            {!error && note && (
+                <p className="border-l-2 border-border/60 pl-2 text-muted-foreground">
+                    {note}
+                </p>
+            )}
         </div>
     );
 }

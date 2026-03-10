@@ -43,6 +43,14 @@ export default function SetInput(
         syncValues(values.filter((value) => value !== valueToRemove));
     }, [syncValues, values]);
 
+    const handleRemoveButtonClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+        const valueToRemove = event.currentTarget.dataset.value;
+        if (!valueToRemove) {
+            return;
+        }
+        removeValue(valueToRemove);
+    }, [removeValue]);
+
     const addValue = useCallback(() => {
         const valueToAdd = pendingValue.trim();
         if (!valueToAdd) {
@@ -87,31 +95,31 @@ export default function SetInput(
     const noteText = notices.filter((notice) => notice.severity === "note").map((notice) => notice.message).join(" ");
 
     return (
-        <div onPasteCapture={handlePasteCapture}>
-            <div className="relative mb-2">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">Set values</p>
-                {values.length === 0 && (
-                    <p className="rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground">No values yet.</p>
-                )}
-                {values.map((value) => (
-                    <div key={value} className={cn("mt-1 flex items-center justify-between rounded border border-border bg-background px-2", compact ? "py-1 text-xs" : "py-1.5 text-sm")}>
-                        <span className="mr-4 break-all">{value}</span>
-                        <Button
-                            onClick={() => removeValue(value)}
-                            variant="outline"
-                            size="sm"
-                            tabIndex={-1}
-                            className={compact ? "h-6 px-2 text-xs" : ""}
-                        >
-                            Remove
-                        </Button>
-                    </div>
-                ))}
-            </div>
+        <div className="space-y-2" onPasteCapture={handlePasteCapture}>
+            {values.length === 0 ? (
+                <p className="rounded-md border border-dashed border-border/70 bg-muted/10 px-2 py-1.5 text-xs text-muted-foreground">No values yet.</p>
+            ) : (
+                <div className="space-y-1.5">
+                    {values.map((value) => (
+                        <div key={value} className={cn("flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/10 px-2", compact ? "py-1 text-xs" : "py-1.5 text-[13px]")}>
+                            <span className="mr-3 break-all font-mono text-foreground/90">{value}</span>
+                            <Button
+                                onClick={handleRemoveButtonClick}
+                                data-value={value}
+                                variant="ghost"
+                                size="sm"
+                                tabIndex={-1}
+                                className="h-5 px-1.5 text-[10px]"
+                            >
+                                Remove
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            )}
 
-            <div className={cn("grid gap-2", compact ? "grid-cols-[1fr_auto] items-end" : "grid-cols-[1fr_auto] items-end")}>
+            <div className={cn("grid gap-2", compact ? "grid-cols-[1fr_auto] items-center" : "grid-cols-[1fr_auto] items-center")}>
                 <div onKeyDown={handleValueKeyDown}>
-                    <p className="mb-1 text-xs text-muted-foreground">Value</p>
                     <ArgInput
                         argName="value"
                         breakdown={child}
@@ -123,7 +131,7 @@ export default function SetInput(
                     />
                 </div>
                 <div className="flex justify-end">
-                    <Button size="sm" onClick={addValue} tabIndex={-1} className={compact ? "h-8 text-xs" : ""}>Add Value</Button>
+                    <Button size="sm" onClick={addValue} tabIndex={-1} className="h-6 px-2 text-[11px]">Add</Button>
                 </div>
             </div>
             <FieldMessage error={warningText} compact={compact} />

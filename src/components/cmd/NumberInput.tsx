@@ -6,7 +6,7 @@ import { useArgFieldState } from "./field/useArgFieldState";
 import FieldMessage from "./field/FieldMessage";
 
 export default function NumberInput(
-    {argName, min, max, initialValue, setOutputValue, isFloat, className, placeholder}:
+    {argName, min, max, initialValue, setOutputValue, isFloat, className, placeholder, compact}:
     {
         argName: string,
         min?: number,
@@ -15,7 +15,8 @@ export default function NumberInput(
         setOutputValue: (name: string, value: string) => void,
         isFloat: boolean,
         className?: string,
-        placeholder?: string
+        placeholder?: string,
+        compact?: boolean,
     }
 ) {
     const { value, setValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || '');
@@ -39,15 +40,19 @@ export default function NumberInput(
     }, [argName, setOutputValue, setValue, min, max, isFloat, setValidation, resetValidation]);
 
     return (
-        <div>
+        <div className="space-y-1.5">
             <Input
                 type="text"
                 value={value}
                 onChange={onChange}
-                placeholder={placeholder || "Type here..."}
-                className={cn("w-full", validation.isValid ? "" : "border-destructive", className)}
+                placeholder={placeholder || "Enter a number"}
+                className={cn(
+                    "w-full bg-background transition-[border-color,box-shadow] duration-150",
+                    validation.isValid ? "" : "border-destructive",
+                    className
+                )}
             />
-            <FieldMessage error={validation.error} note={validation.note} />
+            <FieldMessage error={validation.error} note={validation.note} compact={compact} />
         </div>
     );
 }

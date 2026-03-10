@@ -143,7 +143,7 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
       return <NumberInput argName={argName} min={min ?? undefined} max={max ?? undefined}
         initialValue={initialValue} setOutputValue={setOutputValue}
         isFloat={resolution.numberIsFloat ?? false}
-        className={compact ? "h-8 text-xs" : undefined} placeholder={breakdown.element} />;
+        className={compact ? "h-8 text-xs" : undefined} placeholder={breakdown.element} compact={compact} />;
 
     case "cityranges":
       return <CityRanges argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;

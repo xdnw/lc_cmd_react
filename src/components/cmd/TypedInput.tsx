@@ -71,7 +71,7 @@ export default function TypedInput({
     );
 
     return (
-        <>
+        <div className="space-y-1.5">
             <InputField
                 value={value}
                 isValid={validation.isValid}
@@ -81,17 +81,15 @@ export default function TypedInput({
                 compact={compact}
             />
             <FieldMessage error={validation.error} note={validation.note} compact={compact} />
-            <div className="mt-1">
-                <OptionsSelector
-                    argName={argName}
-                    value={value}
-                    setValue={setValue}
-                    setOutputValue={setOutputValue}
-                    colOptions={colOptions}
-                    compact={compact}
-                />
-            </div>
-        </>
+            <OptionsSelector
+                argName={argName}
+                value={value}
+                setValue={setValue}
+                setOutputValue={setOutputValue}
+                colOptions={colOptions}
+                compact={compact}
+            />
+        </div>
     );
 }
 
@@ -106,7 +104,7 @@ interface InputFieldProps {
 
 function InputField({ value, isValid, onChange, filter, compact }: InputFieldProps) {
     const inputClass = useMemo(
-        () => cn(!isValid ? "border-destructive" : "", compact ? "h-8 text-xs" : ""),
+        () => cn(!isValid ? "border-destructive" : "", compact ? "h-6.5 px-2 text-xs" : "h-7"),
         [isValid, compact]
     );
 
@@ -118,7 +116,7 @@ function InputField({ value, isValid, onChange, filter, compact }: InputFieldPro
                 onChange={onChange}
                 className={inputClass}
                 pattern={filter ? filter : ".*"}
-                placeholder="Type here..."
+                placeholder="Expression or token"
             />
         </div>
     );
@@ -185,44 +183,48 @@ function OptionsSelector({
 
 
     return (
-        <>
+        <div className="space-y-1.5">
             <Button
                 variant="outline"
                 size="sm"
-                className={cn("w-full px-2 rounded justify-start", compact ? "h-7 text-xs" : "")}
+                className="h-6 w-auto justify-between px-2 text-[11px]"
                 onClick={toggleCollapse}
             >
-                Add Simple {collapseIcon}
+                <span className="truncate">Simple placeholders</span>
+                {collapseIcon}
             </Button>
             <div
-                className={`transition-all duration-200 ease-in-out ${
-                    collapseColOptions ? 'max-h-0 opacity-0 overflow-hidden' : 'p-2 opacity-100'
-                }`}
+                className={cn(
+                    "overflow-hidden transition-all duration-150 ease-in-out",
+                    collapseColOptions ? "max-h-0 opacity-0" : "max-h-56 rounded-md border border-border/60 bg-muted/15 p-2 opacity-100"
+                )}
             >
                 <Input
                     type="text"
-                    className={cn("w-full mb-2", compact ? "h-8 text-xs" : "")}
-                    placeholder="Filter options"
+                    className={cn("mb-2 w-full bg-background", compact ? "h-6.5 px-2 text-xs" : "h-7")}
+                    placeholder="Filter"
                     value={colFilter}
                     onChange={handleColFilterChange}
                 />
-                {filteredOptions.map(([key, desc]) => {
-                    const newValue = `{${key}}`;
-                    return (
-                        <Button
-                            key={key}
-                            variant={value === newValue ? "secondary" : "outline"}
-                            size="sm"
-                            data-key={key}
-                            className={cn("me-1 mb-1", compact ? "h-7 text-xs" : "")}
-                            onClick={handleOptionClick}
-                        >
-                            {key}:&nbsp;
-                            <span className="text-xs opacity-50">{desc}</span>
-                        </Button>
-                    );
-                })}
+                <div className="flex flex-wrap gap-1.5">
+                    {filteredOptions.map(([key, desc]) => {
+                        const newValue = `{${key}}`;
+                        return (
+                            <Button
+                                key={key}
+                                variant={value === newValue ? "secondary" : "outline"}
+                                size="sm"
+                                data-key={key}
+                                className={cn("max-w-full", compact ? "h-6 text-[10px]" : "h-6 text-[11px]")}
+                                onClick={handleOptionClick}
+                            >
+                                <span className="truncate font-mono">{key}</span>
+                                {!compact && <span className="truncate text-[10px] opacity-60">{desc}</span>}
+                            </Button>
+                        );
+                    })}
+                </div>
             </div>
-        </>
+        </div>
     );
 }

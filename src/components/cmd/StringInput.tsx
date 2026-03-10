@@ -33,14 +33,18 @@ export default function StringInput(
     }, [argName, filter, filterHelp, setOutputValue, setValue, setValidation, resetValidation]);
 
     return (
-        <div>
+        <div className="space-y-1.5">
             <Input
                 type="text"
                 value={value}
                 onChange={onChange}
-                className={cn(validation.isValid ? "" : "border-destructive", compact ? "h-8 text-xs" : "")}
+                className={cn(
+                    "bg-background transition-[border-color,box-shadow] duration-150",
+                    validation.isValid ? "" : "border-destructive",
+                    compact ? "h-6.5 px-2 text-xs" : "h-7"
+                )}
                 pattern={filter ? filter : ".*"}
-                placeholder={placeholder || "Type here..."}
+                placeholder={placeholder || "Enter a value"}
                 maxLength={maxLength}
             />
             <FieldMessage error={validation.error} note={validation.note} compact={compact} />

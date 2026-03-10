@@ -222,7 +222,7 @@ export default function PlaceholderExpressionInput({
     return (
         <div
             ref={containerRef}
-            className="space-y-2"
+            className="space-y-1.5"
             onFocusCapture={handleFocusWithin}
             onBlurCapture={handleBlurWithin}
         >
@@ -235,8 +235,8 @@ export default function PlaceholderExpressionInput({
                 onSelect={syncCursor}
                 spellCheck={false}
                 className={cn(
-                    "font-mono text-xs leading-5",
-                    compact ? "min-h-24" : "min-h-32",
+                    "rounded-md bg-background font-mono text-xs leading-5",
+                    compact ? "min-h-16 px-2 py-1.5" : "min-h-24 px-2.5 py-2",
                     (analysis.errors.length > 0 || sourceMessages.some((message) => message.kind === "error"))
                         && "border-destructive focus-visible:ring-destructive/25",
                 )}
@@ -254,16 +254,16 @@ export default function PlaceholderExpressionInput({
             )}
 
             {(analysis.hint || analysis.errors.length > 0 || sourceMessages.length > 0) && (
-                <div className="rounded-md border border-border bg-background/80 p-2 text-xs">
+                <div className="space-y-1 text-[11px]">
                     {analysis.hint && (
-                        <div className="mb-1">
+                        <div>
                             <div className="font-medium text-foreground">{analysis.hint.title}</div>
                             {analysis.hint.detail && <div className="text-muted-foreground">{analysis.hint.detail}</div>}
-                            {analysis.hint.meta && <div className="mt-1 font-mono text-[11px] text-muted-foreground">{analysis.hint.meta}</div>}
+                            {analysis.hint.meta && <div className="font-mono text-[10px] text-muted-foreground">{analysis.hint.meta}</div>}
                         </div>
                     )}
                     {sourceMessages.length > 0 && (
-                        <div className="mb-1 space-y-1">
+                        <div className="space-y-1">
                             {sourceMessages.map((message) => (
                                 <div
                                     key={`${message.kind}:${message.text}`}

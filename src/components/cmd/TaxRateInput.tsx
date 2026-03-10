@@ -72,12 +72,12 @@ export default function TaxRateInput(
         });
     }, [applyParsedResult, argName, setOutputValue, setValue]);
 
-    return <div onPasteCapture={handlePasteCapture}><NumberPairInput
+    return <div className="space-y-1" onPasteCapture={handlePasteCapture}><NumberPairInput
         argName={argName}
         values={value}
         delimiter="/"
         compact={compact}
-        left={{ min: 0, max: 100, onChange: moneyRate }}
-        right={{ min: 0, max: 100, onChange: rssRate }}
+        left={{ min: 0, max: 100, onChange: moneyRate, placeholder: "100" }}
+        right={{ min: 0, max: 100, onChange: rssRate, placeholder: "100" }}
     /><FieldMessage error={parseError} compact={compact} /></div>;
 }

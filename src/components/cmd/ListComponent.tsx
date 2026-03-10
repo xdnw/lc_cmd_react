@@ -33,14 +33,14 @@ const SelectedChip = memo(function SelectedChip({ option, onRemove }: SelectedCh
     }, [option, onRemove]);
 
     return (
-        <span className="flex items-center gap-1 px-2 py-0.5 text-sm bg-slate-200 dark:bg-slate-900 text-slate-900 dark:text-white rounded-sm">
+        <span className="flex max-w-full items-center gap-1 rounded-sm border border-border/60 bg-muted/15 px-1.5 py-0.5 text-[11px]">
             {option.icon && (
                 <img src={option.icon} alt="" className="w-3.5 h-3.5 object-contain inline-block" />
             )}
-            {option.label || option.value}
+            <span className="truncate">{option.label || option.value}</span>
             <button
                 type="button"
-                className="hover:text-red-500 dark:hover:text-red-400 focus:outline-none font-bold"
+                className="font-bold text-muted-foreground transition-colors hover:text-destructive focus:outline-none"
                 onClick={handleRemoveClick}
             >
                 &times;
@@ -80,16 +80,15 @@ const DropdownItem = memo(function DropdownItem({
             onMouseEnter={handleMouseEnter}
             onClick={handleClick}
             className={`
-        flex items-center px-3 py-2 cursor-pointer text-sm select-none transition-colors
-        ${isHighlighted ? 'bg-slate-100 dark:bg-slate-800' : 'bg-transparent'}
-        ${isSelected ? 'bg-slate-200 dark:bg-slate-900 font-medium' : ''}
-        text-slate-900 dark:text-white
+                flex items-center gap-2 px-2.5 py-1.5 cursor-pointer text-[13px] select-none transition-colors
+                ${isHighlighted ? 'bg-accent/70' : 'bg-transparent'}
+                ${isSelected ? 'bg-primary/8 font-medium text-foreground' : 'text-foreground'}
       `}
         >
             {option.icon && (
                 <img src={option.icon} loading="lazy" alt="" className="w-4 h-4 mr-2 object-contain inline-block" />
             )}
-            {option.label || option.value}
+            <div className="min-w-0 flex-1 truncate">{option.label || option.value}</div>
         </div>
     );
 });
@@ -378,7 +377,7 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
 
     const placeholderText = !isMulti && value.length === 1 && !inputValue
         ? (value[0].label || value[0].value)
-        : "Type something and press enter...";
+        : "Search...";
 
     // Memoize style object to avoid inline object allocation
     const virtuosoStyle = useMemo(() => ({
@@ -392,7 +391,7 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
             onBlur={handleBlur}
         >
             <div
-                className="flex flex-wrap items-center gap-1.5 p-1.5 border rounded-md bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent min-h-[38px] cursor-text transition-all"
+                className="flex min-h-8 flex-wrap items-center gap-1 rounded-md border border-border/70 bg-background p-1 transition-all focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 cursor-text"
                 onClick={handleContainerClick}
             >
                 {isMulti && value.map((v) => (
@@ -413,23 +412,26 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
                     onPaste={handleInputPaste}
                     onCopy={handleInputCopy}
                     placeholder={placeholderText}
-                    className="flex-1 min-w-[120px] bg-transparent outline-none text-slate-900 dark:text-white text-sm px-1 py-0.5 placeholder:text-slate-400 dark:placeholder:text-slate-400"
+                    className="min-w-24 flex-1 bg-transparent px-1 py-0.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
                 />
+                {isMulti && options.length > 0 && (
+                    <div className="ml-auto flex items-center gap-1 border-l border-border/60 pl-1">
+                        {value.length < options.length && (
+                            <Button variant="ghost" size="sm" onClick={selectAll} className="h-5 px-1.5 text-[10px]">All</Button>
+                        )}
+                        {value.length > 0 && (
+                            <Button variant="ghost" size="sm" onClick={clearAll} className="h-5 px-1.5 text-[10px]">Clear</Button>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {isMulti && (
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={selectAll}>Select All</Button>
-                    <Button variant="outline" size="sm" onClick={clearAll}>Clear</Button>
-                </div>
-            )}
-
             {isOpen && (
-                <div className="absolute top-[42px] left-0 right-0 z-50 bg-white dark:bg-slate-700 shadow-xl border border-slate-300 dark:border-slate-600 rounded-md overflow-hidden">
+                <div className="absolute left-0 right-0 top-9 z-50 overflow-hidden rounded-md border border-border/70 bg-background shadow-lg">
                     {!options ? (
                         <div className="p-4 flex justify-center"><Loading /></div>
                     ) : filteredOptions.length === 0 ? (
-                        <div className="p-3 text-sm text-slate-500 dark:text-slate-400 text-center">No options found.</div>
+                        <div className="p-3 text-center text-xs text-muted-foreground">No matching options.</div>
                     ) : (
                         <Virtuoso
                             ref={virtuosoRef}

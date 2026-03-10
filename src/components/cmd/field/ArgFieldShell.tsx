@@ -51,12 +51,12 @@ export default function ArgFieldShell({
     return (
         <div
             className={cn(
-                "rounded border bg-accent/40",
-                isOptional ? "border-dashed border-border/60" : "border-solid border-border",
+                "group/arg-field relative rounded-md border bg-background transition-colors duration-150 hover:border-border focus-within:border-primary/55 focus-within:ring-1 focus-within:ring-primary/25 shadow-[0_1px_0_rgba(0,0,0,0.03)]",
+                isOptional ? "border-dashed border-border/70 border-l-[3px] border-l-sky-500/45" : "border-solid border-border/90 border-l-[3px] border-l-primary/35",
                 isFocusPane && (isOptional
-                    ? "border-l-border bg-muted/30"
-                    : "border-l-primary/80 bg-primary/10"),
-                isFocusPane ? "px-1.5 py-0.5 flex flex-row items-center gap-2" : "px-1.5 py-0.5",
+                    ? "bg-muted/10"
+                    : "bg-background"),
+                isFocusPane ? "flex flex-row items-center gap-1.5 px-1 py-0.75" : "px-2 py-1.5",
                 className,
             )}
             onClick={handleShellClick}

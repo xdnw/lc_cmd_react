@@ -83,7 +83,7 @@ export default function TimeDiffInput({
   }, [applyParsedResult, argName, setOutputValue, setValue]);
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-1">
       <Input
         type="text"
         spellCheck={false}
@@ -92,7 +92,7 @@ export default function TimeDiffInput({
         placeholder="e.g. 1w10h3m25s"
         className={cn(
           "w-full bg-background font-mono",
-          compact ? "h-8 text-xs" : "",
+          compact ? "h-6.5 px-2 text-xs" : "h-7 text-[13px]",
           hasError && "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/20",
         )}
         value={value}
@@ -104,11 +104,11 @@ export default function TimeDiffInput({
       />
 
       {!compact && (
-        <div className="mt-1 space-y-1">
-          <p className={cn("text-xs", hasError ? "text-destructive" : "text-muted-foreground")}>
+        <div className="space-y-1">
+          <p className={cn("text-[11px]", hasError ? "text-destructive" : "text-muted-foreground")}>
             {hasError ? (
               <>
-                Unrecognized time value. Try{" "}
+                Try{" "}
                 <code className={exampleCodeClass}>1w10h3m25s</code>,{" "}
                 <code className={exampleCodeClass}>90m</code>,{" "}
                 <code className={exampleCodeClass}>-2h</code>,{" "}
@@ -118,7 +118,7 @@ export default function TimeDiffInput({
               </>
             ) : (
               <>
-                Canonical format is{" "}
+                Accepts{" "}
                 <code className={exampleCodeClass}>1w10h3m25s</code>. Positive values mean “ago”.
                 Use <code className={exampleCodeClass}>-2h</code> or{" "}
                 <code className={exampleCodeClass}>in 2h</code> for future.
@@ -127,7 +127,7 @@ export default function TimeDiffInput({
           </p>
 
           {!hasError && resolvedAt && (
-            <div className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-foreground">
+            <div className="rounded-sm border border-border/60 bg-muted/15 px-2 py-1 text-[11px] text-foreground">
               Resolves to <span className="font-mono">{resolvedAt}</span> local time.
             </div>
           )}

@@ -56,11 +56,11 @@ export default function TimeInput({
   }, [applyParsedResult, argName, setOutputValue, setValue]);
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-1">
       <Input
         type="datetime-local"
         step={1}
-        className={cn("w-full bg-background", compact ? "h-8 text-xs" : "")}
+        className={cn("w-full bg-background", compact ? "h-6.5 px-2 text-xs" : "h-7")}
         value={value}
         onChange={handleChange}
         onPaste={handlePaste}
@@ -68,8 +68,8 @@ export default function TimeInput({
       />
 
       {!compact && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          Native picker for absolute time. You can also paste{" "}
+        <p className="text-[11px] text-muted-foreground">
+          Also accepts{" "}
           <code className={exampleCodeClass}>1w10h</code>,{" "}
           <code className={exampleCodeClass}>timestamp:1741271400000</code>, or{" "}
           <code className={exampleCodeClass}>2025-03-06 12:30:00</code>.

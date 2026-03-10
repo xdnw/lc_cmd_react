@@ -49,12 +49,17 @@ export default function BooleanInput(
     }, [applyParsedResult, argName, setOutputValue, setValue]);
 
     const checked = value === "1";
+    const segmentClass = "h-6 min-w-11 rounded-sm px-2 text-[11px]";
 
     return (
-        <div onPasteCapture={handlePasteCapture}>
-            <div className="flex items-center gap-2">
-                <Button size="sm" variant={checked ? "default" : "outline"} aria-pressed={checked} onClick={setTrue}>True</Button>
-                <Button size="sm" variant={!checked ? "default" : "outline"} aria-pressed={!checked} onClick={setFalse}>False</Button>
+        <div className="space-y-1" onPasteCapture={handlePasteCapture}>
+            <div
+                role="radiogroup"
+                aria-label={argName}
+                className="inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/25 p-0.5"
+            >
+                <Button size="sm" variant={checked ? "secondary" : "ghost"} aria-pressed={checked} onClick={setTrue} className={segmentClass}>Yes</Button>
+                <Button size="sm" variant={!checked ? "secondary" : "ghost"} aria-pressed={!checked} onClick={setFalse} className={segmentClass}>No</Button>
             </div>
             <FieldMessage error={parseError} />
         </div>

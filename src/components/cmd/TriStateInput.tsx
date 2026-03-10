@@ -62,6 +62,7 @@ export default function TriStateInput(
     const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue || "0", parseTriStateControlValue);
     const [value, setValue] = useSyncedState(initialResult.value);
     const normalizedValue: TriStateValue = value === "-1" || value === "1" ? value : "0";
+    const segmentClass = compact ? "h-6 min-w-10 px-1.5 text-[10px]" : "h-6 min-w-11 px-2 text-[11px]";
 
     const handleButtonClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
         const nextValue = event.currentTarget.value as TriStateValue;
@@ -82,14 +83,11 @@ export default function TriStateInput(
     }, [applyParsedResult, argName, setOutputValue, setValue]);
 
     return (
-        <div onPasteCapture={handlePasteCapture}>
+        <div className="space-y-1" onPasteCapture={handlePasteCapture}>
             <div
                 role="radiogroup"
                 aria-label={argName}
-                className={cn(
-                    "inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/55 p-0.5",
-                    compact ? "h-6.5" : "h-7"
-                )}
+                className="inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/25 p-0.5"
             >
                 {TRI_STATE_OPTIONS.map((option) => {
                     const isActive = normalizedValue === option.value;
@@ -104,14 +102,15 @@ export default function TriStateInput(
                             value={option.value}
                             onClick={handleButtonClick}
                             className={cn(
-                                "inline-flex items-center justify-center rounded-sm border text-[11px] leading-none transition-all duration-150",
-                                compact ? "h-5.5 w-5.5" : "h-6 w-6",
+                                "inline-flex items-center justify-center gap-1 rounded-sm leading-none transition-all duration-150",
+                                segmentClass,
                                 isActive
-                                    ? `font-semibold shadow-sm ${option.activeClass}`
-                                    : "border-transparent text-muted-foreground hover:bg-background/80 hover:text-foreground"
+                                    ? `font-semibold ${option.activeClass}`
+                                    : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
                             )}
                         >
-                            {option.icon}
+                            {!compact && <span className="text-[10px]">{option.icon}</span>}
+                            <span>{option.label}</span>
                         </button>
                     );
                 })}

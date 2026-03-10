@@ -57,7 +57,7 @@ export default function MmrInput(
     }, [applyParsedResult, argName, parseValue, setOutputValue, setValue]);
 
     return (
-        <div onPasteCapture={handlePasteCapture}>
+        <div className="space-y-1" onPasteCapture={handlePasteCapture}>
           <InputOTP
             pattern={allowWildcard ? "[0-9X]*" : "[0-9]*"}
             maxLength={4}
@@ -65,10 +65,10 @@ export default function MmrInput(
             onChange={onChange}
           >
             <InputOTPGroup>
-              <InputOTPSlot index={0} className={compact ? "h-7 w-7 text-xs" : ""} />
-              <InputOTPSlot index={1} className={compact ? "h-7 w-7 text-xs" : ""} />
-              <InputOTPSlot index={2} className={compact ? "h-7 w-7 text-xs" : ""} />
-              <InputOTPSlot index={3} className={compact ? "h-7 w-7 text-xs" : ""} />
+              <InputOTPSlot index={0} className={compact ? "h-6 w-6 text-[11px]" : "h-7 w-7 text-[13px]"} />
+              <InputOTPSlot index={1} className={compact ? "h-6 w-6 text-[11px]" : "h-7 w-7 text-[13px]"} />
+              <InputOTPSlot index={2} className={compact ? "h-6 w-6 text-[11px]" : "h-7 w-7 text-[13px]"} />
+              <InputOTPSlot index={3} className={compact ? "h-6 w-6 text-[11px]" : "h-7 w-7 text-[13px]"} />
             </InputOTPGroup>
           </InputOTP>
           <FieldMessage error={parseError} compact={compact} />

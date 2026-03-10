@@ -3,6 +3,7 @@ import { INPUT_OPTIONS } from "@/lib/endpoints";
 import { WebOptions } from "../../lib/apitypes";
 import { useQueries } from "@tanstack/react-query";
 import { bulkQueryOptions } from "@/lib/queries";
+import Loading from "../ui/loading";
 import {
     combineCompositeSourceResults,
     toCompositeSourceResult,
@@ -12,7 +13,7 @@ type QueryNoticeTone = "error" | "warning";
 
 function EmptyQueryOptions({ element, message }: { element: string; message?: string }) {
     return (
-        <div role="alert" className="rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs text-destructive">
+        <div role="alert" className="rounded-md border border-destructive/35 bg-destructive/6 px-2 py-1.5 text-[11px] text-destructive">
             {message ?? `No options were returned by the backend for \`${element}\`.`}
         </div>
     );
@@ -20,8 +21,8 @@ function EmptyQueryOptions({ element, message }: { element: string; message?: st
 
 function QueryNotice({ tone, message }: { tone: QueryNoticeTone; message: string }) {
     const className = tone === "warning"
-        ? "rounded border border-amber-400/50 bg-amber-500/10 px-2 py-1 text-xs text-amber-900 dark:text-amber-200"
-        : "rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs text-destructive";
+        ? "rounded-md border border-amber-400/40 bg-amber-500/8 px-2 py-1.5 text-[11px] text-amber-900 dark:text-amber-200"
+        : "rounded-md border border-destructive/35 bg-destructive/6 px-2 py-1.5 text-[11px] text-destructive";
 
     return (
         <div role={tone === "warning" ? "status" : "alert"} className={className}>
@@ -87,7 +88,12 @@ function ResolvedQueryOptionsComponent(
     });
 
     if (queries.some((query) => query.isLoading)) {
-        return <div>Loading...</div>;
+        return (
+            <div className="flex min-h-8 items-center rounded-md border border-dashed border-border/70 bg-muted/15 px-2 py-1.5 text-[11px] text-muted-foreground">
+                <span className="mr-2 inline-flex"><Loading /></span>
+                <span>Loading options...</span>
+            </div>
+        );
     }
 
     const combined = combineCompositeSourceResults(

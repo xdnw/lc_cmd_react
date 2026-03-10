@@ -18,8 +18,6 @@ export default function ColorInput(
     const [textValue, setTextValue] = useSyncedState(initialTextValue);
     const [pickerValue, setPickerValue] = useSyncedState(normalizeColorValue(initialTextValue));
 
-    const displayValue = useMemo(() => textValue || "No color set", [textValue]);
-
     const handleClear = useCallback(() => {
         setTextValue('');
         setPickerValue('');
@@ -55,20 +53,19 @@ export default function ColorInput(
     }, [argName, setOutputValue, setPickerValue, setTextValue]);
 
     return (
-        <div className='flex items-center gap-2'>
+        <div className='flex items-center gap-1.5'>
             <Input
                    type="text"
-                   className={compact ? "h-8 text-xs w-28" : "h-9 w-36"}
+                   className={compact ? "h-6.5 w-24 px-2 text-xs" : "h-7 w-32 text-[13px]"}
                    value={textValue}
                    placeholder="#420420 or red"
                    onChange={handleTextChange}
                    onPaste={handleTextPaste} />
             <Input type="color"
-                   className={compact ? "h-8 w-10" : "h-9 w-12"}
+                   className={compact ? "h-6.5 w-8 p-0.5" : "h-7 w-9 p-0.5"}
                    value={pickerValue || "#000000"}
                    onChange={handlePickerChange} />
-            <Button onClick={handleClear} variant="outline" size="sm" disabled={!textValue}>Clear</Button>
-            <span className="text-xs text-muted-foreground">{displayValue}</span>
+            <Button onClick={handleClear} variant="ghost" size="sm" disabled={!textValue} className="h-6 px-1.5 text-[10px]">Clear</Button>
         </div>
     );
 }

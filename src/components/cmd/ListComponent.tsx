@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { TypeBreakdown } from "../../utils/Command";
 import Loading from "../ui/loading";
 import { useSyncedState } from "@/utils/StateUtil";
+import { cn } from "@/lib/utils";
 import {
     toPlainSelectOptions,
     dedupeByValue,
@@ -410,7 +411,7 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
 
     return (
         <div
-            className="relative flex flex-col gap-2"
+            className={cn("relative flex flex-col gap-2", isOpen && "z-40")}
             ref={containerRef}
             onBlur={handleBlur}
         >
@@ -451,7 +452,7 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
             </div>
 
             {isOpen && (
-                <div className="absolute left-0 right-0 top-9 z-50 overflow-hidden rounded-md border border-border/70 bg-background shadow-lg">
+                <div className="absolute left-0 right-0 top-9 z-90 overflow-hidden rounded-md border border-border/70 bg-background shadow-lg">
                     {!options ? (
                         <div className="p-4 flex justify-center"><Loading /></div>
                     ) : loadingOptions ? (

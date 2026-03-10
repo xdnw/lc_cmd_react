@@ -288,11 +288,13 @@ describe("CompositeQueryComponent", () => {
       expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledTimes(1);
     });
 
+    expect(searchQueryOptionDatasetMock).not.toHaveBeenCalled();
+
+    fireEvent.focus(screen.getByText(/Focus to open options|Preparing options/i));
+
     await waitFor(() => {
       expect(searchQueryOptionDatasetMock).toHaveBeenCalledWith("query:DBNation", "");
     });
-
-    fireEvent.focus(screen.getByText(/Focus to open options|Preparing options/i));
 
     await waitFor(() => {
       expect(screen.getByTestId("list-component").textContent).toContain("options:Borg|189573");

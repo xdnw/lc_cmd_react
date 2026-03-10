@@ -1,4 +1,4 @@
-import { cleanup, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, bench, describe, vi } from "vitest";
 
 const useQueriesMock = vi.fn();
@@ -36,28 +36,34 @@ afterEach(() => {
 describe("query component mount", () => {
     bench("render large query component lazily", async () => {
         useQueriesMock.mockReturnValue([{ isLoading: false, error: null, data: { data: payload } }]);
-        render(
-            <QueryComponent
-                element="DBNation"
-                multi={false}
-                argName="target"
-                initialValue=""
-                setOutputValue={() => {}}
-            />,
-        );
+        await act(async () => {
+            render(
+                <QueryComponent
+                    element="DBNation"
+                    multi={false}
+                    argName="target"
+                    initialValue=""
+                    setOutputValue={() => {}}
+                />,
+            );
+            await Promise.resolve();
+        });
     });
 
     bench("render large query component with preload", async () => {
         useQueriesMock.mockReturnValue([{ isLoading: false, error: null, data: { data: payload } }]);
-        render(
-            <QueryComponent
-                element="DBNation"
-                multi={false}
-                argName="target"
-                initialValue=""
-                preloadOptions
-                setOutputValue={() => {}}
-            />,
-        );
+        await act(async () => {
+            render(
+                <QueryComponent
+                    element="DBNation"
+                    multi={false}
+                    argName="target"
+                    initialValue=""
+                    preloadOptions
+                    setOutputValue={() => {}}
+                />,
+            );
+            await Promise.resolve();
+        });
     });
 });

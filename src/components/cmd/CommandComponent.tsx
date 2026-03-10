@@ -1,6 +1,6 @@
 import ArgInput from "./ArgInput";
 import { Argument, BaseCommand } from "../../utils/Command";
-import { memo, useCallback, useMemo, useState, useEffect, useRef, type CSSProperties, type FocusEvent } from "react";
+import { memo, useCallback, useMemo, useState, useEffect, useRef, type FocusEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import MarkupRenderer from "../ui/MarkupRenderer";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { parseCommandStringDetailed } from "../../utils/CommandParser";
 import { useDialog } from "../layout/DialogContext";
 import type { TypeBreakdown } from "@/utils/Command";
 import { prefetchArgInputData } from "./argInputWarmup";
+import { scheduleInteractionTransition } from "./interactionScheduling";
 
 interface CommandProps {
     command: BaseCommand,
@@ -24,7 +25,6 @@ interface CommandProps {
 
 type CommandArgEntry = {
     arg: Argument;
-    breakdown: TypeBreakdown;
 };
 
 const EAGER_ARG_INPUT_COUNT = 12;
@@ -38,6 +38,19 @@ const FOCUSABLE_INPUT_SELECTOR = [
     "[contenteditable='plaintext-only']",
     "[role='textbox']",
 ].join(", ");
+
+const argBreakdownCache = new WeakMap<Argument, TypeBreakdown>();
+
+function getCachedArgBreakdown(arg: Argument): TypeBreakdown {
+    const cached = argBreakdownCache.get(arg);
+    if (cached) {
+        return cached;
+    }
+
+    const breakdown = arg.getTypeBreakdown();
+    argBreakdownCache.set(arg, breakdown);
+    return breakdown;
+}
 
 function buildGroupedArgs(argsArr: CommandArgEntry[]): CommandArgEntry[][] {
     const groupedArgs: CommandArgEntry[][] = [];
@@ -62,8 +75,8 @@ function buildGroupedArgs(argsArr: CommandArgEntry[]): CommandArgEntry[][] {
 }
 
 const DeferredArgInput = memo(function DeferredArgInput({
+    arg,
     argName,
-    breakdown,
     min,
     max,
     initialValue,
@@ -72,8 +85,8 @@ const DeferredArgInput = memo(function DeferredArgInput({
     eager,
     forceMountAll,
 }: {
+    arg: Argument;
     argName: string;
-    breakdown: TypeBreakdown;
     min?: number;
     max?: number;
     initialValue: string;
@@ -85,8 +98,21 @@ const DeferredArgInput = memo(function DeferredArgInput({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const queryClient = useQueryClient();
     const focusAfterMountRef = useRef(false);
+    const scheduledMountRef = useRef<(() => void) | null>(null);
     const [shouldPrefetch, setShouldPrefetch] = useState<boolean>(() => eager || Boolean(initialValue));
     const [isMounted, setIsMounted] = useState<boolean>(() => eager || Boolean(initialValue));
+    const shouldResolveBreakdown = shouldPrefetch || isMounted;
+    const breakdown = useMemo(
+        () => (shouldResolveBreakdown ? getCachedArgBreakdown(arg) : null),
+        [arg, shouldResolveBreakdown],
+    );
+
+    useEffect(() => {
+        return () => {
+            scheduledMountRef.current?.();
+            scheduledMountRef.current = null;
+        };
+    }, []);
 
     useEffect(() => {
         if (isMounted && !shouldPrefetch) {
@@ -117,7 +143,7 @@ const DeferredArgInput = memo(function DeferredArgInput({
     }, [shouldPrefetch]);
 
     useEffect(() => {
-        if (!shouldPrefetch) {
+        if (!shouldPrefetch || !breakdown) {
             return;
         }
 
@@ -164,8 +190,15 @@ const DeferredArgInput = memo(function DeferredArgInput({
         if (focusAfterMount) {
             focusAfterMountRef.current = true;
         }
-        setIsMounted(true);
-    }, []);
+        if (isMounted || scheduledMountRef.current) {
+            return;
+        }
+
+        scheduledMountRef.current = scheduleInteractionTransition(() => {
+            scheduledMountRef.current = null;
+            setIsMounted(true);
+        });
+    }, [isMounted]);
 
     const handlePointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
         if (isMounted) {
@@ -190,7 +223,7 @@ const DeferredArgInput = memo(function DeferredArgInput({
             {isMounted ? (
                 <ArgInput
                     argName={argName}
-                    breakdown={breakdown}
+                    breakdown={breakdown ?? getCachedArgBreakdown(arg)}
                     min={min}
                     max={max}
                     initialValue={initialValue}
@@ -231,18 +264,13 @@ const CommandArgCard = memo(function CommandArgCard({
     eager: boolean;
     forceMountAll?: boolean;
 }) {
-    const { arg, breakdown } = entry;
-    const cardRenderStyle = useMemo<CSSProperties>(() => ({
-        contentVisibility: "auto",
-        containIntrinsicSize: compact ? "148px" : "196px",
-    }), [compact]);
+    const { arg } = entry;
 
     return (
         <div
             className={cn("w-full rounded-md border border-border/60 bg-background/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]", compact ? "p-px" : "p-0.5")}
             data-arg-name={arg.name}
             onFocusCapture={trackFocusedArg ? handleFocusCapture : undefined}
-            style={cardRenderStyle}
         >
             {displayMode !== "focus-pane" && (
                 <ArgDescComponent
@@ -259,8 +287,8 @@ const CommandArgCard = memo(function CommandArgCard({
                 )}
                 <div className="min-w-0 flex-1">
                     <DeferredArgInput
+                        arg={arg}
                         argName={arg.name}
-                        breakdown={breakdown}
                         min={arg.arg.min}
                         max={arg.arg.max}
                         initialValue={initialValue}
@@ -297,14 +325,7 @@ function FocusInfoBar({ arg }: { arg: Argument | null }) {
 
 const CommandComponent = memo(function CommandComponent({ command, overrideName, filterArguments, initialValues, setOutput, displayMode = "card", forceMountAll = false }: CommandProps) {
     const { showDialog } = useDialog();
-    const argEntries = useMemo(() => {
-        return command.getArguments()
-            .filter(filterArguments)
-            .map((arg) => ({
-                arg,
-                breakdown: arg.getTypeBreakdown(),
-            }));
-    }, [command, filterArguments]);
+    const argEntries = useMemo(() => command.getArguments().filter(filterArguments).map((arg) => ({ arg })), [command, filterArguments]);
     const groupedArgs = useMemo(() => buildGroupedArgs(argEntries), [argEntries]);
     const compact = isCompactMode(displayMode);
     const trackFocusedArg = displayMode === "focus-pane";
@@ -386,12 +407,8 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
                 groupedArgs.map((group, index) => {
                     const groupExists = group[0].arg.arg.group != null;
                     const groupDescExists = command.command.group_descs && command.command.group_descs[group[0].arg.arg.group || 0];
-                    const sectionRenderStyle: CSSProperties = {
-                        contentVisibility: "auto",
-                        containIntrinsicSize: compact ? "220px" : "280px",
-                    };
                     return (
-                        <section className={cn("space-y-2 px-0.5", compact && "space-y-1.5")} key={index + "g"} style={sectionRenderStyle}>
+                        <section className={cn("space-y-2 px-0.5", compact && "space-y-1.5")} key={index + "g"}>
                             {groupExists &&
                                 <div className="border-b border-border/50 pb-1">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">

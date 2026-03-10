@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { startTransition, useCallback, useMemo, useRef, useState } from 'react';
 import CommandComponent from '../../components/cmd/CommandComponent'; // Import CommandComponent
 import { CommandStoreType } from '@/utils/StateUtil.ts';
 import { Command, CM, AnyCommandPath, CommandPath, BaseCommand } from '@/utils/Command.ts';
@@ -29,8 +29,12 @@ export default function CommandPage() {
     const [cmdObj, setCmdObj] = useState<BaseCommand | null>(command !== "test" ? CM.get(command?.split(" ") as AnyCommandPath) : CM.buildTest());
     const pathJoined = useMemo(() => cmdObj?.path.join(" ") ?? "", [cmdObj]);
     const [displayMode, setDisplayMode] = useState<CommandInputDisplayMode>("card");
-    const setCardDisplayMode = useCallback(() => setDisplayMode("card"), []);
-    const setFocusPaneDisplayMode = useCallback(() => setDisplayMode("focus-pane"), []);
+    const setCardDisplayMode = useCallback(() => {
+        startTransition(() => setDisplayMode("card"));
+    }, []);
+    const setFocusPaneDisplayMode = useCallback(() => {
+        startTransition(() => setDisplayMode("focus-pane"));
+    }, []);
 
     const [initialValues, setInitialValues] = useState<{ [key: string]: string }>(() => {
         const nextValues = queryParamsToObject(queryParams) as { [key: string]: string };

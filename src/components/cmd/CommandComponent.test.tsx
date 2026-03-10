@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
@@ -24,7 +24,7 @@ vi.mock("../layout/DialogContext", () => ({
 }));
 
 describe("CommandComponent", () => {
-  it("caches arg type breakdowns across focus rerenders", () => {
+  it("resolves arg type breakdowns lazily and reuses cached results across focus rerenders", async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: {
@@ -65,11 +65,22 @@ describe("CommandComponent", () => {
       </QueryClientProvider>,
     );
 
-    expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(2);
+    expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(1);
 
     const inputs = screen.getAllByRole("textbox");
     fireEvent.focus(inputs[0]);
 
-    expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(2);
+    expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(1);
+
+    const deferredShell = screen.getByText("Loading input...").parentElement;
+    if (!deferredShell) {
+      throw new Error("Expected deferred input shell");
+    }
+
+    fireEvent.focus(deferredShell);
+
+    await waitFor(() => {
+      expect(getTypeBreakdownSpy).toHaveBeenCalledTimes(2);
+    });
   });
 });

@@ -12,6 +12,7 @@ import {
     type ExpressionSuggestion,
 } from "./expression/expressionAnalysis";
 import type { ExpressionValueSourceRegistry } from "./expression/expressionValueFetcher";
+import type { ExpressionValueSourceRef } from "./expression/expressionSchema";
 import { getExpressionExample, getExpressionTypeSchema } from "./expression/expressionSchema";
 import { useExpressionValueSources } from "./expression/expressionValueFetcher";
 import { getPlaceholderExpressionDescriptor } from "./expression/expressionTypes";
@@ -23,23 +24,40 @@ const EMPTY_SOURCE_MESSAGES: SourceMessage[] = [];
 const EMPTY_REGISTRY: ExpressionValueSourceRegistry = {};
 const EMPTY_ANALYSIS: ExpressionAnalysis = { suggestions: [], errors: [] };
 
+function resolveSearchTokenTargetCacheKey(activeSourceRef: ExpressionValueSourceRef | undefined): string | null {
+    if (!activeSourceRef) {
+        return null;
+    }
+
+    if (activeSourceRef.kind === "query-options" || activeSourceRef.kind === "composite-query-options") {
+        return activeSourceRef.cacheKey;
+    }
+
+    if (activeSourceRef.kind === "map-key-options") {
+        return resolveSearchTokenTargetCacheKey(activeSourceRef.keySource);
+    }
+
+    return null;
+}
+
 function buildSearchTokensByCacheKey(
     requiredSources: Array<{ cacheKey: string; kind: string }>,
-    activeSourceRef: { cacheKey: string; kind: string } | undefined,
+    activeSourceRef: ExpressionValueSourceRef | undefined,
     activeToken: string,
     panelSearchValue: string,
 ): Record<string, string> {
-    if (!activeSourceRef) {
+    const targetCacheKey = resolveSearchTokenTargetCacheKey(activeSourceRef);
+    if (!targetCacheKey) {
         return {};
     }
 
-    const activeSource = requiredSources.find((source) => source.cacheKey === activeSourceRef.cacheKey);
-    if (!activeSource || activeSource.kind !== "query-options") {
+    const activeSource = requiredSources.find((source) => source.cacheKey === targetCacheKey);
+    if (!activeSource || (activeSource.kind !== "query-options" && activeSource.kind !== "composite-query-options")) {
         return {};
     }
 
     const workerToken = panelSearchValue.trim() || activeToken.trim();
-    return { [activeSourceRef.cacheKey]: workerToken };
+    return { [targetCacheKey]: workerToken };
 }
 
 function collectSourceMessages(

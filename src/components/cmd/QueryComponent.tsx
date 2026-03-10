@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ListComponent from "./ListComponent";
 import { INPUT_OPTIONS } from "@/lib/endpoints";
+import { extractBackendError } from "@/lib/BulkQuery";
 import { WebError, WebOptions } from "../../lib/apitypes";
 import { useQueries } from "@tanstack/react-query";
 import { bulkQueryOptions } from "@/lib/queries";
@@ -14,6 +15,7 @@ import {
 } from "./queryOptionUtils";
 import { ensureQueryOptionDatasetFromPayload, searchQueryOptionDataset } from "./queryOptionWorkerClient";
 import type { SelectOption } from "./selectValueUtils";
+import { scheduleInteractionTransition, scheduleWhenIdle } from "./interactionScheduling";
 
 type QueryNoticeTone = "error" | "warning";
 
@@ -23,6 +25,73 @@ type CompositePayloadSource = {
     error?: string;
     optionCount: number;
 };
+
+type CompositeSearchResult = {
+    type: string;
+    options: SelectOption[];
+    error?: string;
+};
+
+function useIdleDatasetWarmup(enabled: boolean, warmup: () => Promise<unknown>) {
+    useEffect(() => {
+        if (!enabled) {
+            return;
+        }
+
+        return scheduleWhenIdle(() => {
+            void warmup().catch(() => undefined);
+        });
+    }, [enabled, warmup]);
+}
+
+function getSourceError(payload: WebOptions | WebError | unknown): string | undefined {
+    return extractBackendError(payload) ?? undefined;
+}
+
+function toCompositeWarmSearchResult(source: CompositePayloadSource, result: Awaited<ReturnType<typeof searchQueryOptionDataset>>): CompositeSearchResult {
+    return {
+        type: source.type,
+        options: result.options,
+    };
+}
+
+async function warmCompositeDatasets(sources: CompositePayloadSource[]): Promise<void> {
+    await Promise.allSettled(sources.map(async (source) => {
+        if (source.error) {
+            return;
+        }
+
+        await ensureQueryOptionDatasetFromPayload(`query:${source.type}`, source.type, source.payload);
+    }));
+}
+
+async function searchCompositeDatasets(sources: CompositePayloadSource[], searchValue: string): Promise<CompositeSearchResult[]> {
+    const results = await Promise.allSettled(sources.map(async (source) => {
+        if (source.error) {
+            return {
+                type: source.type,
+                options: [],
+                error: source.error,
+            } satisfies CompositeSearchResult;
+        }
+
+        await ensureQueryOptionDatasetFromPayload(`query:${source.type}`, source.type, source.payload);
+        const result = await searchQueryOptionDataset(`query:${source.type}`, searchValue);
+        return toCompositeWarmSearchResult(source, result);
+    }));
+
+    return results.map((result, index) => {
+        if (result.status === "fulfilled") {
+            return result.value;
+        }
+
+        return {
+            type: sources[index]?.type ?? "composite",
+            options: [],
+            error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        };
+    });
+}
 
 function EmptyQueryOptions({ element, message }: { element: string; message?: string }) {
     return (
@@ -117,10 +186,11 @@ function ResolvedQueryOptionsComponent(
             }
 
             const payload = query?.data?.data;
+            const payloadError = getSourceError(payload);
             return {
                 type,
                 payload,
-                error: payload === undefined ? "No data returned by the backend." : undefined,
+                error: payload === undefined ? "No data returned by the backend." : payloadError,
                 optionCount: getQueryOptionCount(payload),
             };
         });
@@ -191,51 +261,53 @@ function DeferredCompositeQueryOptionsList({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const focusAfterLoadRef = useRef(false);
     const requestVersionRef = useRef(0);
+    const scheduledActivationRef = useRef<(() => void) | null>(null);
     const [isActivated, setIsActivated] = useState(Boolean(preloadOptions));
     const [searchValue, setSearchValue] = useState("");
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(Boolean(preloadOptions));
     const [error, setError] = useState<string | null>(null);
     const [combinedResult, setCombinedResult] = useState(() => combineCompositeSourceResults([]));
+    const sourceErrors = useMemo(() => sources.flatMap((source) => source.error ? [`${source.type}: ${source.error}`] : []), [sources]);
+    const hasUsableSource = useMemo(() => sources.some((source) => !source.error && source.optionCount > 0), [sources]);
+    const blockingError = useMemo(() => {
+        if (hasUsableSource || sourceErrors.length === 0) {
+            return undefined;
+        }
+        return sourceErrors.join(" | ");
+    }, [hasUsableSource, sourceErrors]);
+    const backgroundWarning = useMemo(() => {
+        return hasUsableSource && sourceErrors.length > 0 ? sourceErrors.join(" | ") : undefined;
+    }, [hasUsableSource, sourceErrors]);
+
+    const warmDatasets = useCallback(() => warmCompositeDatasets(sources), [sources]);
+
+    useIdleDatasetWarmup(!isActivated && !blockingError, warmDatasets);
 
     useEffect(() => {
+        return () => {
+            scheduledActivationRef.current?.();
+            scheduledActivationRef.current = null;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isActivated) {
+            setLoading(false);
+            return;
+        }
+
         const currentVersion = requestVersionRef.current + 1;
         requestVersionRef.current = currentVersion;
         setLoading(true);
         setError(null);
 
-        void Promise.allSettled(sources.map(async (source) => {
-            if (source.error) {
-                return {
-                    type: source.type,
-                    options: [],
-                    error: source.error,
-                };
-            }
-
-            await ensureQueryOptionDatasetFromPayload(`query:${source.type}`, source.type, source.payload);
-            const result = await searchQueryOptionDataset(`query:${source.type}`, searchValue);
-
-            return {
-                type: source.type,
-                options: result.options,
-            };
-        }))
+        void searchCompositeDatasets(sources, searchValue)
             .then((results) => {
                 if (requestVersionRef.current !== currentVersion) {
                     return;
                 }
 
-                const nextCombined = combineCompositeSourceResults(results.map((result, index) => {
-                    if (result.status === "fulfilled") {
-                        return result.value;
-                    }
-
-                    return {
-                        type: sources[index]?.type ?? "composite",
-                        options: [],
-                        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
-                    };
-                }));
+                const nextCombined = combineCompositeSourceResults(results);
 
                 setCombinedResult(nextCombined);
                 setLoading(false);
@@ -247,7 +319,7 @@ function DeferredCompositeQueryOptionsList({
                 setError(nextError instanceof Error ? nextError.message : String(nextError));
                 setLoading(false);
             });
-    }, [searchValue, sources]);
+    }, [isActivated, searchValue, sources]);
 
     useEffect(() => {
         if (loading || !focusAfterLoadRef.current) {
@@ -267,8 +339,15 @@ function DeferredCompositeQueryOptionsList({
         if (focusAfterLoad) {
             focusAfterLoadRef.current = true;
         }
-        setIsActivated(true);
-    }, []);
+        if (isActivated || scheduledActivationRef.current) {
+            return;
+        }
+
+        scheduledActivationRef.current = scheduleInteractionTransition(() => {
+            scheduledActivationRef.current = null;
+            setIsActivated(true);
+        });
+    }, [isActivated]);
 
     const handlePointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
         if (isActivated) {
@@ -292,6 +371,10 @@ function DeferredCompositeQueryOptionsList({
         return <EmptyQueryOptions element="composite query" message={error} />;
     }
 
+    if (!isActivated && blockingError) {
+        return <EmptyQueryOptions element="composite query" message={blockingError} />;
+    }
+
     if (isActivated && !loading) {
         if (combinedResult.blockingError) {
             return <EmptyQueryOptions element="composite query" message={combinedResult.blockingError} />;
@@ -304,6 +387,7 @@ function DeferredCompositeQueryOptionsList({
 
     return (
         <div ref={containerRef} onPointerDownCapture={handlePointerDownCapture} onFocusCapture={handleFocusCapture}>
+            {!isActivated && backgroundWarning && <QueryNotice tone="warning" message={backgroundWarning} />}
             {isActivated ? (
                 <div className="flex flex-col gap-2">
                     {combinedResult.warning && !loading && <QueryNotice tone="warning" message={combinedResult.warning} />}
@@ -320,7 +404,7 @@ function DeferredCompositeQueryOptionsList({
                 </div>
             ) : (
                 <div className="flex min-h-8 items-center rounded-md border border-dashed border-border/70 bg-muted/15 px-2 py-1.5 text-[11px] text-muted-foreground">
-                    <span>{loading ? "Preparing options..." : "Focus to open options"}</span>
+                    <span>Focus to open options</span>
                 </div>
             )}
         </div>
@@ -357,11 +441,16 @@ function SingleQueryOptionsComponent(
     }
 
     const payload = query.data?.data;
+    const payloadError = getSourceError(payload);
     const optionCount = getQueryOptionCount(payload);
     const shouldUseDeferredWorker = !initialValue && optionCount >= ASYNC_QUERY_OPTION_THRESHOLD;
 
     if (query.error) {
         return <EmptyQueryOptions element={element} message={query.error instanceof Error ? query.error.message : String(query.error)} />;
+    }
+
+    if (payloadError) {
+        return <EmptyQueryOptions element={element} message={payloadError} />;
     }
 
     if (shouldUseDeferredWorker && payload) {
@@ -413,19 +502,36 @@ function DeferredQueryOptionsList({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const focusAfterLoadRef = useRef(false);
     const requestVersionRef = useRef(0);
+    const scheduledActivationRef = useRef<(() => void) | null>(null);
     const [isActivated, setIsActivated] = useState(Boolean(preloadOptions));
     const [searchValue, setSearchValue] = useState("");
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(Boolean(preloadOptions));
     const [error, setError] = useState<string | null>(null);
     const [options, setOptions] = useState<SelectOption[]>([]);
 
+    const warmDataset = useCallback(() => ensureQueryOptionDatasetFromPayload(datasetId, element, payload), [datasetId, element, payload]);
+
+    useIdleDatasetWarmup(!isActivated, warmDataset);
+
     useEffect(() => {
+        return () => {
+            scheduledActivationRef.current?.();
+            scheduledActivationRef.current = null;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isActivated) {
+            setLoading(false);
+            return;
+        }
+
         const currentVersion = requestVersionRef.current + 1;
         requestVersionRef.current = currentVersion;
         setLoading(true);
         setError(null);
 
-        ensureQueryOptionDatasetFromPayload(datasetId, element, payload)
+        warmDataset()
             .then(() => searchQueryOptionDataset(datasetId, searchValue))
             .then((result) => {
                 if (requestVersionRef.current !== currentVersion) {
@@ -441,7 +547,7 @@ function DeferredQueryOptionsList({
                 setError(nextError instanceof Error ? nextError.message : String(nextError));
                 setLoading(false);
             });
-            }, [datasetId, element, payload, searchValue]);
+    }, [datasetId, isActivated, searchValue, warmDataset]);
 
     useEffect(() => {
         if (loading || !focusAfterLoadRef.current) {
@@ -461,8 +567,15 @@ function DeferredQueryOptionsList({
         if (focusAfterLoad) {
             focusAfterLoadRef.current = true;
         }
-        setIsActivated(true);
-    }, []);
+        if (isActivated || scheduledActivationRef.current) {
+            return;
+        }
+
+        scheduledActivationRef.current = scheduleInteractionTransition(() => {
+            scheduledActivationRef.current = null;
+            setIsActivated(true);
+        });
+    }, [isActivated]);
 
     const handlePointerDownCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
         if (isActivated) {
@@ -501,7 +614,7 @@ function DeferredQueryOptionsList({
                 />
             ) : (
                 <div className="flex min-h-8 items-center rounded-md border border-dashed border-border/70 bg-muted/15 px-2 py-1.5 text-[11px] text-muted-foreground">
-                    <span>{loading ? "Preparing options..." : "Focus to open options"}</span>
+                    <span>Focus to open options</span>
                 </div>
             )}
         </div>

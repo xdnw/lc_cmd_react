@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 
+import type { WebError, WebOptions } from "@/lib/apitypes";
 import { INPUT_OPTIONS } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
 import { CM, getTypeBreakdown } from "@/utils/Command";
@@ -10,10 +11,10 @@ import {
     ASYNC_QUERY_OPTION_MIN_QUERY_LENGTH,
     ASYNC_QUERY_OPTION_THRESHOLD,
     combineCompositeSourceResults,
+    getQueryOptionCount,
     resolveQueryOptionsPayload,
-    toCompositeSourceResult,
 } from "../queryOptionUtils";
-import { ensureQueryOptionDataset, searchQueryOptionDataset } from "../queryOptionWorkerClient";
+import { ensureQueryOptionDatasetFromPayload, searchQueryOptionDataset } from "../queryOptionWorkerClient";
 import { toPlainSelectOptions, type SelectOption } from "../selectValueUtils";
 import {
     getExpressionTypeSchema,
@@ -41,6 +42,24 @@ type BatchedQueryRequest = {
     type: string;
 };
 
+type QueryPayloadSource = {
+    requestKey: string;
+    cacheKey: string;
+    type: string;
+    loading: boolean;
+    payload?: WebOptions | WebError | unknown;
+    error?: string;
+    optionCount: number;
+};
+
+type BatchedQueryResult = {
+    isLoading: boolean;
+    error: unknown;
+    data?: {
+        data?: WebOptions | WebError | unknown;
+    };
+};
+
 type AsyncQueryOptionState = {
     token: string;
     status: "loading" | "ready" | "error";
@@ -48,10 +67,11 @@ type AsyncQueryOptionState = {
     options: SelectOption[];
     hasAnyMatch?: boolean;
     hasExactMatch?: boolean;
+    warning?: string;
     error?: string;
 };
 
-type QueryOptionRequest = Extract<ExpressionValueSourceRef, { kind: "query-options" }>;
+type AsyncQueryRequest = Extract<ExpressionValueSourceRef, { kind: "query-options" | "composite-query-options" }>;
 
 const typeLabelCache = new Map<string, string>();
 const staticOptionsCache = new Map<string, SelectOption[]>();
@@ -68,9 +88,26 @@ function getSearchTokenSignature(searchTokensByCacheKey: Record<string, string>)
         .join("|");
 }
 
+function getBatchedQueryResultSignature(
+    requests: BatchedQueryRequest[],
+    results: readonly BatchedQueryResult[],
+): string {
+    return requests.map((request, index) => {
+        const result = results[index];
+        const payload = result?.data?.data;
+        const error = result?.error ? getPayloadError(result.error) : "";
+        return [
+            request.requestKey,
+            result?.isLoading ? "loading" : "ready",
+            getQueryOptionCount(payload),
+            error,
+        ].join(":");
+    }).join("|");
+}
+
 function isCompositeSourceResult(
-    value: ReturnType<typeof toCompositeSourceResult> | null,
-): value is ReturnType<typeof toCompositeSourceResult> {
+    value: { type: string; options: SelectOption[]; error?: string } | null,
+): value is { type: string; options: SelectOption[]; error?: string } {
     return value != null;
 }
 
@@ -101,6 +138,15 @@ function flattenBatchedQueryRequests(requests: ExpressionValueSourceRef[]): Batc
     const flattened: BatchedQueryRequest[] = [];
 
     const visit = (request: ExpressionValueSourceRef) => {
+        if (request.kind === "query-options") {
+            flattened.push({
+                requestKey: request.cacheKey,
+                cacheKey: request.cacheKey,
+                type: request.typeKey,
+            });
+            return;
+        }
+
         if (request.kind === "composite-query-options") {
             request.composite.forEach((type) => {
                 flattened.push({
@@ -121,8 +167,8 @@ function flattenBatchedQueryRequests(requests: ExpressionValueSourceRef[]): Batc
     return flattened;
 }
 
-function getQueryOptionRequests(requests: ExpressionValueSourceRef[]): QueryOptionRequest[] {
-    return requests.filter((request): request is QueryOptionRequest => request.kind === "query-options");
+function getAsyncQueryRequests(requests: ExpressionValueSourceRef[]): AsyncQueryRequest[] {
+    return requests.filter((request): request is AsyncQueryRequest => request.kind === "query-options" || request.kind === "composite-query-options");
 }
 
 function shouldSearchAsyncQueryOptions(token: string, optionCount: number): boolean {
@@ -164,26 +210,83 @@ function buildAsyncQueryReadyState(
         options: SelectOption[];
         hasAnyMatch?: boolean;
         hasExactMatch?: boolean;
+        warning?: string;
+        error?: string;
     },
 ): AsyncQueryOptionState {
     return {
         token,
-        status: "ready",
+        status: searchResult.error ? "error" : "ready",
         optionCount,
         options: searchResult.options,
         hasAnyMatch: searchResult.hasAnyMatch,
         hasExactMatch: searchResult.hasExactMatch,
+        warning: searchResult.warning,
+        error: searchResult.error,
     };
 }
 
+function getPayloadError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function buildQueryPayloadSources(
+    request: AsyncQueryRequest,
+    queryByRequestKey: Map<string, BatchedQueryResult>,
+): QueryPayloadSource[] {
+    if (request.kind === "query-options") {
+        const query = queryByRequestKey.get(request.cacheKey);
+        return [{
+            requestKey: request.cacheKey,
+            cacheKey: request.cacheKey,
+            type: request.typeKey,
+            loading: !query || query.isLoading,
+            payload: query?.data?.data,
+            error: query?.error ? getPayloadError(query.error) : undefined,
+            optionCount: getQueryOptionCount(query?.data?.data),
+        }];
+    }
+
+    return request.composite.map((type) => {
+        const requestKey = `${request.cacheKey}:${type}`;
+        const query = queryByRequestKey.get(requestKey);
+        return {
+            requestKey,
+            cacheKey: request.cacheKey,
+            type,
+            loading: !query || query.isLoading,
+            payload: query?.data?.data,
+            error: query?.error ? getPayloadError(query.error) : undefined,
+            optionCount: getQueryOptionCount(query?.data?.data),
+        } satisfies QueryPayloadSource;
+    });
+}
+
+function areQueryPayloadSourcesReady(sources: QueryPayloadSource[]): boolean {
+    return sources.length > 0 && sources.every((source) => !source.loading);
+}
+
+function getTotalPayloadOptionCount(sources: QueryPayloadSource[]): number {
+    return sources.reduce((sum, source) => sum + source.optionCount, 0);
+}
+
+function shouldUseAsyncQueryOptions(sources: QueryPayloadSource[]): boolean {
+    return getTotalPayloadOptionCount(sources) >= ASYNC_QUERY_OPTION_THRESHOLD;
+}
+
 function useAsyncQueryOptionStates(
-    requests: QueryOptionRequest[],
+    requests: AsyncQueryRequest[],
+    queryByRequestKey: Map<string, BatchedQueryResult>,
     searchTokensByCacheKey: Record<string, string>,
     enabled: boolean,
+    queryPayloadSignature: string,
 ): Record<string, AsyncQueryOptionState> {
     const [asyncQueryOptions, setAsyncQueryOptions] = useState<Record<string, AsyncQueryOptionState>>({});
     const asyncQueryOptionsRef = useRef<Record<string, AsyncQueryOptionState>>({});
     const asyncRequestVersionRef = useRef<Record<string, number>>({});
+    const requestsRef = useRef(requests);
+    const queryByRequestKeyRef = useRef(queryByRequestKey);
+    const searchTokensRef = useRef(searchTokensByCacheKey);
     const requestSignature = useMemo(
         () => requests.map((request) => request.cacheKey).join("|"),
         [requests],
@@ -197,8 +300,16 @@ function useAsyncQueryOptionStates(
         asyncQueryOptionsRef.current = asyncQueryOptions;
     }, [asyncQueryOptions]);
 
+    requestsRef.current = requests;
+    queryByRequestKeyRef.current = queryByRequestKey;
+    searchTokensRef.current = searchTokensByCacheKey;
+
     useEffect(() => {
-        if (!enabled || requests.length === 0) {
+        const latestRequests = requestsRef.current;
+        const latestQueryByRequestKey = queryByRequestKeyRef.current;
+        const latestSearchTokensByCacheKey = searchTokensRef.current;
+
+        if (!enabled || latestRequests.length === 0) {
             setAsyncQueryOptions((current) => {
                 if (Object.keys(current).length === 0) {
                     return current;
@@ -213,11 +324,17 @@ function useAsyncQueryOptionStates(
         let disposed = false;
         const activeKeys = new Set<string>();
 
-        requests.forEach((request) => {
+        latestRequests.forEach((request) => {
+            const sources = buildQueryPayloadSources(request, latestQueryByRequestKey);
+            if (!areQueryPayloadSourcesReady(sources) || !shouldUseAsyncQueryOptions(sources)) {
+                return;
+            }
+
             activeKeys.add(request.cacheKey);
-            const token = (searchTokensByCacheKey[request.cacheKey] ?? "").trim();
+            const token = (latestSearchTokensByCacheKey[request.cacheKey] ?? "").trim();
             const currentState = asyncQueryOptionsRef.current[request.cacheKey];
-            if (currentState?.token === token) {
+            const totalOptionCount = getTotalPayloadOptionCount(sources);
+            if (currentState?.token === token && currentState.optionCount === totalOptionCount) {
                 return;
             }
 
@@ -230,12 +347,52 @@ function useAsyncQueryOptionStates(
             }));
 
             void (async () => {
-                const optionCount = (currentState?.optionCount ?? 0) > 0
-                    ? currentState.optionCount
-                    : await ensureQueryOptionDataset(request.cacheKey, request.typeKey);
-                const searchResult = shouldSearchAsyncQueryOptions(token, optionCount)
-                    ? await searchQueryOptionDataset(request.cacheKey, token)
-                    : { options: [] as SelectOption[], hasAnyMatch: undefined, hasExactMatch: undefined };
+                const searchResults = await Promise.allSettled(sources.map(async (source) => {
+                    if (source.error) {
+                        return {
+                            type: source.type,
+                            options: [] as SelectOption[],
+                            error: source.error,
+                            hasAnyMatch: false,
+                            hasExactMatch: false,
+                        };
+                    }
+
+                    const payload = source.payload;
+                    await ensureQueryOptionDatasetFromPayload(`query:${source.type}`, source.type, payload);
+                    const searchResult = shouldSearchAsyncQueryOptions(token, source.optionCount)
+                        ? await searchQueryOptionDataset(`query:${source.type}`, token)
+                        : { options: [] as SelectOption[], hasAnyMatch: undefined, hasExactMatch: undefined };
+
+                    return {
+                        type: source.type,
+                        options: searchResult.options,
+                        hasAnyMatch: searchResult.hasAnyMatch,
+                        hasExactMatch: searchResult.hasExactMatch,
+                    };
+                }));
+
+                const settledResults = searchResults.map((result, index) => {
+                    if (result.status === "fulfilled") {
+                        return result.value;
+                    }
+
+                    return {
+                        type: sources[index]?.type ?? request.cacheKey,
+                        options: [] as SelectOption[],
+                        error: getPayloadError(result.reason),
+                        hasAnyMatch: false,
+                        hasExactMatch: false,
+                    };
+                });
+
+                const combined = combineCompositeSourceResults(settledResults.map((result) => ({
+                    type: result.type,
+                    options: result.options,
+                    error: result.error,
+                })));
+                const hasAnyMatch = settledResults.some((result) => result.hasAnyMatch);
+                const hasExactMatch = settledResults.some((result) => result.hasExactMatch);
 
                 if (disposed || asyncRequestVersionRef.current[request.cacheKey] !== requestVersion) {
                     return;
@@ -243,7 +400,13 @@ function useAsyncQueryOptionStates(
 
                 setAsyncQueryOptions((current) => ({
                     ...current,
-                    [request.cacheKey]: buildAsyncQueryReadyState(token, optionCount, searchResult),
+                    [request.cacheKey]: buildAsyncQueryReadyState(token, totalOptionCount, {
+                        options: combined.options,
+                        hasAnyMatch,
+                        hasExactMatch,
+                        warning: combined.warning,
+                        error: combined.blockingError,
+                    }),
                 }));
             })().catch((error: unknown) => {
                 if (disposed || asyncRequestVersionRef.current[request.cacheKey] !== requestVersion) {
@@ -274,7 +437,7 @@ function useAsyncQueryOptionStates(
         return () => {
             disposed = true;
         };
-    }, [enabled, requestSignature, requests, searchTokenSignature, searchTokensByCacheKey]);
+    }, [enabled, queryPayloadSignature, requestSignature, searchTokenSignature]);
 
     return asyncQueryOptions;
 }
@@ -319,7 +482,7 @@ export function useExpressionValueSources(
     enableQueryOptionFetch: boolean = false,
 ): ExpressionValueSourceRegistry {
     const uniqueRequests = useMemo(() => dedupeRequests(requests), [requests]);
-    const queryOptionRequests = useMemo(() => getQueryOptionRequests(uniqueRequests), [uniqueRequests]);
+    const asyncQueryRequests = useMemo(() => getAsyncQueryRequests(uniqueRequests), [uniqueRequests]);
     const batchedQueryRequests = useMemo(() => flattenBatchedQueryRequests(uniqueRequests), [uniqueRequests]);
 
     const batchedQueryResults = useQueries({
@@ -329,18 +492,26 @@ export function useExpressionValueSources(
             false,
         )),
     });
+    const queryPayloadSignature = useMemo(
+        () => getBatchedQueryResultSignature(batchedQueryRequests, batchedQueryResults as BatchedQueryResult[]),
+        [batchedQueryRequests, batchedQueryResults],
+    );
+    const queryByRequestKey = useMemo(() => {
+        const map = new Map<string, BatchedQueryResult>();
+        batchedQueryRequests.forEach((request, index) => {
+            map.set(request.requestKey, batchedQueryResults[index] as BatchedQueryResult);
+        });
+        return map;
+    }, [batchedQueryRequests, batchedQueryResults]);
     const asyncQueryOptions = useAsyncQueryOptionStates(
-        queryOptionRequests,
+        asyncQueryRequests,
+        queryByRequestKey,
         searchTokensByCacheKey,
         enableQueryOptionFetch,
+        queryPayloadSignature,
     );
 
     return useMemo(() => {
-        const queryByRequestKey = new Map<string, (typeof batchedQueryResults)[number]>();
-        batchedQueryRequests.forEach((request, index) => {
-            queryByRequestKey.set(request.requestKey, batchedQueryResults[index]);
-        });
-
         const registry: ExpressionValueSourceRegistry = {};
 
         const resolveRequest = (request: ExpressionValueSourceRef): ExpressionValueSourceRegistryEntry => {
@@ -368,28 +539,100 @@ export function useExpressionValueSources(
 
             if (request.kind === "query-options") {
                 const asyncState = asyncQueryOptions[request.cacheKey];
+                if (asyncState) {
+                    const entry: ExpressionValueSourceRegistryEntry = {
+                        status: asyncState.status,
+                        sourceKind: request.kind,
+                        typeLabel: getTypeLabel(request.typeName),
+                        options: asyncState.options,
+                        optionCount: asyncState.optionCount,
+                        workerDatasetId: request.cacheKey,
+                        hasAnyMatch: asyncState.hasAnyMatch,
+                        hasExactMatch: asyncState.hasExactMatch,
+                        warning: asyncState.warning,
+                        error: asyncState.error,
+                    };
+                    registry[request.cacheKey] = entry;
+                    return entry;
+                }
+
+                const query = queryByRequestKey.get(request.cacheKey);
+                if (!query || query.isLoading) {
+                    const entry: ExpressionValueSourceRegistryEntry = {
+                        status: "loading",
+                        sourceKind: request.kind,
+                        typeLabel: getTypeLabel(request.typeName),
+                        options: [],
+                    };
+                    registry[request.cacheKey] = entry;
+                    return entry;
+                }
+
+                if (query.error) {
+                    const entry: ExpressionValueSourceRegistryEntry = {
+                        status: "error",
+                        sourceKind: request.kind,
+                        typeLabel: getTypeLabel(request.typeName),
+                        options: [],
+                        error: getPayloadError(query.error),
+                    };
+                    registry[request.cacheKey] = entry;
+                    return entry;
+                }
+
+                const payload = query.data?.data;
+                const resolved = resolveQueryOptionsPayload(request.typeKey, payload);
                 const entry: ExpressionValueSourceRegistryEntry = {
-                    status: asyncState?.status ?? "ready",
+                    status: resolved.error ? "error" : "ready",
                     sourceKind: request.kind,
                     typeLabel: getTypeLabel(request.typeName),
-                    options: asyncState?.options ?? [],
-                    optionCount: asyncState?.optionCount,
-                    workerDatasetId: request.cacheKey,
-                    hasAnyMatch: asyncState?.hasAnyMatch,
-                    hasExactMatch: asyncState?.hasExactMatch,
-                    error: asyncState?.error,
+                    options: resolved.options,
+                    optionCount: getQueryOptionCount(payload),
+                    error: resolved.error,
                 };
                 registry[request.cacheKey] = entry;
                 return entry;
             }
 
             if (request.kind === "composite-query-options") {
+                const asyncState = asyncQueryOptions[request.cacheKey];
+                if (asyncState) {
+                    const entry: ExpressionValueSourceRegistryEntry = {
+                        status: asyncState.status,
+                        sourceKind: request.kind,
+                        typeLabel: getTypeLabel(request.typeName),
+                        options: asyncState.options,
+                        optionCount: asyncState.optionCount,
+                        workerDatasetId: request.cacheKey,
+                        hasAnyMatch: asyncState.hasAnyMatch,
+                        hasExactMatch: asyncState.hasExactMatch,
+                        warning: asyncState.warning,
+                        error: asyncState.error,
+                    };
+                    registry[request.cacheKey] = entry;
+                    return entry;
+                }
+
                 const resultEntries = request.composite.map((type) => {
                     const query = queryByRequestKey.get(`${request.cacheKey}:${type}`);
                     if (!query || query.isLoading) {
                         return null;
                     }
-                    return toCompositeSourceResult(type, query);
+
+                    if (query.error) {
+                        return {
+                            type,
+                            options: [],
+                            error: getPayloadError(query.error),
+                        };
+                    }
+
+                    const resolved = resolveQueryOptionsPayload(type, query.data?.data);
+                    return {
+                        type,
+                        options: resolved.options,
+                        error: resolved.error,
+                    };
                 });
 
                 if (resultEntries.some((result) => result == null)) {
@@ -403,12 +646,17 @@ export function useExpressionValueSources(
                     return entry;
                 }
 
-                const combined = combineCompositeSourceResults(resultEntries.filter(isCompositeSourceResult));
+                const settledEntries = resultEntries.flatMap((result) => result ? [result] : []);
+                const combined = combineCompositeSourceResults(settledEntries);
                 const entry: ExpressionValueSourceRegistryEntry = {
                     status: combined.blockingError ? "error" : "ready",
                     sourceKind: request.kind,
                     typeLabel: getTypeLabel(request.typeName),
                     options: combined.options,
+                    optionCount: request.composite.reduce((sum, type) => {
+                        const query = queryByRequestKey.get(`${request.cacheKey}:${type}`);
+                        return sum + getQueryOptionCount(query?.data?.data);
+                    }, 0),
                     warning: combined.warning,
                     error: combined.blockingError,
                 };
@@ -446,5 +694,5 @@ export function useExpressionValueSources(
 
         uniqueRequests.forEach(resolveRequest);
         return registry;
-    }, [asyncQueryOptions, batchedQueryRequests, batchedQueryResults, uniqueRequests]);
+    }, [asyncQueryOptions, queryPayloadSignature, uniqueRequests]);
 }

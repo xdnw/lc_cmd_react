@@ -1,4 +1,5 @@
 import {
+    useCallback,
     memo,
     useDeferredValue,
     useEffect,
@@ -7,7 +8,6 @@ import {
     useState,
     type KeyboardEvent,
 } from "react";
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 import { filterSelectOptions, type SelectOption } from "./selectValueUtils";
 import {
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 const SEARCH_THRESHOLD = 50;
 const VISIBLE_ROW_COUNT = 8;
 const ROW_HEIGHT = 36;
+const ROW_OVERSCAN = 3;
 
 function rankSearchMatches<T>(
     items: T[],
@@ -157,9 +158,10 @@ export default function PlaceholderSuggestionPanel({
     onSearchValueChange: (value: string) => void;
     onApplySuggestion: (suggestion: ExpressionSuggestion) => void;
 }) {
-    const virtuosoRef = useRef<VirtuosoHandle | null>(null);
+    const listContainerRef = useRef<HTMLDivElement | null>(null);
     const deferredSearchValue = useDeferredValue(searchValue);
     const [highlightedIndex, setHighlightedIndex] = useState(0);
+    const [scrollTop, setScrollTop] = useState(0);
 
     const lazyToken = lazyOptionSource?.token.trim() ?? "";
     const searchQuery = deferredSearchValue.trim();
@@ -199,28 +201,76 @@ export default function PlaceholderSuggestionPanel({
         return filterLazyOptions(lazyBaseOptions, deferredSearchValue);
     }, [deferredSearchValue, lazyBaseOptions, lazyOptionSource]);
 
+    const renderedSuggestions = useMemo(() => {
+        if (lazyOptionSource) {
+            return filteredLazyOptions.map((option) => materializeLazyOptionSuggestion(lazyOptionSource, option));
+        }
+        return filteredSuggestions;
+    }, [filteredLazyOptions, filteredSuggestions, lazyOptionSource]);
+
     const totalSuggestions = lazyOptionSource ? lazyBaseOptions.length : suggestions.length;
-    const visibleSuggestions = lazyOptionSource ? filteredLazyOptions.length : filteredSuggestions.length;
+    const visibleSuggestions = renderedSuggestions.length;
     const allLazyOptionsCount = lazyOptionUniverse;
     const totalSuggestionUniverse = lazyOptionSource ? allLazyOptionsCount : suggestions.length;
     const showSearch = totalSuggestionUniverse > SEARCH_THRESHOLD;
+    const listHeight = Math.max(3, Math.min(visibleSuggestions || 1, VISIBLE_ROW_COUNT)) * ROW_HEIGHT;
+    const visibleRowCapacity = Math.max(1, Math.ceil(listHeight / ROW_HEIGHT));
+    const windowStartIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - ROW_OVERSCAN);
+    const windowEndIndex = Math.min(renderedSuggestions.length, windowStartIndex + visibleRowCapacity + (ROW_OVERSCAN * 2));
+    const windowedSuggestions = renderedSuggestions.slice(windowStartIndex, windowEndIndex);
+    const paddingTop = windowStartIndex * ROW_HEIGHT;
+    const paddingBottom = Math.max(0, (renderedSuggestions.length - windowEndIndex) * ROW_HEIGHT);
 
     useEffect(() => {
         setHighlightedIndex(0);
-        if (visibleSuggestions > 0) {
-            virtuosoRef.current?.scrollToIndex({ index: 0, align: "start" });
+        setScrollTop(0);
+        const container = listContainerRef.current;
+        if (container) {
+            container.scrollTop = 0;
         }
     }, [visibleSuggestions]);
 
-    const activeSuggestion = useMemo(() => {
-        if (lazyOptionSource) {
-            const option = filteredLazyOptions[Math.min(highlightedIndex, Math.max(filteredLazyOptions.length - 1, 0))];
-            return option ? materializeLazyOptionSuggestion(lazyOptionSource, option) : getFirstLazyOptionSuggestion(lazyOptionSource);
+    useEffect(() => {
+        const container = listContainerRef.current;
+        if (!container || visibleSuggestions === 0) {
+            return;
         }
 
-        return filteredSuggestions[Math.min(highlightedIndex, Math.max(filteredSuggestions.length - 1, 0))];
-    }, [filteredLazyOptions, filteredSuggestions, highlightedIndex, lazyOptionSource]);
-    const listHeight = Math.max(3, Math.min(visibleSuggestions || 1, VISIBLE_ROW_COUNT)) * ROW_HEIGHT;
+        const itemTop = highlightedIndex * ROW_HEIGHT;
+        const itemBottom = itemTop + ROW_HEIGHT;
+        const viewportTop = container.scrollTop;
+        const viewportBottom = viewportTop + container.clientHeight;
+
+        if (itemTop < viewportTop) {
+            container.scrollTop = itemTop;
+            return;
+        }
+
+        if (itemBottom > viewportBottom) {
+            container.scrollTop = itemBottom - container.clientHeight;
+        }
+    }, [highlightedIndex, visibleSuggestions]);
+
+    const activeSuggestion = useMemo(() => {
+        const suggestion = renderedSuggestions[Math.min(highlightedIndex, Math.max(renderedSuggestions.length - 1, 0))];
+        return suggestion ?? getFirstLazyOptionSuggestion(lazyOptionSource);
+    }, [highlightedIndex, lazyOptionSource, renderedSuggestions]);
+    const renderSuggestionRow = useCallback((index: number, suggestion?: ExpressionSuggestion) => {
+        if (!suggestion) {
+            return null;
+        }
+
+        return (
+            <SuggestionRow
+                key={`${suggestion.kind}:${suggestion.insertText}:${suggestion.label}:${index}`}
+                suggestion={suggestion}
+                index={index}
+                isHighlighted={index === highlightedIndex}
+                onApplySuggestion={onApplySuggestion}
+                onHighlight={setHighlightedIndex}
+            />
+        );
+    }, [highlightedIndex, onApplySuggestion]);
 
     const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
         if (visibleSuggestions === 0) {
@@ -231,18 +281,14 @@ export default function PlaceholderSuggestionPanel({
             case "ArrowDown": {
                 event.preventDefault();
                 setHighlightedIndex((previous) => {
-                    const next = Math.min(previous + 1, visibleSuggestions - 1);
-                    virtuosoRef.current?.scrollIntoView({ index: next, align: "center" });
-                    return next;
+                    return Math.min(previous + 1, visibleSuggestions - 1);
                 });
                 break;
             }
             case "ArrowUp": {
                 event.preventDefault();
                 setHighlightedIndex((previous) => {
-                    const next = Math.max(previous - 1, 0);
-                    virtuosoRef.current?.scrollIntoView({ index: next, align: "center" });
-                    return next;
+                    return Math.max(previous - 1, 0);
                 });
                 break;
             }
@@ -288,32 +334,16 @@ export default function PlaceholderSuggestionPanel({
                 </div>
             ) : (
                 <div className="overflow-hidden rounded-md border border-border/70 bg-background/70">
-                    <Virtuoso
-                        ref={virtuosoRef}
+                    <div
+                        ref={listContainerRef}
                         style={{ height: listHeight }}
-                        defaultItemHeight={ROW_HEIGHT}
-                        initialItemCount={Math.min(visibleSuggestions, VISIBLE_ROW_COUNT)}
-                        totalCount={visibleSuggestions}
-                        itemContent={(index) => {
-                            const suggestion = lazyOptionSource
-                                ? (filteredLazyOptions[index] ? materializeLazyOptionSuggestion(lazyOptionSource, filteredLazyOptions[index]) : null)
-                                : filteredSuggestions[index];
-                            if (!suggestion) {
-                                return null;
-                            }
-
-                            return (
-                                <SuggestionRow
-                                    key={`${suggestion.kind}:${suggestion.insertText}:${suggestion.label}`}
-                                    suggestion={suggestion}
-                                    index={index}
-                                    isHighlighted={index === highlightedIndex}
-                                    onApplySuggestion={onApplySuggestion}
-                                    onHighlight={setHighlightedIndex}
-                                />
-                            );
-                        }}
-                    />
+                        className="overflow-y-auto"
+                        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+                    >
+                        <div style={{ paddingTop, paddingBottom }}>
+                            {windowedSuggestions.map((suggestion, index) => renderSuggestionRow(windowStartIndex + index, suggestion))}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

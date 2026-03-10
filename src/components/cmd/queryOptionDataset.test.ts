@@ -5,7 +5,9 @@ import type { WebOptions } from "@/lib/apitypes";
 import {
     buildQueryOptionDataset,
     buildQuerySelectOptions,
+    getCanonicalQueryPrefix,
     searchQueryOptionDataset,
+    toCompositeCanonicalOption,
 } from "./queryOptionDataset";
 
 function createOptions(): WebOptions {
@@ -27,6 +29,34 @@ describe("queryOptionDataset", () => {
         expect(options[0].aliases).toContain("nation/id=7");
         expect(options[0].aliases).toContain("https://politicsandwar.com/nation/id=7");
         expect(options[0].aliases).toContain("Leader");
+    });
+
+    it("derives composite canonical prefixes from the shared query profiles", () => {
+        expect(getCanonicalQueryPrefix("DBNation")).toBe("nation:");
+        expect(getCanonicalQueryPrefix("DBAlliance")).toBe("AA:");
+        expect(getCanonicalQueryPrefix("GuildDB")).toBe("guild:");
+        expect(getCanonicalQueryPrefix("DBCity")).toBeUndefined();
+    });
+
+    it("can canonicalize a query option for composite selects while keeping raw aliases", () => {
+        const [nationOption] = buildQuerySelectOptions("DBNation", createOptions());
+
+        expect(toCompositeCanonicalOption("DBNation", nationOption)).toMatchObject({
+            label: "nation:Borg",
+            value: "nation:7",
+        });
+        expect(toCompositeCanonicalOption("DBNation", nationOption).aliases).toEqual(
+            expect.arrayContaining(["7", "Borg", "nation:7", "nation:Borg"]),
+        );
+
+        const [cityOption] = buildQuerySelectOptions("DBCity", {
+            text: ["City 9988"],
+            key_string: ["9988"],
+        });
+        expect(toCompositeCanonicalOption("DBCity", cityOption)).toMatchObject({
+            label: "City 9988",
+            value: "9988",
+        });
     });
 
     it("searches with the shared select matching rules", () => {

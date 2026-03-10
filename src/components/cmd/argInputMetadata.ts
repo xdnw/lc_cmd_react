@@ -34,6 +34,7 @@ export type ArgInputResolutionKind =
     | "google-doc"
     | "dbwar"
     | "dbcity"
+    | "citybuild"
     | "message"
     | "cityranges"
     | "uuid"
@@ -285,6 +286,7 @@ export function resolveArgInput(breakdown: TypeBreakdown): ArgInputResolution {
             filter: REGEX_PATTERN.CITY,
             filterHelp: "a city url",
         }),
+        citybuild: { kind: "citybuild", componentName: "CityBuildInput", support: supported(), optionData },
         message: buildTextInputResolution("message", optionData, {
             placeholder: breakdown.element,
             filter: REGEX_PATTERN.CHANNEL,

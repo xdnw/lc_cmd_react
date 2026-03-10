@@ -39,6 +39,7 @@ import { normalizeTimediffValue, normalizeTimeValue } from "@/lib/temporal";
 import { parseMapString } from "@/utils/MapParser";
 import { CM, getTypeBreakdown, type TypeBreakdown } from "@/utils/Command";
 import { normalizeMapEntries, normalizeSetValues, parseSetString, serializeMapEntries } from "./collectionInputNormalization";
+import { formatCityBuildCityId, parseCityBuildInput, serializeCityBuildValue } from "./cityBuildInputUtils";
 import { normalizeBooleanValue, normalizeTriStateValue } from "./scalarInputNormalization";
 import { resolveQueryOptionsPayload } from "./queryOptionUtils";
 import {
@@ -62,6 +63,7 @@ type ControlKind =
   | "select"
   | "set"
   | "map"
+  | "city-build"
   | "city-ranges"
   | "tax-rate"
   | "mmr"
@@ -321,6 +323,8 @@ function getControlKind(breakdown: TypeBreakdown): ControlKind {
       return "set";
     case "map":
       return "map";
+    case "citybuild":
+      return "city-build";
     case "boolean":
       return breakdown.element === "Boolean" ? "tri-state" : "boolean";
     case "color":
@@ -503,6 +507,20 @@ async function inspectDefaultState(type: string, example: string, breakdown: Typ
       : { status: "fail", detail: `Expected ${expectedEntries.length} map entr${expectedEntries.length === 1 ? "y" : "ies"}, rendered ${removeButtons.length}.` };
   }
 
+  if (controlKind === "city-build") {
+    const parsed = parseCityBuildInput(example);
+    if (parsed.error) {
+      return { status: "fail", detail: parsed.error };
+    }
+
+    const values = getInputs(container).map((input) => input.value);
+    const expectedCity = formatCityBuildCityId(parsed.cityId);
+    const removeButtons = Array.from(container.querySelectorAll("button")).filter((button) => button.textContent?.trim() === "Remove");
+    return values[0] === expectedCity && removeButtons.length === parsed.modifiers.length
+      ? { status: "pass", detail: `Default parsed city ${expectedCity || "(none)"} and ${parsed.modifiers.length} modifier entr${parsed.modifiers.length === 1 ? "y" : "ies"}.` }
+      : { status: "fail", detail: `Expected city ${expectedCity || "(empty)"} with ${parsed.modifiers.length} modifier entr${parsed.modifiers.length === 1 ? "y" : "ies"}, got city ${values[0] || "(empty)"} and ${removeButtons.length} modifier rows.` };
+  }
+
   if (controlKind === "city-ranges") {
     const match = example.trim().match(/^c?(\d+)(?:-(\d+)|\+)$/i);
     const values = getInputs(container).map((input) => input.value);
@@ -641,6 +659,20 @@ async function applyPasteAndCheck(type: string, example: string, breakdown: Type
     return actual === expected
       ? { status: "pass", detail: `Paste emitted ${expected || "(empty)"}.`, actualOutput: actual }
       : { status: "fail", detail: `Expected pasted map output ${expected || "(empty)"}, got ${getOutputValueText(actual)}.`, actualOutput: actual };
+  }
+
+  if (controlKind === "city-build") {
+    const parsed = parseCityBuildInput(example);
+    if (parsed.error) {
+      return { status: "fail", detail: parsed.error };
+    }
+
+    fireEvent.paste(container.firstElementChild ?? container, makeClipboardEventPayload(example));
+    const expected = serializeCityBuildValue(parsed.cityId, parsed.modifiers);
+    const actual = getLastOutput() ?? "";
+    return actual === expected
+      ? { status: "pass", detail: `Paste emitted ${expected || "(empty)"}.`, actualOutput: actual }
+      : { status: "fail", detail: `Expected pasted CityBuild output ${expected || "(empty)"}, got ${getOutputValueText(actual)}.`, actualOutput: actual };
   }
 
   if (controlKind === "set") {

@@ -4,6 +4,7 @@ import { parseMapString, parseMapStringDetailed } from "@/utils/MapParser";
 import { CM, getTypeBreakdown } from "@/utils/Command";
 import { resolveArgInput } from "./argInputMetadata";
 import { parseCommandStringDetailed } from "@/utils/CommandParser";
+import { normalizeCityBuildModifiers, parseCityBuildInput, serializeParsedCityBuildValue, serializeCityBuildValue } from "./cityBuildInputUtils";
 
 function toIso88591DoubleBlob(values: number[]): string {
   const bytes = new Uint8Array(values.length * 8);
@@ -16,6 +17,38 @@ function toIso88591DoubleBlob(values: number[]): string {
 }
 
 describe("ArgInput resolution", () => {
+  const fullCityBuildExample = `{
+    "infra_needed": 2800,
+    "imp_total": 56,
+    "imp_coalpower": 0,
+    "imp_oilpower": 0,
+    "imp_windpower": 0,
+    "imp_nuclearpower": 2,
+    "imp_coalmine": 0,
+    "imp_oilwell": 10,
+    "imp_uramine": 0,
+    "imp_leadmine": 0,
+    "imp_ironmine": 0,
+    "imp_bauxitemine": 10,
+    "imp_farm": 0,
+    "imp_gasrefinery": 0,
+    "imp_aluminumrefinery": 5,
+    "imp_munitionsfactory": 0,
+    "imp_steelmill": 0,
+    "imp_policestation": 1,
+    "imp_hospital": 3,
+    "imp_recyclingcenter": 3,
+    "imp_subway": 1,
+    "imp_supermarket": 1,
+    "imp_bank": 6,
+    "imp_mall": 4,
+    "imp_stadium": 3,
+    "imp_barracks": 0,
+    "imp_factory": 2,
+    "imp_hangars": 5,
+    "imp_drydock": 0
+  }`;
+
   it("treats missing map text as empty input", () => {
     expect(parseMapString(undefined)).toBeNull();
     expect(parseMapString(null)).toBeNull();
@@ -128,5 +161,56 @@ describe("ArgInput resolution", () => {
       kind: "static-options",
       componentName: "ListComponentOptions",
     });
+  });
+
+  it("resolves CityBuild to the dedicated composite input", () => {
+    expect(resolveArgInput(getTypeBreakdown(CM, "CityBuild"))).toMatchObject({
+      kind: "citybuild",
+      componentName: "CityBuildInput",
+    });
+  });
+
+  it("parses map-only and combined CityBuild values into canonical output", () => {
+    const mapOnly = parseCityBuildInput("{land:2500,infra_needed:1800}");
+
+    expect(serializeParsedCityBuildValue(mapOnly)).toBe("{infra_needed:1800,land:2500}");
+
+    const combined = parseCityBuildInput("city/id=1{infra_needed:1234,land:5678,impCoalpower:3}");
+
+    expect(combined.error).toBeUndefined();
+    expect(serializeParsedCityBuildValue(combined)).toBe("city/id=1{infra_needed:1234,land:5678,imp_coalpower:3}");
+  });
+
+  it("dedupes duplicate CityBuild modifiers through shared keyed normalization", () => {
+    const normalized = normalizeCityBuildModifiers([
+      { key: "imp_bank", value: "1" },
+      { key: "land", value: "5" },
+      { key: "imp_bank", value: "2" },
+    ]);
+
+    expect(normalized.modifiers).toEqual([
+      { key: "land", value: "5" },
+      { key: "imp_bank", value: "2" },
+    ]);
+    expect(normalized.notices.some((notice) => notice.message.includes('Modifier "imp_bank" replaced an earlier value.'))).toBe(true);
+  });
+
+  it("ignores imp_total in CityBuild modifiers", () => {
+    const parsed = parseCityBuildInput("city/id=1{imp_total:999,age:7,impCoalpower:3}");
+
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.note).toContain("Ignored imp_total");
+    expect(serializeCityBuildValue(parsed.cityId, parsed.modifiers)).toBe("city/id=1{age:7,imp_coalpower:3}");
+  });
+
+  it("parses the full provided CityBuild json example and drops imp_total", () => {
+    const parsed = parseCityBuildInput(fullCityBuildExample);
+
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.note).toContain("Ignored imp_total");
+    expect(parsed.modifiers).toHaveLength(28);
+    expect(serializeParsedCityBuildValue(parsed)).toBe(
+      "{infra_needed:2800,imp_aluminumrefinery:5,imp_bank:6,imp_barracks:0,imp_bauxitemine:10,imp_coalmine:0,imp_coalpower:0,imp_drydock:0,imp_factory:2,imp_farm:0,imp_gasrefinery:0,imp_hangars:5,imp_hospital:3,imp_ironmine:0,imp_leadmine:0,imp_mall:4,imp_munitionsfactory:0,imp_nuclearpower:2,imp_oilpower:0,imp_oilwell:10,imp_policestation:1,imp_recyclingcenter:3,imp_stadium:3,imp_steelmill:0,imp_subway:1,imp_supermarket:1,imp_uramine:0,imp_windpower:0}"
+    );
   });
 });

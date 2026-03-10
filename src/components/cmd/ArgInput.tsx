@@ -9,6 +9,7 @@ import TaxRateInput from "./TaxRateInput";
 import MmrInput from "./MmrInput";
 import MmrDoubleInput from "./MmrDoubleInput";
 import CityRanges from "./CityRanges";
+import CityBuildInput from "./CityBuildInput";
 import ColorInput from "./ColorInput";
 import FontInput from "./FontInput";
 import MapInput from "./MapInput";
@@ -129,7 +130,11 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
 
     case "map":
       return <MapInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        children={breakdown.child!} displayMode={displayMode} />;
+        children={breakdown.child!} displayMode={displayMode} preferStaticKeyLayout />;
+
+    case "citybuild":
+      return <CityBuildInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
+        displayMode={displayMode} />;
 
     case "color":
       return <ColorInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;

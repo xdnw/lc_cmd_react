@@ -34,6 +34,12 @@ export type QueryOptionSearchResult = {
     hasExactMatch: boolean;
 };
 
+type CompositeCanonicalOption = {
+    label: string;
+    value: string;
+    aliases: string[];
+};
+
 const QUERY_ALIAS_PROFILES: Record<string, QueryAliasProfile> = {
     DBAlliance: {
         backendPrefixes: ["AA:"],
@@ -141,6 +147,49 @@ function addMentionAliases(aliases: Set<string>, kind: MentionKind, key: string,
     }
 }
 
+function getQueryAliasProfile(type: string): QueryAliasProfile | undefined {
+    return QUERY_ALIAS_PROFILES[type];
+}
+
+function prefixCanonicalToken(value: string, prefix: string | undefined): string {
+    if (!value || !prefix) {
+        return value;
+    }
+
+    return value.toLowerCase().startsWith(prefix.toLowerCase()) ? value : `${prefix}${value}`;
+}
+
+export function getCanonicalQueryPrefix(type: string): string | undefined {
+    const profile = getQueryAliasProfile(type);
+    return profile?.parserPrefixes?.[0] ?? profile?.backendPrefixes?.[0];
+}
+
+export function toCompositeCanonicalOption(type: string, option: SelectOption): CompositeCanonicalOption {
+    const prefix = getCanonicalQueryPrefix(type);
+    if (!prefix) {
+        return {
+            label: option.label,
+            value: option.value,
+            aliases: option.aliases ?? [],
+        };
+    }
+
+    const prefixedLabel = prefixCanonicalToken(option.label || option.value, prefix);
+    const prefixedValue = prefixCanonicalToken(option.value, prefix);
+    const aliases = new Set<string>(option.aliases ?? []);
+
+    aliases.add(option.value);
+    aliases.add(option.label);
+    aliases.add(prefixedLabel);
+    aliases.add(prefixedValue);
+
+    return {
+        label: prefixedLabel,
+        value: prefixedValue,
+        aliases: Array.from(aliases).filter(Boolean),
+    };
+}
+
 export function getQueryOptionCount(payload: WebOptions | WebError | unknown): number {
     if (!payload || typeof payload !== "object" || "error" in (payload as Record<string, unknown>)) {
         return 0;
@@ -195,7 +244,7 @@ function collectBaseAliases(row: QueryOptionRow): Set<string> {
 }
 
 function addProfileAliases(type: string, aliases: Set<string>, row: QueryOptionRow, value: string): void {
-    const profile = QUERY_ALIAS_PROFILES[type];
+    const profile = getQueryAliasProfile(type);
     if (!profile) {
         return;
     }

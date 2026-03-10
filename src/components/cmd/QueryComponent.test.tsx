@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useQueriesMock = vi.fn();
 const listComponentMock = vi.fn(({ options }: { options: Array<{ value: string; label: string }> }) => (
-  <div data-testid="list-component">options:{options.map((option) => option.value || option.label).join(",")}</div>
+  <div data-testid="list-component">options:{options.map((option) => `${option.label}|${option.value}`).join(",")}</div>
 ));
 
 vi.mock("@tanstack/react-query", () => ({
@@ -55,8 +55,48 @@ describe("CompositeQueryComponent", () => {
     );
 
     expect(screen.getByRole("status").textContent).toContain("TaxBracket: TaxBracket requires a guild. Please select a guild.");
-    expect(screen.getByTestId("list-component").textContent).toContain("options:189573");
+    expect(screen.getByTestId("list-component").textContent).toContain("options:nation:Borg|nation:189573");
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("prefixes composite options so overlapping source values stay distinct", () => {
+    useQueriesMock.mockReturnValue([
+      {
+        isLoading: false,
+        error: null,
+        data: {
+          data: makeWebOptions([{ label: "Borg", value: "7" }]),
+        },
+      },
+      {
+        isLoading: false,
+        error: null,
+        data: {
+          data: makeWebOptions([{ label: "Borg", value: "7" }]),
+        },
+      },
+      {
+        isLoading: false,
+        error: null,
+        data: {
+          data: makeWebOptions([{ label: "Borg", value: "7" }]),
+        },
+      },
+    ]);
+
+    render(
+      <CompositeQueryComponent
+        composites={["DBNation", "DBAlliance", "GuildDB"]}
+        multi={false}
+        argName="target"
+        initialValue=""
+        setOutputValue={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("list-component").textContent).toContain("nation:Borg|nation:7");
+    expect(screen.getByTestId("list-component").textContent).toContain("AA:Borg|AA:7");
+    expect(screen.getByTestId("list-component").textContent).toContain("guild:Borg|guild:7");
   });
 
   it("fails hard when every composite source fails", () => {
@@ -106,7 +146,7 @@ describe("CompositeQueryComponent", () => {
       />,
     );
 
-    expect(screen.getByTestId("list-component").textContent).toContain("options:189573");
+    expect(screen.getByTestId("list-component").textContent).toContain("options:Borg|189573");
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
   });

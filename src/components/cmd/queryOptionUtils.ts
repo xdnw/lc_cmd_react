@@ -3,6 +3,7 @@ import type { WebError, WebOptions } from "@/lib/apitypes";
 import {
     buildQuerySelectOptions,
     getQueryOptionCount,
+    toCompositeCanonicalOption,
 } from "./queryOptionDataset";
 import type { SelectOption } from "./selectValueUtils";
 
@@ -75,13 +76,23 @@ export function toCompositeSourceResult(type: string, query: CompositeQueryState
 export function combineCompositeSourceResults(results: CompositeSourceResult[]): CombinedCompositeResult {
     const errors: string[] = [];
     const options: SelectOption[] = [];
+    const shouldCanonicalize = results.length > 1;
 
     results.forEach((result) => {
         if (result.error) {
             errors.push(result.type ? `${result.type}: ${result.error}` : result.error);
             return;
         }
-        options.push(...result.options);
+        options.push(...result.options.map((option) => {
+            if (!shouldCanonicalize) {
+                return option;
+            }
+
+            return {
+                ...option,
+                ...toCompositeCanonicalOption(result.type, option),
+            };
+        }));
     });
 
     if (options.length === 0) {

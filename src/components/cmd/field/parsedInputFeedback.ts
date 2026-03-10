@@ -25,17 +25,22 @@ export function rejectedParsedInput<T>(value: T, error: string): ParsedInputResu
     };
 }
 
+function normalizeParsedInputText(value: string | null | undefined): string {
+    return typeof value === "string" ? value : "";
+}
+
 export function useParsedInputFeedback<T>(
-    initialValue: string,
+    initialValue: string | null | undefined,
     parseInitial: (input: string) => ParsedInputResult<T>,
 ) {
-    const initialResult = useMemo(() => parseInitial(initialValue), [initialValue, parseInitial]);
+    const normalizedInitialValue = useMemo(() => normalizeParsedInputText(initialValue), [initialValue]);
+    const initialResult = useMemo(() => parseInitial(normalizedInitialValue), [normalizedInitialValue, parseInitial]);
     const initialError = useMemo(() => {
-        if (!initialValue.trim() || !initialResult.error) {
+        if (!normalizedInitialValue.trim() || !initialResult.error) {
             return "";
         }
         return initialResult.error;
-    }, [initialResult.error, initialValue]);
+    }, [initialResult.error, normalizedInitialValue]);
 
     const [parseError, setParseErrorState] = useSyncedState(initialError);
 
@@ -78,7 +83,7 @@ export function handleParsedInputPaste<T>(
         onAccept: (value: T) => void;
     },
 ): boolean {
-    const pastedText = getPastedText(event);
+    const pastedText = normalizeParsedInputText(getPastedText(event));
     if (!pastedText.trim()) {
         return false;
     }

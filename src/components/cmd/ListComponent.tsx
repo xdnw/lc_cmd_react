@@ -126,7 +126,7 @@ export function ListComponentOptions({ options, argName, isMulti, initialValue, 
 // Main List Component
 // ----------------------------------------------------------------------
 
-export default function ListComponent({ argName, options, isMulti, initialValue, setOutputValue, onSearchValueChange, optionsArePrefiltered = false, loadingOptions = false }: {
+export default function ListComponent({ argName, options, isMulti, initialValue, setOutputValue, onSearchValueChange, optionsArePrefiltered = false, loadingOptions = false, emptyMessage }: {
     argName: string;
     options: SelectOption[];
     isMulti: boolean;
@@ -135,6 +135,7 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
     onSearchValueChange?: (value: string) => void;
     optionsArePrefiltered?: boolean;
     loadingOptions?: boolean;
+    emptyMessage?: string;
 }) {
     const { showDialog } = useDialog();
 
@@ -458,7 +459,7 @@ export default function ListComponent({ argName, options, isMulti, initialValue,
                     ) : loadingOptions ? (
                         <div className="p-4 flex justify-center"><Loading /></div>
                     ) : filteredOptions.length === 0 ? (
-                        <div className="p-3 text-center text-xs text-muted-foreground">No matching options.</div>
+                        <div className="p-3 text-center text-xs text-muted-foreground">{emptyMessage ?? "No matching options."}</div>
                     ) : (
                         <Virtuoso
                             ref={virtuosoRef}

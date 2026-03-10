@@ -11,6 +11,8 @@ import {
     combineCompositeSourceResults,
     getQueryOptionCount,
     resolveQueryOptionsPayload,
+    shouldSearchDeferredQueryOptions,
+    shouldUseDeferredQueryOptionsPayload,
     toCompositeSourceResult,
 } from "./queryOptionUtils";
 import { ensureQueryOptionDatasetFromPayload, searchQueryOptionDataset } from "./queryOptionWorkerClient";
@@ -111,6 +113,10 @@ function QueryNotice({ tone, message }: { tone: QueryNoticeTone; message: string
             {message}
         </div>
     );
+}
+
+function formatDeferredSearchPrompt(optionCount: number): string {
+    return `Type at least 1 character to search ${optionCount.toLocaleString()} options.`;
 }
 
 export default function QueryComponent(
@@ -269,6 +275,7 @@ function DeferredCompositeQueryOptionsList({
     const [combinedResult, setCombinedResult] = useState(() => combineCompositeSourceResults([]));
     const sourceErrors = useMemo(() => sources.flatMap((source) => source.error ? [`${source.type}: ${source.error}`] : []), [sources]);
     const hasUsableSource = useMemo(() => sources.some((source) => !source.error && source.optionCount > 0), [sources]);
+    const totalOptionCount = useMemo(() => sources.reduce((sum, source) => sum + source.optionCount, 0), [sources]);
     const blockingError = useMemo(() => {
         if (hasUsableSource || sourceErrors.length === 0) {
             return undefined;
@@ -278,6 +285,13 @@ function DeferredCompositeQueryOptionsList({
     const backgroundWarning = useMemo(() => {
         return hasUsableSource && sourceErrors.length > 0 ? sourceErrors.join(" | ") : undefined;
     }, [hasUsableSource, sourceErrors]);
+    const emptyMessage = useMemo(() => {
+        if (shouldSearchDeferredQueryOptions(searchValue, totalOptionCount)) {
+            return undefined;
+        }
+
+        return formatDeferredSearchPrompt(totalOptionCount);
+    }, [searchValue, totalOptionCount]);
 
     const warmDatasets = useCallback(() => warmCompositeDatasets(sources), [sources]);
 
@@ -301,6 +315,12 @@ function DeferredCompositeQueryOptionsList({
         setLoading(true);
         setError(null);
 
+        if (!shouldSearchDeferredQueryOptions(searchValue, totalOptionCount)) {
+            setCombinedResult(combineCompositeSourceResults([]));
+            setLoading(false);
+            return;
+        }
+
         void searchCompositeDatasets(sources, searchValue)
             .then((results) => {
                 if (requestVersionRef.current !== currentVersion) {
@@ -319,7 +339,7 @@ function DeferredCompositeQueryOptionsList({
                 setError(nextError instanceof Error ? nextError.message : String(nextError));
                 setLoading(false);
             });
-    }, [isActivated, searchValue, sources]);
+    }, [isActivated, searchValue, sources, totalOptionCount]);
 
     useEffect(() => {
         if (loading || !focusAfterLoadRef.current) {
@@ -379,10 +399,6 @@ function DeferredCompositeQueryOptionsList({
         if (combinedResult.blockingError) {
             return <EmptyQueryOptions element="composite query" message={combinedResult.blockingError} />;
         }
-
-        if (combinedResult.options.length === 0) {
-            return <EmptyQueryOptions element="composite query" />;
-        }
     }
 
     return (
@@ -400,6 +416,7 @@ function DeferredCompositeQueryOptionsList({
                         onSearchValueChange={handleSearchValueChange}
                         optionsArePrefiltered
                         loadingOptions={loading}
+                        emptyMessage={emptyMessage}
                     />
                 </div>
             ) : (
@@ -442,8 +459,7 @@ function SingleQueryOptionsComponent(
 
     const payload = query.data?.data;
     const payloadError = getSourceError(payload);
-    const optionCount = getQueryOptionCount(payload);
-    const shouldUseDeferredWorker = !initialValue && optionCount >= ASYNC_QUERY_OPTION_THRESHOLD;
+    const shouldUseDeferredWorker = !initialValue && shouldUseDeferredQueryOptionsPayload(payload);
 
     if (query.error) {
         return <EmptyQueryOptions element={element} message={query.error instanceof Error ? query.error.message : String(query.error)} />;
@@ -508,6 +524,14 @@ function DeferredQueryOptionsList({
     const [loading, setLoading] = useState(Boolean(preloadOptions));
     const [error, setError] = useState<string | null>(null);
     const [options, setOptions] = useState<SelectOption[]>([]);
+    const optionCount = useMemo(() => getQueryOptionCount(payload), [payload]);
+    const emptyMessage = useMemo(() => {
+        if (shouldSearchDeferredQueryOptions(searchValue, optionCount)) {
+            return undefined;
+        }
+
+        return formatDeferredSearchPrompt(optionCount);
+    }, [optionCount, searchValue]);
 
     const warmDataset = useCallback(() => ensureQueryOptionDatasetFromPayload(datasetId, element, payload), [datasetId, element, payload]);
 
@@ -531,6 +555,12 @@ function DeferredQueryOptionsList({
         setLoading(true);
         setError(null);
 
+        if (!shouldSearchDeferredQueryOptions(searchValue, optionCount)) {
+            setOptions([]);
+            setLoading(false);
+            return;
+        }
+
         warmDataset()
             .then(() => searchQueryOptionDataset(datasetId, searchValue))
             .then((result) => {
@@ -547,7 +577,7 @@ function DeferredQueryOptionsList({
                 setError(nextError instanceof Error ? nextError.message : String(nextError));
                 setLoading(false);
             });
-    }, [datasetId, isActivated, searchValue, warmDataset]);
+    }, [datasetId, isActivated, optionCount, searchValue, warmDataset]);
 
     useEffect(() => {
         if (loading || !focusAfterLoadRef.current) {
@@ -611,6 +641,7 @@ function DeferredQueryOptionsList({
                     onSearchValueChange={handleSearchValueChange}
                     optionsArePrefiltered
                     loadingOptions={loading}
+                    emptyMessage={emptyMessage}
                 />
             ) : (
                 <div className="flex min-h-8 items-center rounded-md border border-dashed border-border/70 bg-muted/15 px-2 py-1.5 text-[11px] text-muted-foreground">

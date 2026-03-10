@@ -328,6 +328,43 @@ describe("PlaceholderExpressionInput", () => {
     expect(screen.getByRole("button", { name: /Nation 119/i })).toBeTruthy();
   });
 
+  it("shows the lazy search prompt immediately for very large query-backed sources", async () => {
+    mockExpressionSources({
+      "placeholder:DBNation": {
+        status: "ready",
+        sourceKind: "placeholder",
+        typeLabel: "Nation",
+        options: [],
+      },
+      "query:DBNation": {
+        status: "ready",
+        sourceKind: "query-options",
+        typeLabel: "Nation",
+        options: [],
+        optionCount: 14988,
+        workerDatasetId: "query:DBNation",
+      },
+    });
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="nation:"
+        setOutputValue={vi.fn()}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    const textarea = screen.getByRole("textbox", { name: "" }) as HTMLTextAreaElement;
+    await act(async () => {
+      fireEvent.focus(textarea);
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      fireEvent.select(textarea);
+    });
+
+    expect(screen.getByText(/Type at least 1 characters to search 14,988 options\./i)).toBeTruthy();
+  });
+
   it("shows explicit invalid selector feedback instead of a generic valid hint", async () => {
     mockExpressionSources({
       "placeholder:DBNation": {

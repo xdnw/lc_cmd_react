@@ -12,6 +12,8 @@ export type QueryOptionsResolution = {
     error?: string;
 };
 
+const resolvedPayloadCache = new WeakMap<object, Map<string, QueryOptionsResolution>>();
+
 export type CompositeSourceResult = {
     type: string;
     options: SelectOption[];
@@ -44,7 +46,37 @@ export function resolveQueryOptionsPayload(type: string, payload: WebOptions | W
         return { options: [], error: `Invalid input_options payload for ${type || "query"}` };
     }
 
-    return { options: buildQuerySelectOptions(type, payload as WebOptions) };
+    const cachedByType = resolvedPayloadCache.get(payload);
+    const cached = cachedByType?.get(type);
+    if (cached) {
+        return cached;
+    }
+
+    const resolved = { options: buildQuerySelectOptions(type, payload as WebOptions) };
+    const nextCachedByType = cachedByType ?? new Map<string, QueryOptionsResolution>();
+    nextCachedByType.set(type, resolved);
+    if (!cachedByType) {
+        resolvedPayloadCache.set(payload, nextCachedByType);
+    }
+
+    return resolved;
+}
+
+export function shouldUseDeferredQueryOptionsPayload(payload: WebOptions | WebError | unknown): boolean {
+    return Boolean(
+        payload
+        && typeof payload === "object"
+        && !extractBackendError(payload)
+        && getQueryOptionCount(payload) >= ASYNC_QUERY_OPTION_THRESHOLD,
+    );
+}
+
+export function shouldSearchDeferredQueryOptions(token: string, optionCount: number): boolean {
+    if (optionCount < ASYNC_QUERY_OPTION_THRESHOLD) {
+        return true;
+    }
+
+    return token.trim().length >= ASYNC_QUERY_OPTION_MIN_QUERY_LENGTH;
 }
 
 export function toCompositeSourceResult(type: string, query: CompositeQueryState): CompositeSourceResult {

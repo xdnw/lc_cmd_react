@@ -6,7 +6,6 @@ import type { TypeBreakdown } from "@/utils/Command";
 import {
     analyzeParsedExpression,
     getFirstLazyOptionSuggestion,
-    isLazyOptionSourceReady,
     parseExpressionCursorContext,
     type ExpressionAnalysis,
     type ExpressionSuggestion,
@@ -242,9 +241,7 @@ export default function PlaceholderExpressionInput({
     }, []);
 
     const showSuggestionPanel = shouldAnalyze && hasFocusWithin && (
-        analysis.lazyOptionSource
-            ? isLazyOptionSourceReady(analysis.lazyOptionSource)
-            : analysis.suggestions.length > 0
+        analysis.lazyOptionSource != null || analysis.suggestions.length > 0
     );
 
     return (

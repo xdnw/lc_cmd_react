@@ -2051,6 +2051,10 @@ function validateOptionToken(
             return null;
         }
 
+        if (entry.options.length === 0 && entry.hasAnyMatch == null && entry.hasExactMatch == null) {
+            return null;
+        }
+
         if (entry.hasAnyMatch || suggestions.length > 0) {
             return null;
         }

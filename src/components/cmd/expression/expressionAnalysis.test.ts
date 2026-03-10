@@ -70,6 +70,41 @@ describe("expressionAnalysis", () => {
         expect(analysis.hint?.detail).toContain("Type to match Nation options");
     });
 
+    it("prefers query subtext over repeated label detail for backend-backed options", () => {
+        const optionSource = getExpressionCompletionSourceRefs("DBNation").find((source) => source.kind === "query-options");
+        expect(optionSource).toBeDefined();
+
+        const analysis = analyzeWithRegistry(
+            "Set<DBNation>",
+            "nation:Bo",
+            "nation:Bo".length,
+            {
+                [optionSource!.cacheKey]: {
+                    status: "ready",
+                    sourceKind: "query-options",
+                    typeLabel: "Nation",
+                    options: [
+                        { label: "Borg", value: "7", subtext: "Leader: Alex | Alliance: Rose" },
+                    ],
+                },
+                "placeholder:DBNation": {
+                    status: "ready",
+                    sourceKind: "placeholder",
+                    typeLabel: "Nation",
+                    options: [],
+                },
+            },
+        );
+
+        expect(analysis.suggestions).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                label: "Borg",
+                detail: undefined,
+                subtext: "Leader: Alex | Alliance: Rose",
+            }),
+        ]));
+    });
+
     it("uses backend option sources for bare root tokens that are not partial selectors", () => {
         const descriptor = getPlaceholderExpressionDescriptor(getTypeBreakdown(CM, "Set<DBNation>"));
         expect(descriptor).not.toBeNull();

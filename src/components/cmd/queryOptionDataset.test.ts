@@ -31,6 +31,18 @@ describe("queryOptionDataset", () => {
         expect(options[0].aliases).toContain("Leader");
     });
 
+    it("strips a repeated label prefix from query subtext at dataset build time", () => {
+        const options = buildQuerySelectOptions("DBNation", {
+            text: ["Borg"],
+            key_string: ["7"],
+            subtext: ["Borg | Leader: Alex | Alliance: Rose"],
+        });
+
+        expect(options[0].subtext).toBe("Leader: Alex | Alliance: Rose");
+        expect(options[0].aliases).toContain("Leader: Alex");
+        expect(options[0].aliases).toContain("Alliance: Rose");
+    });
+
     it("derives composite canonical prefixes from the shared query profiles", () => {
         expect(getCanonicalQueryPrefix("DBNation")).toBe("nation:");
         expect(getCanonicalQueryPrefix("DBAlliance")).toBe("AA:");

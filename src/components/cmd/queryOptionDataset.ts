@@ -98,6 +98,32 @@ function splitStructuredSegments(value: string | undefined): string[] {
         .filter(Boolean);
 }
 
+function stripRepeatedLabelPrefix(label: string, subtext: string | undefined): string | undefined {
+    if (!subtext) {
+        return undefined;
+    }
+
+    const normalizedLabel = label.trim().toLowerCase();
+    const normalizedSubtext = subtext.trim();
+    if (!normalizedLabel || !normalizedSubtext) {
+        return normalizedSubtext || undefined;
+    }
+
+    const lowerSubtext = normalizedSubtext.toLowerCase();
+    if (lowerSubtext === normalizedLabel) {
+        return undefined;
+    }
+
+    for (const separator of [" | ", " - ", ": ", " / "]) {
+        const repeatedPrefix = `${normalizedLabel}${separator}`;
+        if (lowerSubtext.startsWith(repeatedPrefix)) {
+            return normalizedSubtext.slice(repeatedPrefix.length).trim() || undefined;
+        }
+    }
+
+    return normalizedSubtext;
+}
+
 function stripPrefixes(value: string, prefixes: string[] | undefined): string[] {
     if (!value) {
         return [];
@@ -218,7 +244,7 @@ function buildRows(options: WebOptions): QueryOptionRow[] {
             stringKey,
             numericKey,
             label,
-            subtext: normalizeField(options.subtext?.[index]),
+            subtext: stripRepeatedLabelPrefix(label, normalizeField(options.subtext?.[index])),
             color: normalizeField(options.color?.[index]),
             icon: normalizeField(options.icon?.[index]),
         } satisfies QueryOptionRow;

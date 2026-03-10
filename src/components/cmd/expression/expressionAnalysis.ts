@@ -1742,12 +1742,15 @@ function materializeOptionSuggestion(
     needsClosingBrace?: boolean,
 ): ExpressionSuggestion {
     const insertText = `${insertPrefix}${option.value}${needsClosingBrace ? "}" : ""}`;
+    const valueDetail = insertPrefix ? `${insertPrefix}${option.value}` : option.value;
+    const detail = option.label === option.value
+        ? (insertPrefix ? valueDetail : undefined)
+        : (option.subtext ? undefined : valueDetail);
+
     return {
         label: `${labelPrefix}${option.label || option.value}`,
         insertText,
-        detail: option.label === option.value
-            ? (insertPrefix ? `${insertPrefix}${option.value}` : undefined)
-            : `${option.label} [${insertPrefix}${option.value}]`,
+        detail,
         subtext: option.subtext,
         replaceFrom,
         replaceTo,

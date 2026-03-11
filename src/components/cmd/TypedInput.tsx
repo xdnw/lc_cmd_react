@@ -32,6 +32,7 @@ interface TypedInputProps {
     placeholder: keyof typeof COMMANDS.placeholders;
     type: string;
     compact?: boolean;
+    inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
     fieldState?: CommandFieldState;
     setFieldState?: (updater: CommandFieldStateUpdater) => void;
     setOutputValue: (name: string, value: string) => void;
@@ -45,6 +46,7 @@ export default function TypedInput({
     placeholder,
     type,
     compact,
+    inputProps,
     fieldState,
     setFieldState,
     setOutputValue,
@@ -84,6 +86,7 @@ export default function TypedInput({
                 onChange={handleInputChange}
                 filter={filter}
                 compact={compact}
+                inputProps={inputProps}
             />
             <FieldMessage error={validation.error} note={validation.note} compact={compact} />
             <OptionsSelector
@@ -104,10 +107,11 @@ interface InputFieldProps {
     validText: string;
     filter?: string;
     compact?: boolean;
+    inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
     onChange: React.ChangeEventHandler<HTMLInputElement>;
 }
 
-function InputField({ value, isValid, onChange, filter, compact }: InputFieldProps) {
+function InputField({ value, isValid, onChange, filter, compact, inputProps }: InputFieldProps) {
     const inputClass = useMemo(
         () => cn(!isValid ? "border-destructive" : "", compact ? "h-6.5 px-2 text-xs" : "h-7"),
         [isValid, compact]
@@ -122,6 +126,7 @@ function InputField({ value, isValid, onChange, filter, compact }: InputFieldPro
                 className={inputClass}
                 pattern={filter ? filter : ".*"}
                 placeholder="Expression or token"
+                {...inputProps}
             />
         </div>
     );

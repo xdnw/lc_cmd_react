@@ -14,7 +14,7 @@
  *
 
  */
-import { useDebounce, useDebouncedCallback } from 'use-debounce';
+import { useDebounce } from 'use-debounce';
 import { Virtuoso } from 'react-virtuoso';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Button } from "../../components/ui/button";
@@ -34,6 +34,7 @@ import LazyIcon from '@/components/ui/LazyIcon';
 import { OrderIdx } from './DataTable';
 import { deepEqual } from '@/lib/utils';
 import ArgInput from '@/components/cmd/ArgInput';
+import TypedInput from '@/components/cmd/TypedInput';
 import type { ShowDialogFn } from '@/lib/dialog';
 
 export interface PlaceholderTabsHandle {
@@ -204,11 +205,6 @@ export function ColumnsSection({
         setColTemplates(Object.keys(DEFAULT_TABS[type]?.columns ?? {}));
     }, [type, setColTemplates]);
 
-    // Refs for DOM elements
-    const addButton = useRef<HTMLButtonElement | null>(null);
-    const colInputRef = useRef<HTMLInputElement | null>(null);
-
-
     // Move a column in the column list
     const moveColumn = useCallback((from: number, to: number) => {
         console.log("Moving column from", from, "to", to);
@@ -262,32 +258,38 @@ export function ColumnsSection({
 
     // Handle keyboard input for column alias editing
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
-        if (event.key.length === 1 || event.key === "Backspace") {
-            const element = document.activeElement as HTMLElement;
-            const id = element.id.startsWith("btn-") ? element.id.split("-")[1] : "";
-            if (!id) return;
-
-            const span = element.querySelector("span") as HTMLElement;
-            const key = event.key;
-            const currentValue = columns.get(id) || "";
-
-            const newColumns = new Map(columns);
-
-            if (key === "Backspace") {
-                const newValue = currentValue.slice(0, -1);
-                newColumns.set(id, newValue || null);
-                span.firstChild!.textContent = newValue.trim() ? `\u00A0as ${newValue}` : "​";
-            } else {
-                if (event.key === " ") {
-                    event.preventDefault();
-                }
-                const newValue = currentValue.trim() + key;
-                newColumns.set(id, newValue);
-                span.firstChild!.textContent = `\u00A0as ${newValue}`;
-            }
-
-            setColumns(newColumns);
+        if (event.ctrlKey || event.metaKey || event.altKey) {
+            return;
         }
+
+        if (event.key.length !== 1 && event.key !== "Backspace") {
+            return;
+        }
+
+        const element = document.activeElement;
+        if (!(element instanceof HTMLButtonElement)) {
+            return;
+        }
+
+        const columnKey = element.dataset.column;
+        if (!columnKey) {
+            return;
+        }
+
+        const currentValue = columns.get(columnKey) ?? "";
+        const newColumns = new Map(columns);
+
+        if (event.key === "Backspace") {
+            const newValue = currentValue.slice(0, -1);
+            newColumns.set(columnKey, newValue || null);
+        } else {
+            if (event.key === " ") {
+                event.preventDefault();
+            }
+            newColumns.set(columnKey, `${currentValue}${event.key}`);
+        }
+
+        setColumns(newColumns);
     }, [columns, setColumns]);
 
     // Add keyboard event listeners
@@ -299,18 +301,14 @@ export function ColumnsSection({
     }, [handleKeyDown]);
 
     // Handle adding a new column
-    const handleAddColumn = useCallback(() => {
-        const elem = colInputRef.current;
-        if (!elem) return;
-
-        const value = elem.value;
+    const handleAddColumn = useCallback((value: string) => {
         if (value === "") {
             showDialog("Column name cannot be empty", "Please enter a column name before adding");
             return;
         }
 
-        // Split by tab for multiple columns
-        const values = value.split("\t");
+        // Accept the legacy tab format and pasted newline-separated values.
+        const values = value.split(/[\t\r\n]+/);
         const errors = [];
         const newColumns = new Map(columns);
 
@@ -331,8 +329,6 @@ export function ColumnsSection({
 
             newColumns.set(columnKey, aliasSplit[1] || null);
         }
-
-        elem.value = "";
         if (errors.length > 0) {
             showDialog("Errors adding columns", errors.join("\n"));
         }
@@ -519,8 +515,6 @@ export function ColumnsSection({
                 />
 
                 <AddCustomColumn
-                    colInputRef={colInputRef}
-                    addButton={addButton}
                     handleAddColumn={handleAddColumn}
                     type={type}
                 />
@@ -669,62 +663,50 @@ function ColumnList({
     );
 }
 
-function AddCustomColumn({ colInputRef, addButton, handleAddColumn, type }: {
-    colInputRef: React.RefObject<HTMLInputElement | null>,
-    addButton: React.RefObject<HTMLButtonElement | null>,
-    handleAddColumn: () => void,
+function AddCustomColumn({ handleAddColumn, type }: {
+    handleAddColumn: (value: string) => void,
     type: keyof typeof COMMANDS.placeholders
 }) {
     const [inputValue, setInputValue] = useState("");
-    // Cache the latest input value to use in our onKeyDown handler without making it a dependency
-    const inputValueRef = useRef(inputValue);
-    useEffect(() => {
-        inputValueRef.current = inputValue;
-    }, [inputValue]);
 
-    // onKeyDown uses the ref so it does not have to update whenever inputValue changes.
-    const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    const commitInputValue = useCallback((_: string, value: string) => {
+        setInputValue(value);
+    }, []);
+
+    const handleTypedInputKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === "Enter") {
             event.preventDefault();
-            if (inputValueRef.current) {
-                handleAddColumn();
+            const liveValue = event.currentTarget.value;
+            if (liveValue.trim()) {
+                handleAddColumn(liveValue);
                 setInputValue("");
             }
         } else if (event.key === "Tab") {
             event.preventDefault();
-            const input = colInputRef.current;
-            if (input) {
-                const start = input.selectionStart;
-                const end = input.selectionEnd;
-                if (start !== null && end !== null) {
-                    // Use the ref value so onKeyDown does not depend on inputValue
-                    const currentValue = inputValueRef.current;
-                    const newValue = currentValue.slice(0, start) + "\t" + currentValue.slice(end);
-                    setInputValue(newValue);
-                    // Set the cursor position after state update on a new tick
-                    setTimeout(() => {
-                        input.setSelectionRange(start + 1, start + 1);
-                    }, 0);
-                }
+            const input = event.currentTarget;
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            if (start !== null && end !== null) {
+                const currentValue = input.value;
+                const newValue = currentValue.slice(0, start) + "\t" + currentValue.slice(end);
+                setInputValue(newValue);
+                setTimeout(() => {
+                    input.setSelectionRange(start + 1, start + 1);
+                }, 0);
             }
         }
-    }, [colInputRef, handleAddColumn]);
+    }, [handleAddColumn]);
 
-    const onChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setInputValue(e.target.value);
-    }, []);
-
-    const onPaste = useCallback((event: React.ClipboardEvent<HTMLInputElement>) => {
+    const handleTypedInputPaste = useCallback((event: React.ClipboardEvent<HTMLInputElement>) => {
         event.preventDefault();
-        const input = event.currentTarget;
         const text = event.clipboardData.getData('text');
         const sanitizedText = text.replace(/\r?\n|\r/g, '\t');
+        const input = event.currentTarget;
         const start = input.selectionStart ?? input.value.length;
         const end = input.selectionEnd ?? start;
         const newValue = input.value.slice(0, start) + sanitizedText + input.value.slice(end);
         setInputValue(newValue);
 
-        // Restore caret position after React applies the controlled value update.
         requestAnimationFrame(() => {
             input.setSelectionRange(start + sanitizedText.length, start + sanitizedText.length);
         });
@@ -735,48 +717,47 @@ function AddCustomColumn({ colInputRef, addButton, handleAddColumn, type }: {
         <>
             <h2 className="text-sm font-semibold mt-0.5 mb-0 p-0">Add Custom</h2>
             <span className="text-[10px] opacity-50 leading-tight">
-                type or paste in the placeholder, then press Enter | Use tab for multiple |
+                type or paste in the placeholder, then press Enter or click Add | Use tab for multiple |
                 Use semicolon ;BLAH for column alias
             </span>
         </>
     ), []);
 
-    // Memoize the input area so it only recomputes when its dependencies change.
-    // Separate memoization of the input field.
     const inputField = useMemo(() => (
-        <Input
-            type="text"
-            className="relative px-1 grow"
-            placeholder="Custom column placeholders..."
-            ref={colInputRef}
-            onPaste={onPaste}
-            onKeyDown={onKeyDown}
-            onChange={onChange}
-            value={inputValue}
-        />
-    ), [inputValue, colInputRef, onPaste, onKeyDown, onChange]);
+        <div className="grow">
+            <TypedInput
+                argName="column"
+                initialValue={inputValue}
+                placeholder={type}
+                type="String"
+                setOutputValue={commitInputValue}
+                compact
+                inputProps={{
+                    onKeyDown: handleTypedInputKeyDown,
+                    onPaste: handleTypedInputPaste,
+                }}
+            />
+        </div>
+    ), [commitInputValue, handleTypedInputKeyDown, handleTypedInputPaste, inputValue, type]);
 
-    // In AddCustomColumn component, add:
     const handleAddClick = useCallback(() => {
-        if (inputValue) {
-            handleAddColumn();
+        if (inputValue.trim()) {
+            handleAddColumn(inputValue);
             setInputValue("");
         }
-    }, [inputValue, handleAddColumn]);
-    // Replace inline onClick in addButtonComponent:
+    }, [handleAddColumn, inputValue]);
+
     const addButtonComponent = useMemo(() => (
         <Button
             variant="destructive"
-            ref={addButton}
             size="sm"
-            className="ml-2"
+            className="ml-2 self-start"
             onClick={handleAddClick}
         >Add</Button>
-    ), [addButton, handleAddClick]);
+    ), [handleAddClick]);
 
-    // Combine the two memoized components.
     const inputArea = useMemo(() => (
-        <div className="flex w-full">
+        <div className="flex w-full items-start">
             {inputField}
             {addButtonComponent}
         </div>
@@ -980,28 +961,16 @@ export function SelectionSection({
     selectedTab: keyof typeof COMMANDS.placeholders,
 }) {
     const [collapsed, setCollapsed] = useState(false);
-    const [selInputValue, setSelInputValue] = useState(selection[""]);
+    const selectionValue = selection[""] ?? "";
     const selTemplates = useMemo(() => Object.keys(DEFAULT_TABS[type]?.selections ?? {}), [type]);
-
-    // Update local input value when selection changes from parent
-    useEffect(() => {
-        setSelInputValue(f => f !== selection[""] ? selection[""] : f);
-    }, [selection, setSelInputValue]);
-
-    // Create a debounced version of the selection update
-    const debouncedSetSelection = useDebouncedCallback(
-        (newValue: string) => {
-            setSelection({ ...selection, "": newValue });
-        },
-        150 // 150ms debounce
+    const breakdown = useMemo(
+        () => getTypeBreakdown(CM, `Set<${type}>`),
+        [type]
     );
 
-    // Update the handler to call both functions
-    const handleSelectionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        setSelInputValue(newValue); // Update local state immediately for responsive UI
-        debouncedSetSelection(newValue); // Debounce the parent update
-    }, [debouncedSetSelection]);
+    const handleSelectionChange = useCallback((_: string, newValue: string) => {
+        setSelection({ ...selection, "": newValue });
+    }, [selection, setSelection]);
 
     const toggleCollapse = useCallback(() => {
         setCollapsed(f => !f);
@@ -1024,7 +993,6 @@ export function SelectionSection({
         const templateName = e.currentTarget.dataset.key;
         if (!templateName) return;
         const templateValue = DEFAULT_TABS[type]?.selections[templateName] || "*";
-        setSelInputValue(templateValue);
         setSelection({ ...selection, "": templateValue });
     }, [type, selection, setSelection]);
 
@@ -1046,18 +1014,23 @@ export function SelectionSection({
         </>
     ), [selTemplates, selectTemplate]);
 
-    const getSelectionText = useCallback(() => selInputValue, [selInputValue]);
+    const getSelectionText = useCallback(() => selectionValue, [selectionValue]);
 
     const inputSection = useMemo(() => (
         <>
             <h2 className="text-sm font-semibold mt-0.5">Current Selection</h2>
             <div className="flex items-center gap-1">
-                <Input
-                    className="relative px-1 w-full"
-                    type="text"
-                    value={selInputValue}
-                    onChange={handleSelectionChange}
-                />
+                <div className="w-full">
+                    <ArgInput
+                        argName="selection"
+                        breakdown={breakdown}
+                        min={undefined}
+                        max={undefined}
+                        initialValue={selectionValue}
+                        setOutputValue={handleSelectionChange}
+                        displayMode="focus-pane"
+                    />
+                </div>
                 <TooltipProvider>
                     <BlockCopyButton
                         getText={getSelectionText}
@@ -1067,7 +1040,7 @@ export function SelectionSection({
                 </TooltipProvider>
             </div>
         </>
-    ), [selInputValue, handleSelectionChange, getSelectionText]);
+    ), [breakdown, getSelectionText, handleSelectionChange, selectionValue]);
 
     const modifierComponent = useMemo(() => (
         CM.placeholders(type).getCreate() && (
@@ -1141,6 +1114,7 @@ export function ModifierComponent({
             filterArguments={alwaysTrue}
             initialValues={selection}
             setOutput={setOuput}
+            displayMode="focus-pane"
         />
     );
 }

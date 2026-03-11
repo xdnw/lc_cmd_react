@@ -1,5 +1,6 @@
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSyncedState } from "@/utils/StateUtil";
 import type { TypeBreakdown } from "@/utils/Command";
@@ -103,7 +104,7 @@ export default function PlaceholderExpressionInput({
     forceMountAll?: boolean;
 }) {
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+    const controlRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
     const descriptor = useMemo(() => getPlaceholderExpressionDescriptor(breakdown), [breakdown]);
     const [value, setValue] = useSyncedState(initialValue || "");
     const [cursor, setCursor] = useState((initialValue || "").length);
@@ -200,11 +201,19 @@ export default function PlaceholderExpressionInput({
         }
 
         pendingSelectionRef.current = null;
-        textareaRef.current?.focus();
-        textareaRef.current?.setSelectionRange(pendingSelection, pendingSelection);
+        controlRef.current?.focus();
+        controlRef.current?.setSelectionRange(pendingSelection, pendingSelection);
     }, [value]);
 
-    const handleChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const assignInputRef = useCallback((node: HTMLInputElement | null) => {
+        controlRef.current = node;
+    }, []);
+
+    const assignTextareaRef = useCallback((node: HTMLTextAreaElement | null) => {
+        controlRef.current = node;
+    }, []);
+
+    const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const nextValue = event.currentTarget.value;
         setValue(nextValue);
         startTransition(() => {
@@ -213,12 +222,12 @@ export default function PlaceholderExpressionInput({
         updateCursor(event.currentTarget.selectionStart ?? nextValue.length);
     }, [argName, setOutputValue, setValue, updateCursor]);
 
-    const syncCursor = useCallback((event: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    const syncCursor = useCallback((event: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const target = event.currentTarget;
         updateCursor(target.selectionStart ?? target.value.length);
     }, [updateCursor]);
 
-    const handleKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
+    const handleKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const firstSuggestion = analysis.suggestions[0] ?? getFirstLazyOptionSuggestion(analysis.lazyOptionSource);
         if ((event.key === "Tab" || (event.key === "Enter" && event.ctrlKey)) && firstSuggestion) {
             event.preventDefault();
@@ -251,22 +260,42 @@ export default function PlaceholderExpressionInput({
             onFocusCapture={handleFocusWithin}
             onBlurCapture={handleBlurWithin}
         >
-            <Textarea
-                ref={textareaRef}
-                value={value}
-                onChange={handleChange}
-                onKeyDown={handleKeyDown}
-                onClick={syncCursor}
-                onSelect={syncCursor}
-                spellCheck={false}
-                className={cn(
-                    "rounded-md bg-background font-mono text-xs leading-5",
-                    compact ? "min-h-16 px-2 py-1.5" : "min-h-24 px-2.5 py-2",
-                    (analysis.errors.length > 0 || sourceMessages.some((message) => message.kind === "error"))
-                        && "border-destructive focus-visible:ring-destructive/25",
-                )}
-                placeholder={placeholderText}
-            />
+            {compact ? (
+                <Input
+                    ref={assignInputRef}
+                    type="text"
+                    value={value}
+                    onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    onClick={syncCursor}
+                    onSelect={syncCursor}
+                    spellCheck={false}
+                    className={cn(
+                        "bg-background font-mono text-xs",
+                        "h-6.5 px-2",
+                        (analysis.errors.length > 0 || sourceMessages.some((message) => message.kind === "error"))
+                            && "border-destructive focus-visible:ring-destructive/25",
+                    )}
+                    placeholder={placeholderText}
+                />
+            ) : (
+                <Textarea
+                    ref={assignTextareaRef}
+                    value={value}
+                    onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    onClick={syncCursor}
+                    onSelect={syncCursor}
+                    spellCheck={false}
+                    className={cn(
+                        "rounded-md bg-background font-mono text-xs leading-5",
+                        "min-h-24 px-2.5 py-2",
+                        (analysis.errors.length > 0 || sourceMessages.some((message) => message.kind === "error"))
+                            && "border-destructive focus-visible:ring-destructive/25",
+                    )}
+                    placeholder={placeholderText}
+                />
+            )}
 
             {showSuggestionPanel && (
                 <PlaceholderSuggestionPanel

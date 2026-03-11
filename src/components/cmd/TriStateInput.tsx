@@ -1,8 +1,10 @@
 import { useSyncedState } from "@/utils/StateUtil";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
 import FieldMessage from "./field/FieldMessage";
+import { useSegmentedControlKeyboard, type SegmentedControlKeyBindings } from "./segmentedControl";
+import { COMMAND_LOCAL_PRINTABLE_KEYS_ATTR } from "./commandKeyboard";
 
 type TriStateValue = "-1" | "0" | "1";
 
@@ -62,14 +64,56 @@ export default function TriStateInput(
     const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue || "0", parseTriStateControlValue);
     const [value, setValue] = useSyncedState(initialResult.value);
     const normalizedValue: TriStateValue = value === "-1" || value === "1" ? value : "0";
+    const values = useMemo(() => TRI_STATE_OPTIONS.map((option) => option.value), []);
     const segmentClass = compact ? "h-6 min-w-10 px-1.5 text-[10px]" : "h-6 min-w-11 px-2 text-[11px]";
 
-    const handleButtonClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-        const nextValue = event.currentTarget.value as TriStateValue;
+    const selectValue = useCallback((nextValue: TriStateValue, focus = false) => {
         clearParseError();
         setValue(nextValue);
         setOutputValue(argName, nextValue);
     }, [argName, clearParseError, setOutputValue, setValue]);
+
+    const resolveKey = useCallback((key: string): SegmentedControlKeyBindings<TriStateValue> | null => {
+        switch (key) {
+            case "ArrowLeft":
+            case "ArrowUp":
+                return { selectPrevious: true };
+            case "ArrowRight":
+            case "ArrowDown":
+                return { selectNext: true };
+            case "Home":
+                return { selectFirst: true };
+            case "End":
+                return { selectLast: true };
+            case " ":
+            case "Spacebar": {
+                const currentIndex = values.indexOf(normalizedValue);
+                return { selectValue: values[(currentIndex + 1) % values.length] ?? "0" };
+            }
+            case "f":
+            case "F":
+            case "n":
+            case "N":
+                return { selectValue: "-1" };
+            case "a":
+            case "A":
+                return { selectValue: "0" };
+            case "t":
+            case "T":
+            case "y":
+            case "Y":
+                return { selectValue: "1" };
+            default:
+                return null;
+        }
+    }, [normalizedValue, values]);
+
+    const { registerButtonRef, handleOptionKeyDown } = useSegmentedControlKeyboard({
+        values,
+        value: normalizedValue,
+        onSelect: selectValue,
+        resolveKey,
+    });
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         handleParsedInputPaste(event, {
@@ -82,38 +126,46 @@ export default function TriStateInput(
         });
     }, [applyParsedResult, argName, setOutputValue, setValue]);
 
+    const renderedOptions = useMemo(() => {
+        return TRI_STATE_OPTIONS.map((option, index) => {
+            const isActive = normalizedValue === option.value;
+            return (
+                <button
+                    key={option.value}
+                    ref={(node) => registerButtonRef(index, node)}
+                    type="button"
+                    role="radio"
+                    aria-checked={isActive}
+                    aria-label={option.label}
+                    title={option.label}
+                    value={option.value}
+                    tabIndex={isActive ? 0 : -1}
+                    onClick={() => selectValue(option.value)}
+                    onKeyDown={handleOptionKeyDown}
+                    className={cn(
+                        "inline-flex items-center justify-center gap-1 rounded-sm leading-none transition-all duration-150",
+                        segmentClass,
+                        isActive
+                            ? `font-semibold ${option.activeClass}`
+                            : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
+                    )}
+                >
+                    {!compact && <span className="text-[10px]">{option.icon}</span>}
+                    <span>{option.label}</span>
+                </button>
+            );
+        });
+    }, [compact, handleOptionKeyDown, normalizedValue, registerButtonRef, segmentClass, selectValue]);
+
     return (
         <div className="space-y-1" onPasteCapture={handlePasteCapture}>
             <div
                 role="radiogroup"
                 aria-label={argName}
+                {...{ [COMMAND_LOCAL_PRINTABLE_KEYS_ATTR]: "t,y,a,f,n,space" }}
                 className="inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/25 p-0.5"
             >
-                {TRI_STATE_OPTIONS.map((option) => {
-                    const isActive = normalizedValue === option.value;
-                    return (
-                        <button
-                            key={option.value}
-                            type="button"
-                            role="radio"
-                            aria-checked={isActive}
-                            aria-label={option.label}
-                            title={option.label}
-                            value={option.value}
-                            onClick={handleButtonClick}
-                            className={cn(
-                                "inline-flex items-center justify-center gap-1 rounded-sm leading-none transition-all duration-150",
-                                segmentClass,
-                                isActive
-                                    ? `font-semibold ${option.activeClass}`
-                                    : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground"
-                            )}
-                        >
-                            {!compact && <span className="text-[10px]">{option.icon}</span>}
-                            <span>{option.label}</span>
-                        </button>
-                    );
-                })}
+                {renderedOptions}
             </div>
             <FieldMessage error={parseError} compact={compact} />
         </div>

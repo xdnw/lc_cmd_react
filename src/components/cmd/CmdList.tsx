@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Virtuoso } from "react-virtuoso";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { useDebounce } from "use-debounce";
 import { Filter, ListFilter } from "lucide-react";
 
@@ -22,6 +22,9 @@ import {
 import { cn } from "@/lib/utils";
 import { getCharFrequency, simpleSimilarity } from "@/utils/StringUtil";
 import type { BaseCommand } from "@/utils/Command";
+import { getSearchListKeyboardAction, getSearchListOptionId, useSearchListActiveNavigation } from "./searchListPrimitives";
+import { useCommandEscapeArming } from "./useCommandShellKeyboard";
+import { DIALOG_LOCAL_ESCAPE_ATTR } from "@/components/ui/dialog";
 
 type CmdListProps = {
     commands: BaseCommand[];
@@ -30,6 +33,7 @@ type CmdListProps = {
     initialState?: CmdBrowserState;
     onStateChange?: (state: CmdBrowserState) => void;
     onSelectCommand?: (command: BaseCommand) => void;
+    onRequestClose?: () => void;
     autoFocusSearch?: boolean;
     modalMode?: boolean;
     viewportHeight?: string | number;
@@ -65,10 +69,18 @@ function CommandListRow({
     command,
     prefix,
     onSelectCommand,
+    optionId,
+    isActive,
+    rowRef,
+    onMouseMove,
 }: {
     command: BaseCommand;
     prefix: string;
     onSelectCommand?: (command: BaseCommand) => void;
+    optionId: string;
+    isActive: boolean;
+    rowRef?: (node: HTMLElement | null) => void;
+    onMouseMove?: () => void;
 }) {
     const path = command.getPathString();
     const description = command.getDescShort();
@@ -99,8 +111,16 @@ function CommandListRow({
         return (
             <button
                 type="button"
+                ref={rowRef as React.Ref<HTMLButtonElement> | undefined}
                 onClick={() => onSelectCommand(command)}
-                className="w-full rounded-md border border-transparent bg-card/65 px-2.5 py-2 text-left transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                id={optionId}
+                role="option"
+                aria-selected={isActive}
+                onMouseMove={onMouseMove}
+                className={cn(
+                    "w-full rounded-md border border-transparent bg-card/65 px-2.5 py-2 text-left transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isActive && "border-border bg-card ring-1 ring-border/70",
+                )}
             >
                 {rowBody}
             </button>
@@ -109,8 +129,16 @@ function CommandListRow({
 
     return (
         <a
+            ref={rowRef as React.Ref<HTMLAnchorElement> | undefined}
             href={`#command/${path}`}
-            className="block rounded-md border border-transparent bg-card/65 px-2.5 py-2 no-underline transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            id={optionId}
+            role="option"
+            aria-selected={isActive}
+            onMouseMove={onMouseMove}
+            className={cn(
+                "block rounded-md border border-transparent bg-card/65 px-2.5 py-2 no-underline transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isActive && "border-border bg-card ring-1 ring-border/70",
+            )}
         >
             {rowBody}
         </a>
@@ -134,6 +162,7 @@ export default function CmdList({
     initialState,
     onStateChange,
     onSelectCommand,
+    onRequestClose,
     autoFocusSearch = true,
     modalMode = false,
     viewportHeight = "70vh",
@@ -146,6 +175,20 @@ export default function CmdList({
         return startingState.showFilters || countActiveCmdBrowserFilters(startingState) > 0;
     });
     const searchRef = useRef<HTMLInputElement>(null);
+    const virtuosoRef = useRef<VirtuosoHandle | null>(null);
+    const rowRefs = useRef(new Map<string, HTMLElement>());
+    const listboxId = useId();
+    const {
+        rootRef: shellRef,
+        escapeHint,
+        escapeArmedUntil,
+        clearEscapeArming: clearEscapeState,
+        triggerEscapeArmOrBack,
+    } = useCommandEscapeArming({
+        onRequestBack: onRequestClose,
+        backHint: modalMode ? "Press Esc again to close the launcher" : "Press Esc again to leave the command browser",
+        getReturnFocusTarget: () => searchRef.current,
+    });
 
     useEffect(() => {
         if (browserState.showFilters || countActiveCmdBrowserFilters(browserState) > 0) {
@@ -319,6 +362,43 @@ export default function CmdList({
 
     const tableCopy = useMemo(() => serializeTableCopy(filteredCommands, prefix), [filteredCommands, prefix]);
 
+    const focusSearchInput = useCallback(() => {
+        searchRef.current?.focus();
+        searchRef.current?.select();
+    }, []);
+
+    const getOptionId = useCallback((command: BaseCommand) => {
+        return getSearchListOptionId(listboxId, command.getPathString());
+    }, [listboxId]);
+
+    const scrollToCommandIndex = useCallback((index: number, align: "start" | "center" | "end") => {
+        virtuosoRef.current?.scrollToIndex({ index, align, behavior: "auto" });
+    }, []);
+
+    const {
+        activeIndex,
+        setActiveIndex,
+        moveActiveIndex,
+    } = useSearchListActiveNavigation({
+        itemCount: filteredCommands.length,
+        scrollToIndex: scrollToCommandIndex,
+    });
+
+    const activateCommandIndex = useCallback((index: number) => {
+        const command = filteredCommands[index];
+        if (!command) {
+            return;
+        }
+
+        clearEscapeState();
+        if (onSelectCommand) {
+            onSelectCommand(command);
+            return;
+        }
+
+        rowRefs.current.get(command.getPathString())?.click();
+    }, [clearEscapeState, filteredCommands, onSelectCommand]);
+
     const setQuery = useCallback((query: string) => {
         updateBrowserState((currentState) => ({
             ...currentState,
@@ -387,10 +467,9 @@ export default function CmdList({
     const clearSearch = useCallback(() => {
         setQuery("");
         requestAnimationFrame(() => {
-            searchRef.current?.focus();
-            searchRef.current?.select();
+            focusSearchInput();
         });
-    }, [setQuery]);
+    }, [focusSearchInput, setQuery]);
 
     const clearFilters = useCallback(() => {
         updateBrowserState((currentState) => ({
@@ -405,26 +484,69 @@ export default function CmdList({
             showFilters: currentState.showFilters,
         }));
         requestAnimationFrame(() => {
-            searchRef.current?.focus();
-            searchRef.current?.select();
+            focusSearchInput();
         });
-    }, [updateBrowserState]);
+    }, [focusSearchInput, updateBrowserState]);
 
     const onFilterChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        clearEscapeState();
         setQuery(event.target.value);
-    }, [setQuery]);
+    }, [clearEscapeState, setQuery]);
 
     const onSearchKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === "Escape") {
-            event.preventDefault();
-            clearSearch();
+        if (event.key !== "Escape" && escapeArmedUntil != null) {
+            clearEscapeState();
         }
-    }, [clearSearch]);
+
+        const action = getSearchListKeyboardAction({
+            key: event.key,
+            itemCount: filteredCommands.length,
+            activeIndex,
+            hasQuery: browserState.query.trim().length > 0,
+            pageSize: 10,
+            wrapArrowUp: true,
+            wrapArrowDown: true,
+        });
+
+        switch (action.type) {
+            case "move":
+                event.preventDefault();
+                clearEscapeState();
+                moveActiveIndex(action.nextIndex, action.align);
+                return;
+            case "activate":
+                event.preventDefault();
+                activateCommandIndex(activeIndex);
+                return;
+            case "clear-query":
+                event.preventDefault();
+                clearSearch();
+                clearEscapeState();
+                return;
+            case "escape":
+                event.preventDefault();
+                triggerEscapeArmOrBack();
+                return;
+            default:
+                return;
+        }
+    }, [activeIndex, activateCommandIndex, browserState.query, clearEscapeState, clearSearch, escapeArmedUntil, filteredCommands.length, moveActiveIndex, triggerEscapeArmOrBack]);
+
+    const registerRowRef = useCallback((path: string, node: HTMLElement | null) => {
+        if (node) {
+            rowRefs.current.set(path, node);
+            return;
+        }
+
+        rowRefs.current.delete(path);
+    }, []);
 
     const listHeight = typeof viewportHeight === "number" ? `${viewportHeight}px` : viewportHeight;
+    const activeCommand = filteredCommands[activeIndex] ?? null;
+    const activeDescendantId = activeCommand ? getOptionId(activeCommand) : undefined;
 
     return (
-        <div className={cn("flex min-h-0 flex-col gap-2", className)}>
+        <div ref={shellRef} {...{ [DIALOG_LOCAL_ESCAPE_ATTR]: "true" }} className={cn("flex min-h-0 flex-col gap-2", className)}>
             <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-1.5">
                     <div className="min-w-0 flex-1">
@@ -435,6 +557,14 @@ export default function CmdList({
                             onClear={clearSearch}
                             onKeyDown={onSearchKeyDown}
                             placeholder={`Search ${prefix}commands`}
+                            inputProps={{
+                                role: "combobox",
+                                "aria-autocomplete": "list",
+                                "aria-expanded": filteredCommands.length > 0,
+                                "aria-haspopup": "listbox",
+                                "aria-controls": listboxId,
+                                "aria-activedescendant": activeDescendantId,
+                            }}
                             className={cn(
                                 "rounded-md border-input/80 bg-background/90 text-sm shadow-none",
                                 modalMode && "h-8",
@@ -471,6 +601,10 @@ export default function CmdList({
                             </span>
                         )}
                     </div>
+
+                    {escapeHint && (
+                        <span role="status" aria-live="polite" className="text-[11px] text-muted-foreground">{escapeHint}</span>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-1.5">
                         {filteredCommands.length > 0 && (
@@ -548,14 +682,23 @@ export default function CmdList({
             )}
 
             {filteredCommands.length > 0 ? (
-                <div className="min-h-0 rounded-md border border-border/70 bg-card/60 p-0.5 shadow-sm">
+                <div id={listboxId} role="listbox" aria-label="Commands" className="min-h-0 rounded-md border border-border/70 bg-card/60 p-0.5 shadow-sm">
                     <Virtuoso
+                        ref={virtuosoRef}
                         style={{ height: listHeight }}
                         data={filteredCommands}
                         computeItemKey={(_index, command) => command.getPathString()}
-                        itemContent={(_index, command) => (
+                        itemContent={(index, command) => (
                             <div className="px-0.5 py-0.5">
-                                <CommandListRow command={command} prefix={prefix} onSelectCommand={onSelectCommand} />
+                                <CommandListRow
+                                    command={command}
+                                    prefix={prefix}
+                                    onSelectCommand={onSelectCommand}
+                                    optionId={getOptionId(command)}
+                                    isActive={index === activeIndex}
+                                    rowRef={(node) => registerRowRef(command.getPathString(), node)}
+                                    onMouseMove={() => setActiveIndex(index)}
+                                />
                             </div>
                         )}
                         defaultItemHeight={CMD_LIST_DEFAULT_ROW_HEIGHT}

@@ -4,6 +4,7 @@ import { Button } from '../ui/button.tsx';
 import { useCallback, useMemo } from "react";
 import { getPastedText } from "./pasteUtils";
 import { normalizeColorValue } from "./scalarInputNormalization";
+import CommandTextInput from "./field/CommandTextInput";
 
 export default function ColorInput(
     {argName, initialValue, setOutputValue, compact}:
@@ -54,13 +55,13 @@ export default function ColorInput(
 
     return (
         <div className='flex items-center gap-1.5'>
-            <Input
-                   type="text"
-                   className={compact ? "h-6.5 w-24 px-2 text-xs" : "h-7 w-32 text-[13px]"}
-                   value={textValue}
-                   placeholder="#420420 or red"
-                   onChange={handleTextChange}
-                   onPaste={handleTextPaste} />
+                 <CommandTextInput
+                     type="text"
+                     className={compact ? "h-6.5 w-24 px-2 text-xs" : "h-7 w-32 text-[13px]"}
+                     value={textValue}
+                     placeholder="#420420 or red"
+                     onChange={handleTextChange}
+                     onPaste={handleTextPaste} />
             <Input type="color"
                    className={compact ? "h-6.5 w-8 p-0.5" : "h-7 w-9 p-0.5"}
                    value={pickerValue || "#000000"}

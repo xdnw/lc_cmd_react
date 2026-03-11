@@ -1,8 +1,18 @@
 import { useSyncedState } from "@/utils/StateUtil";
-import { useCallback } from "react";
+import { cn } from "@/lib/utils";
+import { useCallback, useMemo } from "react";
 import { Button } from "../ui/button";
 import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
 import FieldMessage from "./field/FieldMessage";
+import { useSegmentedControlKeyboard, type SegmentedControlKeyBindings } from "./segmentedControl";
+import { COMMAND_LOCAL_PRINTABLE_KEYS_ATTR } from "./commandKeyboard";
+
+type BooleanControlValue = "1" | "0";
+
+const BOOLEAN_OPTIONS: Array<{ value: BooleanControlValue; label: string }> = [
+    { value: "0", label: "False" },
+    { value: "1", label: "True" },
+];
 
 function parseBooleanControlValue(input: string) {
     const trimmed = input.trim().toLowerCase();
@@ -29,14 +39,51 @@ export default function BooleanInput(
 ) {
     const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue || "", parseBooleanControlValue);
     const [value, setValue] = useSyncedState(initialResult.value);
-    const onChange = useCallback((next: boolean) => {
-        const output = next ? "1" : "0";
+    const values = useMemo(() => BOOLEAN_OPTIONS.map((option) => option.value), []);
+
+    const onChange = useCallback((output: BooleanControlValue, focus = false) => {
         clearParseError();
         setValue(output);
         setOutputValue(argName, output);
     }, [argName, clearParseError, setOutputValue, setValue]);
-    const setTrue = useCallback(() => onChange(true), [onChange]);
-    const setFalse = useCallback(() => onChange(false), [onChange]);
+
+    const resolveKey = useCallback((key: string): SegmentedControlKeyBindings<BooleanControlValue> | null => {
+        switch (key) {
+            case "ArrowLeft":
+            case "ArrowUp":
+                return { selectPrevious: true };
+            case "ArrowRight":
+            case "ArrowDown":
+                return { selectNext: true };
+            case "Home":
+                return { selectFirst: true };
+            case "End":
+                return { selectLast: true };
+            case " ":
+            case "Spacebar":
+                return { selectValue: value === "1" ? "0" : "1" };
+            case "t":
+            case "T":
+            case "y":
+            case "Y":
+                return { selectValue: "1" };
+            case "f":
+            case "F":
+            case "n":
+            case "N":
+                return { selectValue: "0" };
+            default:
+                return null;
+        }
+    }, [value]);
+
+    const { registerButtonRef, handleOptionKeyDown } = useSegmentedControlKeyboard({
+        values,
+        value,
+        onSelect: onChange,
+        resolveKey,
+    });
+
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         handleParsedInputPaste(event, {
             parse: parseBooleanControlValue,
@@ -48,18 +95,41 @@ export default function BooleanInput(
         });
     }, [applyParsedResult, argName, setOutputValue, setValue]);
 
-    const checked = value === "1";
     const segmentClass = "h-6 min-w-11 rounded-sm px-2 text-[11px]";
+
+    const renderedOptions = useMemo(() => {
+        return BOOLEAN_OPTIONS.map((option, index) => {
+            const isActive = value === option.value;
+            return (
+                <Button
+                    key={option.value}
+                    ref={(node) => registerButtonRef(index, node)}
+                    type="button"
+                    size="sm"
+                    variant={isActive ? "secondary" : "ghost"}
+                    role="radio"
+                    aria-checked={isActive}
+                    aria-label={option.label}
+                    tabIndex={isActive ? 0 : -1}
+                    onClick={() => onChange(option.value)}
+                    onKeyDown={handleOptionKeyDown}
+                    className={cn(segmentClass, !isActive && "text-muted-foreground")}
+                >
+                    {option.label}
+                </Button>
+            );
+        });
+    }, [handleOptionKeyDown, onChange, registerButtonRef, segmentClass, value]);
 
     return (
         <div className="space-y-1" onPasteCapture={handlePasteCapture}>
             <div
                 role="radiogroup"
                 aria-label={argName}
+                {...{ [COMMAND_LOCAL_PRINTABLE_KEYS_ATTR]: "t,y,f,n,space" }}
                 className="inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/25 p-0.5"
             >
-                <Button size="sm" variant={checked ? "secondary" : "ghost"} aria-pressed={checked} onClick={setTrue} className={segmentClass}>True</Button>
-                <Button size="sm" variant={!checked ? "secondary" : "ghost"} aria-pressed={!checked} onClick={setFalse} className={segmentClass}>False</Button>
+                {renderedOptions}
             </div>
             <FieldMessage error={parseError} />
         </div>

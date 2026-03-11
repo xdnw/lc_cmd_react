@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import ArgInput from "./ArgInput";
 import { useDialog } from "../layout/DialogContext";
 import { Button } from "../ui/button";
@@ -9,9 +9,22 @@ import type { CommandInputDisplayMode } from "./field/fieldTypes";
 import { isCompactMode } from "./field/fieldTypes";
 import FieldMessage from "./field/FieldMessage";
 import { normalizeCollectionScalar, normalizeSetValues, parseSetString } from "./collectionInputNormalization";
+import { focusPrimaryCommandTarget, isCommandPopupOpenTarget } from "./commandKeyboard";
 
 function toSetString(values: string[]): string {
     return values.join(",");
+}
+
+function getEditableTextValue(target: EventTarget | null): string | null {
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+        return target.value;
+    }
+
+    if (target instanceof HTMLElement && (target.isContentEditable || target.getAttribute("role") === "textbox")) {
+        return target.textContent ?? "";
+    }
+
+    return null;
 }
 
 export default function SetInput(
@@ -31,6 +44,13 @@ export default function SetInput(
     const [values, setValues] = useSyncedState<string[]>(initialNormalized.values);
     const [notices, setNotices] = useSyncedState(initialNormalized.notices);
     const [pendingValue, setPendingValue] = useState("");
+    const pendingFieldRef = useRef<HTMLDivElement>(null);
+
+    const focusPendingField = useCallback(() => {
+        requestAnimationFrame(() => {
+            focusPrimaryCommandTarget(pendingFieldRef.current);
+        });
+    }, []);
 
     const syncValues = useCallback((nextValues: string[]) => {
         const normalized = normalizeSetValues(nextValues, child);
@@ -41,7 +61,8 @@ export default function SetInput(
 
     const removeValue = useCallback((valueToRemove: string) => {
         syncValues(values.filter((value) => value !== valueToRemove));
-    }, [syncValues, values]);
+        focusPendingField();
+    }, [focusPendingField, syncValues, values]);
 
     const handleRemoveButtonClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
         const valueToRemove = event.currentTarget.dataset.value;
@@ -66,18 +87,32 @@ export default function SetInput(
 
         syncValues([...values, valueToAdd]);
         setPendingValue("");
-    }, [child, pendingValue, showDialog, syncValues, values]);
+        focusPendingField();
+    }, [child, focusPendingField, pendingValue, showDialog, syncValues, values]);
 
     const onPendingValueChange = useCallback((key: string, value: string) => {
         setPendingValue(value);
     }, []);
 
     const handleValueKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (isCommandPopupOpenTarget(event.target)) {
+            return;
+        }
+
         if (event.key === "Enter" && !event.ctrlKey && !event.shiftKey && !event.isDefaultPrevented()) {
             event.preventDefault();
             addValue();
+            return;
         }
-    }, [addValue]);
+
+        if ((event.key === "Backspace" || event.key === "Delete") && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.isDefaultPrevented()) {
+            const textValue = getEditableTextValue(event.target);
+            if (textValue != null && textValue.length === 0 && values.length > 0) {
+                event.preventDefault();
+                removeValue(values[values.length - 1] ?? "");
+            }
+        }
+    }, [addValue, removeValue, values]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         const pastedText = event.clipboardData.getData("text");
@@ -119,7 +154,7 @@ export default function SetInput(
             )}
 
             <div className={cn("grid gap-2", compact ? "grid-cols-[1fr_auto] items-center" : "grid-cols-[1fr_auto] items-center")}>
-                <div onKeyDown={handleValueKeyDown}>
+                <div ref={pendingFieldRef} onKeyDown={handleValueKeyDown}>
                     <ArgInput
                         argName="value"
                         breakdown={child}

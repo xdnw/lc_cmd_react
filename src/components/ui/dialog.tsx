@@ -4,6 +4,18 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+export const DIALOG_LOCAL_ESCAPE_ATTR = "data-dialog-local-escape";
+
+const DIALOG_POPUP_OPEN_SELECTOR = '[data-command-popup-open="true"]';
+const DIALOG_LOCAL_ESCAPE_SELECTOR = `[${DIALOG_LOCAL_ESCAPE_ATTR}='true']`;
+const DIALOG_EDITABLE_ESCAPE_SELECTORS = [
+    'input:not([type="hidden"]):not([disabled])',
+    'textarea:not([disabled])',
+    '[contenteditable="true"]',
+    '[contenteditable="plaintext-only"]',
+    '[role="textbox"]:not([aria-disabled="true"])',
+].join(", ");
+
 export const DIALOG_CHROME_BUTTON_CLASS_NAME = cn(
     "inline-flex h-8 w-8 items-center justify-center rounded-md border shadow-sm transition-colors",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
@@ -45,6 +57,26 @@ type DialogFocusOutsideEvent = Parameters<
     NonNullable<React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>["onFocusOutside"]>
 >[0];
 
+type DialogEscapeKeyDownEvent = Parameters<
+    NonNullable<React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>["onEscapeKeyDown"]>
+>[0];
+
+export function getDialogEscapeDeferralAction(target: EventTarget | null): "local-owner" | "focus-fallback" | null {
+    if (!(target instanceof HTMLElement)) {
+        return null;
+    }
+
+    if (target.closest(DIALOG_POPUP_OPEN_SELECTOR) || target.closest(DIALOG_LOCAL_ESCAPE_SELECTOR)) {
+        return "local-owner";
+    }
+
+    if (target.closest(DIALOG_EDITABLE_ESCAPE_SELECTORS)) {
+        return "focus-fallback";
+    }
+
+    return null;
+}
+
 const DialogOverlay = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Overlay>,
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
@@ -66,7 +98,23 @@ const DialogContent = React.forwardRef<
         headerActions?: React.ReactNode;
         showCloseButton?: boolean;
     }
->(({ className, children, headerActions, showCloseButton = true, onInteractOutside, onPointerDownOutside, onFocusOutside, ...props }, ref) => {
+>(({ className, children, headerActions, showCloseButton = true, onInteractOutside, onPointerDownOutside, onFocusOutside, onEscapeKeyDown, ...props }, ref) => {
+    const contentRef = React.useRef<React.ElementRef<typeof DialogPrimitive.Content> | null>(null);
+    const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
+
+    const setContentRef = React.useCallback((node: React.ElementRef<typeof DialogPrimitive.Content> | null) => {
+        contentRef.current = node;
+
+        if (typeof ref === "function") {
+            ref(node);
+            return;
+        }
+
+        if (ref) {
+            ref.current = node;
+        }
+    }, [ref]);
+
     const handleInteractOutside = React.useCallback((event: DialogInteractOutsideEvent) => {
         if (isHtmlEditorFullscreenTarget(event.target)) {
             event.preventDefault();
@@ -94,18 +142,52 @@ const DialogContent = React.forwardRef<
         onFocusOutside?.(event);
     }, [onFocusOutside]);
 
+    const handleEscapeKeyDown = React.useCallback((event: DialogEscapeKeyDownEvent) => {
+        if (isHtmlEditorFullscreenTarget(event.target)) {
+            event.preventDefault();
+            onEscapeKeyDown?.(event);
+            return;
+        }
+
+        if (event.defaultPrevented) {
+            onEscapeKeyDown?.(event);
+            return;
+        }
+
+        const deferralAction = getDialogEscapeDeferralAction(event.target);
+        if (deferralAction === "local-owner") {
+            event.preventDefault();
+            onEscapeKeyDown?.(event);
+            return;
+        }
+
+        if (deferralAction === "focus-fallback") {
+            event.preventDefault();
+            const fallbackTarget = closeButtonRef.current ?? contentRef.current;
+            if (fallbackTarget && fallbackTarget !== document.activeElement) {
+                fallbackTarget.focus();
+            }
+            onEscapeKeyDown?.(event);
+            return;
+        }
+
+        onEscapeKeyDown?.(event);
+    }, [onEscapeKeyDown]);
+
     return (
         <DialogPortal>
             <DialogOverlay />
             <DialogPrimitive.Content
-                ref={ref}
+                ref={setContentRef}
                 className={cn(
                     "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-2 border bg-background p-3 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
                     className,
                 )}
+                tabIndex={props.tabIndex ?? -1}
                 onPointerDownOutside={handlePointerDownOutside}
                 onFocusOutside={handleFocusOutside}
                 onInteractOutside={handleInteractOutside}
+                onEscapeKeyDown={handleEscapeKeyDown}
                 {...props}
             >
                 {children}
@@ -113,7 +195,7 @@ const DialogContent = React.forwardRef<
                     <div className="absolute right-3 top-3 flex items-center gap-2">
                         {headerActions}
                         {showCloseButton && (
-                            <DialogPrimitive.Close className={DIALOG_CLOSE_BUTTON_CLASS_NAME}>
+                            <DialogPrimitive.Close ref={closeButtonRef} className={DIALOG_CLOSE_BUTTON_CLASS_NAME}>
                                 <X className="h-4 w-4" />
                                 <span className="sr-only">Close</span>
                             </DialogPrimitive.Close>

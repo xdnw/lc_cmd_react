@@ -5,7 +5,7 @@ import { Button } from './button';
 import { ButtonInfoCmd, ButtonInfoHref } from "../../lib/internaltypes";
 import { ThemedChart } from "../../pages/graphs/SimpleChart";
 import { Link } from "react-router-dom";
-import { commandButtonAction } from "../../pages/command";
+import { commandButtonAction } from "@/components/cmd/useCommandExecution";
 import {
     canRenderPlainTextContent,
     createMarkupRenderContext,

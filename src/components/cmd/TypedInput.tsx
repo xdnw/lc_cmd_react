@@ -1,4 +1,3 @@
-import { Input } from "../ui/input";
 import { useCallback, useMemo, useState } from "react";
 import { COMMANDS } from "../../lib/commands";
 import { Button } from "../ui/button";
@@ -8,6 +7,7 @@ import { validateRegexInput } from "./field/argValidation";
 import FieldMessage from "./field/FieldMessage";
 import type { CommandFieldState, CommandFieldStateUpdater } from "./field/commandFieldState";
 import PlaceholderCommandPickerDialog from "./PlaceholderCommandPickerDialog";
+import CommandTextInput from "./field/CommandTextInput";
 
 interface TypedInputProps {
     argName: string;
@@ -122,7 +122,7 @@ function InputField({ value, isValid, onChange, filter, compact, inputProps }: I
 
     return (
         <div className="flex items-center">
-            <Input
+            <CommandTextInput
                 type="text"
                 value={value}
                 onChange={onChange}

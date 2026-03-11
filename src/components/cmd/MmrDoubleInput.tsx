@@ -1,9 +1,10 @@
 import { useSyncedStateFunc } from "@/utils/StateUtil";
 import { Input } from "../ui/input";
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
 import FieldMessage from "./field/FieldMessage";
+import { getCommandTextEntryEdges } from "./commandKeyboard";
 
 function normalizeMmrDoubleInput(initial: string): string | null {
     const trimmed = (initial || "").trim();
@@ -43,6 +44,7 @@ export default function MmrDoubleInput(
 ) {
     const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue, parseMmrDoubleControlValue);
     const [value, setValue] = useSyncedStateFunc<(number | null)[]>(initialValue, () => initialResult.value);
+    const slotRefs = useRef<Array<HTMLInputElement | null>>([]);
 
     const slotMax = useCallback((index: number) => index === 3 ? 3 : 5, []);
 
@@ -95,6 +97,46 @@ export default function MmrDoubleInput(
         });
     }, [applyParsedResult, argName, setOutputValue, setValue]);
 
+    const focusSlot = useCallback((index: number) => {
+        slotRefs.current[index]?.focus();
+    }, []);
+
+    const handleSlotKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+        const index = Number(event.currentTarget.dataset.index);
+        if (Number.isNaN(index)) {
+            return;
+        }
+
+        switch (event.key) {
+            case "ArrowLeft": {
+                const edges = getCommandTextEntryEdges(event.currentTarget);
+                if (edges.atStart && index > 0) {
+                    event.preventDefault();
+                    focusSlot(index - 1);
+                }
+                return;
+            }
+            case "ArrowRight": {
+                const edges = getCommandTextEntryEdges(event.currentTarget);
+                if (edges.atEnd && index < value.length - 1) {
+                    event.preventDefault();
+                    focusSlot(index + 1);
+                }
+                return;
+            }
+            case "Home":
+                event.preventDefault();
+                focusSlot(0);
+                return;
+            case "End":
+                event.preventDefault();
+                focusSlot(value.length - 1);
+                return;
+            default:
+                return;
+        }
+    }, [focusSlot, value.length]);
+
     return (
         <div className="space-y-1" onPasteCapture={handlePasteCapture}>
             <div className={cn("inline-flex items-center rounded-md border border-border/70 bg-background p-1", compact ? "gap-1" : "gap-1.5")}>
@@ -104,11 +146,15 @@ export default function MmrDoubleInput(
                         <React.Fragment key={index}>
                             {index > 0 && <span className="text-xs text-muted-foreground">/</span>}
                             <Input
+                                ref={(node) => {
+                                    slotRefs.current[index] = node;
+                                }}
                                 type="text"
                                 inputMode="decimal"
                                 data-index={index}
                                 value={val != null ? `${val}` : ""}
                                 onChange={handleSlotChange}
+                                onKeyDown={handleSlotKeyDown}
                                 className={cn(
                                     "bg-background text-center font-mono",
                                     compact ? "h-6 w-9 px-1 text-[11px]" : "h-7 w-11 px-1.5 text-[13px]"

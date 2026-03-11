@@ -2,7 +2,7 @@ import { cleanup, render } from "@testing-library/react";
 import React from "react";
 import { afterEach, bench, describe, vi } from "vitest";
 
-vi.mock("../../pages/command", () => ({
+vi.mock("@/components/cmd/useCommandExecution", () => ({
     commandButtonAction: vi.fn(),
 }));
 

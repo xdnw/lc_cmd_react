@@ -59,6 +59,8 @@ export default function MmrInput(
     return (
         <div className="space-y-1" onPasteCapture={handlePasteCapture}>
           <InputOTP
+            aria-label={argName}
+            inputMode={allowWildcard ? "text" : "numeric"}
             pattern={allowWildcard ? "[0-9X]*" : "[0-9]*"}
             maxLength={4}
             value={value}

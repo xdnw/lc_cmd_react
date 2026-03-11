@@ -1,10 +1,10 @@
 import { useCallback } from "react";
-import { Input } from "../ui/input";
 import { cn } from "@/lib/utils";
 import { validateNumberInput } from "./field/argValidation";
 import { useArgFieldState } from "./field/useArgFieldState";
 import FieldMessage from "./field/FieldMessage";
 import type { CommandFieldState, CommandFieldStateUpdater } from "./field/commandFieldState";
+import CommandTextInput from "./field/CommandTextInput";
 
 export default function NumberInput(
     {argName, min, max, initialValue, setOutputValue, isFloat, className, placeholder, compact, fieldState, setFieldState}:
@@ -42,8 +42,9 @@ export default function NumberInput(
 
     return (
         <div className="space-y-1.5">
-            <Input
+            <CommandTextInput
                 type="text"
+                inputMode={isFloat ? "decimal" : "numeric"}
                 value={value}
                 onChange={onChange}
                 placeholder={placeholder || "Enter a number"}

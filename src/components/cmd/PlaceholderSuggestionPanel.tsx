@@ -1,7 +1,6 @@
 import {
     useCallback,
     memo,
-    useDeferredValue,
     useEffect,
     useMemo,
     useRef,
@@ -20,12 +19,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { getFixedRowWindow, rankSearchMatches, SearchMatchText } from "./searchListPrimitives";
+import { getFixedRowWindow, getSearchListKeyboardAction, getSearchListOptionId, rankSearchMatches, SearchMatchText } from "./searchListPrimitives";
 
 const SEARCH_THRESHOLD = 50;
-const VISIBLE_ROW_COUNT = 8;
+export const PLACEHOLDER_SUGGESTION_VISIBLE_ROW_COUNT = 8;
 const ROW_HEIGHT = 28;
 const ROW_OVERSCAN = 3;
+const SUGGESTION_ACCEPT_HINT = "Navigate: Up/Down   Accept: Ctrl+Right / Ctrl+Enter";
 
 function buildSuggestionSearchText(suggestion: ExpressionSuggestion): string {
     return [
@@ -100,7 +100,72 @@ function mergeExpressionSuggestions(
     return merged;
 }
 
+export type PlaceholderSuggestionViewModel = {
+    renderedSuggestions: ExpressionSuggestion[];
+    visibleSuggestions: number;
+    totalSuggestionUniverse: number;
+    showSearch: boolean;
+    showLazySearchPrompt: boolean;
+    lazyMinQueryLength: number;
+    searchQuery: string;
+    resultKey: string;
+};
+
+export function getPlaceholderSuggestionKey(suggestion: ExpressionSuggestion): string {
+    return `${suggestion.kind}:${suggestion.insertText}`;
+}
+
+export function buildPlaceholderSuggestionView({
+    suggestions,
+    lazyOptionSource,
+    searchValue,
+}: {
+    suggestions: ExpressionSuggestion[];
+    lazyOptionSource?: ExpressionLazyOptionSource;
+    searchValue: string;
+}): PlaceholderSuggestionViewModel {
+    const searchQuery = searchValue.trim();
+    const lazyToken = lazyOptionSource?.token.trim() ?? "";
+    const effectiveLazyQuery = searchQuery || lazyToken;
+    const lazyOptionUniverse = lazyOptionSource?.entry.optionCount ?? lazyOptionSource?.entry.options.length ?? 0;
+    const requiresExplicitSearch = Boolean(
+        lazyOptionSource?.minQueryLength
+        && lazyOptionUniverse >= SEARCH_THRESHOLD,
+    );
+    const canBrowseLazyOptions = !lazyOptionSource
+        || !requiresExplicitSearch
+        || lazyOptionSource.entry.options.length > 0
+        || lazyToken.length >= (lazyOptionSource.minQueryLength ?? 0)
+        || searchQuery.length >= (lazyOptionSource.minQueryLength ?? 0);
+
+    const lazyBaseOptions = !lazyOptionSource || !canBrowseLazyOptions
+        ? [] as SelectOption[]
+        : filterSelectOptions(effectiveLazyQuery, lazyOptionSource.entry.options);
+    const filteredSuggestions = filterExpressionSuggestions(suggestions, searchValue);
+    const filteredLazyOptions = !lazyOptionSource
+        ? [] as SelectOption[]
+        : filterLazyOptions(lazyBaseOptions, searchValue);
+    const lazySuggestions = !lazyOptionSource
+        ? [] as ExpressionSuggestion[]
+        : filteredLazyOptions.map((option) => materializeLazyOptionSuggestion(lazyOptionSource, option));
+    const renderedSuggestions = mergeExpressionSuggestions(filteredSuggestions, lazySuggestions);
+    const visibleSuggestions = renderedSuggestions.length;
+    const totalSuggestionUniverse = suggestions.length + (lazyOptionSource ? lazyOptionUniverse : 0);
+
+    return {
+        renderedSuggestions,
+        visibleSuggestions,
+        totalSuggestionUniverse,
+        showSearch: totalSuggestionUniverse > SEARCH_THRESHOLD,
+        showLazySearchPrompt: Boolean(lazyOptionSource && !canBrowseLazyOptions),
+        lazyMinQueryLength: lazyOptionSource?.minQueryLength ?? 0,
+        searchQuery,
+        resultKey: renderedSuggestions.map(getPlaceholderSuggestionKey).join("|"),
+    };
+}
+
 type SuggestionRowProps = {
+    id: string;
     suggestion: ExpressionSuggestion;
     index: number;
     isHighlighted: boolean;
@@ -110,6 +175,7 @@ type SuggestionRowProps = {
 };
 
 const SuggestionRow = memo(function SuggestionRow({
+    id,
     suggestion,
     index,
     isHighlighted,
@@ -131,9 +197,13 @@ const SuggestionRow = memo(function SuggestionRow({
     return (
         <div className="px-0.5 py-px">
             <Button
+                id={id}
                 type="button"
                 variant="ghost"
+                role="option"
+                aria-selected={isHighlighted}
                 aria-label={suggestion.label}
+                tabIndex={-1}
                 className={cn(
                     "flex h-7 w-full items-center justify-between overflow-hidden rounded-md px-2 py-1 text-left",
                     isHighlighted && "before:bg-accent text-accent-foreground",
@@ -159,102 +229,50 @@ const SuggestionRow = memo(function SuggestionRow({
 });
 
 export default function PlaceholderSuggestionPanel({
-    suggestions,
-    lazyOptionSource,
+    view,
     searchValue,
+    listboxId,
+    activeIndex,
+    activeDescendantId,
     onSearchValueChange,
     onApplySuggestion,
+    onActiveIndexChange,
 }: {
-    suggestions: ExpressionSuggestion[];
-    lazyOptionSource?: ExpressionLazyOptionSource;
+    view: PlaceholderSuggestionViewModel;
     searchValue: string;
+    listboxId: string;
+    activeIndex: number;
+    activeDescendantId?: string;
     onSearchValueChange: (value: string) => void;
     onApplySuggestion: (suggestion: ExpressionSuggestion) => void;
+    onActiveIndexChange: (index: number) => void;
 }) {
     const listContainerRef = useRef<HTMLDivElement | null>(null);
-    const deferredSearchValue = useDeferredValue(searchValue);
-    const [highlightedIndex, setHighlightedIndex] = useState(0);
     const [scrollTop, setScrollTop] = useState(0);
 
-    const lazyToken = lazyOptionSource?.token.trim() ?? "";
-    const searchQuery = deferredSearchValue.trim();
-    const effectiveLazyQuery = searchValue.trim() || lazyToken;
-    const lazyOptionUniverse = lazyOptionSource?.entry.optionCount ?? lazyOptionSource?.entry.options.length ?? 0;
-    const requiresExplicitSearch = Boolean(
-        lazyOptionSource?.minQueryLength
-        && lazyOptionUniverse >= SEARCH_THRESHOLD,
-    );
-    const canBrowseLazyOptions = !lazyOptionSource
-        || !requiresExplicitSearch
-        || lazyOptionSource.entry.options.length > 0
-        || lazyToken.length >= (lazyOptionSource.minQueryLength ?? 0)
-        || searchQuery.length >= (lazyOptionSource.minQueryLength ?? 0);
-
-    const lazyBaseOptions = useMemo(() => {
-        if (!lazyOptionSource) {
-            return [] as SelectOption[];
-        }
-        if (!canBrowseLazyOptions) {
-            return [] as SelectOption[];
-        }
-        return filterSelectOptions(effectiveLazyQuery, lazyOptionSource.entry.options);
-    }, [canBrowseLazyOptions, effectiveLazyQuery, lazyOptionSource]);
-
-    const filteredSuggestions = useMemo(
-        () => filterExpressionSuggestions(suggestions, deferredSearchValue),
-        [deferredSearchValue, suggestions],
-    );
-
-    const filteredLazyOptions = useMemo(() => {
-        if (!lazyOptionSource) {
-            return [] as SelectOption[];
-        }
-        return filterLazyOptions(lazyBaseOptions, deferredSearchValue);
-    }, [deferredSearchValue, lazyBaseOptions, lazyOptionSource]);
-
-    const lazySuggestions = useMemo(() => {
-        if (!lazyOptionSource) {
-            return [] as ExpressionSuggestion[];
-        }
-
-        return filteredLazyOptions.map((option) => materializeLazyOptionSuggestion(lazyOptionSource, option));
-    }, [filteredLazyOptions, lazyOptionSource]);
-
-    const renderedSuggestions = useMemo(
-        () => mergeExpressionSuggestions(filteredSuggestions, lazySuggestions),
-        [filteredSuggestions, lazySuggestions],
-    );
-
-    const visibleSuggestions = renderedSuggestions.length;
-    const allLazyOptionsCount = lazyOptionUniverse;
-    const totalSuggestionUniverse = suggestions.length + (lazyOptionSource ? allLazyOptionsCount : 0);
-    const showSearch = totalSuggestionUniverse > SEARCH_THRESHOLD;
-    const showLazySearchPrompt = Boolean(lazyOptionSource && !canBrowseLazyOptions);
-    const lazyMinQueryLength = lazyOptionSource?.minQueryLength ?? 0;
-    const listHeight = Math.max(3, Math.min(visibleSuggestions || 1, VISIBLE_ROW_COUNT)) * ROW_HEIGHT;
-    const windowState = getFixedRowWindow(renderedSuggestions.length, scrollTop, ROW_HEIGHT, listHeight, ROW_OVERSCAN);
+    const listHeight = Math.max(3, Math.min(view.visibleSuggestions || 1, PLACEHOLDER_SUGGESTION_VISIBLE_ROW_COUNT)) * ROW_HEIGHT;
+    const windowState = getFixedRowWindow(view.renderedSuggestions.length, scrollTop, ROW_HEIGHT, listHeight, ROW_OVERSCAN);
     const windowStartIndex = windowState.startIndex;
     const windowEndIndex = windowState.endIndex;
-    const windowedSuggestions = renderedSuggestions.slice(windowStartIndex, windowEndIndex);
+    const windowedSuggestions = view.renderedSuggestions.slice(windowStartIndex, windowEndIndex);
     const paddingTop = windowState.paddingTop;
     const paddingBottom = windowState.paddingBottom;
 
     useEffect(() => {
-        setHighlightedIndex(0);
         setScrollTop(0);
         const container = listContainerRef.current;
         if (container) {
             container.scrollTop = 0;
         }
-    }, [visibleSuggestions]);
+    }, [view.resultKey]);
 
     useEffect(() => {
         const container = listContainerRef.current;
-        if (!container || visibleSuggestions === 0) {
+        if (!container || view.visibleSuggestions === 0) {
             return;
         }
 
-        const itemTop = highlightedIndex * ROW_HEIGHT;
+        const itemTop = activeIndex * ROW_HEIGHT;
         const itemBottom = itemTop + ROW_HEIGHT;
         const viewportTop = container.scrollTop;
         const viewportBottom = viewportTop + container.clientHeight;
@@ -267,11 +285,11 @@ export default function PlaceholderSuggestionPanel({
         if (itemBottom > viewportBottom) {
             container.scrollTop = itemBottom - container.clientHeight;
         }
-    }, [highlightedIndex, visibleSuggestions]);
+    }, [activeIndex, view.visibleSuggestions]);
 
     const activeSuggestion = useMemo(() => {
-        return renderedSuggestions[Math.min(highlightedIndex, Math.max(renderedSuggestions.length - 1, 0))] ?? null;
-    }, [highlightedIndex, renderedSuggestions]);
+        return view.renderedSuggestions[Math.min(activeIndex, Math.max(view.renderedSuggestions.length - 1, 0))] ?? null;
+    }, [activeIndex, view.renderedSuggestions]);
     const renderSuggestionRow = useCallback((index: number, suggestion?: ExpressionSuggestion) => {
         if (!suggestion) {
             return null;
@@ -279,50 +297,52 @@ export default function PlaceholderSuggestionPanel({
 
         return (
             <SuggestionRow
-                key={`${suggestion.kind}:${suggestion.insertText}:${suggestion.label}:${index}`}
+                key={`${getPlaceholderSuggestionKey(suggestion)}:${index}`}
+                id={getSearchListOptionId(listboxId, getPlaceholderSuggestionKey(suggestion))}
                 suggestion={suggestion}
                 index={index}
-                isHighlighted={index === highlightedIndex}
+                isHighlighted={index === activeIndex}
                 onApplySuggestion={onApplySuggestion}
-                onHighlight={setHighlightedIndex}
-                searchQuery={deferredSearchValue}
+                onHighlight={onActiveIndexChange}
+                searchQuery={view.searchQuery}
             />
         );
-    }, [deferredSearchValue, highlightedIndex, onApplySuggestion]);
+    }, [activeIndex, listboxId, onActiveIndexChange, onApplySuggestion, view.searchQuery]);
 
     const handleSearchKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-        if (visibleSuggestions === 0) {
-            return;
-        }
+        const action = getSearchListKeyboardAction({
+            key: event.key,
+            itemCount: view.visibleSuggestions,
+            activeIndex,
+            hasQuery: searchValue.trim().length > 0,
+            pageSize: PLACEHOLDER_SUGGESTION_VISIBLE_ROW_COUNT,
+            wrapArrowUp: true,
+            wrapArrowDown: true,
+        });
 
-        switch (event.key) {
-            case "ArrowDown": {
+        switch (action.type) {
+            case "move":
                 event.preventDefault();
-                setHighlightedIndex((previous) => {
-                    return Math.min(previous + 1, visibleSuggestions - 1);
-                });
-                break;
-            }
-            case "ArrowUp": {
-                event.preventDefault();
-                setHighlightedIndex((previous) => {
-                    return Math.max(previous - 1, 0);
-                });
-                break;
-            }
-            case "Enter":
-            case "Tab": {
+                onActiveIndexChange(action.nextIndex);
+                return;
+            case "activate":
                 if (!activeSuggestion) {
                     return;
                 }
                 event.preventDefault();
                 onApplySuggestion(activeSuggestion);
-                break;
-            }
+                return;
+            case "none":
+                if (event.key !== "Tab" || !activeSuggestion) {
+                    return;
+                }
+                event.preventDefault();
+                onApplySuggestion(activeSuggestion);
+                return;
             default:
-                break;
+                return;
         }
-    }, [activeSuggestion, onApplySuggestion, visibleSuggestions]);
+    }, [activeIndex, activeSuggestion, onActiveIndexChange, onApplySuggestion, searchValue, view.visibleSuggestions]);
 
     const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         onSearchValueChange(event.currentTarget.value);
@@ -335,33 +355,41 @@ export default function PlaceholderSuggestionPanel({
     return (
         <div className="rounded-md border border-border bg-popover p-1.5 text-popover-foreground shadow-sm">
             <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                <span>Suggestions</span>
-                <span>{visibleSuggestions.toLocaleString()} / {totalSuggestionUniverse.toLocaleString()}</span>
+                <span className="text-[10px] normal-case tracking-normal text-muted-foreground">{SUGGESTION_ACCEPT_HINT}</span>
+                <div className="flex items-center gap-2 text-[10px] normal-case tracking-normal text-muted-foreground">
+                    <span>{view.visibleSuggestions.toLocaleString()} / {view.totalSuggestionUniverse.toLocaleString()}</span>
+                </div>
             </div>
 
-            {showSearch && (
+            {view.showSearch && (
                 <Input
                     value={searchValue}
                     onChange={handleSearchChange}
                     onKeyDown={handleSearchKeyDown}
-                    placeholder="Search suggestions"
+                    placeholder="Filter suggestions"
+                    role="combobox"
                     aria-label="Search suggestions"
+                    aria-autocomplete="list"
+                    aria-expanded={view.visibleSuggestions > 0}
+                    aria-haspopup="listbox"
+                    aria-controls={listboxId}
+                    aria-activedescendant={activeDescendantId}
                     className="mb-1.5 font-mono text-xs"
                 />
             )}
 
-            {showLazySearchPrompt && (
+            {view.showLazySearchPrompt && (
                 <div className="rounded-md border border-dashed border-border/70 bg-background px-2 py-3 text-xs text-muted-foreground">
-                    Type at least {lazyMinQueryLength.toString()} characters to search {totalSuggestionUniverse.toLocaleString()} options.
+                    Type {view.lazyMinQueryLength.toString()}+ characters to search {view.totalSuggestionUniverse.toLocaleString()} options.
                 </div>
             )}
 
-            {!showLazySearchPrompt && visibleSuggestions === 0 ? (
+            {!view.showLazySearchPrompt && view.visibleSuggestions === 0 ? (
                 <div className="rounded-md border border-dashed border-border/70 bg-background px-2 py-3 text-xs text-muted-foreground">
-                    No suggestions match the current search.
+                    No matches.
                 </div>
-            ) : visibleSuggestions > 0 ? (
-                <div className="overflow-hidden rounded-md border border-border/70 bg-background">
+            ) : view.visibleSuggestions > 0 ? (
+                <div id={listboxId} role="listbox" aria-label="Expression suggestions" className="overflow-hidden rounded-md border border-border/70 bg-background">
                     <div
                         ref={listContainerRef}
                         style={{ height: listHeight }}

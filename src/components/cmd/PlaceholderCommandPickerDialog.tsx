@@ -1,4 +1,4 @@
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type UIEvent } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type UIEvent } from "react";
 
 import ArgInput from "@/components/cmd/ArgInput";
 import { ArgDescComponent } from "@/components/cmd/CommandComponent";
@@ -11,6 +11,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DIALOG_LOCAL_ESCAPE_ATTR,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -21,7 +22,17 @@ import {
     type CommandFieldStateUpdater,
 } from "./field/commandFieldState";
 import { CM, placeholderMention, type Argument, type BaseCommand } from "@/utils/Command";
-import { getFixedRowWindow, rankSearchMatches, SearchMatchText } from "./searchListPrimitives";
+import { focusPrimaryCommandTarget } from "./commandKeyboard";
+import {
+    getFixedRowWindow,
+    getSearchListKeyboardAction,
+    getSearchListOptionId,
+    rankSearchMatches,
+    scrollFixedRowListToIndex,
+    SearchMatchText,
+    useSearchListActiveNavigation,
+} from "./searchListPrimitives";
+import { useCommandEscapeArming } from "./useCommandShellKeyboard";
 
 const LIST_ROW_HEIGHT = 40;
 const LIST_VISIBLE_ROWS = 9;
@@ -175,6 +186,10 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
     const [scrollTop, setScrollTop] = useState(0);
     const deferredSearchValue = useDeferredValue(searchValue);
     const listRef = useRef<HTMLDivElement | null>(null);
+    const searchRef = useRef<HTMLInputElement | null>(null);
+    const argShellRef = useRef<HTMLDivElement | null>(null);
+    const backButtonRef = useRef<HTMLButtonElement | null>(null);
+    const listboxId = useId();
 
     const commandEntries = useMemo(
         () => getPlaceholderCommandEntries(placeholderType, valueType),
@@ -190,6 +205,26 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
         () => commandEntries.find((entry) => entry.id === selectedCommandId) ?? null,
         [commandEntries, selectedCommandId],
     );
+    const scrollToActiveEntry = useCallback((index: number, align: "start" | "center" | "end") => {
+        scrollFixedRowListToIndex({
+            container: listRef.current,
+            index,
+            rowHeight: LIST_ROW_HEIGHT,
+            viewportHeight: LIST_VISIBLE_ROWS * LIST_ROW_HEIGHT,
+            align,
+        });
+    }, []);
+    const {
+        activeIndex,
+        setActiveIndex,
+        moveActiveIndex,
+        resetActiveIndex,
+    } = useSearchListActiveNavigation({
+        itemCount: filteredEntries.length,
+        scrollToIndex: scrollToActiveEntry,
+    });
+    const activeEntry = filteredEntries[activeIndex] ?? null;
+    const activeDescendantId = activeEntry ? getSearchListOptionId(listboxId, activeEntry.id) : undefined;
     const commandEntriesById = useMemo(() => {
         return commandEntries.reduce<Map<string, PlaceholderCommandEntry>>((accumulator, entry) => {
             accumulator.set(entry.id, entry);
@@ -197,32 +232,80 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
         }, new Map());
     }, [commandEntries]);
 
+    const focusSearchInput = useCallback(() => {
+        requestAnimationFrame(() => {
+            searchRef.current?.focus();
+            searchRef.current?.select();
+        });
+    }, []);
+
+    const closeDialog = useCallback(() => {
+        onOpenChange(false);
+    }, [onOpenChange]);
+
+    const {
+        rootRef,
+        escapeHint,
+        escapeArmedUntil,
+        clearEscapeArming,
+        handleBlurCapture,
+        triggerEscapeArmOrBack,
+    } = useCommandEscapeArming({
+        onRequestBack: selectedEntry
+            ? () => {
+                setSelectedCommandId(null);
+                setFieldStates({});
+                focusSearchInput();
+            }
+            : closeDialog,
+        backHint: selectedEntry ? "Press Esc again to return to search" : "Press Esc again to close placeholder picker",
+        getReturnFocusTarget: () => selectedEntry ? backButtonRef.current : searchRef.current,
+    });
+
     useEffect(() => {
         if (!open) {
             setSelectedCommandId(null);
             setFieldStates({});
             setSearchValue("");
             setScrollTop(0);
+            resetActiveIndex();
+            clearEscapeArming();
+            return;
+        }
+
+        focusSearchInput();
+        requestAnimationFrame(() => {
+            listRef.current?.scrollTo({ top: 0 });
+        });
+    }, [clearEscapeArming, focusSearchInput, open, resetActiveIndex]);
+
+    useEffect(() => {
+        setScrollTop(0);
+        resetActiveIndex("start");
+        if (listRef.current) {
+            listRef.current.scrollTop = 0;
+        }
+    }, [deferredSearchValue, resetActiveIndex]);
+
+    useEffect(() => {
+        if (!selectedEntry) {
             return;
         }
 
         requestAnimationFrame(() => {
-            listRef.current?.scrollTo({ top: 0 });
+            if (!focusPrimaryCommandTarget(argShellRef.current)) {
+                backButtonRef.current?.focus();
+            }
         });
-    }, [open]);
-
-    useEffect(() => {
-        setScrollTop(0);
-        if (listRef.current) {
-            listRef.current.scrollTop = 0;
-        }
-    }, [deferredSearchValue]);
+    }, [selectedEntry]);
 
     const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        clearEscapeArming();
         setSearchValue(event.currentTarget.value);
-    }, []);
+    }, [clearEscapeArming]);
 
     const handleSelectEntry = useCallback((entry: PlaceholderCommandEntry) => {
+        clearEscapeArming();
         if (entry.args.length === 0) {
             onInsert(buildPlaceholderValue(placeholderType, entry, {}));
             onOpenChange(false);
@@ -231,7 +314,7 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
 
         setSelectedCommandId(entry.id);
         setFieldStates(buildInitialFieldStates(entry.args));
-    }, [onInsert, onOpenChange, placeholderType]);
+    }, [clearEscapeArming, onInsert, onOpenChange, placeholderType]);
 
     const handleEntryClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
         const entryId = event.currentTarget.dataset.entryId;
@@ -250,7 +333,9 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
     const handleBack = useCallback(() => {
         setSelectedCommandId(null);
         setFieldStates({});
-    }, []);
+        clearEscapeArming();
+        focusSearchInput();
+    }, [clearEscapeArming, focusSearchInput]);
 
     const updateFieldState = useCallback((argName: string, updater: CommandFieldStateUpdater) => {
         setFieldStates((currentStates) => {
@@ -296,13 +381,72 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
             return;
         }
 
+        clearEscapeArming();
         onInsert(buildPlaceholderValue(placeholderType, selectedEntry, fieldStates));
         onOpenChange(false);
-    }, [fieldStates, onInsert, onOpenChange, placeholderType, selectedEntry]);
+    }, [clearEscapeArming, fieldStates, onInsert, onOpenChange, placeholderType, selectedEntry]);
 
     const handleListScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
         setScrollTop(event.currentTarget.scrollTop);
     }, []);
+
+    const handleSearchKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key !== "Escape" && escapeArmedUntil != null) {
+            clearEscapeArming();
+        }
+
+        const action = getSearchListKeyboardAction({
+            key: event.key,
+            itemCount: filteredEntries.length,
+            activeIndex,
+            hasQuery: searchValue.trim().length > 0,
+            pageSize: LIST_VISIBLE_ROWS,
+            wrapArrowUp: true,
+            wrapArrowDown: true,
+        });
+
+        switch (action.type) {
+            case "move":
+                event.preventDefault();
+                clearEscapeArming();
+                moveActiveIndex(action.nextIndex, action.align);
+                return;
+            case "activate":
+                if (!activeEntry) {
+                    return;
+                }
+                event.preventDefault();
+                handleSelectEntry(activeEntry);
+                return;
+            case "clear-query":
+                event.preventDefault();
+                setSearchValue("");
+                clearEscapeArming();
+                return;
+            case "escape":
+                event.preventDefault();
+                triggerEscapeArmOrBack();
+                return;
+            default:
+                return;
+        }
+    }, [activeEntry, activeIndex, clearEscapeArming, escapeArmedUntil, filteredEntries.length, handleSelectEntry, moveActiveIndex, searchValue, triggerEscapeArmOrBack]);
+
+    const handleSelectedShellKeyDownCapture = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.defaultPrevented) {
+            return;
+        }
+
+        if (event.key !== "Escape" && escapeArmedUntil != null) {
+            clearEscapeArming();
+            return;
+        }
+
+        if (event.key === "Escape") {
+            event.preventDefault();
+            triggerEscapeArmOrBack();
+        }
+    }, [clearEscapeArming, escapeArmedUntil, triggerEscapeArmOrBack]);
 
     const viewportHeight = LIST_VISIBLE_ROWS * LIST_ROW_HEIGHT;
     const totalHeight = filteredEntries.length * LIST_ROW_HEIGHT;
@@ -325,21 +469,30 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-4xl gap-3 p-0 sm:max-h-[85vh]">
-                <DialogHeader className="border-b border-border/60 px-5 pt-5">
-                    <DialogTitle>{selectedEntry ? `Configure ${selectedEntry.pathString}` : `Add simple ${placeholderType} placeholder`}</DialogTitle>
-                    <DialogDescription>
-                        {selectedEntry
-                            ? "Fill the placeholder arguments, then insert the generated placeholder token."
-                            : "Search the available placeholder paths. Zero-argument placeholders insert immediately; placeholders with arguments open a shared arg form first."}
-                    </DialogDescription>
-                </DialogHeader>
+                <div ref={rootRef} {...{ [DIALOG_LOCAL_ESCAPE_ATTR]: "true" }} onBlurCapture={handleBlurCapture} className="contents">
+                    <DialogHeader className="border-b border-border/60 px-5 pt-5">
+                        <DialogTitle>{selectedEntry ? `Configure ${selectedEntry.pathString}` : `Add simple ${placeholderType} placeholder`}</DialogTitle>
+                        <DialogDescription>
+                            {selectedEntry
+                                ? "Fill the placeholder arguments, then insert the generated placeholder token."
+                                : "Search the available placeholder paths. Zero-argument placeholders insert immediately; placeholders with arguments open a shared arg form first."}
+                        </DialogDescription>
+                    </DialogHeader>
 
-                {!selectedEntry ? (
+                    {!selectedEntry ? (
                     <div className="flex min-h-0 flex-col gap-3 px-5 pb-5">
                         <div className="flex flex-wrap items-center gap-2">
                             <Input
+                                ref={searchRef}
                                 value={searchValue}
                                 onChange={handleSearchChange}
+                                onKeyDown={handleSearchKeyDown}
+                                role="combobox"
+                                aria-autocomplete="list"
+                                aria-expanded={true}
+                                aria-haspopup="listbox"
+                                aria-controls={listboxId}
+                                aria-activedescendant={activeDescendantId}
                                 placeholder="Search placeholder path, description, or arg name"
                                 className={cn("bg-background", compact ? "h-8 text-xs" : "h-9")}
                             />
@@ -349,9 +502,15 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
                             <Badge variant="outline" className="font-mono text-[10px]">
                                 {valueType}
                             </Badge>
+                            {escapeHint && (
+                                <span role="status" aria-live="polite" className="text-[11px] text-muted-foreground">{escapeHint}</span>
+                            )}
                         </div>
 
                         <div
+                            id={listboxId}
+                            role="listbox"
+                            aria-label="Placeholder commands"
                             ref={listRef}
                             className="overflow-y-auto rounded-md border border-border/60"
                             style={{ maxHeight: `${viewportHeight}px` }}
@@ -377,9 +536,14 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
                                                 key={entry.id}
                                                 type="button"
                                                 data-entry-id={entry.id}
+                                                id={getSearchListOptionId(listboxId, entry.id)}
+                                                role="option"
+                                                aria-selected={startIndex + index === activeIndex}
+                                                tabIndex={-1}
                                                 className="absolute left-0 right-0 flex h-10 flex-col items-start justify-center gap-0.5 border-b border-border/50 px-3 text-left transition-colors hover:bg-muted/40"
                                                 style={{ top: `${top}px` }}
                                                 onClick={handleEntryClick}
+                                                onMouseMove={() => setActiveIndex(startIndex + index)}
                                                 title={entry.description}
                                             >
                                                 <div className="flex w-full items-center gap-2">
@@ -401,9 +565,9 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
                         </div>
                     </div>
                 ) : (
-                    <div className="flex min-h-0 flex-col gap-3 px-5 pb-5">
+                    <div className="flex min-h-0 flex-col gap-3 px-5 pb-5" onKeyDownCapture={handleSelectedShellKeyDownCapture}>
                         <div className="flex flex-wrap items-center gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={handleBack}>
+                            <Button ref={backButtonRef} type="button" variant="outline" size="sm" onClick={handleBack}>
                                 Back
                             </Button>
                             <Badge variant="secondary" className="font-mono text-[10px]">
@@ -412,9 +576,12 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
                             <Badge variant="outline" className="text-[10px]">
                                 {selectedEntry.args.length} args
                             </Badge>
+                            {escapeHint && (
+                                <span role="status" aria-live="polite" className="text-[11px] text-muted-foreground">{escapeHint}</span>
+                            )}
                         </div>
 
-                        <div className="max-h-[52vh] space-y-3 overflow-y-auto pr-1">
+                        <div ref={argShellRef} className="max-h-[52vh] space-y-3 overflow-y-auto pr-1">
                             {selectedEntry.args.map((arg) => {
                                 const fieldState = fieldStates[arg.name] ?? createCommandFieldState(arg.arg.def ?? "");
                                 return (
@@ -448,6 +615,7 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
                         </Button>
                     </DialogFooter>
                 )}
+                </div>
             </DialogContent>
         </Dialog>
     );

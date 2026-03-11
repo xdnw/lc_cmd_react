@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, type InputProps } from "@/components/ui/input";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -11,17 +11,11 @@ type Props = {
     onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
     placeholder?: string;
     className?: string;
+    inputProps?: Omit<InputProps, "value" | "onChange" | "onKeyDown" | "placeholder" | "className">;
 };
 
 const SearchBar = React.forwardRef<HTMLInputElement, Props>(
-    ({ value, onChange, onClear, onKeyDown, placeholder, className }, ref) => {
-        const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === "Escape") {
-                onClear();
-            }
-            onKeyDown?.(e);
-        }, [onClear, onKeyDown]);
-
+    ({ value, onChange, onClear, onKeyDown, placeholder, className, inputProps }, ref) => {
         return (
             <div className="relative w-full">
                 <Input
@@ -31,9 +25,10 @@ const SearchBar = React.forwardRef<HTMLInputElement, Props>(
                     placeholder={placeholder}
                     value={value}
                     onChange={onChange}
-                    onKeyDown={handleKeyDown}
+                    onKeyDown={onKeyDown}
                     autoComplete="off"
                     spellCheck={false}
+                    {...inputProps}
                 />
 
                 {value.trim().length > 0 && (
@@ -42,7 +37,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, Props>(
                         variant="ghost"
                         size="iconSm"
                         onClick={onClear}
-                        className="absolute right-0.5 top-1/2 -translate-y-1/2"
+                        className="absolute right-1 top-1/2 z-10 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground hover:text-foreground"
                         aria-label="Clear search"
                         title="Clear search (Esc)"
                     >

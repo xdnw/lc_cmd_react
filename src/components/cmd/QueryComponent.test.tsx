@@ -142,7 +142,7 @@ describe("CompositeQueryComponent", () => {
       expect(ensureQueryOptionDatasetFromPayloadMock).toHaveBeenCalledWith("query:DBAlliance", "DBAlliance", alliancePayload);
     });
 
-    expect(screen.getByTestId("empty-message").textContent).toContain("Type at least 1 character to search 7,000 options.");
+    expect(screen.getByTestId("empty-message").textContent).toContain("Type 1+ characters to search 7,000 options.");
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search options" }), { target: { value: "Bo" } });
 
@@ -309,7 +309,7 @@ describe("CompositeQueryComponent", () => {
     });
 
     expect(searchQueryOptionDatasetMock).not.toHaveBeenCalled();
-    expect(screen.getByTestId("empty-message").textContent).toContain("Type at least 1 character to search 6,000 options.");
+    expect(screen.getByTestId("empty-message").textContent).toContain("Type 1+ characters to search 6,000 options.");
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search options" }), { target: { value: "Bo" } });
 

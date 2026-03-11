@@ -1,9 +1,11 @@
 import ArgInput from "./ArgInput";
 import { Argument, BaseCommand } from "../../utils/Command";
 import {
+    forwardRef,
     memo,
     useCallback,
     useEffect,
+    useImperativeHandle,
     useLayoutEffect,
     useMemo,
     useRef,
@@ -18,6 +20,7 @@ import { cn } from "@/lib/utils";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
 import { isCompactMode } from "./field/fieldTypes";
 import ArgFieldShell from "./field/ArgFieldShell";
+import { focusPrimaryCommandTarget, getCommandEdgeArrowDirection, shouldAdvanceCommandField } from "./commandKeyboard";
 import { parseCommandStringDetailed } from "../../utils/CommandParser";
 import { useDialog } from "../layout/DialogContext";
 import type { TypeBreakdown } from "@/utils/Command";
@@ -40,7 +43,20 @@ interface CommandProps {
     forceMountAll?: boolean;
     virtualizationMode?: "auto" | "off";
     setOutput: (key: string, value: string) => void;
+    jumpSearchMatches?: readonly string[];
+    jumpSearchActiveArg?: string | null;
 }
+
+export type CommandArgSearchMatch = {
+    matches: string[];
+    bestMatch: string | null;
+    exactMatch: string | null;
+};
+
+export type CommandComponentHandle = {
+    focusArg: (argName: string) => boolean;
+    searchArgs: (query: string) => CommandArgSearchMatch;
+};
 
 type CommandArgEntry = {
     arg: Argument;
@@ -113,6 +129,74 @@ function buildCommandArgEntry(command: BaseCommand, arg: Argument): CommandArgEn
         groupId,
         groupTitle: groupId == null ? "" : command.command.groups?.[groupId] ?? "",
         groupDescription: groupId == null ? "" : command.command.group_descs?.[groupId] ?? "",
+    };
+}
+
+function normalizeArgSearchText(text: string): string {
+    return text.toLowerCase().replace(/[\s_-]+/g, " ").trim();
+}
+
+function getArgJumpTerms(entry: CommandArgEntry): string[] {
+    return [
+        entry.arg.name,
+        entry.arg.arg.flag ?? "",
+    ].map(normalizeArgSearchText).filter(Boolean);
+}
+
+function scoreArgSearchEntry(entry: CommandArgEntry, query: string): { score: number; exact: boolean } {
+    const terms = getArgJumpTerms(entry);
+    let score = -1;
+    let exact = false;
+
+    terms.forEach((term) => {
+        if (!term) {
+            return;
+        }
+
+        const words = term.split(/\s+/).filter(Boolean);
+        if (term === query) {
+            exact = true;
+            score = Math.max(score, 1000);
+            return;
+        }
+        if (words.includes(query)) {
+            score = Math.max(score, 900);
+            return;
+        }
+        if (term.startsWith(query)) {
+            score = Math.max(score, 800);
+            return;
+        }
+        if (words.some((word) => word.startsWith(query))) {
+            score = Math.max(score, 700);
+            return;
+        }
+        if (term.includes(query)) {
+            score = Math.max(score, 600);
+        }
+    });
+
+    return { score, exact };
+}
+
+function searchCommandArgs(entries: readonly CommandArgEntry[], rawQuery: string): CommandArgSearchMatch {
+    const query = normalizeArgSearchText(rawQuery);
+    if (!query) {
+        return { matches: [], bestMatch: null, exactMatch: null };
+    }
+
+    const ranked = entries
+        .map((entry) => ({
+            argName: entry.arg.name,
+            ...scoreArgSearchEntry(entry, query),
+        }))
+        .filter((entry) => entry.score >= 0)
+        .sort((left, right) => right.score - left.score || left.argName.localeCompare(right.argName));
+
+    return {
+        matches: ranked.map((entry) => entry.argName),
+        bestMatch: ranked[0]?.argName ?? null,
+        exactMatch: ranked.find((entry) => entry.exact)?.argName ?? null,
     };
 }
 
@@ -209,32 +293,6 @@ function findArgContainer(root: ParentNode | null, argName: string): HTMLElement
     return matches.find((element) => element.dataset.argName === argName) ?? null;
 }
 
-function focusPreferredField(container: HTMLElement | null): boolean {
-    if (!container) {
-        return false;
-    }
-
-    const preferredSelectors = [
-        'textarea:not([disabled])',
-        'input:not([disabled]):not([type="hidden"])',
-        '[contenteditable="true"]',
-        '[role="textbox"]:not([aria-disabled="true"])',
-        'select:not([disabled])',
-    ];
-
-    for (const selector of preferredSelectors) {
-        const candidate = container.querySelector<HTMLElement>(selector);
-        if (!candidate) {
-            continue;
-        }
-
-        candidate.focus();
-        return true;
-    }
-
-    return false;
-}
-
 function collectPrewarmNames(items: readonly CommandRowItem[], startIndex: number, endIndex: number): Set<string> {
     const nextNames = new Set<string>();
     const safeStart = Math.max(0, startIndex - COMMAND_PREWARM_BEHIND_ROWS);
@@ -289,6 +347,8 @@ const CommandArgCard = memo(function CommandArgCard({
     prewarm,
     autoFocusOnMount,
     onAutoFocusComplete,
+    jumpMatched,
+    jumpActive,
 }: {
     entry: CommandArgEntry;
     displayMode: CommandInputDisplayMode;
@@ -303,6 +363,8 @@ const CommandArgCard = memo(function CommandArgCard({
     prewarm?: boolean;
     autoFocusOnMount?: boolean;
     onAutoFocusComplete?: () => void;
+    jumpMatched?: boolean;
+    jumpActive?: boolean;
 }) {
     const { arg } = entry;
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -312,7 +374,7 @@ const CommandArgCard = memo(function CommandArgCard({
             return;
         }
 
-        if (!focusPreferredField(containerRef.current)) {
+        if (!focusPrimaryCommandTarget(containerRef.current)) {
             return;
         }
 
@@ -322,7 +384,12 @@ const CommandArgCard = memo(function CommandArgCard({
     return (
         <div
             ref={containerRef}
-            className={cn("w-full rounded-md border border-border/60 bg-background/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]", compact ? "p-px" : "p-0.5")}
+            className={cn(
+                "w-full rounded-md border border-border/60 bg-background/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors",
+                compact ? "p-px" : "p-0.5",
+                jumpMatched && "border-primary/40 bg-primary/5",
+                jumpActive && "ring-2 ring-primary/60 ring-offset-1 ring-offset-background",
+            )}
             data-arg-name={arg.name}
             onFocusCapture={trackFocusedArg ? handleFocusCapture : undefined}
             style={ARG_CARD_VISIBILITY_STYLE}
@@ -381,7 +448,7 @@ function FocusInfoBar({ arg }: { arg: Argument | null }) {
     );
 }
 
-const CommandComponent = memo(function CommandComponent({
+const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(function CommandComponent({
     command,
     overrideName,
     showTitle = true,
@@ -392,7 +459,9 @@ const CommandComponent = memo(function CommandComponent({
     displayMode = "card",
     forceMountAll = false,
     virtualizationMode = "auto",
-}: CommandProps) {
+    jumpSearchMatches = [],
+    jumpSearchActiveArg = null,
+}: CommandProps, ref) {
     const { showDialog } = useDialog();
     const rootRef = useRef<HTMLDivElement | null>(null);
     const virtuosoRef = useRef<VirtuosoHandle | null>(null);
@@ -450,7 +519,7 @@ const CommandComponent = memo(function CommandComponent({
 
         const frame = window.requestAnimationFrame(() => {
             const firstArgName = argOrder[0];
-            const focused = focusPreferredField(findArgContainer(rootRef.current, firstArgName));
+            const focused = focusPrimaryCommandTarget(findArgContainer(rootRef.current, firstArgName));
             if (focused && trackFocusedArg) {
                 setFocusedArgName(firstArgName);
             }
@@ -558,19 +627,31 @@ const CommandComponent = memo(function CommandComponent({
 
     const tryFocusArg = useCallback((argName: string) => {
         const root = rootRef.current;
-        return focusPreferredField(findArgContainer(root, argName));
+        return focusPrimaryCommandTarget(findArgContainer(root, argName));
     }, []);
 
+    const requestFocusArg = useCallback((argName: string) => {
+        if (tryFocusArg(argName)) {
+            return true;
+        }
+
+        const nextRowIndex = argRowIndexByName.get(argName);
+        if (nextRowIndex == null) {
+            return false;
+        }
+
+        setPendingFocusArgName(argName);
+        virtuosoRef.current?.scrollToIndex({ index: nextRowIndex, align: "center", behavior: "auto" });
+        return true;
+    }, [argRowIndexByName, tryFocusArg]);
+
+    useImperativeHandle(ref, () => ({
+        focusArg: (argName: string) => requestFocusArg(argName),
+        searchArgs: (query: string) => searchCommandArgs(argEntries, query),
+    }), [argEntries, requestFocusArg]);
+
     const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key !== "Enter" || event.ctrlKey || event.shiftKey || event.isDefaultPrevented()) {
-            return;
-        }
-
         const target = event.target as HTMLElement;
-        if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") {
-            return;
-        }
-
         const currentArgContainer = target.closest<HTMLElement>("[data-arg-name]");
         const currentArgName = currentArgContainer?.dataset.argName;
         if (!currentArgName) {
@@ -578,24 +659,31 @@ const CommandComponent = memo(function CommandComponent({
         }
 
         const currentIndex = argOrder.indexOf(currentArgName);
-        if (currentIndex === -1 || currentIndex >= argOrder.length - 1) {
+        if (currentIndex === -1) {
+            return;
+        }
+
+        const edgeArrowDirection = getCommandEdgeArrowDirection(event.nativeEvent);
+        if (edgeArrowDirection) {
+            const nextIndex = edgeArrowDirection === "previous" ? currentIndex - 1 : currentIndex + 1;
+            const nextArgName = argOrder[nextIndex];
+            if (!nextArgName) {
+                return;
+            }
+
+            event.preventDefault();
+            requestFocusArg(nextArgName);
+            return;
+        }
+
+        if (!shouldAdvanceCommandField(event.nativeEvent) || currentIndex >= argOrder.length - 1) {
             return;
         }
 
         const nextArgName = argOrder[currentIndex + 1];
         event.preventDefault();
-        if (tryFocusArg(nextArgName)) {
-            return;
-        }
-
-        const nextRowIndex = argRowIndexByName.get(nextArgName);
-        if (nextRowIndex == null) {
-            return;
-        }
-
-        setPendingFocusArgName(nextArgName);
-        virtuosoRef.current?.scrollToIndex({ index: nextRowIndex, align: "center", behavior: "auto" });
-    }, [argOrder, argRowIndexByName, tryFocusArg]);
+        requestFocusArg(nextArgName);
+    }, [argOrder, requestFocusArg]);
 
     const handleRangeChanged = useCallback((range: { startIndex: number; endIndex: number }) => {
         if (!shouldVirtualize) {
@@ -635,9 +723,11 @@ const CommandComponent = memo(function CommandComponent({
                 prewarm={prewarm}
                 autoFocusOnMount={autoFocusOnMount}
                 onAutoFocusComplete={autoFocusOnMount ? handlePendingFocusComplete : undefined}
+                jumpMatched={jumpSearchMatches.includes(entry.arg.name)}
+                jumpActive={jumpSearchActiveArg === entry.arg.name}
             />
         );
-    }, [compact, displayMode, fieldStateUpdaters, fieldStates, forceMountAll, handleFieldCommit, handleFieldOutput, handleFocusCapture, handlePendingFocusComplete, initialValues, pendingFocusArgName, prewarmedArgNames, trackFocusedArg]);
+    }, [compact, displayMode, fieldStateUpdaters, fieldStates, forceMountAll, handleFieldCommit, handleFieldOutput, handleFocusCapture, handlePendingFocusComplete, initialValues, jumpSearchActiveArg, jumpSearchMatches, pendingFocusArgName, prewarmedArgNames, trackFocusedArg]);
 
     const computeVirtualItemKey = useCallback((_: number, item: CommandRowItem) => item.key, []);
 
@@ -701,7 +791,7 @@ const CommandComponent = memo(function CommandComponent({
             )}
         </div>
     );
-});
+}));
 
 export function ArgDescComponent(
     { entry, arg: legacyArg, includeType = false, includeDesc = false, includeExamples = false, compact = false }:

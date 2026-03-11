@@ -4,6 +4,9 @@ import { OTPInput, OTPInputContext } from "input-otp"
 import { cn } from "@/lib/utils"
 import LazyIcon from "./LazyIcon"
 
+export const INPUT_OTP_SLOT_ATTR = "data-input-otp-slot"
+export const INPUT_OTP_SLOT_ACTIVE_ATTR = "data-input-otp-slot-active"
+
 const InputOTP = React.forwardRef<
   React.ElementRef<typeof OTPInput>,
   React.ComponentPropsWithoutRef<typeof OTPInput>
@@ -38,6 +41,8 @@ const InputOTPSlot = React.forwardRef<
   return (
     <div
       ref={ref}
+      aria-hidden="true"
+      {...{ [INPUT_OTP_SLOT_ATTR]: "true", [INPUT_OTP_SLOT_ACTIVE_ATTR]: isActive ? "true" : "false" }}
       className={cn(
         "relative flex h-8 w-8 items-center justify-center bg-input border-y border-r border-muted-foreground/50 text-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
         isActive && "z-10 ring-2 ring-ring ring-offset-background",

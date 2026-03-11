@@ -1,14 +1,18 @@
 import CommandActionButton from "@/components/cmd/CommandActionButton";
-import CommandComponent from "@/components/cmd/CommandComponent";
+import CommandComponent, { type CommandComponentHandle } from "@/components/cmd/CommandComponent";
 import CommandStringPreview from "@/components/cmd/CommandStringPreview";
+import { getCommandSubmitShortcutLabel } from "@/components/cmd/commandKeyboard";
+import { useCommandArgumentJump } from "@/components/cmd/useCommandArgumentJump";
+import { useCommandShellKeyboard } from "@/components/cmd/useCommandShellKeyboard";
 import type { CommandInputDisplayMode } from "@/components/cmd/field/fieldTypes";
+import { DIALOG_LOCAL_ESCAPE_ATTR } from "@/components/ui/dialog";
 import { cn, deepEqual } from "@/lib/utils";
 import { COMMANDS } from "@/lib/commands";
 import { CM } from "@/utils/Command";
 import type { AnyCommandPath, CommandArguments } from "@/utils/Command";
 import { createCommandStoreWithDef } from "@/utils/StateUtil";
 import { formatCommandString } from "@/utils/CommandParser";
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 
 type CommandDialogArgs<P extends AnyCommandPath> = Partial<CommandArguments<typeof COMMANDS.commands, P>>;
@@ -26,6 +30,8 @@ export type CommandDialogFormProps<P extends AnyCommandPath> = {
     showCommandTitle?: boolean;
     autoFocusFirstField?: boolean;
     actionsLayout?: "flow" | "sticky";
+    onRequestBack?: () => void;
+    backHint?: string;
     children?: (ctx: {
         output: Record<string, string | string[]>;
         setOutput: (key: string, value: string) => void;
@@ -50,6 +56,9 @@ const CommandDialogFields = memo(function CommandDialogFields<P extends AnyComma
     autoFocusFirstField,
     children,
     setOutput,
+    commandRef,
+    jumpSearchMatches,
+    jumpSearchActiveArg,
 }: {
     commandPath: P;
     initialValues: Record<string, string>;
@@ -59,6 +68,9 @@ const CommandDialogFields = memo(function CommandDialogFields<P extends AnyComma
     autoFocusFirstField?: boolean;
     children?: CommandDialogFormProps<P>["children"];
     setOutput: (key: string, value: string) => void;
+    commandRef?: RefObject<CommandComponentHandle | null>;
+    jumpSearchMatches?: readonly string[];
+    jumpSearchActiveArg?: string | null;
 }) {
     const command = useMemo(() => CM.get(commandPath), [commandPath]);
     const alwaysShowArgument = useCallback(() => true, []);
@@ -71,6 +83,7 @@ const CommandDialogFields = memo(function CommandDialogFields<P extends AnyComma
                     children({ output: initialValues, setOutput })
                 ) : (
                     <CommandComponent
+                        ref={commandRef}
                         command={command}
                         filterArguments={alwaysShowArgument}
                         initialValues={initialValues}
@@ -78,6 +91,8 @@ const CommandDialogFields = memo(function CommandDialogFields<P extends AnyComma
                         displayMode={displayMode}
                         showTitle={showCommandTitle}
                         autoFocusFirstField={autoFocusFirstField}
+                        jumpSearchMatches={jumpSearchMatches}
+                        jumpSearchActiveArg={jumpSearchActiveArg}
                     />
                 )}
             </div>
@@ -109,6 +124,9 @@ function CommandDialogActions<P extends AnyCommandPath>({
     onComplete,
     actionsLayout,
     extraActions,
+    submitButtonRef,
+    submitShortcutLabel,
+    escapeHint,
 }: {
     commandStore: ReturnType<typeof createCommandStoreWithDef>;
     commandPath: P;
@@ -120,10 +138,17 @@ function CommandDialogActions<P extends AnyCommandPath>({
     onComplete?: (result?: { status?: "success" | "error" | "action" }) => void;
     actionsLayout: "flow" | "sticky";
     extraActions?: ReactNode;
+    submitButtonRef?: RefObject<HTMLButtonElement | null>;
+    submitShortcutLabel: string;
+    escapeHint?: string | null;
 }) {
     const output = useStoreWithEqualityFn(commandStore, selectOutput, deepEqual);
     const commandString = useMemo(() => formatCommandString(commandPathString, output), [commandPathString, output]);
     const getCommandText = useCallback(() => formatCommandString(commandPathString, commandStore.getState().output), [commandPathString, commandStore]);
+    const resolvedRunLabel = useMemo(() => {
+        const baseLabel = runLabel ?? `Run ${commandName}`;
+        return baseLabel.includes(submitShortcutLabel) ? baseLabel : `${baseLabel} (${submitShortcutLabel})`;
+    }, [commandName, runLabel, submitShortcutLabel]);
 
     return (
         <div className={cn(
@@ -134,12 +159,16 @@ function CommandDialogActions<P extends AnyCommandPath>({
         )}>
             <div className="min-w-0 flex-1">
                 <CommandStringPreview text={commandString} getText={getCommandText} />
+                {escapeHint && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">{escapeHint}</p>
+                )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
                 <CommandActionButton
+                    buttonRef={submitButtonRef}
                     command={commandPath}
                     args={output as CommandDialogArgs<P>}
-                    label={runLabel ?? `Run ${commandName}`}
+                    label={resolvedRunLabel}
                     classes="!ms-0"
                     disabled={runDisabled}
                     showResultDialog={showResultDialog}
@@ -164,14 +193,35 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
     showCommandTitle = true,
     autoFocusFirstField = false,
     actionsLayout = "flow",
+    onRequestBack,
+    backHint,
     children,
     extraActions,
 }: CommandDialogFormProps<P>) {
     const [commandStore] = useState(() => createCommandStoreWithDef(initialValues));
+    const submitButtonRef = useRef<HTMLButtonElement | null>(null);
+    const neutralCommitRef = useRef<((query: string) => void) | null>(null);
     const setOutput = commandStore(selectSetOutput);
     const output = useStoreWithEqualityFn(commandStore, selectOutput, deepEqual);
     const commandName = useMemo(() => CM.get(commandPath).name, [commandPath]);
     const commandPathString = useMemo(() => commandPath.join(" "), [commandPath]);
+    const submitShortcutLabel = useMemo(() => getCommandSubmitShortcutLabel(), []);
+    const jumpEnabled = !children;
+    const { rootRef, escapeHint, neutralQuery, clearEscapeState, handleBlurCapture, handleMouseDownCapture, handleKeyDownCapture } = useCommandShellKeyboard({
+        onSubmit: () => submitButtonRef.current?.click(),
+        onRequestBack,
+        backHint,
+        onNeutralCommit: (query) => {
+            neutralCommitRef.current?.(query);
+        },
+    });
+
+    const jumpState = useCommandArgumentJump({
+        neutralQuery,
+        clearShellState: clearEscapeState,
+        enabled: jumpEnabled,
+    });
+    neutralCommitRef.current = jumpState.commitJump;
 
     useEffect(() => {
         onOutputChange?.(output);
@@ -185,8 +235,20 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
         };
     }, [onCompleteSuccess]);
 
+    const shellEscapeProps = onRequestBack
+        ? { [DIALOG_LOCAL_ESCAPE_ATTR]: "true" as const }
+        : {};
+
     return (
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <div
+            ref={rootRef}
+            {...shellEscapeProps}
+            tabIndex={-1}
+            className="flex min-h-0 flex-1 flex-col gap-2"
+            onMouseDownCapture={handleMouseDownCapture}
+            onBlurCapture={handleBlurCapture}
+            onKeyDownCapture={handleKeyDownCapture}
+        >
             <div className="min-h-0 flex-1 overflow-auto pr-0.5">
                 <div className="space-y-2">
                     {children ? (
@@ -209,6 +271,9 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
                             showCommandTitle={showCommandTitle}
                             autoFocusFirstField={autoFocusFirstField}
                             setOutput={setOutput}
+                            commandRef={jumpState.commandRef}
+                            jumpSearchMatches={jumpState.jumpMatches}
+                            jumpSearchActiveArg={jumpState.jumpActiveArgName}
                         />
                     )}
                 </div>
@@ -224,6 +289,9 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
                 onComplete={onCompleteHandler}
                 actionsLayout={actionsLayout}
                 extraActions={extraActions}
+                submitButtonRef={submitButtonRef}
+                submitShortcutLabel={submitShortcutLabel}
+                escapeHint={jumpState.jumpHint ?? escapeHint}
             />
         </div>
     );

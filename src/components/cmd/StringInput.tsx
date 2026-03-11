@@ -1,10 +1,10 @@
-import { Input } from "../ui/input";
 import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { validateRegexInput } from "./field/argValidation";
 import { useArgFieldState } from "./field/useArgFieldState";
 import FieldMessage from "./field/FieldMessage";
 import type { CommandFieldState, CommandFieldStateUpdater } from "./field/commandFieldState";
+import CommandTextInput from "./field/CommandTextInput";
 
 export default function StringInput(
     {argName, initialValue, filter, filterHelp, setOutputValue, compact, placeholder, maxLength, fieldState, setFieldState}:
@@ -37,7 +37,7 @@ export default function StringInput(
 
     return (
         <div className="space-y-1.5">
-            <Input
+            <CommandTextInput
                 type="text"
                 value={value}
                 onChange={onChange}

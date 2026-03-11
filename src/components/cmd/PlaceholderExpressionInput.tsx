@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,13 @@ import type { ExpressionValueSourceRef } from "./expression/expressionSchema";
 import { getExpressionExample, getExpressionTypeSchema } from "./expression/expressionSchema";
 import { useExpressionValueSources } from "./expression/expressionValueFetcher";
 import { getPlaceholderExpressionDescriptor } from "./expression/expressionTypes";
-import PlaceholderSuggestionPanel from "./PlaceholderSuggestionPanel";
+import PlaceholderSuggestionPanel, {
+    buildPlaceholderSuggestionView,
+    getPlaceholderSuggestionKey,
+    PLACEHOLDER_SUGGESTION_VISIBLE_ROW_COUNT,
+} from "./PlaceholderSuggestionPanel";
+import { COMMAND_POPUP_OPEN_ATTR } from "./commandKeyboard";
+import { getSearchListKeyboardAction, getSearchListOptionId, useSearchListActiveNavigation } from "./searchListPrimitives";
 
 type SourceMessage = { kind: "loading" | "warning" | "error"; text: string };
 
@@ -24,6 +30,7 @@ const EMPTY_SOURCE_MESSAGES: SourceMessage[] = [];
 const EMPTY_REGISTRY: ExpressionValueSourceRegistry = {};
 const EMPTY_ANALYSIS: ExpressionAnalysis = { suggestions: [], errors: [] };
 const STATUS_SLOT_HEIGHT_CLASS = "h-[3.25rem]";
+const PLACEHOLDER_SUGGESTION_PAGE_SIZE = PLACEHOLDER_SUGGESTION_VISIBLE_ROW_COUNT;
 const HIDDEN_PANEL_STYLE: React.CSSProperties = {
     position: "fixed",
     top: -9999,
@@ -37,6 +44,18 @@ const HIDDEN_PANEL_STYLE: React.CSSProperties = {
 const PASSWORD_MANAGER_IGNORE_PROPS = {
     "data-bwignore": "true",
 } as const;
+
+function isSuggestionAcceptKey(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter" && event.ctrlKey) {
+        return true;
+    }
+
+    if (event.key !== "ArrowRight") {
+        return false;
+    }
+
+    return event.ctrlKey || event.metaKey;
+}
 
 function resolveSearchTokenTargetCacheKey(activeSourceRef: ExpressionValueSourceRef | undefined): string | null {
     if (!activeSourceRef) {
@@ -118,6 +137,7 @@ export default function PlaceholderExpressionInput({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const controlRef = useRef<HTMLInputElement | null>(null);
     const panelRef = useRef<HTMLDivElement | null>(null);
+    const suggestionListboxId = useId();
     const descriptor = useMemo(() => getPlaceholderExpressionDescriptor(breakdown), [breakdown]);
     const [value, setValue] = useSyncedState(initialValue || "");
     const [cursor, setCursor] = useState((initialValue || "").length);
@@ -197,6 +217,26 @@ export default function PlaceholderExpressionInput({
     const sourceMessages = useMemo(() => {
         return collectSourceMessages(requiredSourceCacheKeys, sourceRegistry ?? EMPTY_REGISTRY);
     }, [requiredSourceCacheKeys, sourceRegistry]);
+    const suggestionView = useMemo(() => buildPlaceholderSuggestionView({
+        suggestions: analysis.suggestions,
+        lazyOptionSource: analysis.lazyOptionSource,
+        searchValue: panelSearchValue,
+    }), [analysis.lazyOptionSource, analysis.suggestions, panelSearchValue]);
+    const {
+        activeIndex,
+        setActiveIndex,
+        moveActiveIndex,
+        resetActiveIndex,
+    } = useSearchListActiveNavigation({
+        itemCount: suggestionView.renderedSuggestions.length,
+    });
+    const activeSuggestion = suggestionView.renderedSuggestions[activeIndex] ?? null;
+    const activeDescendantId = activeSuggestion
+        ? getSearchListOptionId(suggestionListboxId, getPlaceholderSuggestionKey(activeSuggestion))
+        : undefined;
+    const topSuggestion = useMemo(() => {
+        return analysis.suggestions[0] ?? getFirstLazyOptionSuggestion(analysis.lazyOptionSource) ?? null;
+    }, [analysis.lazyOptionSource, analysis.suggestions]);
 
     const applySuggestion = useCallback((suggestion: ExpressionSuggestion) => {
         const nextValue = `${value.slice(0, suggestion.replaceFrom)}${suggestion.insertText}${value.slice(suggestion.replaceTo)}`;
@@ -228,6 +268,10 @@ export default function PlaceholderExpressionInput({
         setHasPanelInteraction((previous) => previous ? previous : true);
     }, []);
 
+    useEffect(() => {
+        resetActiveIndex();
+    }, [resetActiveIndex, suggestionView.resultKey]);
+
     const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const nextValue = event.currentTarget.value;
         requestPanelInteraction();
@@ -245,15 +289,34 @@ export default function PlaceholderExpressionInput({
     }, [requestPanelInteraction, updateCursor]);
 
     const handleKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-        if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+        const usesLocalTextNavigation = !event.altKey && !event.ctrlKey && !event.metaKey;
+        if (usesLocalTextNavigation) {
             requestPanelInteraction();
         }
-        const firstSuggestion = analysis.suggestions[0] ?? getFirstLazyOptionSuggestion(analysis.lazyOptionSource);
-        if ((event.key === "Tab" || (event.key === "Enter" && event.ctrlKey)) && firstSuggestion) {
-            event.preventDefault();
-            applySuggestion(firstSuggestion);
+
+        if (usesLocalTextNavigation) {
+            const action = getSearchListKeyboardAction({
+                key: event.key,
+                itemCount: suggestionView.visibleSuggestions,
+                activeIndex,
+                hasQuery: value.trim().length > 0,
+                pageSize: PLACEHOLDER_SUGGESTION_PAGE_SIZE,
+                wrapArrowUp: true,
+                wrapArrowDown: true,
+            });
+
+            if (action.type === "move") {
+                event.preventDefault();
+                moveActiveIndex(action.nextIndex, action.align);
+                return;
+            }
         }
-    }, [analysis.lazyOptionSource, analysis.suggestions, applySuggestion, requestPanelInteraction]);
+
+        if (isSuggestionAcceptKey(event) && (activeSuggestion ?? topSuggestion)) {
+            event.preventDefault();
+            applySuggestion(activeSuggestion ?? topSuggestion!);
+        }
+    }, [activeIndex, activeSuggestion, applySuggestion, moveActiveIndex, requestPanelInteraction, suggestionView.visibleSuggestions, topSuggestion, value]);
 
     const handleSuggestionPanelMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
         event.preventDefault();
@@ -344,6 +407,7 @@ export default function PlaceholderExpressionInput({
             className="space-y-1.5"
             onFocusCapture={handleFocusWithin}
             onBlurCapture={handleBlurWithin}
+            {...{ [COMMAND_POPUP_OPEN_ATTR]: showSuggestionPanel ? "true" : "false" }}
         >
             <div>
                 <Input
@@ -355,6 +419,12 @@ export default function PlaceholderExpressionInput({
                     onClick={syncCursor}
                     onSelect={syncCursor}
                     spellCheck={false}
+                    role={showSuggestionPanel ? "combobox" : undefined}
+                    aria-autocomplete={showSuggestionPanel ? "list" : undefined}
+                    aria-expanded={showSuggestionPanel ? suggestionView.visibleSuggestions > 0 : undefined}
+                    aria-haspopup={showSuggestionPanel ? "listbox" : undefined}
+                    aria-controls={showSuggestionPanel ? suggestionListboxId : undefined}
+                    aria-activedescendant={showSuggestionPanel ? activeDescendantId : undefined}
                     {...PASSWORD_MANAGER_IGNORE_PROPS}
                     className={cn(
                         "h-6.5 bg-background px-2 text-xs font-mono",
@@ -374,11 +444,14 @@ export default function PlaceholderExpressionInput({
                 >
                     <div className="max-h-[inherit] overflow-y-auto">
                         <PlaceholderSuggestionPanel
-                            suggestions={analysis.suggestions}
-                            lazyOptionSource={analysis.lazyOptionSource}
+                            view={suggestionView}
                             searchValue={panelSearchValue}
+                            listboxId={suggestionListboxId}
+                            activeIndex={activeIndex}
+                            activeDescendantId={activeDescendantId}
                             onSearchValueChange={setPanelSearchValue}
                             onApplySuggestion={applySuggestion}
+                            onActiveIndexChange={setActiveIndex}
                         />
                     </div>
                 </div>,
@@ -392,7 +465,6 @@ export default function PlaceholderExpressionInput({
                             <div>
                                 <div className="font-medium text-foreground">{analysis.hint.title}</div>
                                 {analysis.hint.detail && <div className="text-muted-foreground">{analysis.hint.detail}</div>}
-                                {analysis.hint.meta && <div className="font-mono text-[10px] text-muted-foreground">{analysis.hint.meta}</div>}
                             </div>
                         )}
                         {sourceMessages.length > 0 && (

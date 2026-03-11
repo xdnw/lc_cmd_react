@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { useSyncedState } from "@/utils/StateUtil";
 
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
 import KeyValueEntryList from "./KeyValueEntryList";
 import { ListComponentOptions } from "./ListComponent";
 import { summarizeCollectionNotices, type CollectionNotice } from "./collectionInputNormalization";
@@ -19,6 +18,7 @@ import {
     serializeParsedCityBuildValue,
 } from "./cityBuildInputUtils";
 import { validateNumberInput } from "./field/argValidation";
+import CommandTextInput from "./field/CommandTextInput";
 import FieldMessage from "./field/FieldMessage";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
 import { isCompactMode } from "./field/fieldTypes";
@@ -152,7 +152,7 @@ export default function CityBuildInput({
         <div onPasteCapture={handlePasteCapture}>
             <div className="mb-3">
                 <p className="mb-1 text-xs font-medium text-muted-foreground">DBCity</p>
-                <Input
+                <CommandTextInput
                     type="text"
                     value={cityText}
                     onChange={handleCityChange}
@@ -188,7 +188,7 @@ export default function CityBuildInput({
                 </div>
                 <div>
                     <p className="mb-1 text-xs text-muted-foreground">Value</p>
-                    <Input
+                    <CommandTextInput
                         type="text"
                         value={addValue}
                         onChange={handleAddValueChange}

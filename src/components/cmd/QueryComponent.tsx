@@ -164,7 +164,7 @@ function QueryNotice({ tone, message }: { tone: QueryNoticeTone; message: string
 }
 
 function formatDeferredSearchPrompt(optionCount: number): string {
-    return `Type at least 1 character to search ${optionCount.toLocaleString()} options.`;
+    return `Type 1+ characters to search ${optionCount.toLocaleString()} options.`;
 }
 
 export default function QueryComponent(

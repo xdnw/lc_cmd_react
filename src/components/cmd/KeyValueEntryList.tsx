@@ -31,10 +31,11 @@ const KeyValueEntryRow = memo(function KeyValueEntryRow({
             <div className="truncate text-[11px] font-medium text-muted-foreground">{item.key}</div>
             <div className="break-all font-mono text-foreground/90">{item.value}</div>
             <Button
+                type="button"
                 onClick={handleRemoveClick}
                 variant="ghost"
                 size="sm"
-                tabIndex={-1}
+                aria-label={`Remove ${item.key}`}
                 className={compact ? "h-5 px-1.5 text-[10px]" : "h-5 px-1.5 text-[10px]"}
             >
                 Remove

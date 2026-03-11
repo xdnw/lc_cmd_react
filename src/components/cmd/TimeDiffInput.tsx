@@ -1,6 +1,5 @@
 import { useMemo, useCallback, type ChangeEvent, type ClipboardEvent } from "react";
 import { useSyncedState } from "@/utils/StateUtil";
-import { Input } from "../ui/input";
 import { cn } from "@/lib/utils";
 import {
   formatHumanDatetime,
@@ -9,6 +8,7 @@ import {
 } from "@/lib/temporal";
 import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
 import FieldMessage from "./field/FieldMessage";
+import CommandTextInput from "./field/CommandTextInput";
 
 const exampleCodeClass = "rounded bg-muted px-1 py-0.5 font-mono text-foreground";
 
@@ -84,7 +84,7 @@ export default function TimeDiffInput({
 
   return (
     <div className="w-full space-y-1">
-      <Input
+      <CommandTextInput
         type="text"
         spellCheck={false}
         autoCapitalize="off"
@@ -118,10 +118,10 @@ export default function TimeDiffInput({
               </>
             ) : (
               <>
-                Accepts{" "}
+                Use{" "}
                 <code className={exampleCodeClass}>1w10h3m25s</code>. Positive values mean “ago”.
-                Use <code className={exampleCodeClass}>-2h</code> or{" "}
-                <code className={exampleCodeClass}>in 2h</code> for future.
+                Future: <code className={exampleCodeClass}>-2h</code> or{" "}
+                <code className={exampleCodeClass}>in 2h</code>.
               </>
             )}
           </p>

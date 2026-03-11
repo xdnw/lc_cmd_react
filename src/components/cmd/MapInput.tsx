@@ -1,7 +1,7 @@
 import { useSyncedState } from "@/utils/StateUtil";
 import { TypeBreakdown } from "@/utils/Command";
 import ArgInput from "./ArgInput";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Button } from "../ui/button.tsx";
 import { useDialog } from "../layout/DialogContext";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
@@ -12,6 +12,8 @@ import FieldMessage from "./field/FieldMessage";
 import KeyValueEntryList from "./KeyValueEntryList";
 import type { CollectionNotice } from "./collectionInputNormalization";
 import { normalizeCollectionScalar, normalizeMapEntries, serializeMapEntries, summarizeCollectionNotices } from "./collectionInputNormalization";
+import { focusPrimaryCommandTarget, getCommandEdgeArrowDirection, isCommandPopupOpenTarget } from "./commandKeyboard";
+import { resolveArgInput, type ArgInputResolutionKind } from "./argInputMetadata";
 
 type MapEntry = { [key: string]: string };
 
@@ -28,6 +30,12 @@ type StaticMapState = {
 
 const STATIC_KEY_COUNT_LIMIT = 25;
 const STATIC_KEY_LABEL_LENGTH_LIMIT = 25;
+const STATIC_MAP_UNCLAIMED_TYPING_KINDS = new Set<ArgInputResolutionKind>([
+    "number",
+    "time",
+    "timediff",
+    "taxrate",
+]);
 
 function hasStructuredMapInput(input?: string): boolean {
     return Boolean(input?.trim()) && /[=:{}\n,]|[^\x20-\x7e]/.test(input ?? "");
@@ -155,7 +163,7 @@ function serializeStaticMapEntries(
 }
 
 const StaticMapRow = memo(function StaticMapRow(
-    { mapKey, value, valueBreakdown, displayMode, compact, onValueChange }:
+    { mapKey, value, valueBreakdown, displayMode, compact, onValueChange, rowRef }:
         {
             mapKey: string,
             value: string,
@@ -163,6 +171,7 @@ const StaticMapRow = memo(function StaticMapRow(
             displayMode?: CommandInputDisplayMode,
             compact: boolean,
             onValueChange: (key: string, value: string) => void,
+            rowRef?: (node: HTMLDivElement | null) => void,
         }
 ) {
     const handleValueChange = useCallback((_: string, nextValue: string) => {
@@ -170,7 +179,7 @@ const StaticMapRow = memo(function StaticMapRow(
     }, [mapKey, onValueChange]);
 
     return (
-        <div className={cn("grid gap-2", compact ? "grid-cols-[minmax(0,7rem)_1fr] items-center" : "grid-cols-[minmax(0,9rem)_1fr] items-center")}>
+        <div ref={rowRef} data-map-key={mapKey} className={cn("grid gap-2", compact ? "grid-cols-[minmax(0,7rem)_1fr] items-center" : "grid-cols-[minmax(0,9rem)_1fr] items-center")}>
             <div className={cn("truncate text-[11px] font-medium text-muted-foreground", compact ? "pr-1" : "pr-2")}>{mapKey}</div>
             <ArgInput
                 argName={`value-${mapKey}`}
@@ -203,6 +212,50 @@ function StaticKeyMapInput(
         [children, initialValue, staticKeys],
     );
     const [state, setState] = useSyncedState<StaticMapState>(initialState);
+    const rowRefs = useRef(new Map<string, HTMLDivElement>());
+    const typeaheadStateRef = useRef<{ buffer: string; expiresAt: number }>({ buffer: "", expiresAt: 0 });
+    const valueInputResolution = useMemo(() => resolveArgInput(children[1]), [children]);
+    const supportsStaticKeyTypeahead = STATIC_MAP_UNCLAIMED_TYPING_KINDS.has(valueInputResolution.kind);
+
+    const clearTypeaheadBuffer = useCallback(() => {
+        typeaheadStateRef.current = { buffer: "", expiresAt: 0 };
+    }, []);
+
+    const registerRowRef = useCallback((mapKey: string, node: HTMLDivElement | null) => {
+        if (node) {
+            rowRefs.current.set(mapKey, node);
+            return;
+        }
+
+        rowRefs.current.delete(mapKey);
+    }, []);
+
+    const focusStaticKeyRow = useCallback((mapKey: string) => {
+        return focusPrimaryCommandTarget(rowRefs.current.get(mapKey) ?? null);
+    }, []);
+
+    const findStaticKeyMatch = useCallback((buffer: string, currentKey: string | null) => {
+        const normalizedBuffer = buffer.trim().toLowerCase();
+        if (!normalizedBuffer) {
+            return null;
+        }
+
+        const matches = staticKeys.filter((key) => key.toLowerCase().startsWith(normalizedBuffer));
+        if (matches.length === 0) {
+            return null;
+        }
+
+        if (matches.length === 1 || !currentKey) {
+            return matches[0] ?? null;
+        }
+
+        const currentIndex = matches.indexOf(currentKey);
+        if (currentIndex === -1) {
+            return matches[0] ?? null;
+        }
+
+        return matches[(currentIndex + 1) % matches.length] ?? null;
+    }, [staticKeys]);
 
     const syncStaticEntries = useCallback((nextEntries: MapEntry[], emitOutput: boolean) => {
         const normalized = normalizeMapEntries(nextEntries, children[0], children[1]);
@@ -264,11 +317,44 @@ function StaticKeyMapInput(
         }
     }, [children, showDialog, syncStaticEntries]);
 
+    const handleTypeaheadKeyDownCapture = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (
+            !supportsStaticKeyTypeahead
+            || event.defaultPrevented
+            || event.ctrlKey
+            || event.metaKey
+            || event.altKey
+            || event.key.length !== 1
+            || /\s/.test(event.key)
+            || isCommandPopupOpenTarget(event.target)
+        ) {
+            return;
+        }
+
+        const currentRowKey = (event.target as HTMLElement).closest<HTMLElement>("[data-map-key]")?.dataset.mapKey ?? null;
+        const now = Date.now();
+        const normalizedKey = event.key.toLowerCase();
+        const previousBuffer = typeaheadStateRef.current.expiresAt > now ? typeaheadStateRef.current.buffer : "";
+        const nextBuffer = previousBuffer === normalizedKey ? normalizedKey : `${previousBuffer}${normalizedKey}`;
+        const matchedKey = findStaticKeyMatch(nextBuffer, currentRowKey) ?? findStaticKeyMatch(normalizedKey, currentRowKey);
+        if (!matchedKey) {
+            clearTypeaheadBuffer();
+            return;
+        }
+
+        event.preventDefault();
+        typeaheadStateRef.current = {
+            buffer: findStaticKeyMatch(nextBuffer, currentRowKey) ? nextBuffer : normalizedKey,
+            expiresAt: now + 1000,
+        };
+        focusStaticKeyRow(matchedKey);
+    }, [clearTypeaheadBuffer, findStaticKeyMatch, focusStaticKeyRow, supportsStaticKeyTypeahead]);
+
     const { warningText, noteText } = useMemo(() => summarizeCollectionNotices(state.notices), [state.notices]);
     const extraItems = useMemo(() => toEntryItems(state.extraEntries), [state.extraEntries]);
 
     return (
-        <div className="space-y-2" onPasteCapture={handlePasteCapture}>
+        <div className="space-y-2" onPasteCapture={handlePasteCapture} onKeyDownCapture={handleTypeaheadKeyDownCapture}>
             <div className="space-y-1.5">
                 {staticKeys.map((key) => (
                     <StaticMapRow
@@ -279,6 +365,7 @@ function StaticKeyMapInput(
                         displayMode={displayMode}
                         compact={compact}
                         onValueChange={handleValueChange}
+                        rowRef={(node) => registerRowRef(key, node)}
                     />
                 ))}
             </div>
@@ -320,6 +407,18 @@ function DynamicMapInput(
     const [notices, setNotices] = useSyncedState(initialNormalized.notices);
     const [addKey, setAddKey] = useState("");
     const [addValue, setAddValue] = useState("");
+    const keyFieldRef = useRef<HTMLDivElement>(null);
+    const valueFieldRef = useRef<HTMLDivElement>(null);
+
+    const focusPendingKeyField = useCallback(() => {
+        requestAnimationFrame(() => {
+            focusPrimaryCommandTarget(keyFieldRef.current);
+        });
+    }, []);
+
+    const focusPendingValueField = useCallback(() => {
+        focusPrimaryCommandTarget(valueFieldRef.current);
+    }, []);
 
     const syncEntries = useCallback((nextEntries: MapEntry[]) => {
         const normalized = normalizeMapEntries(nextEntries, children[0], children[1]);
@@ -365,27 +464,39 @@ function DynamicMapInput(
     }, [addKey, addValue, children, showDialog, syncEntries, value]);
 
     const handleKeyKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (isCommandPopupOpenTarget(e.target)) {
+            return;
+        }
+
+        if (getCommandEdgeArrowDirection(e.nativeEvent) === "next") {
+            e.preventDefault();
+            focusPendingValueField();
+            return;
+        }
+
         if (e.key === "Enter" && !e.ctrlKey && !e.shiftKey && !e.isDefaultPrevented()) {
             e.preventDefault();
-            const container = e.currentTarget.closest(".grid");
-            if (container) {
-                const valueInput = container.querySelector("div:nth-child(2) input, div:nth-child(2) select") as HTMLElement | null;
-                valueInput?.focus();
-            }
+            focusPendingValueField();
         }
-    }, []);
+    }, [focusPendingValueField]);
 
     const handleValueKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (isCommandPopupOpenTarget(e.target)) {
+            return;
+        }
+
+        if (getCommandEdgeArrowDirection(e.nativeEvent) === "previous") {
+            e.preventDefault();
+            focusPrimaryCommandTarget(keyFieldRef.current);
+            return;
+        }
+
         if (e.key === "Enter" && !e.ctrlKey && !e.shiftKey && !e.isDefaultPrevented()) {
             e.preventDefault();
             addPairFunc();
-            const container = e.currentTarget.closest(".grid");
-            if (container) {
-                const keyInput = container.querySelector("div:nth-child(1) input, div:nth-child(1) select") as HTMLElement | null;
-                keyInput?.focus();
-            }
+            focusPendingKeyField();
         }
-    }, [addPairFunc]);
+    }, [addPairFunc, focusPendingKeyField]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         const pastedText = event.clipboardData.getData("text");
@@ -421,10 +532,10 @@ function DynamicMapInput(
                 />
             </div>
             <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
-                <div onKeyDown={handleKeyKeyDown}>
+                <div ref={keyFieldRef} onKeyDown={handleKeyKeyDown}>
                     <ArgInput argName="key" breakdown={children[0]} min={undefined} max={undefined} initialValue={addKey} displayMode={displayMode} setOutputValue={addKeyFunc} />
                 </div>
-                <div onKeyDown={handleValueKeyDown}>
+                <div ref={valueFieldRef} onKeyDown={handleValueKeyDown}>
                     <ArgInput argName="value" breakdown={children[1]} min={undefined} max={undefined} initialValue={addValue} displayMode={displayMode} setOutputValue={addValueFunc} />
                 </div>
                 <div className="flex justify-end">

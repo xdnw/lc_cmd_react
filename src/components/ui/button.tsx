@@ -47,7 +47,7 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, children, ...props }, ref) => {
     const classes = React.useMemo(
-      () => cn(buttonVariants({ variant, size }), className, "relative ui-button"),
+      () => cn(buttonVariants({ variant, size }), "relative ui-button", className),
       [className, variant, size]
     )
 

@@ -1,26 +1,19 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, type Ref } from "react";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/ui/loading";
 import { cn } from "@/lib/utils";
 import { COMMANDS } from "@/lib/commands";
 import { useDialog } from "@/components/layout/DialogContext";
 import {
-    getCommandResponseStatus,
-    getCommandResponseSummary,
-    handleResponse,
     RenderResponse,
-    runCommand,
-    type CommandMessage,
-} from "@/pages/command";
+    useCommandExecution,
+    type CommandActionResult,
+} from "@/components/cmd/useCommandExecution";
 import type { AnyCommandPath, CommandArguments } from "@/utils/Command";
 
-type CommandActionArgs<P extends AnyCommandPath> = Partial<CommandArguments<typeof COMMANDS.commands, P>>;
+export type { CommandActionResult } from "@/components/cmd/useCommandExecution";
 
-export type CommandActionResult = {
-    status: "success" | "error" | "action";
-    message?: string;
-    raw: CommandMessage;
-};
+type CommandActionArgs<P extends AnyCommandPath> = Partial<CommandArguments<typeof COMMANDS.commands, P>>;
 
 export type CommandActionButtonProps<P extends AnyCommandPath> = {
     command: P;
@@ -34,14 +27,7 @@ export type CommandActionButtonProps<P extends AnyCommandPath> = {
     onSuccess?: (result: CommandActionResult) => void;
     onError?: (result: CommandActionResult) => void;
     onComplete?: (result?: CommandActionResult) => void;
-};
-
-function normalizeResult(raw: CommandMessage): CommandActionResult {
-    return {
-        status: getCommandResponseStatus(raw),
-        message: getCommandResponseSummary(raw),
-        raw,
-    };
+    buttonRef?: Ref<HTMLButtonElement>;
 }
 
 function toRunCommandValues<P extends AnyCommandPath>(
@@ -71,18 +57,15 @@ export default function CommandActionButton<P extends AnyCommandPath>({
     onSuccess,
     onError,
     onComplete,
+    buttonRef,
 }: CommandActionButtonProps<P>) {
-    const [isPending, setIsPending] = useState(false);
-    const responseRef = useRef<HTMLDivElement>(null);
-    const latestResultRef = useRef<CommandActionResult | undefined>(undefined);
-    const messagesRef = useRef<CommandMessage[]>([]);
     const { showDialog } = useDialog();
 
     const commandName = useMemo(() => command.join(" "), [command]);
     const values = useMemo(() => toRunCommandValues(args), [args]);
 
     const presentDefaultDialog = useCallback(
-        (messages: CommandMessage[], result?: CommandActionResult) => {
+        (messages: React.ComponentProps<typeof RenderResponse>["jsonArr"], result?: CommandActionResult) => {
             const title = result?.status === "error" ? "Command error" : "Command result";
             showDialog(
                 title,
@@ -94,63 +77,38 @@ export default function CommandActionButton<P extends AnyCommandPath>({
         [showDialog],
     );
 
-    const onClick = useCallback(() => {
-        if (isPending || disabled) return;
-
-        latestResultRef.current = undefined;
-        messagesRef.current = [];
-        setIsPending(true);
-        onStart?.();
-
-        runCommand({
-            command: commandName,
-            values,
-            onResponse: (raw) => {
-                messagesRef.current.push(raw);
-                const result = normalizeResult(raw);
-                latestResultRef.current = result;
-
-                handleResponse({
-                    json: raw,
-                    responseRef,
-                    showDialog: () => undefined,
-                });
-
-                if (result.status === "success") {
-                    onSuccess?.(result);
-                } else {
-                    onError?.(result);
-                }
-
-                if (presentResult) {
-                    presentResult(result);
-                }
-            },
-            onDone: () => {
-                setIsPending(false);
-                if (!presentResult && showResultDialog && messagesRef.current.length > 0) {
-                    presentDefaultDialog(messagesRef.current, latestResultRef.current);
-                }
-                onComplete?.(latestResultRef.current);
-            },
-        });
-    }, [
-        isPending,
-        disabled,
-        onStart,
-        commandName,
+    const { run, isPending, messages, latestResult } = useCommandExecution({
+        command: commandName,
         values,
+        onStart,
+        onResult: (result) => {
+            presentResult?.(result);
+        },
         onSuccess,
         onError,
-        presentResult,
-        showResultDialog,
-        presentDefaultDialog,
         onComplete,
-    ]);
+    });
+
+    useEffect(() => {
+        if (presentResult || !showResultDialog || messages.length === 0 || isPending) {
+            return;
+        }
+
+        presentDefaultDialog(messages, latestResult);
+    }, [isPending, latestResult, messages, presentDefaultDialog, presentResult, showResultDialog]);
+
+    const onClick = useCallback(() => {
+        if (disabled) {
+            return;
+        }
+
+        run();
+    }, [disabled, run]);
 
     return (
         <>
             <Button
+                ref={buttonRef}
                 variant="outline"
                 size="sm"
                 className={cn("relative", classes)}
@@ -166,7 +124,6 @@ export default function CommandActionButton<P extends AnyCommandPath>({
                     )}
                 </span>
             </Button>
-            <div ref={responseRef} className="hidden" />
         </>
     );
 }

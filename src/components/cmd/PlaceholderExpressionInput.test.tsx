@@ -75,7 +75,7 @@ describe("PlaceholderExpressionInput", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "getname" }));
+      fireEvent.click(screen.getByRole("option", { name: "getname" }));
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
@@ -105,7 +105,7 @@ describe("PlaceholderExpressionInput", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "getname" }));
+      fireEvent.click(screen.getByRole("option", { name: "getname" }));
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
@@ -193,8 +193,8 @@ describe("PlaceholderExpressionInput", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(screen.queryByText("Suggestions")).toBeNull();
-    expect(screen.queryByRole("button", { name: "nation:" })).toBeNull();
+    expect(screen.queryByText(/Accept: Ctrl\+Right \/ Ctrl\+Enter/i)).toBeNull();
+    expect(screen.queryByRole("option", { name: "nation:" })).toBeNull();
 
     await act(async () => {
       fireEvent.click(input);
@@ -203,8 +203,8 @@ describe("PlaceholderExpressionInput", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(screen.getByText("Suggestions")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "nation:" })).toBeTruthy();
+    expect(screen.getByText(/Accept: Ctrl\+Right \/ Ctrl\+Enter/i)).toBeTruthy();
+    expect(screen.getByRole("option", { name: "nation:" })).toBeTruthy();
   });
 
   it("shows selector completions and query-backed option completions at the root", async () => {
@@ -243,15 +243,110 @@ describe("PlaceholderExpressionInput", () => {
       fireEvent.select(textarea);
     });
 
-    expect(screen.getByRole("button", { name: "Borg" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Borg" })).toBeTruthy();
     expect(screen.getByText(/Type to match Nation options/i)).toBeTruthy();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Borg" }));
+      fireEvent.click(screen.getByRole("option", { name: "Borg" }));
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(textarea.value).toBe("nation:Borg");
+  });
+
+  it("accepts the first suggestion on Ctrl+RightArrow without consuming Tab", async () => {
+    const setOutputValue = vi.fn();
+    mockExpressionSources({
+      "placeholder:DBNation": {
+        status: "ready",
+        sourceKind: "placeholder",
+        typeLabel: "Nation",
+        options: [],
+      },
+      "query:DBNation": {
+        status: "ready",
+        sourceKind: "query-options",
+        typeLabel: "Nation",
+        options: [
+          { label: "Borg", value: "Borg", aliases: ["189573"] },
+          { label: "Rose", value: "Rose" },
+        ],
+      },
+    });
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="nation:Bo"
+        setOutputValue={setOutputValue}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    await act(async () => {
+      fireEvent.focus(input);
+      input.setSelectionRange(input.value.length, input.value.length);
+      fireEvent.select(input);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByRole("option", { name: "Borg" })).toBeTruthy();
+    expect(screen.getByText(/Accept: Ctrl\+Right \/ Ctrl\+Enter/i)).toBeTruthy();
+    expect(screen.queryByText(/receiver: DBNation/i)).toBeNull();
+
+    fireEvent.keyDown(input, { key: "Tab" });
+    expect(input.value).toBe("nation:Bo");
+
+    fireEvent.keyDown(input, { key: "ArrowRight", ctrlKey: true });
+    expect(input.value).toBe("nation:Borg");
+    expect(setOutputValue).toHaveBeenLastCalledWith("value", "nation:Borg");
+  });
+
+  it("tracks the active suggestion with aria-activedescendant and arrow navigation from the expression field", async () => {
+    mockExpressionSources({
+      "placeholder:DBNation": {
+        status: "ready",
+        sourceKind: "placeholder",
+        typeLabel: "Nation",
+        options: [],
+      },
+      "query:DBNation": {
+        status: "ready",
+        sourceKind: "query-options",
+        typeLabel: "Nation",
+        options: [
+          { label: "Borg", value: "Borg" },
+          { label: "Rose", value: "Rose" },
+        ],
+      },
+    });
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="nation:"
+        setOutputValue={vi.fn()}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    const input = screen.getByRole("textbox", { name: "" }) as HTMLInputElement;
+    await act(async () => {
+      fireEvent.focus(input);
+      input.setSelectionRange(input.value.length, input.value.length);
+      fireEvent.select(input);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(input.getAttribute("role")).toBe("combobox");
+    expect(input.getAttribute("aria-activedescendant")).toContain("option-Borg");
+    expect(screen.getByRole("option", { name: "Borg" }).getAttribute("aria-selected")).toBe("true");
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    expect(input.getAttribute("aria-activedescendant")).toContain("option-Rose");
+    expect(screen.getByRole("option", { name: "Rose" }).getAttribute("aria-selected")).toBe("true");
   });
 
   it("supports searching large suggestion sets without collapsing the panel", async () => {
@@ -290,7 +385,7 @@ describe("PlaceholderExpressionInput", () => {
       fireEvent.select(textarea);
     });
 
-    const searchInput = screen.getByRole("textbox", { name: "Search suggestions" });
+    const searchInput = screen.getByRole("combobox", { name: "Search suggestions" });
 
     await act(async () => {
       fireEvent.focus(searchInput);
@@ -300,7 +395,7 @@ describe("PlaceholderExpressionInput", () => {
     expect(screen.getByText("1 / 120")).toBeTruthy();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /Nation 119/i }));
+      fireEvent.click(screen.getByRole("option", { name: /Nation 119/i }));
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
@@ -357,7 +452,7 @@ describe("PlaceholderExpressionInput", () => {
       fireEvent.select(textarea);
     });
 
-    const searchInput = screen.getByRole("textbox", { name: "Search suggestions" });
+    const searchInput = screen.getByRole("combobox", { name: "Search suggestions" });
 
     await act(async () => {
       fireEvent.change(searchInput, { target: { value: "Nation 119" } });
@@ -372,7 +467,7 @@ describe("PlaceholderExpressionInput", () => {
       { "query:DBNation": "Nation 119" },
       true,
     );
-    expect(screen.getByRole("button", { name: /Nation 119/i })).toBeTruthy();
+    expect(screen.getByRole("option", { name: /Nation 119/i })).toBeTruthy();
   });
 
   it("shows the lazy search prompt immediately for very large query-backed sources", async () => {
@@ -409,7 +504,7 @@ describe("PlaceholderExpressionInput", () => {
       fireEvent.select(textarea);
     });
 
-    expect(screen.getByText(/Type at least 1 characters to search 14,988 options\./i)).toBeTruthy();
+    expect(screen.getByText(/Type 1\+ characters to search 14,988 options\./i)).toBeTruthy();
   });
 
   it("shows explicit invalid selector feedback instead of a generic valid hint", async () => {
@@ -495,7 +590,7 @@ describe("PlaceholderExpressionInput", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "MONEY" }));
+      fireEvent.click(screen.getByRole("option", { name: "MONEY" }));
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 

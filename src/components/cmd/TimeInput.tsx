@@ -1,10 +1,10 @@
 import { useSyncedState } from "@/utils/StateUtil";
 import { useCallback, useMemo, type ChangeEvent, type ClipboardEvent } from "react";
-import { Input } from "../ui/input";
 import { cn } from "@/lib/utils";
 import { normalizeTimeValue, parseTemporalInput } from "@/lib/temporal";
 import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
 import FieldMessage from "./field/FieldMessage";
+import CommandTextInput from "./field/CommandTextInput";
 
 const exampleCodeClass = "rounded bg-muted px-1 py-0.5 font-mono text-foreground";
 
@@ -57,7 +57,7 @@ export default function TimeInput({
 
   return (
     <div className="w-full space-y-1">
-      <Input
+      <CommandTextInput
         type="datetime-local"
         step={1}
         className={cn("w-full bg-background", compact ? "h-6.5 px-2 text-xs" : "h-7")}
@@ -69,7 +69,7 @@ export default function TimeInput({
 
       {!compact && (
         <p className="text-[11px] text-muted-foreground">
-          Also accepts{" "}
+          Also:{" "}
           <code className={exampleCodeClass}>1w10h</code>,{" "}
           <code className={exampleCodeClass}>timestamp:1741271400000</code>, or{" "}
           <code className={exampleCodeClass}>2025-03-06 12:30:00</code>.

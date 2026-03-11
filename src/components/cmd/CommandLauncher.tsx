@@ -15,6 +15,7 @@ import {
     isEditableTarget,
     resolveLaunchableCommand,
 } from "@/components/cmd/commandLaunchUtils";
+import { focusPrimaryCommandTarget } from "@/components/cmd/commandKeyboard";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -86,30 +87,6 @@ export default function CommandLauncher() {
         setCommandModalState(null);
     }, []);
 
-    const focusFirstFieldInDialog = useCallback((container: HTMLElement | null) => {
-        if (!container) {
-            return;
-        }
-
-        const selectors = [
-            'textarea:not([disabled])',
-            'input:not([disabled]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"])',
-            '[contenteditable="true"]',
-            '[role="textbox"]:not([aria-disabled="true"])',
-            'select:not([disabled])',
-        ];
-
-        for (const selector of selectors) {
-            const target = container.querySelector<HTMLElement>(selector);
-            if (!target) {
-                continue;
-            }
-
-            target.focus();
-            return;
-        }
-    }, []);
-
     const handleDialogOpenChange = useCallback((open: boolean) => {
         if (!open) {
             closeModal();
@@ -120,6 +97,10 @@ export default function CommandLauncher() {
 
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent): void {
+            if (browserOpen || commandModalState !== null) {
+                return;
+            }
+
             if (event.defaultPrevented || event.repeat || event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) {
                 return;
             }
@@ -133,6 +114,10 @@ export default function CommandLauncher() {
         }
 
         function handlePaste(event: ClipboardEvent): void {
+            if (browserOpen || commandModalState !== null) {
+                return;
+            }
+
             if (event.defaultPrevented || isEditableTarget(event.target)) {
                 return;
             }
@@ -158,7 +143,7 @@ export default function CommandLauncher() {
             window.removeEventListener("keydown", handleKeyDown, true);
             window.removeEventListener("paste", handlePaste, true);
         };
-    }, [openBrowser, openCommand, resolveCommandForLaunch]);
+    }, [browserOpen, commandModalState, openBrowser, openCommand, resolveCommandForLaunch]);
 
     const activeCommand = useMemo(() => {
         if (!commandModalState) {
@@ -199,9 +184,9 @@ export default function CommandLauncher() {
     const handleCommandOpenAutoFocus = useCallback((event: Event) => {
         event.preventDefault();
         window.requestAnimationFrame(() => {
-            focusFirstFieldInDialog(commandDialogRef.current);
+            focusPrimaryCommandTarget(commandDialogRef.current);
         });
-    }, [focusFirstFieldInDialog]);
+    }, []);
 
     const browserExpand = useMemo(() => buildExpandButton(() => {
         const searchParams = createCmdBrowserSearchParams(browserState);
@@ -251,6 +236,7 @@ export default function CommandLauncher() {
                                 state={browserState}
                                 onStateChange={setBrowserState}
                                 onSelectCommand={handleSelectCommand}
+                                onRequestClose={closeModal}
                                 autoFocusSearch={true}
                                 modalMode={true}
                                 viewportHeight="min(66vh, calc(100vh - 13rem))"
@@ -317,6 +303,8 @@ export default function CommandLauncher() {
                                 showCommandTitle={false}
                                 autoFocusFirstField={true}
                                 actionsLayout="sticky"
+                                onRequestBack={commandModalState.browserStateSnapshot ? handleReturnToBrowser : closeModal}
+                                backHint={commandModalState.browserStateSnapshot ? "Press Esc again to return to the command list" : "Press Esc again to close this command"}
                             />
                         </div>
                     </div>

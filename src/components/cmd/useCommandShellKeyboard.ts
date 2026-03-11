@@ -259,7 +259,7 @@ export function useCommandShellKeyboard({
             clearEscapeState();
         }
 
-        if (event.key !== "Escape" || event.defaultPrevented || !onRequestBack) {
+        if (event.key !== "Escape" || !onRequestBack) {
             return;
         }
 

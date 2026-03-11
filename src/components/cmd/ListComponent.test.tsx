@@ -69,6 +69,59 @@ describe("ListComponent keyboard contract", () => {
     expect(setOutputValue).toHaveBeenCalledWith("nation", "borg");
   });
 
+  it("keeps the popup open while focus is moving into the portaled option list", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="nation"
+        options={[
+          { label: "Borg", value: "borg" },
+          { label: "Rose", value: "rose" },
+        ]}
+        isMulti={false}
+        initialValue=""
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+
+    const popupOption = screen.getByRole("option", { name: /borg/i });
+    const popupShell = input.closest("[data-command-popup-open]");
+    expect(popupShell).toBeTruthy();
+
+    fireEvent.blur(popupShell as HTMLElement, { relatedTarget: popupOption });
+
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("blurs the input when Escape is pressed after the popup is already closed", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="nation"
+        options={[
+          { label: "Borg", value: "borg" },
+          { label: "Rose", value: "rose" },
+        ]}
+        isMulti={false}
+        initialValue=""
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const input = screen.getByRole("combobox");
+    input.focus();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(document.activeElement).not.toBe(input);
+  });
+
   it("uses active-descendant combobox semantics with Home and End navigation", () => {
     const setOutputValue = vi.fn();
 

@@ -403,6 +403,98 @@ describe("PlaceholderExpressionInput", () => {
     expect(setOutputValue).toHaveBeenLastCalledWith("value", "nation:Nation 119");
   });
 
+  it("closes suggestions on Escape, then blurs the expression input on the next Escape", async () => {
+    mockExpressionSources({
+      "placeholder:DBNation": {
+        status: "ready",
+        sourceKind: "placeholder",
+        typeLabel: "Nation",
+        options: [],
+      },
+      "query:DBNation": {
+        status: "ready",
+        sourceKind: "query-options",
+        typeLabel: "Nation",
+        options: [
+          { label: "Borg", value: "Borg" },
+          { label: "Rose", value: "Rose" },
+        ],
+      },
+    });
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="nation:"
+        setOutputValue={vi.fn()}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    const popupShell = input.closest("[data-command-popup-open]") as HTMLElement;
+
+    await act(async () => {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      fireEvent.select(input);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByRole("option", { name: "Borg" })).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("option", { name: "Borg" })).toBeNull();
+    expect(popupShell.getAttribute("data-command-popup-open")).toBe("false");
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(document.activeElement).not.toBe(input);
+  });
+
+  it("dismisses the suggestion-panel search on Escape and returns focus to the expression input", async () => {
+    mockExpressionSources({
+      "placeholder:DBNation": {
+        status: "ready",
+        sourceKind: "placeholder",
+        typeLabel: "Nation",
+        options: [],
+      },
+      "query:DBNation": {
+        status: "ready",
+        sourceKind: "query-options",
+        typeLabel: "Nation",
+        options: Array.from({ length: 80 }, (_, index) => {
+          const value = `Nation ${String(index).padStart(3, "0")}`;
+          return { label: value, value };
+        }),
+      },
+    });
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="nation:"
+        setOutputValue={vi.fn()}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    await act(async () => {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      fireEvent.select(input);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const searchInput = screen.getByRole("combobox", { name: "Search suggestions" }) as HTMLInputElement;
+    searchInput.focus();
+    fireEvent.keyDown(searchInput, { key: "Escape" });
+
+    expect(screen.queryByRole("combobox", { name: "Search suggestions" })).toBeNull();
+    expect(document.activeElement).toBe(input);
+  });
+
   it("uses the panel search text as the worker fetch token for lazy query sources", async () => {
     const setOutputValue = vi.fn();
     const useExpressionValueSourcesSpy = vi.spyOn(expressionValueFetcher, "useExpressionValueSources");

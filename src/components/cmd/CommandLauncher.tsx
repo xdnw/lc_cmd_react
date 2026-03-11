@@ -1,15 +1,13 @@
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import CmdList from "@/components/cmd/CmdList";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
-import type { CommandInputDisplayMode } from "@/components/cmd/field/fieldTypes";
 import {
     createCmdBrowserSearchParams,
-    createDefaultCmdBrowserState,
-    type CmdBrowserState,
 } from "@/components/cmd/cmdBrowserState";
+import { useCommandLauncher } from "@/components/cmd/CommandLauncherContext";
 import {
     buildCommandRouteSearchParams,
     isEditableTarget,
@@ -27,12 +25,6 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { CM, type AnyCommandPath, type BaseCommand } from "@/utils/Command";
-
-type CommandModalState = {
-    path: string;
-    initialValues: Record<string, string>;
-    browserStateSnapshot: CmdBrowserState | null;
-};
 
 function buildExpandButton(onClick: () => void, title: string) {
     return (
@@ -53,6 +45,19 @@ export default function CommandLauncher() {
     const allCommands = useMemo(() => CM.getCommands(), []);
     const browserDialogRef = useRef<HTMLDivElement | null>(null);
     const commandDialogRef = useRef<HTMLDivElement | null>(null);
+    const {
+        browserOpen,
+        browserState,
+        commandModalState,
+        commandOutput,
+        commandDisplayMode,
+        openBrowser,
+        openCommand,
+        closeModal,
+        setBrowserState,
+        setCommandOutput,
+        setCommandDisplayMode,
+    } = useCommandLauncher();
     const commandsByPath = useMemo(() => {
         const map = new Map<string, BaseCommand>();
         allCommands.forEach((command) => {
@@ -60,32 +65,6 @@ export default function CommandLauncher() {
         });
         return map;
     }, [allCommands]);
-    const [browserState, setBrowserState] = useState<CmdBrowserState>(() => createDefaultCmdBrowserState());
-    const [browserOpen, setBrowserOpen] = useState(false);
-    const [commandModalState, setCommandModalState] = useState<CommandModalState | null>(null);
-    const [commandOutput, setCommandOutput] = useState<Record<string, string | string[]>>({});
-    const [commandDisplayMode, setCommandDisplayMode] = useState<CommandInputDisplayMode>("focus-pane");
-
-    const openBrowser = useCallback((nextState?: Partial<CmdBrowserState>) => {
-        setCommandModalState(null);
-        setBrowserState(createDefaultCmdBrowserState(nextState));
-        setBrowserOpen(true);
-    }, []);
-
-    const openCommand = useCallback((commandPath: string, initialValues: Record<string, string>, browserStateSnapshot: CmdBrowserState | null) => {
-        setBrowserOpen(false);
-        setCommandOutput(initialValues);
-        setCommandModalState({
-            path: commandPath,
-            initialValues,
-            browserStateSnapshot,
-        });
-    }, []);
-
-    const closeModal = useCallback(() => {
-        setBrowserOpen(false);
-        setCommandModalState(null);
-    }, []);
 
     const handleDialogOpenChange = useCallback((open: boolean) => {
         if (!open) {
@@ -161,10 +140,8 @@ export default function CommandLauncher() {
             return;
         }
 
-        setCommandModalState(null);
-        setBrowserState(commandModalState.browserStateSnapshot);
-        setBrowserOpen(true);
-    }, [commandModalState]);
+        openBrowser(commandModalState.browserStateSnapshot);
+    }, [commandModalState, openBrowser]);
 
     const setCardDisplayMode = useCallback(() => {
         startTransition(() => setCommandDisplayMode("card"));
@@ -223,11 +200,8 @@ export default function CommandLauncher() {
                     className="max-w-[min(96vw,980px)] gap-0 overflow-hidden border-border/80 p-0"
                 >
                     <div ref={browserDialogRef} className="flex max-h-[88vh] min-h-112 flex-col bg-background">
-                        <DialogHeader className="border-b border-border/70 px-3 pb-2.5 pt-3 pr-24 text-left">
-                            <DialogTitle className="text-base">Commands</DialogTitle>
-                            <DialogDescription className="text-xs">
-                                Press <kbd className="rounded border border-border/70 bg-muted px-1 py-0.5 text-[10px]">/</kbd> when typing is not active.
-                            </DialogDescription>
+                        <DialogHeader className="border-b border-border/70 px-3 pb-2 pt-2.5 pr-24 text-left">
+                            <DialogTitle className="text-sm font-semibold">Commands</DialogTitle>
                         </DialogHeader>
                         <div className="min-h-0 px-3 py-3">
                             <CmdList
@@ -253,7 +227,7 @@ export default function CommandLauncher() {
                     className="max-w-[min(96vw,1100px)] gap-0 overflow-hidden border-border/80 p-0"
                 >
                     <div ref={commandDialogRef} className="flex max-h-[88vh] min-h-104 flex-col bg-background">
-                        <DialogHeader className="border-b border-border/70 px-3 pb-2.5 pt-3 pr-24 text-left">
+                        <DialogHeader className="border-b border-border/70 px-3 pb-2 pt-2.5 pr-24 text-left">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <DialogTitle className="truncate font-mono text-base">/{commandModalState.path}</DialogTitle>

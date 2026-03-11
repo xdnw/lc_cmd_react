@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +11,24 @@ const mockCommand = {
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
+  useLocation: () => ({ pathname: "/command/test" }),
+  Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => <a href={to} className={className}>{children}</a>,
+}));
+
+vi.mock("@/components/ui/mode-toggle.tsx", () => ({
+  ModeToggle: () => <div>mode-toggle</div>,
+}));
+
+vi.mock("@/components/layout/logged-in-dropdown.tsx", () => ({
+  default: () => <div>logged-in</div>,
+}));
+
+vi.mock("@/components/layout/logged-out-dropdown.tsx", () => ({
+  default: () => <div>logged-out</div>,
+}));
+
+vi.mock("@/utils/Auth.ts", () => ({
+  hasToken: () => false,
 }));
 
 vi.mock("@/components/ui/dialog", () => ({
@@ -96,6 +114,16 @@ vi.mock("@/utils/Command", () => ({
 }));
 
 import CommandLauncher from "./CommandLauncher";
+import Navbar from "@/components/layout/navbar";
+import { CommandLauncherProvider } from "./CommandLauncherContext";
+
+function renderLauncher(children: ReactNode = <CommandLauncher />) {
+  return render(
+    <CommandLauncherProvider>
+      {children}
+    </CommandLauncherProvider>,
+  );
+}
 
 describe("CommandLauncher", () => {
   beforeEach(() => {
@@ -107,7 +135,7 @@ describe("CommandLauncher", () => {
   });
 
   it("restores the browser snapshot when the modal back button is used", () => {
-    render(<CommandLauncher />);
+    renderLauncher();
 
     fireEvent.keyDown(window, { key: "/" });
     fireEvent.click(screen.getByRole("button", { name: /set browser query/i }));
@@ -121,7 +149,7 @@ describe("CommandLauncher", () => {
   });
 
   it("ignores the global launcher shortcut while the launcher is already open", () => {
-    render(<CommandLauncher />);
+    renderLauncher();
 
     fireEvent.keyDown(window, { key: "/" });
     fireEvent.click(screen.getByRole("button", { name: /set browser query/i }));
@@ -132,7 +160,7 @@ describe("CommandLauncher", () => {
   });
 
   it("restores the browser snapshot when the command shell requests back", () => {
-    render(<CommandLauncher />);
+    renderLauncher();
 
     fireEvent.keyDown(window, { key: "/" });
     fireEvent.click(screen.getByRole("button", { name: /set browser query/i }));
@@ -140,5 +168,17 @@ describe("CommandLauncher", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /request shell back/i }));
     expect(screen.getByTestId("browser-query").textContent).toBe("alpha");
+  });
+
+  it("opens the launcher from the navbar trigger", () => {
+    renderLauncher(
+      <>
+        <Navbar />
+        <CommandLauncher />
+      </>,
+    );
+
+    fireEvent.pointerDown(screen.getAllByLabelText(/open command launcher/i)[0]!);
+    expect(screen.getByTestId("dialog-root")).toBeTruthy();
   });
 });

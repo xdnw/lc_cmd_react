@@ -155,6 +155,24 @@ function serializeTableCopy(commands: BaseCommand[], prefix: string): string {
     return [header, ...rows].join("\n");
 }
 
+function buildLauncherShortcutHint({
+    modalMode,
+    hasResults,
+}: {
+    modalMode: boolean;
+    hasResults: boolean;
+}) {
+    if (!modalMode) {
+        return hasResults
+            ? "Arrows browse, Enter opens, Esc clears or backs out"
+            : "Type to search, Esc clears or backs out";
+    }
+
+    return hasResults
+        ? "Arrows browse, Enter opens, Esc clears or closes"
+        : "Type to search, Esc clears or closes";
+}
+
 export default function CmdList({
     commands,
     prefix,
@@ -544,6 +562,10 @@ export default function CmdList({
     const listHeight = typeof viewportHeight === "number" ? `${viewportHeight}px` : viewportHeight;
     const activeCommand = filteredCommands[activeIndex] ?? null;
     const activeDescendantId = activeCommand ? getOptionId(activeCommand) : undefined;
+    const launcherShortcutHint = buildLauncherShortcutHint({
+        modalMode,
+        hasResults: filteredCommands.length > 0,
+    });
 
     return (
         <div ref={shellRef} {...{ [DIALOG_LOCAL_ESCAPE_ATTR]: "true" }} className={cn("flex min-h-0 flex-col gap-2", className)}>
@@ -573,7 +595,7 @@ export default function CmdList({
                     </div>
                     <Button
                         type="button"
-                        size="iconSm"
+                        size="icon"
                         variant={browserState.showFilters || activeCustomFilterCount > 0 ? "secondary" : "outline"}
                         onClick={toggleFilters}
                         aria-expanded={browserState.showFilters}
@@ -581,13 +603,27 @@ export default function CmdList({
                         title="Toggle filters"
                         className="shrink-0"
                     >
-                        <ListFilter className="h-3.5 w-3.5" />
+                        <ListFilter className="h-4 w-4" />
                         <span className="sr-only">Toggle filters</span>
                     </Button>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-muted-foreground">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                        <span className="truncate">{launcherShortcutHint}</span>
+                        {escapeHint && (
+                            <span role="status" aria-live="polite" className="truncate text-[11px] text-muted-foreground">{escapeHint}</span>
+                        )}
+                    </div>
+
                     <div className="flex flex-wrap items-center gap-1.5">
+                        {filteredCommands.length > 0 && (
+                            <CopyToClipboard
+                                text="Copy"
+                                copy={tableCopy}
+                                className="h-6 rounded-md px-2 text-[11px]"
+                            />
+                        )}
                         <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/25 px-1.5 py-0.5">
                             <Filter className="h-3 w-3" />
                             <span>
@@ -599,20 +635,6 @@ export default function CmdList({
                             <span className="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-primary">
                                 {activeCustomFilterCount} filter{activeCustomFilterCount === 1 ? "" : "s"}
                             </span>
-                        )}
-                    </div>
-
-                    {escapeHint && (
-                        <span role="status" aria-live="polite" className="text-[11px] text-muted-foreground">{escapeHint}</span>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        {filteredCommands.length > 0 && (
-                            <CopyToClipboard
-                                text="Copy"
-                                copy={tableCopy}
-                                className="h-6 rounded-md px-2 text-[11px]"
-                            />
                         )}
                         {activeCustomFilterCount > 0 && (
                             <Button type="button" size="sm" variant="ghost" className="h-6 rounded-md px-2 text-[11px]" onClick={clearFilters}>

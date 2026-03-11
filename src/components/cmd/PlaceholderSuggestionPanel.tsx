@@ -237,6 +237,7 @@ export default function PlaceholderSuggestionPanel({
     onSearchValueChange,
     onApplySuggestion,
     onActiveIndexChange,
+    onDismiss,
 }: {
     view: PlaceholderSuggestionViewModel;
     searchValue: string;
@@ -246,6 +247,7 @@ export default function PlaceholderSuggestionPanel({
     onSearchValueChange: (value: string) => void;
     onApplySuggestion: (suggestion: ExpressionSuggestion) => void;
     onActiveIndexChange: (index: number) => void;
+    onDismiss: () => void;
 }) {
     const listContainerRef = useRef<HTMLDivElement | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
@@ -310,6 +312,12 @@ export default function PlaceholderSuggestionPanel({
     }, [activeIndex, listboxId, onActiveIndexChange, onApplySuggestion, view.searchQuery]);
 
     const handleSearchKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            onDismiss();
+            return;
+        }
+
         const action = getSearchListKeyboardAction({
             key: event.key,
             itemCount: view.visibleSuggestions,
@@ -342,7 +350,7 @@ export default function PlaceholderSuggestionPanel({
             default:
                 return;
         }
-    }, [activeIndex, activeSuggestion, onActiveIndexChange, onApplySuggestion, searchValue, view.visibleSuggestions]);
+    }, [activeIndex, activeSuggestion, onActiveIndexChange, onApplySuggestion, onDismiss, searchValue, view.visibleSuggestions]);
 
     const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         onSearchValueChange(event.currentTarget.value);

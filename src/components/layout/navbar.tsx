@@ -6,22 +6,58 @@ import LoggedInDropdown from "@/components/layout/logged-in-dropdown.tsx";
 import LoggedOutDropdown from "@/components/layout/logged-out-dropdown.tsx";
 import { Input } from "../ui/input";
 import LazyIcon from "../ui/LazyIcon";
+import { useCommandLauncher } from "@/components/cmd/CommandLauncherContext";
 
-const SearchBar = React.memo(() => (
-    <div className="w-full p-0 flex items-center">
-        <Input
-            id="navbar-search"
-            className="relative w-full rounded-r-none border-r-0 px-2 h-7"
-            type="search"
-            placeholder="Search pages..."
-            aria-label="Search"
-            name="term"
-        />
-        <button type="submit" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2 h-7 rounded-r border border-input border-l-0 flex items-center justify-center">
-            <LazyIcon name="Search" size={14} />
-        </button>
-    </div>
-));
+const SearchBar = React.memo(function SearchBar() {
+    const { openBrowser } = useCommandLauncher();
+
+    const openCommandLauncher = React.useCallback(() => {
+        openBrowser({ query: "" });
+    }, [openBrowser]);
+
+    const handleInputPointerDown = React.useCallback((event: React.PointerEvent<HTMLInputElement>) => {
+        event.preventDefault();
+        openCommandLauncher();
+    }, [openCommandLauncher]);
+
+    const handleInputKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key !== "Enter" && event.key !== " " && event.key !== "/") {
+            return;
+        }
+
+        event.preventDefault();
+        openCommandLauncher();
+    }, [openCommandLauncher]);
+
+    const handleButtonClick = React.useCallback(() => {
+        openCommandLauncher();
+    }, [openCommandLauncher]);
+
+    return (
+        <div className="flex w-full items-center">
+            <Input
+                id="navbar-search"
+                className="relative h-7 w-full rounded-r-none border-r-0 px-2 text-xs"
+                type="search"
+                placeholder="Press / when typing is not active."
+                aria-label="Open command launcher"
+                aria-haspopup="dialog"
+                readOnly
+                value=""
+                onPointerDown={handleInputPointerDown}
+                onKeyDown={handleInputKeyDown}
+            />
+            <button
+                type="button"
+                onClick={handleButtonClick}
+                aria-label="Open command launcher"
+                className="flex h-7 items-center justify-center rounded-r border border-input border-l-0 bg-secondary px-2 text-secondary-foreground hover:bg-secondary/80"
+            >
+                <LazyIcon name="Search" size={14} />
+            </button>
+        </div>
+    );
+});
 
 export default function Navbar() {
     const location = useLocation();
@@ -66,7 +102,7 @@ export default function Navbar() {
     const modeToggle = useMemo(() => <ModeToggle />, []);
 
     return (
-        <nav className="bg-card border-b border-border flex flex-row items-center px-2 py-1 gap-1.5 shadow-sm">
+        <nav className="bg-card border-b border-border flex flex-row items-center gap-1.5 px-2 py-0.5 shadow-sm">
             <div className="flex-none">
                 {modeToggle}
             </div>

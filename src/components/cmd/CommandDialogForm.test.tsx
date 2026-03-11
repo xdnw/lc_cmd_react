@@ -252,6 +252,34 @@ describe("CommandDialogForm", () => {
     expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "user field" }));
   });
 
+  it("still arms local Escape handling when an outer dialog already prevented the default close", () => {
+    const onRequestBack = vi.fn();
+    const { container } = render(
+      <CommandDialogForm
+        commandPath={["settings", "info"]}
+        initialValues={{ key: "example" }}
+        onRequestBack={onRequestBack}
+      />,
+    );
+
+    const input = screen.getByRole("textbox", { name: "mock input" });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+      }
+    });
+
+    input.focus();
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(document.activeElement).toBe(container.firstElementChild);
+    expect(screen.getByText(/Press Esc again to go back/i)).toBeTruthy();
+    expect(onRequestBack).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(container.firstElementChild as HTMLElement, { key: "Escape" });
+    expect(onRequestBack).toHaveBeenCalledTimes(1);
+  });
+
   it("allows Space to confirm an active jump after shell jump mode starts", () => {
     const { container } = render(
       <CommandDialogForm

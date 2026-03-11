@@ -272,6 +272,25 @@ export default function PlaceholderExpressionInput({
         resetActiveIndex();
     }, [resetActiveIndex, suggestionView.resultKey]);
 
+    const dismissSuggestionPanel = useCallback((options?: { focusControl?: boolean; blurControl?: boolean }) => {
+        setHasPanelInteraction(false);
+        setPanelSearchValue("");
+        resetActiveIndex();
+
+        if (options?.focusControl) {
+            controlRef.current?.focus();
+        }
+
+        if (options?.blurControl) {
+            controlRef.current?.blur();
+        }
+    }, [resetActiveIndex]);
+
+    const showSuggestionPanel = shouldAnalyze && hasFocusWithin && hasPanelInteraction && (
+        analysis.lazyOptionSource != null || analysis.suggestions.length > 0
+    );
+    const hasStatusContent = Boolean(analysis.hint || analysis.errors.length > 0 || sourceMessages.length > 0);
+
     const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const nextValue = event.currentTarget.value;
         requestPanelInteraction();
@@ -289,6 +308,17 @@ export default function PlaceholderExpressionInput({
     }, [requestPanelInteraction, updateCursor]);
 
     const handleKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            if (showSuggestionPanel) {
+                dismissSuggestionPanel();
+                return;
+            }
+
+            controlRef.current?.blur();
+            return;
+        }
+
         const usesLocalTextNavigation = !event.altKey && !event.ctrlKey && !event.metaKey;
         if (usesLocalTextNavigation) {
             requestPanelInteraction();
@@ -316,7 +346,7 @@ export default function PlaceholderExpressionInput({
             event.preventDefault();
             applySuggestion(activeSuggestion ?? topSuggestion!);
         }
-    }, [activeIndex, activeSuggestion, applySuggestion, moveActiveIndex, requestPanelInteraction, suggestionView.visibleSuggestions, topSuggestion, value]);
+    }, [activeIndex, activeSuggestion, applySuggestion, dismissSuggestionPanel, moveActiveIndex, requestPanelInteraction, showSuggestionPanel, suggestionView.visibleSuggestions, topSuggestion, value]);
 
     const handleSuggestionPanelMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
         event.preventDefault();
@@ -338,11 +368,6 @@ export default function PlaceholderExpressionInput({
         setHasFocusWithin((previous) => previous ? false : previous);
         setPanelSearchValue("");
     }, []);
-
-    const showSuggestionPanel = shouldAnalyze && hasFocusWithin && hasPanelInteraction && (
-        analysis.lazyOptionSource != null || analysis.suggestions.length > 0
-    );
-    const hasStatusContent = Boolean(analysis.hint || analysis.errors.length > 0 || sourceMessages.length > 0);
 
     const updatePanelPosition = useCallback(() => {
         const anchor = controlRef.current;
@@ -452,6 +477,7 @@ export default function PlaceholderExpressionInput({
                             onSearchValueChange={setPanelSearchValue}
                             onApplySuggestion={applySuggestion}
                             onActiveIndexChange={setActiveIndex}
+                            onDismiss={() => dismissSuggestionPanel({ focusControl: true })}
                         />
                     </div>
                 </div>,

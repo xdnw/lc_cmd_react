@@ -72,6 +72,11 @@ const DropdownItem = memo(function DropdownItem({
     onToggle,
     onHover,
 }: DropdownItemProps) {
+    const handleMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        // Keep the text field focused so portal clicks do not collapse the popup before selection.
+        event.preventDefault();
+    }, []);
+
     const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
         onToggle(option);
@@ -86,6 +91,7 @@ const DropdownItem = memo(function DropdownItem({
             id={optionId}
             role="option"
             aria-selected={isHighlighted}
+            onMouseDown={handleMouseDown}
             onMouseEnter={handleMouseEnter}
             onClick={handleClick}
             className={`
@@ -156,6 +162,7 @@ const LIST_DROPDOWN_PAGE_SIZE = 8;
 type PopupListInputAction =
     | { type: "open" }
     | { type: "close" }
+    | { type: "blur-input" }
     | { type: "move"; nextIndex: number }
     | { type: "commit-highlighted" }
     | { type: "commit-freeform" }
@@ -180,7 +187,7 @@ function getPopupListInputAction({
     allowBackspaceRemove: boolean;
 }): PopupListInputAction {
     if (key === "Escape") {
-        return isOpen ? { type: "close" } : { type: "none" };
+        return isOpen ? { type: "close" } : { type: "blur-input" };
     }
 
     if (key === "Tab") {
@@ -287,6 +294,9 @@ function DropdownPanel({
     listboxId,
     anchorRef,
     virtuosoRef,
+    panelRef,
+    onPopupPointerDown,
+    onPopupPointerUp,
     renderItem,
 }: {
     isOpen: boolean;
@@ -296,9 +306,11 @@ function DropdownPanel({
     listboxId: string;
     anchorRef: React.RefObject<HTMLElement | null>;
     virtuosoRef: React.RefObject<VirtuosoHandle | null>;
+    panelRef: React.RefObject<HTMLDivElement | null>;
+    onPopupPointerDown: () => void;
+    onPopupPointerUp: () => void;
     renderItem: (index: number, option: SelectOption) => React.ReactNode;
 }) {
-    const panelRef = useRef<HTMLDivElement>(null);
     const [style, setStyle] = useState<React.CSSProperties>({
         position: "fixed",
         top: -9999,
@@ -307,6 +319,7 @@ function DropdownPanel({
         maxHeight: 300,
         visibility: "hidden",
         zIndex: 90,
+        pointerEvents: "auto",
     });
 
     const updatePosition = useCallback(() => {
@@ -342,8 +355,9 @@ function DropdownPanel({
             maxHeight,
             visibility: "visible",
             zIndex: 90,
+            pointerEvents: "auto",
         });
-    }, [anchorRef]);
+    }, [anchorRef, panelRef]);
 
     useLayoutEffect(() => {
         if (!isOpen) {
@@ -361,11 +375,15 @@ function DropdownPanel({
         };
     }, [isOpen, updatePosition]);
 
+    const renderedPanelMaxHeight = typeof style.maxHeight === "number" ? style.maxHeight : 300;
     const virtuosoStyle = useMemo(() => ({
-        height: `${Math.min(filteredOptions.length * LIST_DROPDOWN_ROW_HEIGHT, 300)}px`
-    }), [filteredOptions.length]);
+        height: `${Math.min(filteredOptions.length * LIST_DROPDOWN_ROW_HEIGHT, renderedPanelMaxHeight)}px`,
+    }), [filteredOptions.length, renderedPanelMaxHeight]);
 
     const computeItemKey = useCallback((_: number, option: SelectOption) => option.value, []);
+    const handleWheelCapture = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+        event.stopPropagation();
+    }, []);
 
     if (!isOpen || typeof document === "undefined") {
         return null;
@@ -377,10 +395,11 @@ function DropdownPanel({
             id={listboxId}
             role="listbox"
             style={style}
-            className="overflow-hidden rounded-md border border-border/70 bg-background shadow-lg"
-            onMouseDown={(event) => {
-                event.preventDefault();
-            }}
+            className="pointer-events-auto overflow-hidden rounded-md border border-border/70 bg-background shadow-lg"
+            onPointerDownCapture={onPopupPointerDown}
+            onPointerUpCapture={onPopupPointerUp}
+            onPointerCancelCapture={onPopupPointerUp}
+            onWheelCapture={handleWheelCapture}
         >
             {loadingOptions ? (
                 <div className="p-4 flex justify-center"><Loading /></div>
@@ -403,12 +422,31 @@ function DropdownPanel({
     );
 }
 
-function useCloseOnBlur(containerRef: React.RefObject<HTMLDivElement | null>, setIsOpen: (next: boolean) => void) {
+function useCloseOnBlur({
+    containerRef,
+    panelRef,
+    popupPointerDownRef,
+    setIsOpen,
+}: {
+    containerRef: React.RefObject<HTMLDivElement | null>;
+    panelRef: React.RefObject<HTMLDivElement | null>;
+    popupPointerDownRef: React.MutableRefObject<boolean>;
+    setIsOpen: (next: boolean) => void;
+}) {
     return useCallback((e: React.FocusEvent<HTMLDivElement>) => {
-        if (!containerRef.current?.contains(e.relatedTarget as Node)) {
-            setIsOpen(false);
+        const nextTarget = e.relatedTarget;
+        if (nextTarget instanceof Node) {
+            if (containerRef.current?.contains(nextTarget) || panelRef.current?.contains(nextTarget)) {
+                return;
+            }
         }
-    }, [containerRef, setIsOpen]);
+
+        if (popupPointerDownRef.current) {
+            return;
+        }
+
+        setIsOpen(false);
+    }, [containerRef, panelRef, popupPointerDownRef, setIsOpen]);
 }
 
 function usePopupListSearchState({
@@ -424,9 +462,11 @@ function usePopupListSearchState({
     const [isOpen, setIsOpen] = useState(false);
     const filteredOptions = useFilteredOptions({ options, optionsArePrefiltered, isOpen, inputValue });
     const containerRef = useRef<HTMLDivElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const virtuosoRef = useRef<VirtuosoHandle>(null);
     const listboxId = useId();
+    const popupPointerDownRef = useRef(false);
 
     const scrollToOptionIndex = useCallback((index: number, align: "start" | "center" | "end") => {
         virtuosoRef.current?.scrollToIndex({ index, align, behavior: "auto" });
@@ -451,7 +491,22 @@ function usePopupListSearchState({
         resetActiveIndex("start");
     }, [filteredOptions, isOpen, resetActiveIndex]);
 
-    const handleBlur = useCloseOnBlur(containerRef, setIsOpen);
+    const handleBlur = useCloseOnBlur({
+        containerRef,
+        panelRef,
+        popupPointerDownRef,
+        setIsOpen,
+    });
+
+    const markPopupPointerDown = useCallback(() => {
+        popupPointerDownRef.current = true;
+    }, []);
+
+    const clearPopupPointerDown = useCallback(() => {
+        window.setTimeout(() => {
+            popupPointerDownRef.current = false;
+        }, 0);
+    }, []);
 
     const handleContainerClick = useCallback(() => {
         setIsOpen(true);
@@ -503,10 +558,13 @@ function usePopupListSearchState({
         handleInputFocus,
         handleItemHover,
         containerRef,
+        panelRef,
         inputRef,
         virtuosoRef,
         listboxId,
         activeDescendantId,
+        markPopupPointerDown,
+        clearPopupPointerDown,
     };
 }
 
@@ -523,6 +581,7 @@ function usePopupListInputKeyDown({
     onCommitHighlighted,
     onCommitFreeform,
     onRemoveLast,
+    onBlurInput,
 }: {
     isOpen: boolean;
     itemCount: number;
@@ -536,6 +595,7 @@ function usePopupListInputKeyDown({
     onCommitHighlighted: () => void;
     onCommitFreeform: () => void;
     onRemoveLast?: () => void;
+    onBlurInput: () => void;
 }) {
     return useCallback<KeyboardEventHandler<HTMLInputElement>>((event) => {
         const action = getPopupListInputAction({
@@ -556,6 +616,10 @@ function usePopupListInputKeyDown({
             case "close":
                 event.preventDefault();
                 onClose();
+                return;
+            case "blur-input":
+                event.preventDefault();
+                onBlurInput();
                 return;
             case "move":
                 event.preventDefault();
@@ -578,7 +642,7 @@ function usePopupListInputKeyDown({
             default:
                 return;
         }
-    }, [activeIndex, allowBackspaceRemove, canOpenOnEnter, inputValue, isOpen, itemCount, onClose, onCommitFreeform, onCommitHighlighted, onMove, onOpen, onRemoveLast]);
+    }, [activeIndex, allowBackspaceRemove, canOpenOnEnter, inputValue, isOpen, itemCount, onBlurInput, onClose, onCommitFreeform, onCommitHighlighted, onMove, onOpen, onRemoveLast]);
 }
 
 function SingleSelectListComponent({ argName, options, initialValue, setOutputValue, onSearchValueChange, optionsArePrefiltered = false, loadingOptions = false, emptyMessage }: Omit<ListComponentProps, "isMulti">) {
@@ -600,10 +664,13 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
         handleInputFocus,
         handleItemHover,
         containerRef,
+        panelRef,
         inputRef,
         virtuosoRef,
         listboxId,
         activeDescendantId,
+        markPopupPointerDown,
+        clearPopupPointerDown,
     } = usePopupListSearchState({ options, optionsArePrefiltered, onSearchValueChange });
 
     const syncOutput = useCallback((selection: SelectOption | null) => {
@@ -631,6 +698,7 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
         allowBackspaceRemove: false,
         onOpen: () => setIsOpen(true),
         onClose: closePopup,
+        onBlurInput: () => inputRef.current?.blur(),
         onMove: moveHighlightedIndex,
         onCommitHighlighted: () => selectOption(filteredOptions[highlightedIndex], inputValue),
         onCommitFreeform: () => selectOption(undefined, inputValue),
@@ -657,7 +725,7 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
                 <div className="mt-2 text-xs text-muted-foreground">Available options: {summarizeOptions(options)}</div>
             </>,
         );
-    }, [options, setValue, showDialog, syncOutput]);
+    }, [inputRef, options, setIsOpen, setValue, showDialog, syncOutput]);
 
     const handleInputCopy = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
         if (inputRef.current && inputRef.current.selectionStart !== inputRef.current.selectionEnd) {
@@ -668,7 +736,7 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
             e.preventDefault();
             e.clipboardData.setData('text/plain', value.label || value.value);
         }
-    }, [value]);
+    }, [inputRef, value]);
 
     const renderItem = useCallback((index: number, option: SelectOption) => (
         <DropdownItem
@@ -725,6 +793,9 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
                 listboxId={listboxId}
                 anchorRef={containerRef}
                 virtuosoRef={virtuosoRef}
+                panelRef={panelRef}
+                onPopupPointerDown={markPopupPointerDown}
+                onPopupPointerUp={clearPopupPointerDown}
                 renderItem={renderItem}
             />
         </div>
@@ -754,10 +825,13 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
         handleInputFocus,
         handleItemHover,
         containerRef,
+        panelRef,
         inputRef,
         virtuosoRef,
         listboxId,
         activeDescendantId,
+        markPopupPointerDown,
+        clearPopupPointerDown,
     } = usePopupListSearchState({ options, optionsArePrefiltered, onSearchValueChange });
 
     const selectedValueSet = useMemo(() => new Set(value.map((v) => v.value)), [value]);
@@ -783,7 +857,7 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
 
         clearSearch();
         inputRef.current?.focus();
-    }, [clearSearch, value, selectedValueSet, setValue, syncOutput, showDialog]);
+    }, [clearSearch, inputRef, value, selectedValueSet, setValue, syncOutput, showDialog]);
 
     const handleKeyDown = usePopupListInputKeyDown({
         isOpen,
@@ -794,6 +868,7 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
         allowBackspaceRemove: value.length > 0,
         onOpen: () => setIsOpen(true),
         onClose: closePopup,
+        onBlurInput: () => inputRef.current?.blur(),
         onMove: moveHighlightedIndex,
         onCommitHighlighted: () => toggleOption(filteredOptions[highlightedIndex], inputValue),
         onCommitFreeform: () => toggleOption(undefined, inputValue),
@@ -853,7 +928,7 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
             const textToCopy = value.map(v => v.label || v.value).join(', ');
             e.clipboardData.setData('text/plain', textToCopy);
         }
-    }, [value]);
+    }, [inputRef, value]);
 
     const handleRemoveOption = useCallback((option: SelectOption) => {
         toggleOption(option);
@@ -934,6 +1009,9 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
                 listboxId={listboxId}
                 anchorRef={containerRef}
                 virtuosoRef={virtuosoRef}
+                panelRef={panelRef}
+                onPopupPointerDown={markPopupPointerDown}
+                onPopupPointerUp={clearPopupPointerDown}
                 renderItem={renderItem}
             />
         </div>

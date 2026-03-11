@@ -3,7 +3,7 @@ import { DEFAULT_TABS } from "../../lib/layouts";
 import { WebTable, WebTableError } from '@/lib/apitypes';
 import { getRenderer, isHtmlRenderer } from '@/components/ui/renderers';
 import { ReactNode } from 'react';
-import { BaseCommand, CM, STRIP_PREFIXES } from '@/utils/Command';
+import { CM, STRIP_PREFIXES } from '@/utils/Command';
 import { TableInfo } from './AbstractTable';
 import { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, OrderIdx } from "./DataTable";
 import { JSONValue } from "@/lib/internaltypes";
@@ -73,20 +73,6 @@ export function getReactSlots(columnsInfo: ConfigColumns[]): { [key: number]: ((
         }
     }
     return reactSlots ? reactSlots : undefined;
-}
-
-export function getColOptions(type: PlaceholderType, filter?: (f: BaseCommand) => boolean): [string, string][] {
-    const commands: BaseCommand[] = CM.placeholders(type).getCommands();
-    const result: [string, string][] = [];
-    for (const value of commands) {
-        if (filter && !filter(value)) {
-            continue;
-        }
-        if (!value.hasRequiredArgument()) {
-            result.push([value.name, value.command.desc]);
-        }
-    }
-    return result;
 }
 
 export function formatColName(str: string): string {

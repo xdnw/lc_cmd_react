@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useMemo } from "react";
+import React, { ReactNode, useCallback } from "react";
 import '@/pages/command/discord.css';
 import { markup } from "../../lib/discord";
 import type { ShowDialogFn } from "@/lib/dialog";
@@ -9,15 +9,174 @@ import { ThemedChart } from "../../pages/graphs/SimpleChart";
 import { Link } from "react-router-dom";
 import { commandButtonAction } from "../../pages/command";
 
-const PLAIN_TEXT_ONLY_RE = /^[^\n<>{}\[\]`*_~|]+$/;
-const PLAIN_TEXT_URL_RE = /https?:\/\//i;
-const PLAIN_TEXT_EMOJI_RE = /:\w+:/;
+type MarkupAnalysis = {
+    isEmpty: boolean;
+    shouldRenderMarkup: boolean;
+};
 
-function canRenderPlainText(content: string): boolean {
-    return Boolean(content)
-        && PLAIN_TEXT_ONLY_RE.test(content)
-        && !PLAIN_TEXT_URL_RE.test(content)
-        && !PLAIN_TEXT_EMOJI_RE.test(content);
+const EMPTY_ANALYSIS: MarkupAnalysis = Object.freeze({
+    isEmpty: true,
+    shouldRenderMarkup: false,
+});
+
+const ANALYSIS_CACHE_LIMIT = 500;
+const HTML_CACHE_LIMIT = 250;
+const markupAnalysisCache = new Map<string, MarkupAnalysis>();
+const markupHtmlCache = new Map<string, string>();
+const embedMarkupHtmlCache = new WeakMap<DiscordEmbed, Map<string, string>>();
+
+function setBoundedCache<K, V>(cache: Map<K, V>, key: K, value: V, limit: number): V {
+    cache.set(key, value);
+    if (cache.size > limit) {
+        const firstKey = cache.keys().next().value;
+        if (firstKey !== undefined) {
+            cache.delete(firstKey);
+        }
+    }
+    return value;
+}
+
+function hasMarkupControlChars(content: string): boolean {
+    for (let index = 0; index < content.length; index++) {
+        switch (content.charCodeAt(index)) {
+            case 10: // \n
+            case 42: // *
+            case 60: // <
+            case 62: // >
+            case 91: // [
+            case 93: // ]
+            case 95: // _
+            case 96: // `
+            case 123: // {
+            case 124: // |
+            case 125: // }
+            case 126: // ~
+                return true;
+            default:
+                break;
+        }
+    }
+
+    return false;
+}
+
+function hasUrlToken(content: string): boolean {
+    return content.includes("http://")
+        || content.includes("https://")
+        || content.includes("HTTP://")
+        || content.includes("HTTPS://");
+}
+
+function isEmojiWordCode(charCode: number): boolean {
+    return (charCode >= 48 && charCode <= 57)
+        || (charCode >= 65 && charCode <= 90)
+        || (charCode >= 97 && charCode <= 122)
+        || charCode === 95;
+}
+
+function hasEmojiToken(content: string): boolean {
+    for (let index = 0; index < content.length - 2; index++) {
+        if (content.charCodeAt(index) !== 58) {
+            continue;
+        }
+
+        let cursor = index + 1;
+        while (cursor < content.length && isEmojiWordCode(content.charCodeAt(cursor))) {
+            cursor += 1;
+        }
+
+        if (cursor > index + 1 && cursor < content.length && content.charCodeAt(cursor) === 58) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function isPlainTextContent(content: string): boolean {
+    return !hasMarkupControlChars(content)
+        && !hasUrlToken(content)
+        && !hasEmojiToken(content);
+}
+
+function analyzeMarkupContent(content: string): MarkupAnalysis {
+    if (!content) {
+        return EMPTY_ANALYSIS;
+    }
+
+    const cached = markupAnalysisCache.get(content);
+    if (cached) {
+        return cached;
+    }
+
+    const isPlainText = isPlainTextContent(content);
+
+    return setBoundedCache(markupAnalysisCache, content, {
+        isEmpty: false,
+        shouldRenderMarkup: !isPlainText,
+    }, ANALYSIS_CACHE_LIMIT);
+}
+
+function renderMarkupHtml(content: string, embed?: DiscordEmbed, showDialog?: ShowDialogFn): string {
+    if (!embed && !showDialog) {
+        const cached = markupHtmlCache.get(content);
+        if (cached !== undefined) {
+            return cached;
+        }
+
+        return setBoundedCache(markupHtmlCache, content, markup({
+            txt: content,
+            replaceEmoji: true,
+        }), HTML_CACHE_LIMIT);
+    }
+
+    if (embed && !showDialog) {
+        let embedCache = embedMarkupHtmlCache.get(embed);
+        if (!embedCache) {
+            embedCache = new Map<string, string>();
+            embedMarkupHtmlCache.set(embed, embedCache);
+        }
+        const cached = embedCache.get(content);
+        if (cached !== undefined) {
+            return cached;
+        }
+
+        return setBoundedCache(embedCache, content, markup({
+            txt: content,
+            replaceEmoji: true,
+            embed,
+        }), HTML_CACHE_LIMIT);
+    }
+
+    return markup({
+        txt: content,
+        replaceEmoji: true,
+        embed,
+        showDialog,
+    });
+}
+
+function renderMarkupNode(content: string, embed?: DiscordEmbed, showDialog?: ShowDialogFn): ReactNode {
+    const analysis = analyzeMarkupContent(content);
+
+    if (analysis.isEmpty) {
+        return null;
+    }
+
+    if (!analysis.shouldRenderMarkup) {
+        return content;
+    }
+
+    return <span dangerouslySetInnerHTML={{ __html: renderMarkupHtml(content, embed, showDialog) }} />;
+}
+
+export function canRenderPlainText(content: string): boolean {
+    const analysis = analyzeMarkupContent(content);
+    return !analysis.isEmpty && !analysis.shouldRenderMarkup;
+}
+
+export function hasDiscernableMarkup(content: string): boolean {
+    return analyzeMarkupContent(content).shouldRenderMarkup;
 }
 
 interface Author {
@@ -119,7 +278,7 @@ export function Embed({ json, responseRef, showDialog }:
         responseRef: React.RefObject<HTMLDivElement | null>,
         showDialog: ShowDialogFn
     }) {
-    console.log("BUTTONS ARE", json.buttons);
+    const contentClassName = hasDiscernableMarkup(json.content) ? "markup messageContent" : "messageContent";
     const embeds = [];
     const images = [];
     if (json.embeds) {
@@ -165,7 +324,7 @@ export function Embed({ json, responseRef, showDialog }:
 
     return (
         <div className="msgEmbed font-mono" id={json.id}>
-            <div className="markup messageContent"><MarkupRenderer content={json.content} embed={json} /></div>
+            <div className={contentClassName}>{renderMarkupNode(json.content, json, showDialog)}</div>
             {embeds.map((embed, index) => (
                 <div key={index}>
                     <div className="embed markup bg-accent mb-0.5">
@@ -186,14 +345,14 @@ export function Embed({ json, responseRef, showDialog }:
                                 <div className="embedTitle embedMargin">
                                     {embed.url ? (
                                         <a className="anchor" target="_blank" href={embed.url} rel="noopener noreferrer">
-                                            <MarkupRenderer content={embed.title} embed={json} />
+                                            {renderMarkupNode(embed.title, json, showDialog)}
                                         </a>
                                     ) : (
-                                        <MarkupRenderer content={embed.title} embed={json} />
+                                        renderMarkupNode(embed.title, json, showDialog)
                                     )}
                                 </div>
                             )}
-                            {embed.description && <div className="embedDescription embedMargin"><MarkupRenderer content={embed.description} embed={json} /></div>}
+                            {embed.description && <div className="embedDescription embedMargin">{renderMarkupNode(embed.description, json, showDialog)}</div>}
                             {embed.fields && (
                                 <EmbedFields fields={embed.fields} />
                             )}
@@ -242,30 +401,13 @@ export function Embed({ json, responseRef, showDialog }:
     );
 }
 
-export default function MarkupRenderer({ content, embed, showDialog }: { content: string, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): ReactNode {
-    const shouldRenderPlainText = canRenderPlainText(content);
+const MarkupRenderer = React.memo(function MarkupRenderer({ content, embed, showDialog }: { content: string, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): ReactNode {
+    return renderMarkupNode(content, embed, showDialog);
+});
 
-    const sanitized = useMemo(() => {
-        return content ? (markup({
-            txt: content,
-            replaceEmoji: true,
-            embed: embed,
-            showDialog: showDialog
-        })) : "";
-    }, [content, embed, showDialog]);
+MarkupRenderer.displayName = "MarkupRenderer";
 
-    if (!content) {
-        return null;
-    }
-
-    if (shouldRenderPlainText) {
-        return content;
-    }
-
-    return (
-        <span dangerouslySetInnerHTML={{ __html: sanitized }} />
-    );
-}
+export default MarkupRenderer;
 
 export function EmbedFields({ fields }: { fields: Field[] }): ReactNode {
     const createEmbedFields = () => {
@@ -295,10 +437,10 @@ export function EmbedFields({ fields }: { fields: Field[] }): ReactNode {
                     style={{ gridColumn: gridCol || `${colNum} / ${colNum + 4}` }}
                 >
                     <div className="embedFieldName">
-                        <MarkupRenderer content={f.name} />
+                        {renderMarkupNode(f.name)}
                     </div>
                     <div className="embedFieldValue">
-                        <MarkupRenderer content={f.value} />
+                        {renderMarkupNode(f.value)}
                     </div>
                 </div>
             );

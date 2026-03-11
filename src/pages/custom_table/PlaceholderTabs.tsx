@@ -14,7 +14,6 @@
  *
 
  */
-import { useDebounce } from 'use-debounce';
 import { Virtuoso } from 'react-virtuoso';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Button } from "../../components/ui/button";
@@ -28,7 +27,7 @@ import { getLayoutColumnConfig, LayoutConfigSchema, resolveLayoutColumnTemplate 
 import { DEFAULT_TABS } from "../../lib/layouts/defaultTabs";
 import CommandComponent from "../../components/cmd/CommandComponent";
 import { Input } from "@/components/ui/input";
-import { getColOptions, getQueryString } from "./table_util";
+import { getQueryString } from "./table_util";
 import { useDeepState } from "@/utils/StateUtil";
 import LazyIcon from '@/components/ui/LazyIcon';
 import { OrderIdx } from './DataTable';
@@ -254,7 +253,7 @@ export function ColumnsSection({
         setColumns(newColumns);
         setSort(newSort);
         setColumnRenderers(undefined);
-    }, [columns, sort, setColumns, setSort]);
+    }, [columns, sort, setColumns, setSort, setColumnRenderers]);
 
     // Handle keyboard input for column alias editing
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -335,7 +334,7 @@ export function ColumnsSection({
 
         setColumns(newColumns);
         setColumnRenderers(undefined);
-    }, [columns, showDialog, setColumns]);
+    }, [columns, showDialog, setColumns, setColumnRenderers]);
 
     // Handle template selection
     const applyColumnTemplate = useCallback((templateName: string, values?: Record<string, string>) => {
@@ -413,7 +412,7 @@ export function ColumnsSection({
         setColumns(newColumns);
         setSort(newSort);
         setColumnRenderers(undefined);
-    }, [columns, sort, setColumns, setSort]);
+    }, [columns, sort, setColumns, setSort, setColumnRenderers]);
 
     // Handle column sorting
     const handleColumnSort = useCallback((index: number, shiftKey: boolean) => {
@@ -460,15 +459,6 @@ export function ColumnsSection({
         setSort({ idx: 0, dir: 'asc' });
         setColumnRenderers(undefined);
     }, [setColumns, setSort, setColumnRenderers]);
-
-    // Handle adding a column from the simple list
-    const addSimpleColumn = useCallback((option: [string, string]) => {
-        const columnKey = "{" + option[0] + "}";
-        const newColumns = new Map(columns);
-        newColumns.set(columnKey, null);
-        setColumns(newColumns);
-        setColumnRenderers(undefined);
-    }, [columns, setColumns, setColumnRenderers]);
 
     const toggleColumns = useCallback(() => {
         setCollapseColumns(f => !f);
@@ -517,12 +507,6 @@ export function ColumnsSection({
                 <AddCustomColumn
                     handleAddColumn={handleAddColumn}
                     type={type}
-                />
-
-                <SimpleColumnOptions
-                    type={type}
-                    columns={columns}
-                    addSimpleColumn={addSimpleColumn}
                 />
             </div>
         </div>
@@ -781,171 +765,6 @@ function AddCustomColumn({ handleAddColumn, type }: {
             {inputArea}
             {footerLink}
         </>
-    );
-}
-
-// Create a memoized button component to prevent unnecessary re-renders
-const OptionButton = React.memo(({ option, isHidden, onClick }: {
-    option: [string, string],
-    isHidden: boolean,
-    onClick: (option: [string, string]) => void
-}) => {
-    if (isHidden) return null;
-
-    const handleClick = useCallback(() => {
-        onClick(option);
-    }, [option, onClick]);
-
-    return (
-        <Button
-            variant="outline"
-            size="sm"
-            className="me-1 mb-1"
-            onClick={handleClick}
-        >
-            {option[0]}:&nbsp;<span className="text-xs opacity-50">{option[1]}</span>
-        </Button>
-    );
-});
-
-function SimpleColumnOptions({
-    type,
-    columns,
-    addSimpleColumn
-}: {
-    type: keyof typeof COMMANDS.placeholders,
-    columns: Map<string, string | null>,
-    addSimpleColumn: (option: [string, string]) => void
-}) {
-    const [collapseColOptions, setCollapseColOptions] = useState(true);
-    const filterRef = useRef<HTMLInputElement>(null);
-    const [filter, setFilter] = useState("");
-    const [debouncedFilter] = useDebounce(filter, 150);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    // Only load options data when section is expanded
-    const colOptionsData = useMemo(
-        () => collapseColOptions ? [] : getColOptions(type),
-        [type, collapseColOptions]
-    );
-
-    // Apply filtering with debounced value
-    const filteredOptions = useMemo(() =>
-        colOptionsData.filter(([key, value]) =>
-            !debouncedFilter ||
-            key.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
-            value.toLowerCase().includes(debouncedFilter.toLowerCase())
-        ),
-        [colOptionsData, debouncedFilter]
-    );
-
-    // Group options into rows of approximately 100px each for virtualization
-    const [containerWidth, setContainerWidth] = useState(0);
-
-    useEffect(() => {
-        if (!collapseColOptions && containerRef.current) {
-            const resizeObserver = new ResizeObserver(entries => {
-                const { width } = entries[0].contentRect;
-                setContainerWidth(width);
-            });
-
-            resizeObserver.observe(containerRef.current);
-            return () => resizeObserver.disconnect();
-        }
-    }, [collapseColOptions]);
-
-    // Memoized handler for adding columns
-    const handleAddSimpleColumn = useCallback(
-        (option: [string, string]) => addSimpleColumn(option),
-        [addSimpleColumn]
-    );
-
-    // Group options into chunks for better virtualization
-    const CHUNK_SIZE = 15; // Adjust based on average number of buttons per row
-    const chunkedOptions = useMemo(() => {
-        const chunks = [];
-        for (let i = 0; i < filteredOptions.length; i += CHUNK_SIZE) {
-            chunks.push(filteredOptions.slice(i, i + CHUNK_SIZE));
-        }
-        return chunks;
-    }, [filteredOptions]);
-
-    const updateFilter = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setFilter(e.target.value.toLowerCase());
-    }, [])
-
-    const toggleCollapse = useCallback(() => {
-        setCollapseColOptions(f => !f);
-    }, [setCollapseColOptions]);
-
-    const addSimpleContent = useCallback((index: number) => {
-        const chunk = chunkedOptions[index];
-        return (
-            <div className="flex flex-wrap">
-                {chunk.map((option, i) => {
-                    const isHidden = columns.has("{" + option[0] + "}");
-                    if (isHidden) return null;
-
-                    // Create a key for this option
-                    const optionKey = `${index}-${i}`;
-
-                    return (
-                        <OptionButton
-                            key={optionKey}
-                            option={option}
-                            isHidden={false}
-                            onClick={handleAddSimpleColumn}
-                        />
-                    );
-                })}
-            </div>
-        );
-    }, [chunkedOptions, columns, handleAddSimpleColumn]);
-
-    return (
-        <div className="mt-1.5 rounded-md border border-border bg-card/60">
-            <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs font-semibold w-full border-b border-border px-2 bg-muted/40 rounded-none justify-start"
-                onClick={toggleCollapse}
-            >
-                Add Simple {collapseColOptions ? <LazyIcon name="ChevronDown" /> : <LazyIcon name="ChevronUp" />}
-            </Button>
-
-            <div className={`transition-all duration-200 ease-in-out ${collapseColOptions ? 'max-h-0 opacity-0 overflow-hidden' : 'px-2 py-1.5 opacity-100'}`}>
-                <Input
-                    ref={filterRef}
-                    type="text"
-                    className="w-full mb-1.5"
-                    placeholder="Filter options"
-                    value={filter}
-                    onChange={updateFilter}
-                />
-
-                <div ref={containerRef} className="w-full">
-                    {!collapseColOptions && chunkedOptions.length > 0 && (
-                        <Virtuoso
-                            style={{ height: Math.min(400, chunkedOptions.length * 40) }}
-                            totalCount={chunkedOptions.length}
-                            itemContent={addSimpleContent}
-                        />
-                    )}
-
-                    {!collapseColOptions && filteredOptions.length === 0 && (
-                        <div className="py-2 text-center text-muted-foreground">
-                            No matching options found
-                        </div>
-                    )}
-                </div>
-
-                {filteredOptions.length > 100 && (
-                    <div className="text-center text-xs text-muted-foreground">
-                        Showing all {filteredOptions.length} options
-                    </div>
-                )}
-            </div>
-        </div>
     );
 }
 

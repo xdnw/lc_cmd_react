@@ -2,27 +2,12 @@ import { Input } from "../ui/input";
 import { useCallback, useMemo, useState } from "react";
 import { COMMANDS } from "../../lib/commands";
 import { Button } from "../ui/button";
-import { getColOptions } from "@/pages/custom_table/table_util";
-import LazyIcon from "../ui/LazyIcon";
 import { cn } from "@/lib/utils";
 import { useArgFieldState } from "./field/useArgFieldState";
 import { validateRegexInput } from "./field/argValidation";
 import FieldMessage from "./field/FieldMessage";
 import type { CommandFieldState, CommandFieldStateUpdater } from "./field/commandFieldState";
-
-function isNumeric(str: string | undefined) {
-    if (str) {
-        switch (str.toLowerCase()) {
-            case "boolean":
-            case "int":
-            case "integer":
-            case "double":
-            case "long":
-                return true;
-        }
-    }
-    return false;
-}
+import PlaceholderCommandPickerDialog from "./PlaceholderCommandPickerDialog";
 
 interface TypedInputProps {
     argName: string;
@@ -52,14 +37,7 @@ export default function TypedInput({
     setOutputValue,
 }: TypedInputProps) {
     const { value, setDisplayValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || "", fieldState, setFieldState);
-
-    // Memoize colOptions based on placeholder and type.
-    const colOptions = useMemo<[string, string][]>(() =>
-        getColOptions(placeholder, (f) =>
-            type.toLowerCase() === "double" ? isNumeric(f.command.return_type) : true
-        ),
-        [placeholder, type]
-    );
+    const [showSimplePicker, setShowSimplePicker] = useState(false);
 
     // Handle input change via useCallback.
     const handleInputChange = useCallback(
@@ -77,6 +55,17 @@ export default function TypedInput({
         [argName, filter, filterHelp, resetValidation, setDisplayValue, setOutputValue, setValidation]
     );
 
+    const handleInsertPlaceholder = useCallback((nextValue: string) => {
+        setDisplayValue(nextValue);
+        setOutputValue(argName, nextValue);
+        if (!nextValue) {
+            resetValidation();
+            return;
+        }
+
+        setValidation(validateRegexInput(nextValue, filter, filterHelp));
+    }, [argName, filter, filterHelp, resetValidation, setDisplayValue, setOutputValue, setValidation]);
+
     return (
         <div className="space-y-1.5">
             <InputField
@@ -89,13 +78,27 @@ export default function TypedInput({
                 inputProps={inputProps}
             />
             <FieldMessage error={validation.error} note={validation.note} compact={compact} />
-            <OptionsSelector
-                argName={argName}
-                value={value}
-                setValue={setDisplayValue}
-                setOutputValue={setOutputValue}
-                colOptions={colOptions}
+            <div className="flex items-center gap-2">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 w-auto justify-between px-2 text-[11px]"
+                    onClick={() => setShowSimplePicker(true)}
+                >
+                    Add simple
+                </Button>
+                <span className="text-[11px] text-muted-foreground">
+                    Browse placeholder paths and fill any required args.
+                </span>
+            </div>
+            <PlaceholderCommandPickerDialog
+                open={showSimplePicker}
+                onOpenChange={setShowSimplePicker}
+                placeholderType={placeholder}
+                valueType={type}
                 compact={compact}
+                onInsert={handleInsertPlaceholder}
             />
         </div>
     );
@@ -128,110 +131,6 @@ function InputField({ value, isValid, onChange, filter, compact, inputProps }: I
                 placeholder="Expression or token"
                 {...inputProps}
             />
-        </div>
-    );
-}
-
-interface OptionsSelectorProps {
-    argName: string;
-    value: string;
-    setValue: (value: string) => void;
-    setOutputValue: (name: string, value: string) => void;
-    colOptions: [string, string][];
-    compact?: boolean;
-}
-
-function OptionsSelector({
-    argName,
-    value,
-    setValue,
-    setOutputValue,
-    colOptions,
-    compact,
-}: OptionsSelectorProps) {
-    const [collapseColOptions, setCollapseColOptions] = useState(true);
-    const [colFilter, setColFilter] = useState("");
-
-    const toggleCollapse = useCallback(() => {
-        setCollapseColOptions((prev) => !prev);
-    }, []);
-
-    const handleColFilterChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setColFilter(e.target.value.toLowerCase());
-    }, []);
-
-    const filteredOptions = useMemo(
-        () =>
-            colOptions.filter(
-                ([key, val]) =>
-                    !colFilter ||
-                    key.toLowerCase().includes(colFilter) ||
-                    val.toLowerCase().includes(colFilter)
-            ),
-        [colOptions, colFilter]
-    );
-
-    const collapseIcon = useMemo(
-        () =>
-            collapseColOptions ? (
-                <LazyIcon name="ChevronDown" />
-            ) : (
-                <LazyIcon name="ChevronUp" />
-            ),
-        [collapseColOptions]
-    );
-
-    const handleOptionClick = useCallback(
-        (e: React.MouseEvent<HTMLButtonElement>) => {
-            const optionKey = e.currentTarget.dataset.key;
-            const newValue = `{${optionKey}}`;
-            setOutputValue(argName, newValue);
-            setValue(newValue);
-        },
-        [argName, setOutputValue, setValue]
-    );
-
-
-    return (
-        <div className="space-y-1.5">
-            <Button
-                variant="outline"
-                size="sm"
-                className="h-6 w-auto justify-between px-2 text-[11px]"
-                onClick={toggleCollapse}
-            >
-                <span className="truncate">Simple placeholders</span>
-                {collapseIcon}
-            </Button>
-            {!collapseColOptions && (
-                <div className="max-h-56 rounded-md border border-border/60 bg-muted/15 p-2">
-                    <Input
-                        type="text"
-                        className={cn("mb-2 w-full bg-background", compact ? "h-6.5 px-2 text-xs" : "h-7")}
-                        placeholder="Filter"
-                        value={colFilter}
-                        onChange={handleColFilterChange}
-                    />
-                    <div className="flex flex-wrap gap-1.5">
-                        {filteredOptions.map(([key, desc]) => {
-                            const newValue = `{${key}}`;
-                            return (
-                                <Button
-                                    key={key}
-                                    variant={value === newValue ? "secondary" : "outline"}
-                                    size="sm"
-                                    data-key={key}
-                                    className={cn("max-w-full", compact ? "h-6 text-[10px]" : "h-6 text-[11px]")}
-                                    onClick={handleOptionClick}
-                                >
-                                    <span className="truncate font-mono">{key}</span>
-                                    {!compact && <span className="truncate text-[10px] opacity-60">{desc}</span>}
-                                </Button>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

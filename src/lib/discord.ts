@@ -21,6 +21,27 @@ type DiscordCallback = Partial<HtmlOptions["discordCallback"]> & {
     slash?: (name: string, id: string) => string;
 };
 
+const HTML_ESCAPE_TEST_RE = /[&<>"]/;
+const URL_RE = /\bhttps?:\/\/[^\s<>'"]+/gi;
+const HTTP_LINK_SCHEME_RE = /^https?:\/\//i;
+const MARKUP_EMOJI_REPLACE_RE = /(?<!code(?: \w+=".+")?>[^>]+)(?<!\/[^\s"]+?):((?!\/)\w+):/g;
+const FULL_MARKUP_TOKEN_RE = /```|`|<[@#/:]|<https?:|<t:|\[[^\]]+\]\([^)]+\)|(^|\n)\s*(?:>{1,3}|~#)\s|(?<!\w)@(?:everyone|here)\b|\*\*?|__?|~~|\|\|/m;
+const FULL_MARKUP_OR_EMOJI_TOKEN_RE = /```|`|<[@#/:]|<https?:|<t:|\[[^\]]+\]\([^)]+\)|(^|\n)\s*(?:>{1,3}|~#)\s|(?<!\w)@(?:everyone|here)\b|\*\*?|__?|~~|\|\||:\w+:/m;
+const MARK_OPEN_TAG: Record<"b" | "i" | "u" | "s" | "sp", string> = {
+    b: "<strong>",
+    i: "<em>",
+    u: "<u>",
+    s: "<s>",
+    sp: "<span class=\"spoiler\">",
+};
+const MARK_CLOSE_TAG: Record<"b" | "i" | "u" | "s" | "sp", string> = {
+    b: "</strong>",
+    i: "</em>",
+    u: "</u>",
+    s: "</s>",
+    sp: "</span>",
+};
+
 export function createOptions({ embed, showDialog }:
     {
         embed: DiscordEmbed,
@@ -144,8 +165,9 @@ export function markup({ txt, replaceEmoji, embed, showDialog }: { txt: string, 
         return renderFastMarkupHtml(txt);
     }
 
-    if (replaceEmoji)
-        txt = txt.replace(/(?<!code(?: \w+=".+")?>[^>]+)(?<!\/[^\s"]+?):((?!\/)\w+):/g, (match, p: string) => p && emojis[p] ? emojis[p] : match);
+    if (replaceEmoji && hasEmojiToken(txt)) {
+        txt = txt.replace(MARKUP_EMOJI_REPLACE_RE, (match, p: string) => p && emojis[p] ? emojis[p] : match);
+    }
     const options: HtmlOptions = embed ? createOptions({ embed, showDialog }) : { escapeHTML: true } as HtmlOptions;
     return toHTML(txt, options);
 }
@@ -323,34 +345,67 @@ export function toHTML(txt: string, options: HtmlOptions): string {
 /* ========================= Helpers ========================= */
 
 function normalizeNewlines(s: string): string {
-    return s.replace(/\r\n?/g, '\n');
+    return s.includes('\r') ? s.replace(/\r\n?/g, '\n') : s;
 }
 
-const FULL_MARKUP_TOKEN_RE = /```|`|<[@#/:]|<https?:|<t:|\[[^\]]+\]\([^\)]+\)|(^|\n)\s*(?:>>>?|~#)\s|(?<!\w)@(?:everyone|here)\b|\*\*?|__?|~~|\|\|/m;
-const EMOJI_TOKEN_RE = /:\w+:/;
+function isAsciiWordCode(charCode: number): boolean {
+    return (charCode >= 48 && charCode <= 57)
+        || (charCode >= 65 && charCode <= 90)
+        || (charCode >= 97 && charCode <= 122)
+        || charCode === 95;
+}
 
-function canUseFastMarkupPath(text: string, replaceEmoji: boolean): boolean {
+function hasEmojiToken(text: string): boolean {
+    for (let index = 0; index < text.length - 2; index++) {
+        if (text.charCodeAt(index) !== 58) {
+            continue;
+        }
+
+        let cursor = index + 1;
+        while (cursor < text.length && isAsciiWordCode(text.charCodeAt(cursor))) {
+            cursor += 1;
+        }
+
+        if (cursor > index + 1 && cursor < text.length && text.charCodeAt(cursor) === 58) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+export function canUseFastMarkupPath(text: string, replaceEmoji: boolean): boolean {
     if (!text) {
         return true;
     }
 
-    if (replaceEmoji && EMOJI_TOKEN_RE.test(text)) {
-        return false;
-    }
-
-    return !FULL_MARKUP_TOKEN_RE.test(text);
+    return !(replaceEmoji ? FULL_MARKUP_OR_EMOJI_TOKEN_RE : FULL_MARKUP_TOKEN_RE).test(text);
 }
 
 function renderFastMarkupHtml(text: string): string {
-    return normalizeNewlines(text)
-        .split('\n')
-        .map((line) => linkifyAndEscape(line, true))
-        .join('<br/>');
+    const normalized = normalizeNewlines(text);
+    const firstNewline = normalized.indexOf('\n');
+    if (firstNewline === -1) {
+        return linkifyAndEscape(normalized, true);
+    }
+
+    const parts: string[] = [];
+    let lineStart = 0;
+    let newlineIndex = firstNewline;
+
+    while (newlineIndex !== -1) {
+        parts.push(linkifyAndEscape(normalized.slice(lineStart, newlineIndex), true));
+        lineStart = newlineIndex + 1;
+        newlineIndex = normalized.indexOf('\n', lineStart);
+    }
+
+    parts.push(linkifyAndEscape(normalized.slice(lineStart), true));
+    return parts.join('<br/>');
 }
 
 function isFence(line: string): boolean {
     // ``` (no need to enforce language here)
-    return /^```/.test(line);
+    return line.startsWith('```');
 }
 
 function parseFence(line: string): { lang: string } | null {
@@ -367,23 +422,23 @@ function renderCodeBlock(code: string, lang: string, esc: boolean): string {
 
 function tryStartMultiQuote(line: string): { text: string } | null {
     // ">>> " starts a multiline quote till end of message in Discord
-    if (/^>>>\s?/.test(line)) {
-        return { text: line.replace(/^>>>\s?/, '') };
+    if (line.startsWith('>>>')) {
+        return { text: line[3] === ' ' ? line.slice(4) : line.slice(3) };
     }
     return null;
 }
 
 function trySingleQuote(line: string): { text: string } | null {
-    if (/^>\s?/.test(line)) {
-        return { text: line.replace(/^>\s?/, '') };
+    if (line.startsWith('>')) {
+        return { text: line[1] === ' ' ? line.slice(2) : line.slice(1) };
     }
     return null;
 }
 
 function trySubtext(line: string): { text: string } | null {
     // supports subtext via ~# at the start of the line
-    if (/^~#\s?/.test(line)) {
-        return { text: line.replace(/^~#\s?/, '') };
+    if (line.startsWith('~#')) {
+        return { text: line[2] === ' ' ? line.slice(3) : line.slice(2) };
     }
     return null;
 }
@@ -411,13 +466,7 @@ function parseInline(input: string, cb: DiscordCallback, esc: boolean): string {
     function openMark(m: Mark) {
         flushText();
         stack.push(m);
-        switch (m.type) {
-            case 'b': out.push('<strong>'); break;
-            case 'i': out.push('<em>'); break;
-            case 'u': out.push('<u>'); break;
-            case 's': out.push('<s>'); break;
-            case 'sp': out.push('<span class="spoiler">'); break;
-        }
+        out.push(MARK_OPEN_TAG[m.type]);
     }
 
     function closeMark(type: Mark['type']) {
@@ -429,41 +478,22 @@ function parseInline(input: string, cb: DiscordCallback, esc: boolean): string {
                 const toReopen: Mark[] = [];
                 while (stack.length - 1 > si) {
                     const temp = stack.pop()!;
-                    out.push(closeTag(temp.type));
+                    out.push(MARK_CLOSE_TAG[temp.type]);
                     toReopen.push(temp);
                 }
                 // close target
                 const target = stack.pop()!;
-                out.push(closeTag(target.type));
+                out.push(MARK_CLOSE_TAG[target.type]);
                 // reopen the previously closed ones
                 for (let ri = toReopen.length - 1; ri >= 0; ri--) {
                     const m = toReopen[ri];
-                    out.push(openTag(m.type));
+                    out.push(MARK_OPEN_TAG[m.type]);
                     stack.push(m);
                 }
                 return true;
             }
         }
         return false;
-    }
-
-    function openTag(t: Mark['type']): string {
-        switch (t) {
-            case 'b': return '<strong>';
-            case 'i': return '<em>';
-            case 'u': return '<u>';
-            case 's': return '<s>';
-            case 'sp': return '<span class="spoiler">';
-        }
-    }
-    function closeTag(t: Mark['type']): string {
-        switch (t) {
-            case 'b': return '</strong>';
-            case 'i': return '</em>';
-            case 'u': return '</u>';
-            case 's': return '</s>';
-            case 'sp': return '</span>';
-        }
     }
 
     while (i < n) {
@@ -605,7 +635,7 @@ function parseInline(input: string, cb: DiscordCallback, esc: boolean): string {
     // But to avoid changing semantics too much, we will close them:
     while (stack.length) {
         const m = stack.pop()!;
-        out.push(closeTag(m.type));
+        out.push(MARK_CLOSE_TAG[m.type]);
     }
 
     flushText();
@@ -668,6 +698,10 @@ function safeLtGt(s: string): string {
 /* =============== Utilities =============== */
 
 function escapeHtml(s: string): string {
+    if (!HTML_ESCAPE_TEST_RE.test(s)) {
+        return s;
+    }
+
     return s
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -695,15 +729,32 @@ function findClosingBackticks(s: string, start: number, count: number): number {
 }
 
 function repeat(ch: string, n: number): string {
-    return new Array(n + 1).join(ch);
+    return ch.repeat(n);
 }
 
 function isSpecialChar(c: string): boolean {
-    return /[\\`*_\-~|<>]/.test(c);
+    return "\\`*_-~|<>".includes(c);
 }
 
 function isWordChar(c: string): boolean {
-    return !!c && /[A-Za-z0-9_]/.test(c);
+    if (!c) {
+        return false;
+    }
+
+    const code = c.charCodeAt(0);
+    return (code >= 48 && code <= 57)
+        || (code >= 65 && code <= 90)
+        || (code >= 97 && code <= 122)
+        || code === 95;
+}
+
+function isWhitespaceChar(c: string): boolean {
+    if (!c) {
+        return false;
+    }
+
+    const code = c.charCodeAt(0);
+    return code === 32 || (code >= 9 && code <= 13);
 }
 
 function isBoundary(s: string, atStart: number, afterEnd: number): boolean {
@@ -713,15 +764,15 @@ function isBoundary(s: string, atStart: number, afterEnd: number): boolean {
 }
 
 function matchWord(s: string, start: number, word: string): boolean {
-    return s.slice(start, start + word.length) === word;
+    return s.startsWith(word, start);
 }
 
 function canToggleDelim(s: string, i: number, len: number): boolean {
     const before = i - 1 >= 0 ? s[i - 1] : '';
     const after = i + len < s.length ? s[i + len] : '';
     // Simple left/right flanking rule: don't open/close if surrounded by whitespace only
-    const leftOk = !after || !/\s/.test(after);
-    const rightOk = !before || !/\s/.test(before);
+    const leftOk = !after || !isWhitespaceChar(after);
+    const rightOk = !before || !isWhitespaceChar(before);
     return leftOk || rightOk;
 }
 
@@ -734,11 +785,14 @@ function linkifyAndEscape(text: string, esc: boolean): string {
     // We need raw text for matching, but we already escaped, so we do a split pass with indexes.
     // Simpler approach: match on the unescaped version and stitch with escaping for non-links.
     if (!text) return '';
+    if (!text.includes('http://') && !text.includes('https://') && !text.includes('HTTP://') && !text.includes('HTTPS://')) {
+        return escapeHtml(text);
+    }
     const segments: string[] = [];
-    const urlRe = /\bhttps?:\/\/[^\s<>'"]+/gi;
     let last = 0;
     let m: RegExpExecArray | null;
-    while ((m = urlRe.exec(text)) !== null) {
+    URL_RE.lastIndex = 0;
+    while ((m = URL_RE.exec(text)) !== null) {
         const start = m.index;
         const end = start + m[0].length;
         // Append preceding plain text
@@ -765,7 +819,7 @@ function renderLink(url: string): string {
 
 function escapeHref(href: string): string {
     // Only allow http/https
-    if (!/^https?:\/\//i.test(href)) return '#';
+    if (!HTTP_LINK_SCHEME_RE.test(href)) return '#';
     // basic escaping
     return href.replace(/"/g, '%22');
 }

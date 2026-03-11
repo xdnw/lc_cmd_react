@@ -20,42 +20,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { getFixedRowWindow, rankSearchMatches, SearchMatchText } from "./searchListPrimitives";
 
 const SEARCH_THRESHOLD = 50;
 const VISIBLE_ROW_COUNT = 8;
 const ROW_HEIGHT = 28;
 const ROW_OVERSCAN = 3;
-
-function rankSearchMatches<T>(
-    items: T[],
-    query: string,
-    getSearchText: (item: T) => string,
-    getPrefixCandidates: (item: T) => string[],
-): T[] {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) {
-        return items;
-    }
-
-    const exactOrPrefixMatches: T[] = [];
-    const partialMatches: T[] = [];
-
-    for (const item of items) {
-        const searchText = getSearchText(item).toLowerCase();
-        if (!searchText.includes(normalizedQuery)) {
-            continue;
-        }
-
-        if (getPrefixCandidates(item).some((candidate) => candidate.toLowerCase().startsWith(normalizedQuery))) {
-            exactOrPrefixMatches.push(item);
-            continue;
-        }
-
-        partialMatches.push(item);
-    }
-
-    return exactOrPrefixMatches.concat(partialMatches);
-}
 
 function buildSuggestionSearchText(suggestion: ExpressionSuggestion): string {
     return [
@@ -136,6 +106,7 @@ type SuggestionRowProps = {
     isHighlighted: boolean;
     onApplySuggestion: (suggestion: ExpressionSuggestion) => void;
     onHighlight: (index: number) => void;
+    searchQuery: string;
 };
 
 const SuggestionRow = memo(function SuggestionRow({
@@ -144,6 +115,7 @@ const SuggestionRow = memo(function SuggestionRow({
     isHighlighted,
     onApplySuggestion,
     onHighlight,
+    searchQuery,
 }: SuggestionRowProps) {
     const secondaryText = suggestion.detail ?? suggestion.subtext;
     const handleMouseDown = useCallback((event: MouseEvent<HTMLButtonElement>) => {
@@ -172,10 +144,12 @@ const SuggestionRow = memo(function SuggestionRow({
                 title={suggestion.detail}
             >
                 <span className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
-                    <span className="truncate font-mono text-[11px] text-foreground">{suggestion.label}</span>
+                    <span className="truncate font-mono text-[11px] text-foreground">
+                        <SearchMatchText text={suggestion.label} query={searchQuery} />
+                    </span>
                     {secondaryText && (
                         <span aria-hidden="true" className="truncate text-[10px] text-muted-foreground">
-                            {secondaryText}
+                            <SearchMatchText text={secondaryText} query={searchQuery} />
                         </span>
                     )}
                 </span>
@@ -258,12 +232,12 @@ export default function PlaceholderSuggestionPanel({
     const showLazySearchPrompt = Boolean(lazyOptionSource && !canBrowseLazyOptions);
     const lazyMinQueryLength = lazyOptionSource?.minQueryLength ?? 0;
     const listHeight = Math.max(3, Math.min(visibleSuggestions || 1, VISIBLE_ROW_COUNT)) * ROW_HEIGHT;
-    const visibleRowCapacity = Math.max(1, Math.ceil(listHeight / ROW_HEIGHT));
-    const windowStartIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - ROW_OVERSCAN);
-    const windowEndIndex = Math.min(renderedSuggestions.length, windowStartIndex + visibleRowCapacity + (ROW_OVERSCAN * 2));
+    const windowState = getFixedRowWindow(renderedSuggestions.length, scrollTop, ROW_HEIGHT, listHeight, ROW_OVERSCAN);
+    const windowStartIndex = windowState.startIndex;
+    const windowEndIndex = windowState.endIndex;
     const windowedSuggestions = renderedSuggestions.slice(windowStartIndex, windowEndIndex);
-    const paddingTop = windowStartIndex * ROW_HEIGHT;
-    const paddingBottom = Math.max(0, (renderedSuggestions.length - windowEndIndex) * ROW_HEIGHT);
+    const paddingTop = windowState.paddingTop;
+    const paddingBottom = windowState.paddingBottom;
 
     useEffect(() => {
         setHighlightedIndex(0);
@@ -311,9 +285,10 @@ export default function PlaceholderSuggestionPanel({
                 isHighlighted={index === highlightedIndex}
                 onApplySuggestion={onApplySuggestion}
                 onHighlight={setHighlightedIndex}
+                searchQuery={deferredSearchValue}
             />
         );
-    }, [highlightedIndex, onApplySuggestion]);
+    }, [deferredSearchValue, highlightedIndex, onApplySuggestion]);
 
     const handleSearchKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
         if (visibleSuggestions === 0) {

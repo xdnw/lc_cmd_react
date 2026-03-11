@@ -1,6 +1,7 @@
 import LazyExpander from "@/components/ui/LazyExpander";
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import MarkupRenderer, { hasDiscernableMarkup } from "@/components/ui/MarkupRenderer";
 import { useCallback } from "react";
 import type { SettingRow } from "../settingsDomain";
 import SettingClearAction from "./SettingClearAction";
@@ -16,6 +17,12 @@ export default function SettingRow({
 }) {
     const isUnsupported = !row.editor.inputSupport.supported;
     const unavailableReason = !row.flags.isAllowed ? "Unavailable in current guild context" : undefined;
+    const expandedHelpText = row.metadata.helpFull.startsWith(row.metadata.helpShort)
+        ? row.metadata.helpFull.slice(row.metadata.helpShort.length).trimStart()
+        : row.metadata.helpFull;
+    const hasExpandedHelp = Boolean(expandedHelpText && expandedHelpText !== row.metadata.helpShort);
+    const valueText = row.value.displayText || "(empty)";
+    const renderValueAsMarkdown = hasDiscernableMarkup(valueText);
 
     const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
     const handleRefreshSetting = useCallback(
@@ -38,20 +45,28 @@ export default function SettingRow({
                 </div>
             </div>
 
-            <div className="text-xs wrap-break-word">
-                <span className="text-muted-foreground">Value:</span> {row.value.displayText || "(empty)"}
+            <div className="space-y-1 text-xs wrap-break-word">
+                <div className="text-muted-foreground">Value</div>
+                {renderValueAsMarkdown ? (
+                    <div className="markup messageContent text-sm text-foreground">
+                        <MarkupRenderer content={valueText} />
+                    </div>
+                ) : (
+                    <div>{valueText}</div>
+                )}
             </div>
 
-            <div className="text-xs text-muted-foreground wrap-break-word">{row.metadata.helpShort}</div>
-
-            {row.metadata.helpFull && row.metadata.helpFull !== row.metadata.helpShort && (
+            {hasExpandedHelp ? (
                 <LazyExpander
                     className="h-7! py-0!"
-                    content={<div className="text-xs whitespace-pre-wrap wrap-break-word">{row.metadata.helpFull}</div>}
-                    hideTriggerChildrenWhenExpanded
+                    content={<div className="text-xs whitespace-pre-wrap wrap-break-word">{expandedHelpText}</div>}
                 >
-                    <span className="text-xs">Show full help</span>
+                    <div className="min-w-0 text-left text-xs text-muted-foreground wrap-break-word">
+                        {row.metadata.helpShort}
+                    </div>
                 </LazyExpander>
+            ) : (
+                <div className="text-xs text-muted-foreground wrap-break-word">{row.metadata.helpShort}</div>
             )}
 
             {row.rowParseErrors.length > 0 && (

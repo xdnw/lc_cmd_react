@@ -30,6 +30,7 @@
     "test": "vitest run --dir src",
     "test:inputs": "vitest run src/components/cmd/ArgInput.examples.test.tsx",
     "test:inputs:watch": "vitest src/components/cmd/ArgInput.examples.test.tsx",
+    "bench:markup": "vitest bench --run src/components/ui/MarkupRenderer.bench.tsx",
     "bench:placeholder": "vitest bench --run src/components/cmd/expression/expressionAnalysis.bench.ts src/components/cmd/PlaceholderSuggestionPanel.bench.ts src/components/cmd/PlaceholderExpressionInput.bench.tsx src/components/cmd/CommandDialogForm.bench.tsx",
     "bench:cmd": "vitest bench --run src/components/cmd/expression/expressionAnalysis.bench.ts src/components/cmd/PlaceholderSuggestionPanel.bench.ts src/components/cmd/PlaceholderExpressionInput.bench.tsx src/components/cmd/CommandDialogForm.bench.tsx src/components/cmd/ListComponent.bench.tsx src/components/cmd/QueryComponent.bench.tsx src/components/cmd/CommandComponent.bench.tsx"
   },

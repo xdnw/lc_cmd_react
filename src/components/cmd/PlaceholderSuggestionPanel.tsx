@@ -333,7 +333,7 @@ export default function PlaceholderSuggestionPanel({
     }, []);
 
     return (
-        <div className="rounded-md border border-border bg-muted/40 p-1.5">
+        <div className="rounded-md border border-border bg-popover p-1.5 text-popover-foreground shadow-sm">
             <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 <span>Suggestions</span>
                 <span>{visibleSuggestions.toLocaleString()} / {totalSuggestionUniverse.toLocaleString()}</span>
@@ -351,17 +351,17 @@ export default function PlaceholderSuggestionPanel({
             )}
 
             {showLazySearchPrompt && (
-                <div className="rounded-md border border-dashed border-border/70 bg-background/70 px-2 py-3 text-xs text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border/70 bg-background px-2 py-3 text-xs text-muted-foreground">
                     Type at least {lazyMinQueryLength.toString()} characters to search {totalSuggestionUniverse.toLocaleString()} options.
                 </div>
             )}
 
             {!showLazySearchPrompt && visibleSuggestions === 0 ? (
-                <div className="rounded-md border border-dashed border-border/70 bg-background/70 px-2 py-3 text-xs text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border/70 bg-background px-2 py-3 text-xs text-muted-foreground">
                     No suggestions match the current search.
                 </div>
             ) : visibleSuggestions > 0 ? (
-                <div className="overflow-hidden rounded-md border border-border/70 bg-background/70">
+                <div className="overflow-hidden rounded-md border border-border/70 bg-background">
                     <div
                         ref={listContainerRef}
                         style={{ height: listHeight }}

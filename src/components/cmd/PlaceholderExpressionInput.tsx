@@ -1,5 +1,5 @@
-import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
-import { Textarea } from "@/components/ui/textarea";
+import { startTransition, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSyncedState } from "@/utils/StateUtil";
@@ -23,6 +23,20 @@ type SourceMessage = { kind: "loading" | "warning" | "error"; text: string };
 const EMPTY_SOURCE_MESSAGES: SourceMessage[] = [];
 const EMPTY_REGISTRY: ExpressionValueSourceRegistry = {};
 const EMPTY_ANALYSIS: ExpressionAnalysis = { suggestions: [], errors: [] };
+const STATUS_SLOT_HEIGHT_CLASS = "h-[3.25rem]";
+const HIDDEN_PANEL_STYLE: React.CSSProperties = {
+    position: "fixed",
+    top: -9999,
+    left: -9999,
+    width: 0,
+    maxHeight: 300,
+    visibility: "hidden",
+    zIndex: 90,
+};
+
+const PASSWORD_MANAGER_IGNORE_PROPS = {
+    "data-bwignore": "true",
+} as const;
 
 function resolveSearchTokenTargetCacheKey(activeSourceRef: ExpressionValueSourceRef | undefined): string | null {
     if (!activeSourceRef) {
@@ -93,23 +107,24 @@ export default function PlaceholderExpressionInput({
     initialValue,
     setOutputValue,
     breakdown,
-    compact,
     forceMountAll,
 }: {
     argName: string;
     initialValue: string;
     setOutputValue: (name: string, value: string) => void;
     breakdown: TypeBreakdown;
-    compact?: boolean;
     forceMountAll?: boolean;
 }) {
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const controlRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+    const controlRef = useRef<HTMLInputElement | null>(null);
+    const panelRef = useRef<HTMLDivElement | null>(null);
     const descriptor = useMemo(() => getPlaceholderExpressionDescriptor(breakdown), [breakdown]);
     const [value, setValue] = useSyncedState(initialValue || "");
     const [cursor, setCursor] = useState((initialValue || "").length);
     const [hasFocusWithin, setHasFocusWithin] = useState(false);
     const [panelSearchValue, setPanelSearchValue] = useState("");
+    const [hasPanelInteraction, setHasPanelInteraction] = useState((initialValue || "").trim().length > 0);
+    const [panelStyle, setPanelStyle] = useState<React.CSSProperties>(HIDDEN_PANEL_STYLE);
     const pendingSelectionRef = useRef<number | null>(null);
     const deferredValue = useDeferredValue(value);
     const shouldAnalyze = forceMountAll || hasFocusWithin || deferredValue.trim().length > 0;
@@ -209,31 +224,40 @@ export default function PlaceholderExpressionInput({
         controlRef.current = node;
     }, []);
 
-    const assignTextareaRef = useCallback((node: HTMLTextAreaElement | null) => {
-        controlRef.current = node;
+    const requestPanelInteraction = useCallback(() => {
+        setHasPanelInteraction((previous) => previous ? previous : true);
     }, []);
 
-    const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const nextValue = event.currentTarget.value;
+        requestPanelInteraction();
         setValue(nextValue);
         startTransition(() => {
             setOutputValue(argName, nextValue);
         });
         updateCursor(event.currentTarget.selectionStart ?? nextValue.length);
-    }, [argName, setOutputValue, setValue, updateCursor]);
+    }, [argName, requestPanelInteraction, setOutputValue, setValue, updateCursor]);
 
-    const syncCursor = useCallback((event: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const syncCursor = useCallback((event: React.SyntheticEvent<HTMLInputElement>) => {
+        requestPanelInteraction();
         const target = event.currentTarget;
         updateCursor(target.selectionStart ?? target.value.length);
-    }, [updateCursor]);
+    }, [requestPanelInteraction, updateCursor]);
 
-    const handleKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+        if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+            requestPanelInteraction();
+        }
         const firstSuggestion = analysis.suggestions[0] ?? getFirstLazyOptionSuggestion(analysis.lazyOptionSource);
         if ((event.key === "Tab" || (event.key === "Enter" && event.ctrlKey)) && firstSuggestion) {
             event.preventDefault();
             applySuggestion(firstSuggestion);
         }
-    }, [analysis.lazyOptionSource, analysis.suggestions, applySuggestion]);
+    }, [analysis.lazyOptionSource, analysis.suggestions, applySuggestion, requestPanelInteraction]);
+
+    const handleSuggestionPanelMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        event.preventDefault();
+    }, []);
 
     const handleFocusWithin = useCallback(() => {
         setHasFocusWithin((previous) => previous ? previous : true);
@@ -241,7 +265,10 @@ export default function PlaceholderExpressionInput({
 
     const handleBlurWithin = useCallback((event: FocusEvent<HTMLDivElement>) => {
         const nextFocusedElement = event.relatedTarget;
-        if (nextFocusedElement instanceof Node && containerRef.current?.contains(nextFocusedElement)) {
+        if (nextFocusedElement instanceof Node && (
+            containerRef.current?.contains(nextFocusedElement)
+            || panelRef.current?.contains(nextFocusedElement)
+        )) {
             return;
         }
 
@@ -249,9 +276,67 @@ export default function PlaceholderExpressionInput({
         setPanelSearchValue("");
     }, []);
 
-    const showSuggestionPanel = shouldAnalyze && hasFocusWithin && (
+    const showSuggestionPanel = shouldAnalyze && hasFocusWithin && hasPanelInteraction && (
         analysis.lazyOptionSource != null || analysis.suggestions.length > 0
     );
+    const hasStatusContent = Boolean(analysis.hint || analysis.errors.length > 0 || sourceMessages.length > 0);
+
+    const updatePanelPosition = useCallback(() => {
+        const anchor = controlRef.current;
+        const panel = panelRef.current;
+        if (!showSuggestionPanel || !anchor || !panel) {
+            return;
+        }
+
+        const anchorRect = anchor.getBoundingClientRect();
+        const panelRect = panel.getBoundingClientRect();
+        const viewportPadding = 8;
+        const desiredTop = anchorRect.bottom + 4;
+        const availableBelow = window.innerHeight - desiredTop - viewportPadding;
+        const availableAbove = anchorRect.top - viewportPadding - 4;
+        const shouldOpenAbove = availableBelow < 180 && availableAbove > availableBelow;
+        const maxHeight = Math.max(140, Math.min(320, shouldOpenAbove ? availableAbove : availableBelow));
+        const measuredHeight = Math.min(panelRect.height || maxHeight, maxHeight);
+        const top = shouldOpenAbove
+            ? Math.max(viewportPadding, anchorRect.top - measuredHeight - 4)
+            : Math.min(desiredTop, window.innerHeight - measuredHeight - viewportPadding);
+        const width = Math.max(anchorRect.width, 240);
+        const left = Math.min(
+            Math.max(viewportPadding, anchorRect.left),
+            Math.max(viewportPadding, window.innerWidth - width - viewportPadding),
+        );
+
+        setPanelStyle({
+            position: "fixed",
+            top,
+            left,
+            width,
+            maxHeight,
+            visibility: "visible",
+            zIndex: 90,
+        });
+    }, [showSuggestionPanel]);
+
+    useLayoutEffect(() => {
+        if (!showSuggestionPanel) {
+            setPanelStyle((previousStyle) => (
+                previousStyle.visibility === "hidden"
+                    ? previousStyle
+                    : HIDDEN_PANEL_STYLE
+            ));
+            return;
+        }
+
+        updatePanelPosition();
+
+        const handleWindowChange = () => updatePanelPosition();
+        window.addEventListener("resize", handleWindowChange);
+        window.addEventListener("scroll", handleWindowChange, true);
+        return () => {
+            window.removeEventListener("resize", handleWindowChange);
+            window.removeEventListener("scroll", handleWindowChange, true);
+        };
+    }, [cursor, panelSearchValue, showSuggestionPanel, updatePanelPosition, value]);
 
     return (
         <div
@@ -260,7 +345,7 @@ export default function PlaceholderExpressionInput({
             onFocusCapture={handleFocusWithin}
             onBlurCapture={handleBlurWithin}
         >
-            {compact ? (
+            <div>
                 <Input
                     ref={assignInputRef}
                     type="text"
@@ -270,77 +355,74 @@ export default function PlaceholderExpressionInput({
                     onClick={syncCursor}
                     onSelect={syncCursor}
                     spellCheck={false}
+                    {...PASSWORD_MANAGER_IGNORE_PROPS}
                     className={cn(
-                        "bg-background font-mono text-xs",
-                        "h-6.5 px-2",
+                        "h-6.5 bg-background px-2 text-xs font-mono",
                         (analysis.errors.length > 0 || sourceMessages.some((message) => message.kind === "error"))
                             && "border-destructive focus-visible:ring-destructive/25",
                     )}
                     placeholder={placeholderText}
                 />
-            ) : (
-                <Textarea
-                    ref={assignTextareaRef}
-                    value={value}
-                    onChange={handleChange}
-                    onKeyDown={handleKeyDown}
-                    onClick={syncCursor}
-                    onSelect={syncCursor}
-                    spellCheck={false}
-                    className={cn(
-                        "rounded-md bg-background font-mono text-xs leading-5",
-                        "min-h-24 px-2.5 py-2",
-                        (analysis.errors.length > 0 || sourceMessages.some((message) => message.kind === "error"))
-                            && "border-destructive focus-visible:ring-destructive/25",
-                    )}
-                    placeholder={placeholderText}
-                />
+            </div>
+
+            {showSuggestionPanel && typeof document !== "undefined" && createPortal(
+                <div
+                    ref={panelRef}
+                    style={panelStyle}
+                    className="overflow-hidden rounded-md border border-border/70 bg-popover shadow-xl"
+                    onMouseDown={handleSuggestionPanelMouseDown}
+                >
+                    <div className="max-h-[inherit] overflow-y-auto">
+                        <PlaceholderSuggestionPanel
+                            suggestions={analysis.suggestions}
+                            lazyOptionSource={analysis.lazyOptionSource}
+                            searchValue={panelSearchValue}
+                            onSearchValueChange={setPanelSearchValue}
+                            onApplySuggestion={applySuggestion}
+                        />
+                    </div>
+                </div>,
+                document.body,
             )}
 
-            {showSuggestionPanel && (
-                <PlaceholderSuggestionPanel
-                    suggestions={analysis.suggestions}
-                    lazyOptionSource={analysis.lazyOptionSource}
-                    searchValue={panelSearchValue}
-                    onSearchValueChange={setPanelSearchValue}
-                    onApplySuggestion={applySuggestion}
-                />
-            )}
-
-            {(analysis.hint || analysis.errors.length > 0 || sourceMessages.length > 0) && (
-                <div className="space-y-1 text-[11px]">
-                    {analysis.hint && (
-                        <div>
-                            <div className="font-medium text-foreground">{analysis.hint.title}</div>
-                            {analysis.hint.detail && <div className="text-muted-foreground">{analysis.hint.detail}</div>}
-                            {analysis.hint.meta && <div className="font-mono text-[10px] text-muted-foreground">{analysis.hint.meta}</div>}
-                        </div>
-                    )}
-                    {sourceMessages.length > 0 && (
-                        <div className="space-y-1">
-                            {sourceMessages.map((message) => (
-                                <div
-                                    key={`${message.kind}:${message.text}`}
-                                    className={cn(
-                                        message.kind === "error" && "text-destructive",
-                                        message.kind === "warning" && "text-amber-700",
-                                        message.kind === "loading" && "text-muted-foreground",
-                                    )}
-                                >
-                                    {message.text}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    {analysis.errors.length > 0 && (
-                        <div className="space-y-1 text-destructive">
-                            {analysis.errors.slice(0, 4).map((error) => (
-                                <div key={error}>{error}</div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
+            <div className={STATUS_SLOT_HEIGHT_CLASS}>
+                {hasStatusContent ? (
+                    <div className="h-full space-y-1 overflow-y-auto text-[11px]">
+                        {analysis.hint && (
+                            <div>
+                                <div className="font-medium text-foreground">{analysis.hint.title}</div>
+                                {analysis.hint.detail && <div className="text-muted-foreground">{analysis.hint.detail}</div>}
+                                {analysis.hint.meta && <div className="font-mono text-[10px] text-muted-foreground">{analysis.hint.meta}</div>}
+                            </div>
+                        )}
+                        {sourceMessages.length > 0 && (
+                            <div className="space-y-1">
+                                {sourceMessages.map((message) => (
+                                    <div
+                                        key={`${message.kind}:${message.text}`}
+                                        className={cn(
+                                            message.kind === "error" && "text-destructive",
+                                            message.kind === "warning" && "text-amber-700",
+                                            message.kind === "loading" && "text-muted-foreground",
+                                        )}
+                                    >
+                                        {message.text}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {analysis.errors.length > 0 && (
+                            <div className="space-y-1 text-destructive">
+                                {analysis.errors.slice(0, 4).map((error) => (
+                                    <div key={error}>{error}</div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div aria-hidden="true" className="h-full" />
+                )}
+            </div>
         </div>
     );
 }

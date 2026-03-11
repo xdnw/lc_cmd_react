@@ -186,7 +186,7 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
     }, [onCompleteSuccess]);
 
     return (
-        <div className="flex min-h-0 flex-col gap-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
             <div className="min-h-0 flex-1 overflow-auto pr-0.5">
                 <div className="space-y-2">
                     {children ? (

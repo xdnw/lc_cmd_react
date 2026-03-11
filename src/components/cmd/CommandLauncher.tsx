@@ -307,7 +307,7 @@ export default function CommandLauncher() {
                                 </div>
                             </div>
                         </DialogHeader>
-                        <div className={cn("min-h-0 overflow-hidden px-3 py-3") }>
+                        <div className={cn("flex min-h-0 flex-1 overflow-hidden px-3 py-3") }>
                             <CommandDialogForm
                                 commandPath={commandModalState.path.split(" ") as AnyCommandPath}
                                 initialValues={commandModalState.initialValues}

@@ -998,6 +998,7 @@ function LayoutConfigDialogContent({
                                     max={input?.max}
                                     initialValue={values[variable] ?? variableDef.defaultValue}
                                     setOutputValue={setOutputValue}
+                                    displayMode="focus-pane"
                                 />
                             )}
                         </div>

@@ -160,6 +160,53 @@ describe("PlaceholderExpressionInput", () => {
     );
   });
 
+  it("does not auto-open empty suggestions on focus until the user interacts", async () => {
+    mockExpressionSources({
+      "placeholder:DBNation": {
+        status: "ready",
+        sourceKind: "placeholder",
+        typeLabel: "Nation",
+        options: [],
+      },
+      "query:DBNation": {
+        status: "ready",
+        sourceKind: "query-options",
+        typeLabel: "Nation",
+        options: [
+          { label: "Borg", value: "Borg" },
+        ],
+      },
+    });
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue=""
+        setOutputValue={vi.fn()}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    await act(async () => {
+      fireEvent.focus(input);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.queryByText("Suggestions")).toBeNull();
+    expect(screen.queryByRole("button", { name: "nation:" })).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(input);
+      input.setSelectionRange(0, 0);
+      fireEvent.select(input);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByText("Suggestions")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "nation:" })).toBeTruthy();
+  });
+
   it("shows selector completions and query-backed option completions at the root", async () => {
     const setOutputValue = vi.fn();
     mockExpressionSources({

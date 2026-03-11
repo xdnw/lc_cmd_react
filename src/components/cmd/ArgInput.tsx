@@ -92,7 +92,7 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
 
     case "placeholder-expression":
       return <PlaceholderExpressionInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue}
-        breakdown={breakdown} compact={compact} forceMountAll={forceMountAll || prewarm} />;
+        breakdown={breakdown} forceMountAll={forceMountAll || prewarm} />;
 
     case "placeholder-string":
     case "integer-list":

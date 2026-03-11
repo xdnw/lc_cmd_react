@@ -39,7 +39,7 @@ const SearchBar = React.memo(function SearchBar() {
                 id="navbar-search"
                 className="relative h-7 w-full rounded-r-none border-r-0 px-2 text-xs"
                 type="search"
-                placeholder="Press / when typing is not active."
+                placeholder="Search commands or pages. Press / to focus."
                 aria-label="Open command launcher"
                 aria-haspopup="dialog"
                 readOnly

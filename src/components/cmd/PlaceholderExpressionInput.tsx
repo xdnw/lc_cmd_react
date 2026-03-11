@@ -31,6 +31,7 @@ const EMPTY_REGISTRY: ExpressionValueSourceRegistry = {};
 const EMPTY_ANALYSIS: ExpressionAnalysis = { suggestions: [], errors: [] };
 const STATUS_SLOT_HEIGHT_CLASS = "h-[3.25rem]";
 const PLACEHOLDER_SUGGESTION_PAGE_SIZE = PLACEHOLDER_SUGGESTION_VISIBLE_ROW_COUNT;
+const PLACEHOLDER_SUGGESTION_Z_INDEX = 120;
 const HIDDEN_PANEL_STYLE: React.CSSProperties = {
     position: "fixed",
     top: -9999,
@@ -38,7 +39,7 @@ const HIDDEN_PANEL_STYLE: React.CSSProperties = {
     width: 0,
     maxHeight: 300,
     visibility: "hidden",
-    zIndex: 90,
+    zIndex: PLACEHOLDER_SUGGESTION_Z_INDEX,
 };
 
 const PASSWORD_MANAGER_IGNORE_PROPS = {
@@ -145,6 +146,7 @@ export default function PlaceholderExpressionInput({
     const [panelSearchValue, setPanelSearchValue] = useState("");
     const [hasPanelInteraction, setHasPanelInteraction] = useState((initialValue || "").trim().length > 0);
     const [panelStyle, setPanelStyle] = useState<React.CSSProperties>(HIDDEN_PANEL_STYLE);
+    const panelRafRef = useRef<number | null>(null);
     const pendingSelectionRef = useRef<number | null>(null);
     const deferredValue = useDeferredValue(value);
     const shouldAnalyze = forceMountAll || hasFocusWithin || deferredValue.trim().length > 0;
@@ -401,12 +403,27 @@ export default function PlaceholderExpressionInput({
             width,
             maxHeight,
             visibility: "visible",
-            zIndex: 90,
+            zIndex: PLACEHOLDER_SUGGESTION_Z_INDEX,
         });
     }, [showSuggestionPanel]);
 
+    const schedulePanelPositionUpdate = useCallback(() => {
+        if (panelRafRef.current != null) {
+            window.cancelAnimationFrame(panelRafRef.current);
+        }
+
+        panelRafRef.current = window.requestAnimationFrame(() => {
+            panelRafRef.current = null;
+            updatePanelPosition();
+        });
+    }, [updatePanelPosition]);
+
     useLayoutEffect(() => {
         if (!showSuggestionPanel) {
+            if (panelRafRef.current != null) {
+                window.cancelAnimationFrame(panelRafRef.current);
+                panelRafRef.current = null;
+            }
             setPanelStyle((previousStyle) => (
                 previousStyle.visibility === "hidden"
                     ? previousStyle
@@ -415,16 +432,29 @@ export default function PlaceholderExpressionInput({
             return;
         }
 
-        updatePanelPosition();
+        schedulePanelPositionUpdate();
+        const resizeObserver = typeof ResizeObserver === "undefined"
+            ? null
+            : new ResizeObserver(() => {
+                schedulePanelPositionUpdate();
+            });
+        if (panelRef.current) {
+            resizeObserver?.observe(panelRef.current);
+        }
 
-        const handleWindowChange = () => updatePanelPosition();
+        const handleWindowChange = () => schedulePanelPositionUpdate();
         window.addEventListener("resize", handleWindowChange);
         window.addEventListener("scroll", handleWindowChange, true);
         return () => {
+            if (panelRafRef.current != null) {
+                window.cancelAnimationFrame(panelRafRef.current);
+                panelRafRef.current = null;
+            }
+            resizeObserver?.disconnect();
             window.removeEventListener("resize", handleWindowChange);
             window.removeEventListener("scroll", handleWindowChange, true);
         };
-    }, [cursor, panelSearchValue, showSuggestionPanel, updatePanelPosition, value]);
+    }, [cursor, panelSearchValue, schedulePanelPositionUpdate, showSuggestionPanel, value]);
 
     return (
         <div

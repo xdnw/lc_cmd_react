@@ -17,7 +17,7 @@ const DIALOG_EDITABLE_ESCAPE_SELECTORS = [
 ].join(", ");
 
 export const DIALOG_CHROME_BUTTON_CLASS_NAME = cn(
-    "inline-flex h-8 w-8 items-center justify-center rounded-md border shadow-sm transition-colors",
+    "inline-flex h-7 w-7 items-center justify-center rounded-md border shadow-sm transition-colors",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
     "disabled:pointer-events-none disabled:opacity-50",
 );
@@ -192,7 +192,7 @@ const DialogContent = React.forwardRef<
             >
                 {children}
                 {(headerActions || showCloseButton) && (
-                    <div className="absolute right-3 top-3 flex items-center gap-2">
+                    <div className="absolute right-0.5 top-0.5 flex items-center gap-1">
                         {headerActions}
                         {showCloseButton && (
                             <DialogPrimitive.Close ref={closeButtonRef} className={DIALOG_CLOSE_BUTTON_CLASS_NAME}>

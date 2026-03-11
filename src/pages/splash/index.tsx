@@ -79,6 +79,26 @@ export default function Splash() {
     navigate(`${process.env.BASE_PATH || ''}home`);
   }, [navigate]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.key === "Tab") {
+        return;
+      }
+
+      clickNavigatePending.current = true;
+      if (pendingReleaseTimer.current !== null) {
+        window.clearTimeout(pendingReleaseTimer.current);
+        pendingReleaseTimer.current = null;
+      }
+
+      animationControls.current?.stopWarp(false);
+      navigate(`${process.env.BASE_PATH || ''}home`);
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [navigate]);
+
   return (
     <div className={classes.mycontainer}>
       <canvas id="starcanvas" className={classes.mycanvas}></canvas>
@@ -103,7 +123,7 @@ export default function Splash() {
           style={splashStyle}
           className={`${buttonVariants({ variant: "ghost" })} rounded-none opacity-25 border-white no-underline border-4 ${classes.mybutton}`}
         >
-          &gt; INITIALIZE
+          PRESS ANY KEY TO CONTINUE
         </a>
       </div>
     </div>

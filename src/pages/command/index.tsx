@@ -224,11 +224,12 @@ export function OutputValuesDisplay({
     const getText = useCallback(() => {
         return formatCommandString(name, store.getState().output);
     }, [name, store]);
+    const footerHint = escapeHint ?? `${submitShortcutLabel} runs, letters jump args, Esc moves to page controls`;
 
     return (
         <div className="relative">
             <CommandStringPreview text={commandString} getText={getText} className="mb-1" />
-            {escapeHint && <p className="mb-1 text-[11px] text-muted-foreground">{escapeHint}</p>}
+            <p className="mb-1 h-4 overflow-hidden text-[11px] text-muted-foreground">{footerHint}</p>
             <Button ref={buttonRef} variant="outline" size="sm" onClick={runCommandCallback} tabIndex={-1} disabled={isPending}>{`Run (${submitShortcutLabel})`}</Button>
             <Button variant="outline" size="sm" className="ms-1" onClick={clearOutput} tabIndex={-1}>Clear</Button>
             <div ref={responseRef}></div>

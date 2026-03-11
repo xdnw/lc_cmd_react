@@ -158,7 +158,6 @@ type SearchIndexEntry = {
 const LIST_DROPDOWN_ROW_HEIGHT = 36;
 const LIST_DROPDOWN_OVERSCAN = 6;
 const LIST_DROPDOWN_PAGE_SIZE = 8;
-
 type PopupListInputAction =
     | { type: "open" }
     | { type: "close" }

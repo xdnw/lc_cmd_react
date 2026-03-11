@@ -32,6 +32,7 @@ export type CommandDialogFormProps<P extends AnyCommandPath> = {
     actionsLayout?: "flow" | "sticky";
     onRequestBack?: () => void;
     backHint?: string;
+    shellHint?: string | null;
     children?: (ctx: {
         output: Record<string, string | string[]>;
         setOutput: (key: string, value: string) => void;
@@ -43,6 +44,10 @@ type CommandStoreShape = {
     output: Record<string, string | string[]>;
     setOutput: (key: string, value: string) => void;
 };
+
+function buildCommandFooterHint(submitShortcutLabel: string, escapeHint?: string | null) {
+    return escapeHint ?? `${submitShortcutLabel} runs | typing jump args | Esc goes back | Arrows and tab navigate`;
+}
 
 const selectOutput = (state: CommandStoreShape) => state.output;
 const selectSetOutput = (state: CommandStoreShape) => state.setOutput;
@@ -159,9 +164,7 @@ function CommandDialogActions<P extends AnyCommandPath>({
         )}>
             <div className="min-w-0 flex-1">
                 <CommandStringPreview text={commandString} getText={getCommandText} />
-                {escapeHint && (
-                    <p className="mt-1 text-[11px] text-muted-foreground">{escapeHint}</p>
-                )}
+                <p className="mt-1 h-4 overflow-hidden text-[11px] text-muted-foreground">{buildCommandFooterHint(submitShortcutLabel, escapeHint)}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
                 <CommandActionButton
@@ -195,6 +198,7 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
     actionsLayout = "flow",
     onRequestBack,
     backHint,
+    shellHint,
     children,
     extraActions,
 }: CommandDialogFormProps<P>) {
@@ -291,7 +295,7 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
                 extraActions={extraActions}
                 submitButtonRef={submitButtonRef}
                 submitShortcutLabel={submitShortcutLabel}
-                escapeHint={jumpState.jumpHint ?? escapeHint}
+                escapeHint={jumpState.jumpHint ?? escapeHint ?? shellHint}
             />
         </div>
     );

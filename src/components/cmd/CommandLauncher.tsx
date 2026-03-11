@@ -13,7 +13,8 @@ import {
     isEditableTarget,
     resolveLaunchableCommand,
 } from "@/components/cmd/commandLaunchUtils";
-import { focusPrimaryCommandTarget } from "@/components/cmd/commandKeyboard";
+import { focusPrimaryCommandTarget, isCommandPopupOpenTarget } from "@/components/cmd/commandKeyboard";
+import { useCommandEscapeArming } from "@/components/cmd/useCommandShellKeyboard";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -21,6 +22,7 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
+    DIALOG_CHROME_BUTTON_CLASS_NAME,
     DIALOG_EXPAND_BUTTON_CLASS_NAME,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -45,6 +47,7 @@ export default function CommandLauncher() {
     const allCommands = useMemo(() => CM.getCommands(), []);
     const browserDialogRef = useRef<HTMLDivElement | null>(null);
     const commandDialogRef = useRef<HTMLDivElement | null>(null);
+    const commandBackButtonRef = useRef<HTMLButtonElement | null>(null);
     const {
         browserOpen,
         browserState,
@@ -53,6 +56,8 @@ export default function CommandLauncher() {
         commandDisplayMode,
         openBrowser,
         openCommand,
+        returnToBrowser,
+        dismissModal,
         closeModal,
         setBrowserState,
         setCommandOutput,
@@ -76,10 +81,6 @@ export default function CommandLauncher() {
 
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent): void {
-            if (browserOpen || commandModalState !== null) {
-                return;
-            }
-
             if (event.defaultPrevented || event.repeat || event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) {
                 return;
             }
@@ -89,6 +90,18 @@ export default function CommandLauncher() {
             }
 
             event.preventDefault();
+
+            if (browserOpen) {
+                const searchInput = browserDialogRef.current?.querySelector<HTMLInputElement>("input");
+                searchInput?.focus();
+                searchInput?.select();
+                return;
+            }
+
+            if (commandModalState !== null) {
+                return;
+            }
+
             openBrowser({ query: "" });
         }
 
@@ -136,12 +149,26 @@ export default function CommandLauncher() {
     }, [browserState, openCommand]);
 
     const handleReturnToBrowser = useCallback(() => {
-        if (!commandModalState?.browserStateSnapshot) {
-            return;
-        }
+        returnToBrowser();
+    }, [returnToBrowser]);
 
-        openBrowser(commandModalState.browserStateSnapshot);
-    }, [commandModalState, openBrowser]);
+    const {
+        rootRef: commandChromeEscapeRef,
+        escapeHint: commandChromeEscapeHint,
+        escapeArmedUntil: commandChromeEscapeArmedUntil,
+        clearEscapeArming: clearCommandChromeEscape,
+        handleBlurCapture: handleCommandChromeBlurCapture,
+        triggerEscapeArmOrBack: triggerCommandChromeEscape,
+    } = useCommandEscapeArming({
+        onRequestBack: commandModalState?.browserStateSnapshot ? handleReturnToBrowser : closeModal,
+        backHint: commandModalState?.browserStateSnapshot ? "Press Esc again to return to the command list" : "Press Esc again to close this command",
+        getReturnFocusTarget: () => commandBackButtonRef.current ?? commandDialogRef.current,
+    });
+
+    const setCommandDialogRef = useCallback((node: HTMLDivElement | null) => {
+        commandDialogRef.current = node;
+        commandChromeEscapeRef.current = node;
+    }, [commandChromeEscapeRef]);
 
     const setCardDisplayMode = useCallback(() => {
         startTransition(() => setCommandDisplayMode("card"));
@@ -165,14 +192,33 @@ export default function CommandLauncher() {
         });
     }, []);
 
+    const handleCommandDialogEscapeKeyDown = useCallback((event: Event) => {
+        const target = event.target;
+        if (!(target instanceof Node)) {
+            return;
+        }
+
+        const formEscapeOwner = commandDialogRef.current?.querySelector<HTMLElement>("[data-dialog-local-escape='true']");
+        if (formEscapeOwner?.contains(target)) {
+            return;
+        }
+
+        if (isCommandPopupOpenTarget(target)) {
+            return;
+        }
+
+        event.preventDefault();
+        triggerCommandChromeEscape();
+    }, [triggerCommandChromeEscape]);
+
     const browserExpand = useMemo(() => buildExpandButton(() => {
         const searchParams = createCmdBrowserSearchParams(browserState);
-        closeModal();
+        dismissModal();
         navigate({
             pathname: "/commands",
             search: searchParams.size > 0 ? `?${searchParams.toString()}` : "",
         });
-    }, "Open commands page"), [browserState, closeModal, navigate]);
+    }, "Open commands page"), [browserState, dismissModal, navigate]);
 
     const commandExpand = useMemo(() => {
         if (!commandModalState) {
@@ -181,13 +227,13 @@ export default function CommandLauncher() {
 
         return buildExpandButton(() => {
             const searchParams = buildCommandRouteSearchParams(commandOutput);
-            closeModal();
+            dismissModal();
             navigate({
                 pathname: `/command/${commandModalState.path}`,
                 search: searchParams.size > 0 ? `?${searchParams.toString()}` : "",
             });
         }, `Open /${commandModalState.path} page`);
-    }, [closeModal, commandModalState, commandOutput, navigate]);
+    }, [commandModalState, commandOutput, dismissModal, navigate]);
 
     const modalOpen = browserOpen || commandModalState !== null;
 
@@ -200,10 +246,10 @@ export default function CommandLauncher() {
                     className="max-w-[min(96vw,980px)] gap-0 overflow-hidden border-border/80 p-0"
                 >
                     <div ref={browserDialogRef} className="flex max-h-[88vh] min-h-112 flex-col bg-background">
-                        <DialogHeader className="border-b border-border/70 px-3 pb-2 pt-2.5 pr-24 text-left">
+                        <DialogHeader className="border-b border-border/70 px-2 pb-1 pt-1.5 pr-16 text-left">
                             <DialogTitle className="text-sm font-semibold">Commands</DialogTitle>
                         </DialogHeader>
-                        <div className="min-h-0 px-3 py-3">
+                        <div className="min-h-0 px-2 py-1.5">
                             <CmdList
                                 commands={allCommands}
                                 prefix="/"
@@ -213,7 +259,7 @@ export default function CommandLauncher() {
                                 onRequestClose={closeModal}
                                 autoFocusSearch={true}
                                 modalMode={true}
-                                viewportHeight="min(66vh, calc(100vh - 13rem))"
+                                viewportHeight="min(72vh, calc(100vh - 10.5rem))"
                             />
                         </div>
                     </div>
@@ -224,18 +270,36 @@ export default function CommandLauncher() {
                 <DialogContent
                     headerActions={commandExpand}
                     onOpenAutoFocus={handleCommandOpenAutoFocus}
+                    onEscapeKeyDown={handleCommandDialogEscapeKeyDown}
                     className="max-w-[min(96vw,1100px)] gap-0 overflow-hidden border-border/80 p-0"
                 >
-                    <div ref={commandDialogRef} className="flex max-h-[88vh] min-h-104 flex-col bg-background">
-                        <DialogHeader className="border-b border-border/70 px-3 pb-2 pt-2.5 pr-24 text-left">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <DialogTitle className="truncate font-mono text-base">/{commandModalState.path}</DialogTitle>
-                                    <DialogDescription className="mt-0.5 line-clamp-2 text-xs">
-                                        {activeCommand.getDescShort()}
-                                    </DialogDescription>
+                    <div ref={setCommandDialogRef} className="flex max-h-[88vh] min-h-104 flex-col bg-background" onBlurCapture={handleCommandChromeBlurCapture}>
+                        <DialogHeader className="border-b border-border/70 px-2 pb-1 pt-1.5 pr-16 text-left">
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex min-w-0 items-start gap-2">
+                                    {commandModalState.browserStateSnapshot && (
+                                        <button
+                                            ref={commandBackButtonRef}
+                                            type="button"
+                                            className={cn(DIALOG_CHROME_BUTTON_CLASS_NAME, "shrink-0 border-border/70 bg-background text-foreground hover:bg-accent hover:text-accent-foreground")}
+                                            onClick={() => {
+                                                clearCommandChromeEscape();
+                                                handleReturnToBrowser();
+                                            }}
+                                            title="Return to command list"
+                                            aria-label="Return to command list"
+                                        >
+                                            <ArrowLeft className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    <div className="min-w-0">
+                                        <DialogTitle className="truncate font-mono text-[15px]">/{commandModalState.path}</DialogTitle>
+                                        <DialogDescription className="mt-0.5 line-clamp-2 text-[11px]">
+                                            {activeCommand.getDescShort()}
+                                        </DialogDescription>
+                                    </div>
                                 </div>
-                                <div className="flex shrink-0 items-center gap-1.5">
+                                <div className="flex shrink-0 items-center gap-1">
                                     <Button
                                         type="button"
                                         size="sm"
@@ -252,22 +316,10 @@ export default function CommandLauncher() {
                                     >
                                         Cards
                                     </Button>
-                                    {commandModalState.browserStateSnapshot && (
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            className="shrink-0"
-                                            onClick={handleReturnToBrowser}
-                                        >
-                                            <ArrowLeft className="mr-1 h-4 w-4" />
-                                            Back
-                                        </Button>
-                                    )}
                                 </div>
                             </div>
                         </DialogHeader>
-                        <div className={cn("flex min-h-0 flex-1 overflow-hidden px-3 py-3") }>
+                        <div className={cn("flex min-h-0 flex-1 overflow-hidden px-2 py-1.5") }>
                             <CommandDialogForm
                                 commandPath={commandModalState.path.split(" ") as AnyCommandPath}
                                 initialValues={commandModalState.initialValues}
@@ -279,6 +331,7 @@ export default function CommandLauncher() {
                                 actionsLayout="sticky"
                                 onRequestBack={commandModalState.browserStateSnapshot ? handleReturnToBrowser : closeModal}
                                 backHint={commandModalState.browserStateSnapshot ? "Press Esc again to return to the command list" : "Press Esc again to close this command"}
+                                shellHint={commandChromeEscapeArmedUntil != null ? commandChromeEscapeHint : null}
                             />
                         </div>
                     </div>

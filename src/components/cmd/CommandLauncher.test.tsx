@@ -37,6 +37,7 @@ vi.mock("@/components/ui/dialog", () => ({
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DIALOG_CHROME_BUTTON_CLASS_NAME: "dialog-chrome",
   DIALOG_EXPAND_BUTTON_CLASS_NAME: "dialog-expand",
 }));
 
@@ -142,9 +143,9 @@ describe("CommandLauncher", () => {
     expect(screen.getByTestId("browser-query").textContent).toBe("alpha");
 
     fireEvent.click(screen.getByRole("button", { name: /^open command$/i }));
-    expect(screen.getByRole("button", { name: /^Back$/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /return to command list/i })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /^Back$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /return to command list/i }));
     expect(screen.getByTestId("browser-query").textContent).toBe("alpha");
   });
 
@@ -180,5 +181,24 @@ describe("CommandLauncher", () => {
 
     fireEvent.pointerDown(screen.getAllByLabelText(/open command launcher/i)[0]!);
     expect(screen.getByTestId("dialog-root")).toBeTruthy();
+  });
+
+  it("navigates when the browser expand action is used", () => {
+    renderLauncher();
+
+    fireEvent.keyDown(window, { key: "/" });
+    fireEvent.click(screen.getByRole("button", { name: /open commands page/i }));
+
+    expect(navigateMock).toHaveBeenCalledWith({ pathname: "/commands", search: "" });
+  });
+
+  it("navigates when the command expand action is used", () => {
+    renderLauncher();
+
+    fireEvent.keyDown(window, { key: "/" });
+    fireEvent.click(screen.getByRole("button", { name: /^open command$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /open \/alpha page/i }));
+
+    expect(navigateMock).toHaveBeenCalledWith({ pathname: "/command/alpha", search: "?user=demo" });
   });
 });

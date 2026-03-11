@@ -42,7 +42,8 @@ type CmdListProps = {
 
 type SelectOption = { label: string; value: string };
 
-const CMD_LIST_DEFAULT_ROW_HEIGHT = 64;
+const CMD_LIST_DEFAULT_ROW_HEIGHT = 48;
+const CMD_LIST_HINT_SLOT_CLASS = "min-h-[1rem] overflow-hidden whitespace-nowrap text-[11px] text-muted-foreground";
 
 function normalizeSearchQuery(query: string): string {
     return query.trim().replace(/^\/+/, "").toLowerCase();
@@ -56,7 +57,7 @@ function CompactFilterCard({
     children: React.ReactNode;
 }) {
     return (
-        <div className="rounded-md border border-border/60 bg-background/85 px-2 py-1.5">
+        <div className="rounded-md border border-border/60 bg-background/85 px-2 py-1">
             <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 {label}
             </div>
@@ -71,6 +72,7 @@ function CommandListRow({
     onSelectCommand,
     optionId,
     isActive,
+    compact,
     rowRef,
     onMouseMove,
 }: {
@@ -79,6 +81,7 @@ function CommandListRow({
     onSelectCommand?: (command: BaseCommand) => void;
     optionId: string;
     isActive: boolean;
+    compact: boolean;
     rowRef?: (node: HTMLElement | null) => void;
     onMouseMove?: () => void;
 }) {
@@ -87,20 +90,20 @@ function CommandListRow({
     const argCount = command.getArguments().length;
 
     const rowBody = (
-        <div className="flex min-w-0 items-start gap-2.5">
+        <div className={cn("flex min-w-0 items-start", compact ? "gap-1.5" : "gap-2") }>
             <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-1.5">
-                    <div className="truncate font-mono text-[13px] font-semibold text-foreground">
+                <div className="flex min-w-0 items-center gap-1">
+                    <div className={cn("truncate font-mono font-semibold text-foreground", compact ? "text-[12px]" : "text-[13px]")}>
                         <span className="text-muted-foreground">{prefix}</span>
                         {path}
                     </div>
                     {argCount > 0 && (
-                        <span className="shrink-0 rounded-md border border-border/70 bg-muted/40 px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <span className={cn("shrink-0 rounded-md border border-border/70 bg-muted/40 font-medium text-muted-foreground", compact ? "px-1 py-0 text-[9px]" : "px-1 py-0.5 text-[10px]")}>
                             {argCount}
                         </span>
                     )}
                 </div>
-                <div className="mt-0.5 line-clamp-2 text-[12px] text-muted-foreground">
+                <div className={cn("mt-0.5 text-muted-foreground", compact ? "line-clamp-1 text-[10px]" : "line-clamp-2 text-[11px]")}>
                     <MarkupRenderer content={description} />
                 </div>
             </div>
@@ -118,7 +121,8 @@ function CommandListRow({
                 aria-selected={isActive}
                 onMouseMove={onMouseMove}
                 className={cn(
-                    "w-full rounded-md border border-transparent bg-card/65 px-2.5 py-2 text-left transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "w-full rounded-md border border-transparent bg-card/65 text-left transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    compact ? "px-1.5 py-1" : "px-2 py-1.5",
                     isActive && "border-border bg-card ring-1 ring-border/70",
                 )}
             >
@@ -136,7 +140,8 @@ function CommandListRow({
             aria-selected={isActive}
             onMouseMove={onMouseMove}
             className={cn(
-                "block rounded-md border border-transparent bg-card/65 px-2.5 py-2 no-underline transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "block rounded-md border border-transparent bg-card/65 no-underline transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                compact ? "px-1.5 py-1" : "px-2 py-1.5",
                 isActive && "border-border bg-card ring-1 ring-border/70",
             )}
         >
@@ -155,22 +160,16 @@ function serializeTableCopy(commands: BaseCommand[], prefix: string): string {
     return [header, ...rows].join("\n");
 }
 
-function buildLauncherShortcutHint({
+function buildLauncherShortcutHints({
     modalMode,
-    hasResults,
 }: {
     modalMode: boolean;
-    hasResults: boolean;
 }) {
     if (!modalMode) {
-        return hasResults
-            ? "Arrows browse, Enter opens, Esc clears or backs out"
-            : "Type to search, Esc clears or backs out";
+        return ["Type filters", "Arrows browse", "Enter opens", "Esc clears, then leaves"];
     }
 
-    return hasResults
-        ? "Arrows browse, Enter opens, Esc clears or closes"
-        : "Type to search, Esc clears or closes";
+    return ["Type filters", "/ refocuses", "Arrows browse", "Enter opens", "Esc clears, then closes"];
 }
 
 export default function CmdList({
@@ -562,14 +561,11 @@ export default function CmdList({
     const listHeight = typeof viewportHeight === "number" ? `${viewportHeight}px` : viewportHeight;
     const activeCommand = filteredCommands[activeIndex] ?? null;
     const activeDescendantId = activeCommand ? getOptionId(activeCommand) : undefined;
-    const launcherShortcutHint = buildLauncherShortcutHint({
-        modalMode,
-        hasResults: filteredCommands.length > 0,
-    });
+    const launcherShortcutHints = buildLauncherShortcutHints({ modalMode });
 
     return (
-        <div ref={shellRef} {...{ [DIALOG_LOCAL_ESCAPE_ATTR]: "true" }} className={cn("flex min-h-0 flex-col gap-2", className)}>
-            <div className="flex flex-col gap-1.5">
+        <div ref={shellRef} {...{ [DIALOG_LOCAL_ESCAPE_ATTR]: "true" }} className={cn("flex min-h-0 flex-col gap-1.5", className)}>
+            <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
                     <div className="min-w-0 flex-1">
                         <SearchBar
@@ -609,11 +605,16 @@ export default function CmdList({
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-muted-foreground">
-                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                        <span className="truncate">{launcherShortcutHint}</span>
-                        {escapeHint && (
-                            <span role="status" aria-live="polite" className="truncate text-[11px] text-muted-foreground">{escapeHint}</span>
-                        )}
+                    <div className={cn("flex min-w-0 flex-1 items-center gap-2 overflow-hidden", CMD_LIST_HINT_SLOT_CLASS)}>
+                        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                            {launcherShortcutHints.map((hint, index) => (
+                                <React.Fragment key={hint}>
+                                    {index > 0 && <span className="shrink-0 text-muted-foreground/50">|</span>}
+                                    <span className="shrink-0 truncate">{hint}</span>
+                                </React.Fragment>
+                            ))}
+                        </div>
+                        <span role="status" aria-live="polite" className="truncate text-[11px] text-muted-foreground">{escapeHint ?? ""}</span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -653,7 +654,7 @@ export default function CmdList({
             {filtersInitialized && browserState.showFilters && (
                 <div
                     id="cmd-filter-panel"
-                    className="rounded-md border border-border/70 bg-muted/15 p-2"
+                    className="rounded-md border border-border/70 bg-muted/15 p-1.5"
                 >
                     <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-3 xl:grid-cols-5">
                         {CMD_TRI_FILTER_DEFS.map((filterDef) => (
@@ -676,7 +677,7 @@ export default function CmdList({
                         </CompactFilterCard>
                     </div>
 
-                    <div className="mt-1.5 grid gap-1.5 lg:grid-cols-2">
+                    <div className="mt-1 grid gap-1.5 lg:grid-cols-2">
                         {roles.length > 0 && (
                             <CompactFilterCard label="Roles">
                                 <ListComponent
@@ -704,7 +705,7 @@ export default function CmdList({
             )}
 
             {filteredCommands.length > 0 ? (
-                <div id={listboxId} role="listbox" aria-label="Commands" className="min-h-0 rounded-md border border-border/70 bg-card/60 p-0.5 shadow-sm">
+                <div id={listboxId} role="listbox" aria-label="Commands" className="min-h-0 rounded-md border border-border/70 bg-card/60 p-px shadow-sm">
                     <Virtuoso
                         ref={virtuosoRef}
                         style={{ height: listHeight }}
@@ -718,6 +719,7 @@ export default function CmdList({
                                     onSelectCommand={onSelectCommand}
                                     optionId={getOptionId(command)}
                                     isActive={index === activeIndex}
+                                    compact={modalMode}
                                     rowRef={(node) => registerRowRef(command.getPathString(), node)}
                                     onMouseMove={() => setActiveIndex(index)}
                                 />

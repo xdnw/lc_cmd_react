@@ -8,10 +8,12 @@ import {
   doesCommandTargetOwnPrintableKey,
   doesCommandTargetOwnPrintableInput,
   getCommandEdgeArrowDirection,
+  getCommandJumpConfirmLabel,
   getCommandSubmitShortcutLabel,
   getCommandTextEntryEdges,
   hasCommandTextSelection,
   isCommandComposingEvent,
+  isCommandJumpConfirmKey,
   focusPrimaryCommandTarget,
   shouldFocusCommandShellFromPointerTarget,
   shouldAdvanceCommandField,
@@ -93,6 +95,14 @@ describe("commandKeyboard", () => {
 
   it("returns a platform-aware shortcut label", () => {
     expect(["Ctrl+Enter", "Cmd+Enter"]).toContain(getCommandSubmitShortcutLabel());
+  });
+
+  it("keeps jump confirmation keys centralized and excludes Tab", () => {
+    expect(isCommandJumpConfirmKey("Enter")).toBe(true);
+    expect(isCommandJumpConfirmKey("ArrowRight")).toBe(true);
+    expect(isCommandJumpConfirmKey(" ")).toBe(true);
+    expect(isCommandJumpConfirmKey("Tab")).toBe(false);
+    expect(getCommandJumpConfirmLabel()).toBe("Enter, Right Arrow, or Space");
   });
 
   it("detects selected text and edge positions for single-line inputs", () => {

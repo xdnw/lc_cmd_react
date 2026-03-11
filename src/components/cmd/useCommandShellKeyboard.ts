@@ -4,6 +4,7 @@ import {
     COMMAND_ESCAPE_TIMEOUT_MS,
     COMMAND_PREFIX_BUFFER_TIMEOUT_MS,
     doesCommandTargetOwnPrintableKey,
+    isCommandJumpConfirmKey,
     isCommandPopupOpenTarget,
     observeCommandPopupOwnership,
     shouldFocusCommandShellFromPointerTarget,
@@ -120,10 +121,6 @@ export function useCommandShellKeyboard({
 }) {
     const [neutralQuery, setNeutralQuery] = useState("");
 
-    const isNeutralCommitKey = useCallback((key: string) => {
-        return key === "Enter" || key === "ArrowRight" || key === " " || key === "Spacebar";
-    }, []);
-
     useEffect(() => {
         if (!neutralQuery) {
             return;
@@ -216,7 +213,7 @@ export function useCommandShellKeyboard({
                 return;
             }
 
-            if (isNeutralCommitKey(event.key)) {
+            if (isCommandJumpConfirmKey(event.key)) {
                 event.preventDefault();
                 onNeutralCommit?.(neutralQuery);
                 return;
@@ -242,7 +239,7 @@ export function useCommandShellKeyboard({
                 return;
             }
 
-            if (neutralQuery && isNeutralCommitKey(event.key)) {
+            if (neutralQuery && isCommandJumpConfirmKey(event.key)) {
                 event.preventDefault();
                 onNeutralCommit?.(neutralQuery);
                 return;
@@ -269,7 +266,7 @@ export function useCommandShellKeyboard({
 
         event.preventDefault();
         triggerEscapeArmOrBack();
-    }, [canStartShellJumpFromKey, clearEscapeState, escapeArmedUntil, isNeutralCommitKey, isNeutralTypingKey, neutralQuery, onNeutralCommit, onRequestBack, onSubmit, refreshEscapeArming, triggerEscapeArmOrBack]);
+    }, [canStartShellJumpFromKey, clearEscapeState, escapeArmedUntil, isNeutralTypingKey, neutralQuery, onNeutralCommit, onRequestBack, onSubmit, refreshEscapeArming, triggerEscapeArmOrBack]);
 
     return {
         rootRef,

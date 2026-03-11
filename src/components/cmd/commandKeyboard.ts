@@ -35,6 +35,8 @@ const TEXT_INPUT_TYPES = new Set([
     "text",
     "url",
 ]);
+const COMMAND_JUMP_CONFIRM_KEYS = new Set(["Enter", "ArrowRight", " ", "Spacebar"]);
+const COMMAND_JUMP_CONFIRM_LABEL = "Enter, Right Arrow, or Space";
 
 function asElement(target: EventTarget | null): HTMLElement | null {
     return target instanceof HTMLElement ? target : null;
@@ -410,6 +412,14 @@ export function shouldAdvanceCommandField(event: Pick<KeyboardEvent, "key" | "al
     return isCommandAdvanceKey(event)
         && !isCommandPopupOpenTarget(event.target)
         && isSingleLineTextEntryTarget(event.target);
+}
+
+export function isCommandJumpConfirmKey(key: string): boolean {
+    return COMMAND_JUMP_CONFIRM_KEYS.has(key);
+}
+
+export function getCommandJumpConfirmLabel(): string {
+    return COMMAND_JUMP_CONFIRM_LABEL;
 }
 
 export function isCommandSubmitShortcut(event: Pick<KeyboardEvent, "key" | "altKey" | "ctrlKey" | "metaKey" | "shiftKey" | "defaultPrevented">): boolean {

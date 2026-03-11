@@ -227,10 +227,30 @@ describe("CommandDialogForm", () => {
     fireEvent.keyDown(container.firstElementChild as HTMLElement, { key: "r" });
 
     expect(document.activeElement).toBe(container.firstElementChild);
-    expect(screen.getByText(/Press Enter to jump to user/i)).toBeTruthy();
+    expect(screen.getByText(/Press Enter, Right Arrow, or Space to jump to user/i)).toBeTruthy();
 
     fireEvent.keyDown(container.firstElementChild as HTMLElement, { key: "Enter" });
     expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "user field" }));
+  });
+
+  it("does not treat Tab as a jump confirmation key", () => {
+    const { container } = render(
+      <CommandDialogForm
+        commandPath={["settings", "info"]}
+        initialValues={{ key: "example" }}
+        onRequestBack={vi.fn()}
+      />,
+    );
+
+    const actionButton = screen.getByTestId("mock-command-action");
+    actionButton.focus();
+
+    fireEvent.keyDown(actionButton, { key: "u" });
+    expect(screen.getByText(/Jump to user/i)).toBeTruthy();
+
+    fireEvent.keyDown(container.firstElementChild as HTMLElement, { key: "Tab" });
+    expect(document.activeElement).not.toBe(screen.getByRole("textbox", { name: "user field" }));
+    expect(screen.getByText(/Jump to user/i)).toBeTruthy();
   });
 
   it("allows RightArrow to confirm an active jump", () => {

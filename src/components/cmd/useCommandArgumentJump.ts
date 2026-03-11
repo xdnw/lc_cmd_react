@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CommandArgSearchMatch, CommandComponentHandle } from "@/components/cmd/CommandComponent";
+import { getCommandJumpConfirmLabel } from "@/components/cmd/commandKeyboard";
 
 function createEmptyMatchState(): CommandArgSearchMatch {
     return {
@@ -57,7 +58,7 @@ export function useCommandArgumentJump({
             return `No argument matches "${neutralQuery}"`;
         }
         if (matchState.exactMatch) {
-            return `Press Enter to jump to ${matchState.exactMatch}`;
+            return `Press ${getCommandJumpConfirmLabel()} to jump to ${matchState.exactMatch}`;
         }
         const activeLabel = matchState.bestMatch ?? matchState.matches[0];
         const suffix = matchState.matches.length === 1 ? "match" : "matches";

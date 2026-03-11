@@ -6,27 +6,26 @@ import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, usePa
 import FieldMessage from "./field/FieldMessage";
 import { useSegmentedControlKeyboard, type SegmentedControlKeyBindings } from "./segmentedControl";
 import { COMMAND_LOCAL_PRINTABLE_KEYS_ATTR } from "./commandKeyboard";
+import { normalizeBooleanControlValue, serializeBooleanValue, type BooleanControlValue } from "./booleanValueUtils";
 
-type BooleanControlValue = "1" | "0";
-
+// internal options shown in the segmented control
 const BOOLEAN_OPTIONS: Array<{ value: BooleanControlValue; label: string }> = [
     { value: "0", label: "False" },
     { value: "1", label: "True" },
 ];
 
+// command strings should use readable booleans even though the control keeps
+// numeric values internally for selection and keyboard navigation.
 function parseBooleanControlValue(input: string) {
-    const trimmed = input.trim().toLowerCase();
+    const trimmed = input.trim();
     if (!trimmed) {
-        return acceptedParsedInput<"1" | "0">("0");
+        return acceptedParsedInput<BooleanControlValue>("0");
     }
-    if (["1", "true", "yes", "y", "on", "t"].includes(trimmed)) {
-        return acceptedParsedInput<"1" | "0">("1");
-    }
-    if (["0", "false", "no", "n", "off", "f"].includes(trimmed)) {
-        return acceptedParsedInput<"1" | "0">("0");
+    if (/^(?:1|0|true|false|yes|no|y|n|on|off|t|f)$/i.test(trimmed)) {
+        return acceptedParsedInput<BooleanControlValue>(normalizeBooleanControlValue(trimmed));
     }
 
-    return rejectedParsedInput<"1" | "0">("0", "Expected a boolean value like true/false, yes/no, or 1/0.");
+    return rejectedParsedInput<BooleanControlValue>("0", "Expected a boolean value like true/false, yes/no, or 1/0.");
 }
 
 export default function BooleanInput(
@@ -41,11 +40,13 @@ export default function BooleanInput(
     const [value, setValue] = useSyncedState(initialResult.value);
     const values = useMemo(() => BOOLEAN_OPTIONS.map((option) => option.value), []);
 
+    const mapOutput = useCallback((val: BooleanControlValue) => serializeBooleanValue(val, { mode: "boolean" }), []);
+
     const onChange = useCallback((output: BooleanControlValue, focus = false) => {
         clearParseError();
         setValue(output);
-        setOutputValue(argName, output);
-    }, [argName, clearParseError, setOutputValue, setValue]);
+        setOutputValue(argName, mapOutput(output));
+    }, [argName, clearParseError, mapOutput, setOutputValue, setValue]);
 
     const resolveKey = useCallback((key: string): SegmentedControlKeyBindings<BooleanControlValue> | null => {
         switch (key) {
@@ -90,10 +91,10 @@ export default function BooleanInput(
             applyParsedResult,
             onAccept: (nextValue) => {
                 setValue(nextValue);
-                setOutputValue(argName, nextValue);
+                setOutputValue(argName, mapOutput(nextValue));
             },
         });
-    }, [applyParsedResult, argName, setOutputValue, setValue]);
+    }, [applyParsedResult, argName, mapOutput, setOutputValue, setValue]);
 
     const segmentClass = "h-6 min-w-11 rounded-sm px-2 text-[11px]";
 

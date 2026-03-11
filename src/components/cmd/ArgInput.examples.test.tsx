@@ -42,6 +42,7 @@ import { normalizeMapEntries, normalizeSetValues, parseSetString, serializeMapEn
 import { formatCityBuildCityId, parseCityBuildInput, serializeCityBuildValue } from "./cityBuildInputUtils";
 import { normalizeBooleanValue, normalizeTriStateValue } from "./scalarInputNormalization";
 import { resolveQueryOptionsPayload } from "./queryOptionUtils";
+import { formatBooleanOutput, formatTriStateOutput } from "./booleanValueUtils";
 import {
   resolveInitialSelection,
   resolveSelectionInput,
@@ -442,11 +443,11 @@ async function inspectDefaultState(type: string, example: string, breakdown: Typ
 
   if (controlKind === "boolean") {
     const expected = normalizeBooleanValue(example) === "1";
-    const trueButton = container.querySelector('button[aria-pressed="true"]');
-    if (!trueButton) {
+    const activeButton = container.querySelector('[role="radio"][aria-checked="true"]');
+    if (!activeButton) {
       return { status: "fail", detail: "Boolean input did not expose an active state." };
     }
-    const actual = trueButton.textContent?.trim() === "True";
+    const actual = activeButton.textContent?.trim() === "True";
     return actual === expected
       ? { status: "pass", detail: `Default selected ${actual ? "True" : "False"} as expected.` }
       : { status: "fail", detail: `Expected ${expected ? "True" : "False"} to be selected by default.` };
@@ -456,7 +457,7 @@ async function inspectDefaultState(type: string, example: string, breakdown: Typ
     const expected = normalizeTriStateValue(example);
     const active = container.querySelector('[role="radio"][aria-checked="true"]');
     const actual = active?.getAttribute("aria-label");
-    const expectedLabel = expected === "1" ? "Yes" : expected === "-1" ? "No" : "Any";
+    const expectedLabel = expected === "1" ? "True" : expected === "-1" ? "False" : "Any";
     return actual === expectedLabel
       ? { status: "pass", detail: `Default selected ${expectedLabel} as expected.` }
       : { status: "fail", detail: `Expected ${expectedLabel} to be selected by default, but got ${actual ?? "nothing"}.` };
@@ -637,6 +638,16 @@ async function applyPasteAndCheck(type: string, example: string, breakdown: Type
   if (controlKind === "boolean" || controlKind === "tri-state" || controlKind === "city-ranges" || controlKind === "tax-rate") {
     fireEvent.paste(container.firstElementChild ?? container, makeClipboardEventPayload(example));
     const actual = getLastOutput() ?? "";
+    const expected = controlKind === "boolean"
+      ? formatBooleanOutput(normalizeBooleanValue(example))
+      : controlKind === "tri-state"
+        ? formatTriStateOutput(normalizeTriStateValue(example))
+        : actual;
+    if (controlKind === "boolean" || controlKind === "tri-state") {
+      return actual === expected
+        ? { status: "pass", detail: `Paste emitted ${actual}.`, actualOutput: actual }
+        : { status: "fail", detail: `Expected pasted output for ${controlKind} to be ${expected}, got ${getOutputValueText(actual)}.`, actualOutput: actual };
+    }
     return actual !== ""
       ? { status: "pass", detail: `Paste emitted ${actual}.`, actualOutput: actual }
       : { status: "fail", detail: `Expected pasted output for ${controlKind}, got ${getOutputValueText(actual)}.`, actualOutput: actual };
@@ -929,8 +940,8 @@ describe("ArgInput example harness", () => {
 
   it("normalizes boolean-like defaults for binary and tri-state controls", () => {
     const booleanHarness = renderHarness("boolean", "yes");
-    const activeBoolean = booleanHarness.container.querySelector('button[aria-pressed="true"]');
-    expect(activeBoolean?.textContent?.trim()).toMatch(/^(Yes|True)$/);
+    const activeBoolean = booleanHarness.container.querySelector('[role="radio"][aria-checked="true"]');
+    expect(activeBoolean?.textContent?.trim()).toMatch(/^True$/);
     booleanHarness.unmount();
 
     const triHarness = renderHarness("Boolean", "no");
@@ -945,7 +956,7 @@ describe("ArgInput example harness", () => {
       triHarness.container.firstElementChild ?? triHarness.container,
       makeClipboardEventPayload("yes"),
     );
-    expect(triHarness.getLastOutput()).toBe("1");
+    expect(triHarness.getLastOutput()).toBe("True");
     triHarness.unmount();
 
     const mmrDoubleHarness = renderHarness("MMRDouble", "");

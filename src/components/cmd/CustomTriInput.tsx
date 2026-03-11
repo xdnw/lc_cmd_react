@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import TriStateInput from "@/components/cmd/TriStateInput";
 import type { BaseCommand } from "@/utils/Command";
+import { normalizeTriStateControlValue } from "@/components/cmd/booleanValueUtils";
 
 export function CustomTriInput({
     annotation,
@@ -13,9 +14,10 @@ export function CustomTriInput({
         (_name: string, value: string) => {
             set((prev) => {
                 const next = { ...prev };
+                const normalizedValue = normalizeTriStateControlValue(value);
 
-                if (value === "1" || value === "-1") {
-                    const valueBool = value === "1";
+                if (normalizedValue === "1" || normalizedValue === "-1") {
+                    const valueBool = normalizedValue === "1";
 
                     next[annotation] = (cmd: BaseCommand) => {
                         // typed boolean property first

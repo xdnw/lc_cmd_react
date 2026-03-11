@@ -29,23 +29,24 @@ describe("TriStateInput keyboard contract", () => {
     expect(radios[1]?.tabIndex).toBe(0);
     expect(radios[2]?.tabIndex).toBe(-1);
 
-    radios[1]?.focus();
-    fireEvent.keyDown(radios[1]!, { key: "End" });
+    const checkedBefore = getCheckedRadio();
+    checkedBefore?.focus();
+    fireEvent.keyDown(checkedBefore!, { key: "End" });
 
     let checked = getCheckedRadio();
     expect(checked?.textContent).toContain("True");
     expect(document.activeElement).toBe(checked);
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "1");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "True");
 
     fireEvent.keyDown(checked!, { key: "Home" });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("False");
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "-1");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "False");
 
     fireEvent.keyDown(checked!, { key: "ArrowRight" });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("Any");
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "0");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "Any");
   });
 
   it("supports mnemonic keys and Space cycling in visible order", () => {
@@ -64,21 +65,21 @@ describe("TriStateInput keyboard contract", () => {
     fireEvent.keyDown(checked!, { key: " " });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("Any");
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "0");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "Any");
 
     fireEvent.keyDown(checked!, { key: "t" });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("True");
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "1");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "True");
 
     fireEvent.keyDown(checked!, { key: "a" });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("Any");
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "0");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "Any");
 
     fireEvent.keyDown(checked!, { key: "f" });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("False");
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "-1");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "False");
   });
 });

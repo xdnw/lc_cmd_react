@@ -92,10 +92,17 @@ vi.mock("../layout/DialogContext", () => ({
 import CommandComponent, { type CommandComponentHandle } from "./CommandComponent";
 
 function createArg(name: string) {
-  const getTypeBreakdownSpy = vi.fn(() => ({ element: "String", annotations: null, child: null }));
+  return createArgWithOptions(name);
+}
+
+function createArgWithOptions(
+  name: string,
+  options?: { element?: string; optional?: boolean },
+) {
+  const getTypeBreakdownSpy = vi.fn(() => ({ element: options?.element ?? "String", annotations: null, child: null }));
   return {
     name,
-    arg: { name, type: "String", optional: false, group: undefined, desc: "" },
+    arg: { name, type: options?.element ?? "String", optional: options?.optional ?? false, group: undefined, desc: "" },
     getTypeBreakdown: getTypeBreakdownSpy,
     getExamples: () => [],
     getTypeDesc: () => "",
@@ -180,6 +187,82 @@ describe("CommandComponent", () => {
 
     expect((screen.getByRole("textbox", { name: "name" }) as HTMLInputElement).value).toBe("edited");
     expect(argInputMounts.get("name")).toBe(1);
+  });
+
+  it("omits false output for optional binary booleans", () => {
+    const arg = createArgWithOptions("enabled", { element: "boolean", optional: true });
+    const command = {
+      name: "optional-bool",
+      command: { groups: [], group_descs: [] },
+      getArguments: () => [arg],
+    };
+    const setOutput = vi.fn();
+
+    render(
+      <CommandComponent
+        command={command as never}
+        filterArguments={allowAllArguments}
+        initialValues={{}}
+        displayMode="card"
+        virtualizationMode="off"
+        setOutput={setOutput}
+      />,
+    );
+
+    const input = screen.getByRole("textbox", { name: "enabled" });
+    fireEvent.change(input, { target: { value: "True" } });
+    expect(setOutput).toHaveBeenLastCalledWith("enabled", "True");
+
+    fireEvent.change(input, { target: { value: "False" } });
+    expect(setOutput).toHaveBeenLastCalledWith("enabled", "");
+  });
+
+  it("keeps false output for required binary booleans", () => {
+    const arg = createArgWithOptions("enabled", { element: "boolean", optional: false });
+    const command = {
+      name: "required-bool",
+      command: { groups: [], group_descs: [] },
+      getArguments: () => [arg],
+    };
+    const setOutput = vi.fn();
+
+    render(
+      <CommandComponent
+        command={command as never}
+        filterArguments={allowAllArguments}
+        initialValues={{}}
+        displayMode="card"
+        virtualizationMode="off"
+        setOutput={setOutput}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: "enabled" }), { target: { value: "False" } });
+    expect(setOutput).toHaveBeenLastCalledWith("enabled", "False");
+  });
+
+  it("keeps false output for optional tri-state booleans", () => {
+    const arg = createArgWithOptions("state", { element: "Boolean", optional: true });
+    const command = {
+      name: "optional-tristate",
+      command: { groups: [], group_descs: [] },
+      getArguments: () => [arg],
+    };
+    const setOutput = vi.fn();
+
+    render(
+      <CommandComponent
+        command={command as never}
+        filterArguments={allowAllArguments}
+        initialValues={{}}
+        displayMode="card"
+        virtualizationMode="off"
+        setOutput={setOutput}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: "state" }), { target: { value: "False" } });
+    expect(setOutput).toHaveBeenLastCalledWith("state", "False");
   });
 
   it("exposes argument search and focus through its imperative handle", () => {

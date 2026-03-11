@@ -5,11 +5,10 @@ import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, usePa
 import FieldMessage from "./field/FieldMessage";
 import { useSegmentedControlKeyboard, type SegmentedControlKeyBindings } from "./segmentedControl";
 import { COMMAND_LOCAL_PRINTABLE_KEYS_ATTR } from "./commandKeyboard";
-
-type TriStateValue = "-1" | "0" | "1";
+import { normalizeTriStateControlValue, serializeBooleanValue, type TriStateControlValue } from "./booleanValueUtils";
 
 const TRI_STATE_OPTIONS: Array<{
-    value: TriStateValue;
+    value: TriStateControlValue;
     label: string;
     icon: string;
     activeClass: string;
@@ -35,21 +34,15 @@ const TRI_STATE_OPTIONS: Array<{
 ];
 
 function parseTriStateControlValue(input: string) {
-    const trimmed = input.trim().toLowerCase();
+    const trimmed = input.trim();
     if (!trimmed) {
-        return acceptedParsedInput<TriStateValue>("0");
+        return acceptedParsedInput<TriStateControlValue>("0");
     }
-    if (["1", "true", "yes", "y", "on", "t"].includes(trimmed)) {
-        return acceptedParsedInput<TriStateValue>("1");
-    }
-    if (["-1", "false", "no", "n", "off", "f"].includes(trimmed)) {
-        return acceptedParsedInput<TriStateValue>("-1");
-    }
-    if (["0", "any", "either", "all", "*"] .includes(trimmed)) {
-        return acceptedParsedInput<TriStateValue>("0");
+    if (/^(?:1|-1|0|true|false|yes|no|y|n|on|off|t|f|any|either|all|\*)$/i.test(trimmed)) {
+        return acceptedParsedInput<TriStateControlValue>(normalizeTriStateControlValue(trimmed));
     }
 
-    return rejectedParsedInput<TriStateValue>("0", "Expected yes/no/any, true/false, or 1/0/-1.");
+    return rejectedParsedInput<TriStateControlValue>("0", "Expected yes/no/any, true/false, or 1/0/-1.");
 }
 
 export default function TriStateInput(
@@ -63,17 +56,17 @@ export default function TriStateInput(
 ) {
     const { initialResult, parseError, clearParseError, applyParsedResult } = useParsedInputFeedback(initialValue || "0", parseTriStateControlValue);
     const [value, setValue] = useSyncedState(initialResult.value);
-    const normalizedValue: TriStateValue = value === "-1" || value === "1" ? value : "0";
+    const normalizedValue: TriStateControlValue = value === "-1" || value === "1" ? value : "0";
     const values = useMemo(() => TRI_STATE_OPTIONS.map((option) => option.value), []);
     const segmentClass = compact ? "h-6 min-w-10 px-1.5 text-[10px]" : "h-6 min-w-11 px-2 text-[11px]";
 
-    const selectValue = useCallback((nextValue: TriStateValue, focus = false) => {
+    const selectValue = useCallback((nextValue: TriStateControlValue, focus = false) => {
         clearParseError();
         setValue(nextValue);
-        setOutputValue(argName, nextValue);
+        setOutputValue(argName, serializeBooleanValue(nextValue, { mode: "tri-state" }));
     }, [argName, clearParseError, setOutputValue, setValue]);
 
-    const resolveKey = useCallback((key: string): SegmentedControlKeyBindings<TriStateValue> | null => {
+    const resolveKey = useCallback((key: string): SegmentedControlKeyBindings<TriStateControlValue> | null => {
         switch (key) {
             case "ArrowLeft":
             case "ArrowUp":
@@ -121,7 +114,7 @@ export default function TriStateInput(
             applyParsedResult,
             onAccept: (nextValue) => {
                 setValue(nextValue);
-                setOutputValue(argName, nextValue);
+                setOutputValue(argName, serializeBooleanValue(nextValue, { mode: "tri-state" }));
             },
         });
     }, [applyParsedResult, argName, setOutputValue, setValue]);

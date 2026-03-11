@@ -3,6 +3,7 @@ import type { TypeBreakdown } from "@/utils/Command";
 import { buildStaticOptions, resolveArgInput } from "./argInputMetadata";
 import { validateNumberInput, validateRegexInput } from "./field/argValidation";
 import { resolveOptionMatch } from "./selectValueUtils";
+import { serializeBooleanValue } from "./booleanValueUtils";
 
 export type ScalarNormalizationNotice = {
     severity: "note" | "warning";
@@ -121,8 +122,8 @@ export function normalizeScalarInput(rawValue: string, breakdown: TypeBreakdown,
 
     if (resolution.kind === "boolean") {
         const normalizedValue = resolution.booleanMode === "tri-state"
-            ? normalizeTriStateValue(trimmed)
-            : normalizeBooleanValue(trimmed);
+            ? serializeBooleanValue(normalizeTriStateValue(trimmed), { mode: "tri-state" })
+            : serializeBooleanValue(normalizeBooleanValue(trimmed), { mode: "boolean" });
         const note = buildNormalizationNote(subject, trimmed, normalizedValue);
         return {
             value: normalizedValue,

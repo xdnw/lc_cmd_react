@@ -27,6 +27,7 @@ import TimeDiffInput from "./TimeDiffInput";
 import HtmlEditor from "./HtmlEditor";
 import { resolveArgInput, type ArgInputSupport, type ArgInputResolution } from "./argInputMetadata";
 import type { CommandFieldState, CommandFieldStateUpdater } from "./field/commandFieldState";
+import { serializeBooleanValue } from "./booleanValueUtils";
 
 export type { ArgInputSupport } from "./argInputMetadata";
 
@@ -41,6 +42,7 @@ interface ArgProps {
   displayMode?: CommandInputDisplayMode;
   forceMountAll?: boolean;
   prewarm?: boolean;
+  isOptional?: boolean;
   setOutputValue: (key: string, value: string) => void;
   setCommittedValue?: (key: string, value: string) => void;
 }
@@ -181,9 +183,30 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialValue, fieldState, setFieldState, setOutputValue, setCommittedValue, displayMode, forceMountAll, prewarm }: ArgProps) {
+const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialValue, fieldState, setFieldState, setOutputValue, setCommittedValue, displayMode, forceMountAll, prewarm, isOptional = false }: ArgProps) {
   const compact = isCompactMode(displayMode);
   const resolution = useMemo(() => resolveArgInput(breakdown), [breakdown]);
+  const normalizedSetOutputValue = useMemo(() => {
+    if (resolution.kind !== "boolean") {
+      return setOutputValue;
+    }
+
+    const mode = resolution.booleanMode === "tri-state" ? "tri-state" : "boolean";
+    return (key: string, value: string) => {
+      setOutputValue(key, serializeBooleanValue(value, { mode, optional: isOptional }));
+    };
+  }, [isOptional, resolution.booleanMode, resolution.kind, setOutputValue]);
+  const normalizedSetCommittedValue = useMemo(() => {
+    const target = setCommittedValue ?? setOutputValue;
+    if (resolution.kind !== "boolean") {
+      return target;
+    }
+
+    const mode = resolution.booleanMode === "tri-state" ? "tri-state" : "boolean";
+    return (key: string, value: string) => {
+      target(key, serializeBooleanValue(value, { mode, optional: isOptional }));
+    };
+  }, [isOptional, resolution.booleanMode, resolution.kind, setCommittedValue, setOutputValue]);
 
   return renderResolvedArgInput(resolution, {
     argName,
@@ -193,8 +216,8 @@ const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialV
     initialValue,
     fieldState,
     setFieldState,
-    setOutputValue,
-    setCommittedValue,
+    setOutputValue: normalizedSetOutputValue,
+    setCommittedValue: normalizedSetCommittedValue,
     displayMode,
     compact,
     forceMountAll,

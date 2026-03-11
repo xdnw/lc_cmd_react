@@ -25,16 +25,17 @@ describe("BooleanInput keyboard contract", () => {
 
     const radios = getRadios();
     expect(radios).toHaveLength(2);
-    expect(radios[0]?.tabIndex).toBe(0);
-    expect(radios[1]?.tabIndex).toBe(-1);
+    expect(radios[0]?.tabIndex).toBe(-1);
+    expect(radios[1]?.tabIndex).toBe(0);
 
-    radios[0]?.focus();
-    fireEvent.keyDown(radios[0]!, { key: "ArrowRight" });
+    const checkedBefore = getCheckedRadio();
+    checkedBefore?.focus();
+    fireEvent.keyDown(checkedBefore!, { key: "ArrowLeft" });
 
     const checked = getCheckedRadio();
     expect(checked?.textContent).toContain("False");
     expect(document.activeElement).toBe(checked);
-    expect(setOutputValue).toHaveBeenLastCalledWith("enabled", "0");
+    expect(setOutputValue).toHaveBeenLastCalledWith("enabled", "False");
   });
 
   it("supports mnemonic keys and Space toggle", () => {
@@ -53,16 +54,16 @@ describe("BooleanInput keyboard contract", () => {
     fireEvent.keyDown(checked!, { key: "t" });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("True");
-    expect(setOutputValue).toHaveBeenLastCalledWith("enabled", "1");
+    expect(setOutputValue).toHaveBeenLastCalledWith("enabled", "True");
 
     fireEvent.keyDown(checked!, { key: " " });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("False");
-    expect(setOutputValue).toHaveBeenLastCalledWith("enabled", "0");
+    expect(setOutputValue).toHaveBeenLastCalledWith("enabled", "False");
 
     fireEvent.keyDown(checked!, { key: "y" });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("True");
-    expect(setOutputValue).toHaveBeenLastCalledWith("enabled", "1");
+    expect(setOutputValue).toHaveBeenLastCalledWith("enabled", "True");
   });
 });

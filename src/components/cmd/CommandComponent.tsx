@@ -31,6 +31,7 @@ import {
     type CommandFieldState,
     type CommandFieldStateUpdater,
 } from "./field/commandFieldState";
+import { serializeBooleanValue } from "./booleanValueUtils";
 
 interface CommandProps {
     command: BaseCommand;
@@ -130,6 +131,21 @@ function buildCommandArgEntry(command: BaseCommand, arg: Argument): CommandArgEn
         groupTitle: groupId == null ? "" : command.command.groups?.[groupId] ?? "",
         groupDescription: groupId == null ? "" : command.command.group_descs?.[groupId] ?? "",
     };
+}
+
+function normalizeParsedCommandArgOutput(entry: CommandArgEntry | undefined, value: string): string {
+    if (!entry || !value) {
+        return value;
+    }
+
+    const element = entry.breakdown.element;
+    if (element === "Boolean") {
+        return serializeBooleanValue(value, { mode: "tri-state" });
+    }
+    if (element === "boolean") {
+        return serializeBooleanValue(value, { mode: "boolean", optional: entry.arg.arg.optional });
+    }
+    return value;
 }
 
 function normalizeArgSearchText(text: string): string {
@@ -419,6 +435,7 @@ const CommandArgCard = memo(function CommandArgCard({
                         displayMode={displayMode}
                         forceMountAll={forceMountAll}
                         prewarm={prewarm}
+                        isOptional={arg.arg.optional}
                         setOutputValue={setOutput}
                         setCommittedValue={commitOutput}
                     />
@@ -480,6 +497,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
     const shouldVirtualize = virtualizationMode !== "off" && !forceMountAll && argEntries.length >= COMMAND_VIRTUALIZE_THRESHOLD;
 
     const argOrder = useMemo(() => argEntries.map((entry) => entry.arg.name), [argEntries]);
+    const argEntryByName = useMemo(() => new Map(argEntries.map((entry) => [entry.arg.name, entry])), [argEntries]);
     const argRowIndexByName = useMemo(() => {
         const nextMap = new Map<string, number>();
         virtualRows.forEach((item, index) => {
@@ -604,16 +622,17 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
                 const nextStates = { ...currentStates };
                 Object.entries(parsedValues).forEach(([key, value]) => {
                     const previousState = nextStates[key] ?? createCommandFieldState(initialValues[key] ?? "");
+                    const normalizedValue = normalizeParsedCommandArgOutput(argEntryByName.get(key), value);
                     nextStates[key] = {
                         ...previousState,
                         displayValue: value,
-                        committedValue: value,
+                        committedValue: normalizedValue,
                     };
                 });
                 return nextStates;
             });
             for (const [key, value] of Object.entries(parsedValues)) {
-                setOutput(key, value);
+                setOutput(key, normalizeParsedCommandArgOutput(argEntryByName.get(key), value));
             }
             return;
         }
@@ -623,7 +642,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
             event.stopPropagation();
             showDialog("Unable to parse pasted command", <>{parsed.error}</>);
         }
-    }, [command, initialValues, setOutput, showDialog]);
+    }, [argEntryByName, command, initialValues, setOutput, showDialog]);
 
     const tryFocusArg = useCallback((argName: string) => {
         const root = rootRef.current;

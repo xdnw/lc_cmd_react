@@ -1,4 +1,5 @@
 export type TriStateValue = "-1" | "0" | "1";
+import { normalizeTriStateControlValue } from "./booleanValueUtils";
 export type CmdTriFilterKey =
     | "viewable"
     | "whitelist"
@@ -49,9 +50,8 @@ export function createDefaultCmdBrowserState(overrides?: Partial<CmdBrowserState
 }
 
 export function normalizeTriStateValue(value: string | null | undefined): TriStateValue {
-    return value && TRI_STATE_VALUES.has(value as TriStateValue)
-        ? (value as TriStateValue)
-        : "0";
+    const normalized = normalizeTriStateControlValue(value);
+    return TRI_STATE_VALUES.has(normalized) ? normalized : "0";
 }
 
 export function parseCmdBrowserStateFromSearchParams(searchParams: URLSearchParams): CmdBrowserState {

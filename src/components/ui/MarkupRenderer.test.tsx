@@ -6,13 +6,20 @@ vi.mock("../../pages/command", () => ({
     commandButtonAction: vi.fn(),
 }));
 
-import MarkupRenderer, { canRenderPlainText, hasDiscernableMarkup } from "./MarkupRenderer";
+import MarkupRenderer, { Embed, canRenderPlainText, hasDiscernableMarkup } from "./MarkupRenderer";
 
 afterEach(() => {
     cleanup();
 });
 
 describe("MarkupRenderer", () => {
+    it("returns nothing for empty content", () => {
+        const { container } = render(<MarkupRenderer content="" />);
+
+        expect(container.innerHTML).toBe("");
+        expect(canRenderPlainText("")).toBe(false);
+    });
+
     it("classifies plain text, urls, and markdown consistently", () => {
         expect(canRenderPlainText("Just text")).toBe(true);
         expect(hasDiscernableMarkup("Just text")).toBe(false);
@@ -33,5 +40,30 @@ describe("MarkupRenderer", () => {
 
         expect(screen.getByText("bold").tagName).toBe("STRONG");
         expect(screen.getByText("italic").tagName).toBe("EM");
+    });
+
+    it("resolves embed-aware mentions in message content and fields", () => {
+        render(
+            <Embed
+                json={{
+                    id: "embed-mentions",
+                    content: "Hello <@123>",
+                    users: { "123": "@Jesse" },
+                    channels: { "456": "#general" },
+                    embeds: [{
+                        title: "Report for <@123>",
+                        description: "See <#456>",
+                        fields: [
+                            { name: "Owner <@123>", value: "Channel <#456>", inline: true },
+                        ],
+                    }],
+                }}
+                responseRef={{ current: null }}
+                showDialog={vi.fn() as never}
+            />,
+        );
+
+        expect(screen.getAllByText("@Jesse").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("#general").length).toBeGreaterThan(0);
     });
 });

@@ -1,4 +1,4 @@
-import { DiscordEmbed } from "../components/ui/MarkupRenderer";
+import type { DiscordEmbed } from "@/components/ui/markupRenderPlan";
 import { ReactNode } from "react";
 import { getEmoji } from './emoji';
 import type { ShowDialogFn } from "@/lib/dialog";
@@ -160,7 +160,15 @@ function formatTimestamp(timestamp: number, style: string): string {
     }
 }
 
-export function markup({ txt, replaceEmoji, embed, showDialog }: { txt: string, replaceEmoji: boolean, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): string {
+export function markupWithPreparedOptions({
+    txt,
+    replaceEmoji,
+    options,
+}: {
+    txt: string;
+    replaceEmoji: boolean;
+    options?: HtmlOptions;
+}): string {
     if (canUseFastMarkupPath(txt, replaceEmoji)) {
         return renderFastMarkupHtml(txt);
     }
@@ -168,8 +176,13 @@ export function markup({ txt, replaceEmoji, embed, showDialog }: { txt: string, 
     if (replaceEmoji && hasEmojiToken(txt)) {
         txt = txt.replace(MARKUP_EMOJI_REPLACE_RE, (match, p: string) => p && emojis[p] ? emojis[p] : match);
     }
-    const options: HtmlOptions = embed ? createOptions({ embed, showDialog }) : { escapeHTML: true } as HtmlOptions;
-    return toHTML(txt, options);
+
+    return toHTML(txt, options ?? { escapeHTML: true } as HtmlOptions);
+}
+
+export function markup({ txt, replaceEmoji, embed, showDialog }: { txt: string, replaceEmoji: boolean, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): string {
+    const options: HtmlOptions | undefined = embed ? createOptions({ embed, showDialog }) : undefined;
+    return markupWithPreparedOptions({ txt, replaceEmoji, options });
 }
 
 export const JSON_EXAMPLE: DiscordEmbed = {

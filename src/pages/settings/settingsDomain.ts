@@ -221,6 +221,26 @@ export type SettingsCategoryVM = {
     subgroups: SettingsSubgroupVM[];
 };
 
+export type FlattenedSettingsItem =
+    | {
+        key: string;
+        kind: "category";
+        category: GuildSettingCategory;
+    }
+    | {
+        key: string;
+        kind: "subgroup";
+        category: GuildSettingCategory;
+        subgroup: GuildSettingSubgroup;
+    }
+    | {
+        key: string;
+        kind: "setting";
+        category: GuildSettingCategory;
+        subgroup: GuildSettingSubgroup;
+        row: SettingRow;
+    };
+
 function buildSettingMetadata(
     rawRow: readonly JSONValue[],
     backendRenderers: BackendRendererList,
@@ -385,6 +405,40 @@ export function groupRowsByCategory(rows: SettingRow[]): SettingsCategoryVM[] {
                     rows: subgroupRows.sort((left, right) => left.settingKey.localeCompare(right.settingKey)),
                 })),
         }));
+}
+
+export function flattenSettingsRows(rows: SettingRow[]): FlattenedSettingsItem[] {
+    const groupedRows = groupRowsByCategory(rows);
+    const items: FlattenedSettingsItem[] = [];
+
+    groupedRows.forEach((category) => {
+        items.push({
+            key: `category-${category.category}`,
+            kind: "category",
+            category: category.category,
+        });
+
+        category.subgroups.forEach((subgroup) => {
+            items.push({
+                key: `subgroup-${category.category}-${subgroup.subgroup}`,
+                kind: "subgroup",
+                category: category.category,
+                subgroup: subgroup.subgroup,
+            });
+
+            subgroup.rows.forEach((row) => {
+                items.push({
+                    key: `setting-${row.settingKey}`,
+                    kind: "setting",
+                    category: category.category,
+                    subgroup: subgroup.subgroup,
+                    row,
+                });
+            });
+        });
+    });
+
+    return items;
 }
 
 export function mergeRowIntoTableCache({

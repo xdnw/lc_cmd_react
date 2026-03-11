@@ -10,11 +10,14 @@ import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { CustomTriInput } from "@/components/cmd/CustomTriInput";
 import SearchBar from "@/components/cmd/SearchBar";
 import CopyToClipboard from "@/components/ui/copytoclipboard";
+import { WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN } from "@/components/ui/virtuosoTuning";
 
 import { getCharFrequency, simpleSimilarity } from "@/utils/StringUtil";
 import type { BaseCommand } from "@/utils/Command";
 
 type CmdFilterMap = Record<string, (cmd: BaseCommand) => boolean>;
+
+const CMD_LIST_DEFAULT_ROW_HEIGHT = 72;
 
 const TRI_FILTER_DEFS: Array<{ label: string; annotation: string }> = [
     { label: "Viewable", annotation: "viewable" },
@@ -595,6 +598,8 @@ export default function CmdList({
                     components={VirtuosoTableComponents}
                     fixedHeaderContent={fixedHeaderContent}
                     itemContent={rowContent}
+                    defaultItemHeight={CMD_LIST_DEFAULT_ROW_HEIGHT}
+                    overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
                     increaseViewportBy={800}
                 />
             ) : (

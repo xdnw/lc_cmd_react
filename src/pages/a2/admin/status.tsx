@@ -9,6 +9,11 @@ import { LOCUTUS_TASK, LOCUTUS_TASKS } from "@/lib/endpoints";
 import LazyIcon from "@/components/ui/LazyIcon";
 import { InstatusStatusCard } from "./instatus";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import {
+    WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN,
+    WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT,
+} from "@/components/ui/virtuosoTuning";
 
 const Outcome = {
     EMPTY: 0,
@@ -32,6 +37,7 @@ const HISTORY_GRAPH = 1024;
 const HISTORY_LIST = 25;
 
 const DASH_REFRESH_MS = 10_000;
+const TASK_DEFAULT_ROW_HEIGHT = 88;
 
 const HEALTH_ORDER: Health[] = ["ERROR", "STUCK", "INTERRUPTED", "STALE", "NEVER", "OK"];
 
@@ -717,6 +723,7 @@ const TasksDashboardView = memo(function TasksDashboardView({
 
     const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set<number>());
     const lastAutoScrolledId = useRef<number | null>(null);
+    const virtuosoRef = useRef<VirtuosoHandle | null>(null);
 
     useEffect(() => {
         if (!autoRefresh || !reload) return;
@@ -749,37 +756,6 @@ const TasksDashboardView = memo(function TasksDashboardView({
     useEffect(() => {
         if (autoRefresh) setTick(Date.now());
     }, [autoRefresh]);
-
-    useEffect(() => {
-        if (!openTaskParam) return;
-
-        const id = Number(openTaskParam);
-        if (!Number.isFinite(id)) return;
-
-        // Only expand if the task exists in the current list
-        const exists = tasks.some((t) => t.id === id);
-        if (!exists) return;
-
-        setExpanded((prev) => {
-            if (prev.has(id)) return prev;
-            const next = new Set(prev);
-            next.add(id);
-            return next;
-        });
-
-        // prevent repeated scroll on refresh/sort
-        if (lastAutoScrolledId.current === id) return;
-        lastAutoScrolledId.current = id;
-
-        const raf = window.requestAnimationFrame(() => {
-            document.getElementById(`task-row-${id}`)?.scrollIntoView({
-                block: "start",
-                behavior: "smooth",
-            });
-        });
-
-        return () => window.cancelAnimationFrame(raf);
-    }, [openTaskParam, tasks]);
 
     const onReloadClick = useCallback(() => {
         if (reload) reload();
@@ -826,6 +802,49 @@ const TasksDashboardView = memo(function TasksDashboardView({
 
         return r;
     }, [sorted, deferredQuery, onlyUnhealthy, runningOnly]);
+
+    const rowIndexByTaskId = useMemo(() => {
+        const indexMap = new Map<number, number>();
+        rows.forEach((row, index) => {
+            indexMap.set(row.task.id, index);
+        });
+        return indexMap;
+    }, [rows]);
+
+    useEffect(() => {
+        if (!openTaskParam) return;
+
+        const id = Number(openTaskParam);
+        if (!Number.isFinite(id)) return;
+
+        // Only expand if the task exists in the current list
+        const exists = tasks.some((t) => t.id === id);
+        if (!exists) return;
+
+        setExpanded((prev) => {
+            if (prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+        });
+
+        // prevent repeated scroll on refresh/sort
+        if (lastAutoScrolledId.current === id) return;
+        lastAutoScrolledId.current = id;
+
+        const rowIndex = rowIndexByTaskId.get(id);
+        if (rowIndex == null) return;
+
+        const raf = window.requestAnimationFrame(() => {
+            virtuosoRef.current?.scrollToIndex({
+                index: rowIndex,
+                align: "start",
+                behavior: "smooth",
+            });
+        });
+
+        return () => window.cancelAnimationFrame(raf);
+    }, [openTaskParam, rowIndexByTaskId, tasks]);
 
     const onToggleAutoRefresh = useCallback(() => {
         setAutoRefresh((v) => {
@@ -878,6 +897,17 @@ const TasksDashboardView = memo(function TasksDashboardView({
     const expandShown = useCallback(() => {
         setExpanded(() => new Set(rows.map((x) => x.task.id)));
     }, [rows]);
+
+    const taskRowKey = useCallback((_: number, row: (typeof rows)[number]) => row.task.id, []);
+    const renderTaskRow = useCallback((_: number, row: (typeof rows)[number]) => (
+        <TaskRow
+            task={row.task}
+            health={row.health}
+            now={now}
+            open={expanded.has(row.task.id)}
+            onToggleOpen={onToggleOpen}
+        />
+    ), [expanded, now, onToggleOpen]);
 
     const expandedCount = expanded.size;
 
@@ -999,24 +1029,24 @@ const TasksDashboardView = memo(function TasksDashboardView({
             </CardHeader>
 
             <CardContent className="space-y-3">
-                <div className="divide-y overflow-hidden rounded-md border bg-card/40">
-                    {rows.length === 0 ? (
-                        <div className="px-3 py-6 text-sm text-muted-foreground">
-                            No tasks to show{query ? " (try clearing your search)" : ""}.
-                        </div>
-                    ) : (
-                        rows.map(({ task, health }) => (
-                            <TaskRow
-                                key={task.id}
-                                task={task}
-                                health={health}
-                                now={now}
-                                open={expanded.has(task.id)}
-                                onToggleOpen={onToggleOpen}
-                            />
-                        ))
-                    )}
-                </div>
+                {rows.length === 0 ? (
+                    <div className="overflow-hidden rounded-md border bg-card/40 px-3 py-6 text-sm text-muted-foreground">
+                        No tasks to show{query ? " (try clearing your search)" : ""}.
+                    </div>
+                ) : (
+                    <div className="overflow-hidden rounded-md border bg-card/40">
+                        <Virtuoso
+                            ref={virtuosoRef}
+                            useWindowScroll
+                            data={rows}
+                            overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
+                            increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
+                            defaultItemHeight={TASK_DEFAULT_ROW_HEIGHT}
+                            computeItemKey={taskRowKey}
+                            itemContent={renderTaskRow}
+                        />
+                    </div>
+                )}
             </CardContent>
         </Card>
     );

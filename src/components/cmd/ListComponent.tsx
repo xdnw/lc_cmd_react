@@ -142,6 +142,9 @@ type SearchIndexEntry = {
     aliasLower: string[];
 };
 
+const LIST_DROPDOWN_ROW_HEIGHT = 36;
+const LIST_DROPDOWN_OVERSCAN = 6;
+
 function useFilteredOptions({
     options,
     optionsArePrefiltered,
@@ -283,8 +286,10 @@ function DropdownPanel({
     }, [isOpen, updatePosition]);
 
     const virtuosoStyle = useMemo(() => ({
-        height: `${Math.min(filteredOptions.length * 36, 300)}px`
+        height: `${Math.min(filteredOptions.length * LIST_DROPDOWN_ROW_HEIGHT, 300)}px`
     }), [filteredOptions.length]);
+
+    const computeItemKey = useCallback((_: number, option: SelectOption) => option.value, []);
 
     if (!isOpen || typeof document === "undefined") {
         return null;
@@ -309,6 +314,9 @@ function DropdownPanel({
                     style={virtuosoStyle}
                     totalCount={filteredOptions.length}
                     data={filteredOptions}
+                    computeItemKey={computeItemKey}
+                    defaultItemHeight={LIST_DROPDOWN_ROW_HEIGHT}
+                    overscan={LIST_DROPDOWN_OVERSCAN}
                     itemContent={renderItem}
                 />
             )}

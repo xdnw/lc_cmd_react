@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import MarkupRenderer from "@/components/ui/MarkupRenderer.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
@@ -18,6 +18,11 @@ import RaidSection from "../raid";
 import EndpointWrapper from "@/components/api/bulkwrapper";
 import { ApiFormInputs } from "@/components/api/apiform";
 import LazyIcon from "@/components/ui/LazyIcon";
+import { Virtuoso } from "react-virtuoso";
+import {
+    WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN,
+    WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT,
+} from "@/components/ui/virtuosoTuning";
 
 export default function GuildMember() {
     return (
@@ -31,6 +36,23 @@ export default function GuildMember() {
         </>
     );
 }
+
+const AUDIT_DEFAULT_ITEM_HEIGHT = 60;
+const AUDIT_EXPANDED_ITEM_HEIGHT = 132;
+const WAR_DEFAULT_ITEM_HEIGHT = 560;
+
+type WarListItem =
+    | {
+        key: string;
+        kind: "header";
+        title: string;
+    }
+    | {
+        key: string;
+        kind: "war";
+        war: ApiTypes.WebMyWar;
+        isAttacker: boolean;
+    };
 
 export function AuditSection() {
     return <EndpointWrapper endpoint={MY_AUDITS} args={{}}>
@@ -64,6 +86,8 @@ export function AuditComponent({ audits }: { audits: WebAudits }) {
         setShowDescription(f => !f);
     }, [setShowDescription]);
 
+    const auditRows = useMemo(() => audits.values, [audits.values]);
+
     return (
         <div className="bg-light/10 border border-light/10 p-2 mt-2 rounded">
             <div className="relative">
@@ -77,16 +101,26 @@ export function AuditComponent({ audits }: { audits: WebAudits }) {
                 </Button>
             </div>
             <div className="p-1 relative rounded">
-                {audits.values.map((audit, key) => (
-                    <div key={key} className={`p-0.5 mb-0.5 border ${getSeverityColor(audit.severity)} break-all`}>
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold">{audit.audit}: {audit.value}</span>
+                <Virtuoso
+                    useWindowScroll
+                    data={auditRows}
+                    overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
+                    increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
+                    defaultItemHeight={showDescription ? AUDIT_EXPANDED_ITEM_HEIGHT : AUDIT_DEFAULT_ITEM_HEIGHT}
+                    computeItemKey={(index, audit) => `${audit.audit}-${audit.value}-${index}`}
+                    itemContent={(_, audit) => (
+                        <div className={`p-0.5 mb-0.5 border ${getSeverityColor(audit.severity)} break-all`}>
+                            <div className="flex justify-between items-center">
+                                <span className="font-bold">{audit.audit}: {audit.value}</span>
+                            </div>
+                            {showDescription ? (
+                                <div className="p-1">
+                                    <MarkupRenderer content={audit.description} />
+                                </div>
+                            ) : null}
                         </div>
-                        <div className={`transition-all duration-100 ease-in-out ${showDescription ? 'p-1 max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-                            <MarkupRenderer content={audit.description} />
-                        </div>
-                    </div>
-                ))}
+                    )}
+                />
             </div>
         </div>
     );
@@ -199,6 +233,7 @@ export function MyWarsSection() {
 
 export function WarsComponent({ wars }: { wars: ApiTypes.WebMyWars }) {
     const [showMore, setShowMore] = useState<boolean>(false);
+    const [expandedOdds, setExpandedOdds] = useState<ReadonlySet<number>>(() => new Set<number>());
     if (wars.offensives.length === 0 && wars.defensives.length === 0) {
         return (
             <div className="bg-accent rounded p-1">
@@ -210,6 +245,38 @@ export function WarsComponent({ wars }: { wars: ApiTypes.WebMyWars }) {
     const toggleMore = useCallback(() => {
         setShowMore(f => !f);
     }, [setShowMore]);
+
+    const toggleOddsOpen = useCallback((warId: number) => {
+        setExpandedOdds((prev) => {
+            const next = new Set(prev);
+            if (next.has(warId)) {
+                next.delete(warId);
+            } else {
+                next.add(warId);
+            }
+            return next;
+        });
+    }, []);
+
+    const warItems = useMemo<WarListItem[]>(() => {
+        const items: WarListItem[] = [];
+
+        if (wars.offensives.length > 0) {
+            items.push({ key: "header-offensives", kind: "header", title: "Offensives" });
+            wars.offensives.forEach((war) => {
+                items.push({ key: `war-${war.id}`, kind: "war", war, isAttacker: true });
+            });
+        }
+
+        if (wars.defensives.length > 0) {
+            items.push({ key: "header-defensives", kind: "header", title: "Defensives" });
+            wars.defensives.forEach((war) => {
+                items.push({ key: `war-${war.id}`, kind: "war", war, isAttacker: false });
+            });
+        }
+
+        return items;
+    }, [wars.defensives, wars.offensives]);
 
     return (
         <div className="bg-light/10 border border-light/10 p-2 rounded mt-2">
@@ -240,22 +307,29 @@ export function WarsComponent({ wars }: { wars: ApiTypes.WebMyWars }) {
                         </Button>
                         </>
                     )}
-                    {wars.offensives.length > 0 && (
-                        <>
-                            <h4 className="text-lg">Offensives</h4>
-                            {wars.offensives.map((war, index) => (
-                                <WarComponent key={index} me={wars.me} war={war} isAttacker={true} />
-                            ))}
-                        </>
-                    )}
-                    {wars.defensives.length > 0 && (
-                        <>
-                            <h4>Defensives</h4>
-                            {wars.defensives.map((war, index) => (
-                                <WarComponent key={index} me={wars.me} war={war} isAttacker={false} />
-                            ))}
-                        </>
-                    )}
+                    <Virtuoso
+                        useWindowScroll
+                        data={warItems}
+                        overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
+                        increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
+                        defaultItemHeight={WAR_DEFAULT_ITEM_HEIGHT}
+                        computeItemKey={(_, item) => item.key}
+                        itemContent={(_, item) => {
+                            if (item.kind === "header") {
+                                return <h4 className="text-lg">{item.title}</h4>;
+                            }
+
+                            return (
+                                <WarComponent
+                                    me={wars.me}
+                                    war={item.war}
+                                    isAttacker={item.isAttacker}
+                                    oddsOpen={expandedOdds.has(item.war.id)}
+                                    onToggleOddsOpen={toggleOddsOpen}
+                                />
+                            );
+                        }}
+                    />
                 </div>
             </div>
         </div>
@@ -316,7 +390,19 @@ function BuyUnits({ me, mywars }: { me: ApiTypes.WebTarget, mywars: ApiTypes.Web
 
 const allBeigeReasons: string[] = COMMANDS.options.BeigeReason.options;
 
-export function WarComponent({ me, war, isAttacker }: { me: ApiTypes.WebTarget, war: ApiTypes.WebMyWar, isAttacker: boolean }) {
+export function WarComponent({
+    me,
+    war,
+    isAttacker,
+    oddsOpen,
+    onToggleOddsOpen,
+}: {
+    me: ApiTypes.WebTarget,
+    war: ApiTypes.WebMyWar,
+    isAttacker: boolean,
+    oddsOpen?: boolean,
+    onToggleOddsOpen?: (warId: number) => void,
+}) {
     const now_ms = Date.now();
     const showBeigeReasons = false;
     return (
@@ -447,7 +533,12 @@ export function WarComponent({ me, war, isAttacker }: { me: ApiTypes.WebTarget, 
                     </tr>
                     <tr className="border-b border border-secondary mb-2">
                         <td colSpan={100}>
-                            <ShowOddsComponent me={me} war={war} />
+                            <ShowOddsComponent
+                                me={me}
+                                war={war}
+                                isOpen={oddsOpen}
+                                onToggleOpen={onToggleOddsOpen ? () => onToggleOddsOpen(war.id) : undefined}
+                            />
                             {war.beigeReasons != null && isAttacker && showBeigeReasons && <>
                                 <div
                                     className={`alert ${Object.keys(war.beigeReasons).length == 0 ? "alert-danger" : "alert-success"}`}>
@@ -600,25 +691,42 @@ export function OddsSuccess({ odds, success }: { odds: number, success: number }
     );
 }
 
-export function ShowOddsComponent({ me, war }: { me: ApiTypes.WebTarget, war: ApiTypes.WebMyWar }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const toggleOpen = useCallback(() => setIsOpen(f => !f), [setIsOpen]);
+export function ShowOddsComponent({
+    me,
+    war,
+    isOpen,
+    onToggleOpen,
+}: {
+    me: ApiTypes.WebTarget,
+    war: ApiTypes.WebMyWar,
+    isOpen?: boolean,
+    onToggleOpen?: () => void,
+}) {
+    const [internalOpen, setInternalOpen] = useState(false);
+    const open = isOpen ?? internalOpen;
+    const toggleOpen = useCallback(() => {
+        if (onToggleOpen) {
+            onToggleOpen();
+            return;
+        }
+        setInternalOpen(f => !f);
+    }, [onToggleOpen]);
 
     return (<div className={`bg-card/50 rounded`}>
         <button
-            className={`w-full btn-sm ${isOpen ? '' : 'collapsed'}`}
+            className={`w-full btn-sm ${open ? '' : 'collapsed'}`}
             type="button"
             onClick={toggleOpen}
-            aria-expanded={isOpen}
+            aria-expanded={open}
             aria-controls={`collapseodds${war.id}`}
         >
-            {isOpen ? <><LazyIcon name="ChevronUp" className="inline" />Hide</> : <><LazyIcon name="ChevronDown"
+            {open ? <><LazyIcon name="ChevronUp" className="inline" />Hide</> : <><LazyIcon name="ChevronDown"
                 className="inline" />Show</>} odds
         </button>
         <div
             id={`collapseodds${war.id}`}
             aria-labelledby={`headingodds${war.id}`}
-            className={`transition-all duration-200 ease-in-out ${isOpen ? 'p-1 max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}
+            className={open ? 'p-1 opacity-100' : 'max-h-0 overflow-hidden opacity-0'}
         >
             <div className="text-sm">
                 <div>

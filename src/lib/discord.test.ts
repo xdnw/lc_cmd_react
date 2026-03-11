@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canUseFastMarkupPath, markup } from "./discord";
+import { canUseFastMarkupPath, createOptions, markup, markupWithPreparedOptions } from "./discord";
 
 describe("markup", () => {
     it("detects fast-path eligibility for representative inputs", () => {
@@ -34,5 +34,30 @@ describe("markup", () => {
 
         expect(html).toContain("<strong>bold</strong>");
         expect(html).toContain("<em>italic</em>");
+    });
+
+    it("reuses prepared embed options without changing mention rendering", () => {
+        const embed = {
+            id: "prepared-options",
+            content: "",
+            users: { "123": "@Jesse" },
+            channels: { "456": "#general" },
+        };
+
+        const prepared = markupWithPreparedOptions({
+            txt: "Hello <@123> in <#456>",
+            replaceEmoji: true,
+            options: createOptions({ embed }),
+        });
+
+        const direct = markup({
+            txt: "Hello <@123> in <#456>",
+            replaceEmoji: true,
+            embed,
+        });
+
+        expect(prepared).toContain('@Jesse');
+        expect(prepared).toContain('#general');
+        expect(prepared).toBe(direct);
     });
 });

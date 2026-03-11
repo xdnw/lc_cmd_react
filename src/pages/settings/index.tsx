@@ -1,9 +1,14 @@
 import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Virtuoso } from "react-virtuoso";
 import { useSession } from "@/components/api/SessionContext";
 import { useDialog } from "@/components/layout/DialogContext";
 import Loading from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
+import {
+    WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN,
+    WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT,
+} from "@/components/ui/virtuosoTuning";
 import { TABLE } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
 import type { QueryResult } from "@/lib/BulkQuery";
@@ -13,8 +18,8 @@ import SettingsCategorySection from "./components/SettingsCategorySection";
 import SettingsTopBar from "./components/SettingsTopBar";
 import {
     GUILD_SETTING_COLUMNS,
+    flattenSettingsRows,
     normalizeGuildSettingRows,
-    groupRowsByCategory,
     mergeRowIntoTableCache,
     removeRowFromTableCache,
     type SettingRow,
@@ -70,7 +75,7 @@ export default function SettingsPage() {
         return normalized.rows.filter((row) => showUnavailable || row.flags.isAllowed);
     }, [normalized.rows, showUnavailable]);
 
-    const groupedRows = useMemo(() => groupRowsByCategory(filteredRows), [filteredRows]);
+    const flattenedRows = useMemo(() => flattenSettingsRows(filteredRows), [filteredRows]);
 
     const refreshSingleSetting = useCallback(async (settingKey: string) => {
         if (!session?.guild || !listQueryArgs || !listQueryKey) return;
@@ -161,16 +166,25 @@ export default function SettingsPage() {
                 </div>
             )}
 
-            {groupedRows.map((category) => (
-                <SettingsCategorySection
-                    key={category.category}
-                    category={category}
-                    onEdit={openEditDialog}
-                    onRefreshSetting={refreshSingleSetting}
+            {flattenedRows.length > 0 ? (
+                <Virtuoso
+                    useWindowScroll
+                    data={flattenedRows}
+                    overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
+                    increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
+                    defaultItemHeight={124}
+                    computeItemKey={(_, item) => item.key}
+                    itemContent={(_, item) => (
+                        <div className="pb-3">
+                            <SettingsCategorySection
+                                item={item}
+                                onEdit={openEditDialog}
+                                onRefreshSetting={refreshSingleSetting}
+                            />
+                        </div>
+                    )}
                 />
-            ))}
-
-            {groupedRows.length === 0 && (
+            ) : (
                 <div className="text-sm text-muted-foreground">No settings available for this guild selection.</div>
             )}
         </div>

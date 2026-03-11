@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useArgFieldState } from "./field/useArgFieldState";
 import { validateRegexInput } from "./field/argValidation";
 import FieldMessage from "./field/FieldMessage";
+import type { CommandFieldState, CommandFieldStateUpdater } from "./field/commandFieldState";
 
 function isNumeric(str: string | undefined) {
     if (str) {
@@ -31,6 +32,8 @@ interface TypedInputProps {
     placeholder: keyof typeof COMMANDS.placeholders;
     type: string;
     compact?: boolean;
+    fieldState?: CommandFieldState;
+    setFieldState?: (updater: CommandFieldStateUpdater) => void;
     setOutputValue: (name: string, value: string) => void;
 }
 
@@ -42,9 +45,11 @@ export default function TypedInput({
     placeholder,
     type,
     compact,
+    fieldState,
+    setFieldState,
     setOutputValue,
 }: TypedInputProps) {
-    const { value, setValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || "");
+    const { value, setDisplayValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || "", fieldState, setFieldState);
 
     // Memoize colOptions based on placeholder and type.
     const colOptions = useMemo<[string, string][]>(() =>
@@ -58,7 +63,7 @@ export default function TypedInput({
     const handleInputChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
             const myValue = e.target.value;
-            setValue(myValue);
+            setDisplayValue(myValue);
             setOutputValue(argName, myValue);
             if (!myValue) {
                 resetValidation();
@@ -67,7 +72,7 @@ export default function TypedInput({
 
             setValidation(validateRegexInput(myValue, filter, filterHelp));
         },
-        [argName, filter, filterHelp, setOutputValue, setValue, setValidation, resetValidation]
+        [argName, filter, filterHelp, resetValidation, setDisplayValue, setOutputValue, setValidation]
     );
 
     return (
@@ -84,7 +89,7 @@ export default function TypedInput({
             <OptionsSelector
                 argName={argName}
                 value={value}
-                setValue={setValue}
+                setValue={setDisplayValue}
                 setOutputValue={setOutputValue}
                 colOptions={colOptions}
                 compact={compact}

@@ -29,7 +29,17 @@ export interface AppRouteConfig {
   // Store the importer function directly
   element: () => Promise<{ default: ComponentType }>;
   protected: boolean;
+  cachePolicy?: RecentPageCachePolicy;
 }
+
+export type RecentPageCachePolicy = {
+  mode: "none" | "recent";
+  ignoredSearchParams?: readonly string[];
+};
+
+const RECENT_PAGE_CACHE_POLICY: RecentPageCachePolicy = {
+  mode: "recent",
+};
 const routeConfigs: AppRouteConfig[] = [
   /*
   protected = logged in
@@ -38,7 +48,7 @@ const routeConfigs: AppRouteConfig[] = [
   */
 
   // Homepage
-  { key: "home", path: "/home", element: () => import("./pages/home"), protected: false },
+  { key: "home", path: "/home", element: () => import("./pages/home"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
   // Unlink game nation
   { key: "unregister", path: "/unregister", element: () => import("@/pages/unregister"), protected: true },
   { key: "guild_select", path: "/guild_select", element: () => import("@/pages/guild_picker"), protected: true },
@@ -52,22 +62,22 @@ const routeConfigs: AppRouteConfig[] = [
   { key: "announcement", path: "/announcement", element: () => import("@/pages/announcements"), protected: true },
 
   // Commands (accessible to anyone)
-  { key: "commands", path: "/commands", element: () => import("./pages/commands"), protected: false },
-  { key: "command", path: "/command", element: () => import("./pages/commands"), protected: false },
-  { key: "command_detail", path: "/command/:command", element: () => import("./pages/command"), protected: false },
+  { key: "commands", path: "/commands", element: () => import("./pages/commands"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
+  { key: "command", path: "/command", element: () => import("./pages/commands"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
+  { key: "command_detail", path: "/command/:command", element: () => import("./pages/command"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
   // Display command result (anyone - but only select commands support)
   { key: "view_command", path: "/view_command/:command", element: () => import("./pages/command/view_command"), protected: false },
   // List of placeholders for a type
-  { key: "placeholders", path: "/placeholders/:placeholder", element: () => import("@/pages/ph_list"), protected: false },
+  { key: "placeholders", path: "/placeholders/:placeholder", element: () => import("@/pages/ph_list"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
 
   // Balance and records (only when a guild is selected)
-  { key: "balance", path: "/balance", element: () => import("@/pages/balance"), protected: true },
-  { key: "balance_category", path: "/balance/:category", element: () => import("@/pages/balance"), protected: true },
-  { key: "records", path: "/records", element: () => import("@/pages/records"), protected: true },
+  { key: "balance", path: "/balance", element: () => import("@/pages/balance"), protected: true, cachePolicy: RECENT_PAGE_CACHE_POLICY },
+  { key: "balance_category", path: "/balance/:category", element: () => import("@/pages/balance"), protected: true, cachePolicy: RECENT_PAGE_CACHE_POLICY },
+  { key: "records", path: "/records", element: () => import("@/pages/records"), protected: true, cachePolicy: RECENT_PAGE_CACHE_POLICY },
 
   // Raid Finder (anyone)
-  { key: "raid_nation", path: "/raid/:nation", element: () => import("./pages/raid"), protected: false },
-  { key: "raid", path: "/raid", element: () => import("./pages/raid"), protected: false },
+  { key: "raid_nation", path: "/raid/:nation", element: () => import("./pages/raid"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
+  { key: "raid", path: "/raid", element: () => import("./pages/raid"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
 
   // Authentication
   { key: "login", path: "/login", element: () => import("@/pages/login_picker"), protected: false },
@@ -78,8 +88,8 @@ const routeConfigs: AppRouteConfig[] = [
   { key: "register", path: "/register", element: () => import("@/pages/unregister"), protected: false },
 
   // Tables (anyone)
-  { key: "custom_table", path: "/custom_table", element: () => import("./pages/custom_table/TablePage"), protected: false },
-  { key: "view_table", path: "/view_table", element: () => import("@/pages/view_table"), protected: false },
+  { key: "custom_table", path: "/custom_table", element: () => import("./pages/custom_table/TablePage"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
+  { key: "view_table", path: "/view_table", element: () => import("@/pages/view_table"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
   { key: "settings", path: "/settings", element: () => import("@/pages/settings"), protected: true },
 
   // Graphs (anyone)
@@ -224,9 +234,7 @@ const router = createHashRouter([
       {
         path: "*",
         element: (
-          <PageView>
-            <Outlet />
-          </PageView>
+          <PageView routeConfigs={routeConfigs} />
         ),
         children: routeConfigs.map(config => {
           const Element = lazy(config.element);

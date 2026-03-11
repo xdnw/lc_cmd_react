@@ -26,6 +26,7 @@ import { isCompactMode } from "./field/fieldTypes";
 import TimeDiffInput from "./TimeDiffInput";
 import HtmlEditor from "./HtmlEditor";
 import { resolveArgInput, type ArgInputSupport, type ArgInputResolution } from "./argInputMetadata";
+import type { CommandFieldState, CommandFieldStateUpdater } from "./field/commandFieldState";
 
 export type { ArgInputSupport } from "./argInputMetadata";
 
@@ -35,9 +36,13 @@ interface ArgProps {
   min?: number;
   max?: number;
   initialValue: string;
+  fieldState?: CommandFieldState;
+  setFieldState?: (updater: CommandFieldStateUpdater) => void;
   displayMode?: CommandInputDisplayMode;
   forceMountAll?: boolean;
+  prewarm?: boolean;
   setOutputValue: (key: string, value: string) => void;
+  setCommittedValue?: (key: string, value: string) => void;
 }
 
 type ComponentResolution = {
@@ -58,33 +63,36 @@ export function getArgInputComponentName(breakdown: TypeBreakdown): ComponentRes
 }
 
 function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps & { compact: boolean }): React.ReactElement {
-  const { argName, breakdown, min, max, initialValue, setOutputValue, displayMode, compact, forceMountAll } = props;
+  const { argName, breakdown, min, max, initialValue, fieldState, setFieldState, setOutputValue, setCommittedValue, displayMode, compact, forceMountAll, prewarm } = props;
+  const currentValue = fieldState?.displayValue ?? initialValue;
+  const commitValue = setCommittedValue ?? setOutputValue;
   const options = resolution.optionData;
   const textInputConfig = resolution.textInputConfig;
 
   switch (resolution.kind) {
     case "font-options":
-      return <FontInput argName={argName} initialValue={initialValue} options={options.options ?? []} setOutputValue={setOutputValue} />;
+      return <FontInput argName={argName} initialValue={currentValue} options={options.options ?? []} setOutputValue={setOutputValue} />;
 
     case "static-options":
       return <ListComponentOptions argName={argName} options={options.options ?? []} isMulti={options.multi}
-        initialValue={initialValue} setOutputValue={setOutputValue} />;
+        initialValue={currentValue} setOutputValue={setOutputValue} />;
 
     case "composite-query":
       return <CompositeQueryComponent composites={options.composite} multi={options.multi}
-        argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} preloadOptions={forceMountAll} />;
+        argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} preloadOptions={forceMountAll || prewarm} />;
 
     case "typed-placeholder":
       if (!resolution.typedPlaceholderConfig) {
-        return <UnknownType breakdown={breakdown} argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
+        return <UnknownType breakdown={breakdown} argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} />;
       }
-      return <TypedInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
+      return <TypedInput argName={argName} initialValue={currentValue} setOutputValue={commitValue}
+        fieldState={fieldState} setFieldState={setFieldState}
         placeholder={resolution.typedPlaceholderConfig.placeholderName as keyof typeof COMMANDS.placeholders}
         type={resolution.typedPlaceholderConfig.valueType} compact={compact} />;
 
     case "placeholder-expression":
-      return <PlaceholderExpressionInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
-        breakdown={breakdown} compact={compact} forceMountAll={forceMountAll} />;
+      return <PlaceholderExpressionInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue}
+        breakdown={breakdown} compact={compact} forceMountAll={forceMountAll || prewarm} />;
 
     case "placeholder-string":
     case "integer-list":
@@ -95,82 +103,85 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
     case "message":
     case "uuid":
     case "string":
-      return <StringInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
+      return <StringInput argName={argName} initialValue={currentValue} setOutputValue={commitValue}
+        fieldState={fieldState} setFieldState={setFieldState}
         filter={textInputConfig?.filter} filterHelp={textInputConfig?.filterHelp}
         compact={compact} placeholder={textInputConfig?.placeholder} />;
 
     case "wysiwyg":
-      return <HtmlEditor argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+      return <HtmlEditor argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} compact={compact} />;
 
     case "textarea":
-      return <TextComponent argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+      return <TextComponent argName={argName} initialValue={currentValue} setOutputValue={commitValue} compact={compact}
+        fieldState={fieldState} setFieldState={setFieldState} />;
 
     case "placeholder-class":
       return <ListComponentBreakdown breakdown={breakdown} argName={argName} isMulti={false}
-        initialValue={initialValue} setOutputValue={setOutputValue} />;
+        initialValue={currentValue} setOutputValue={setOutputValue} />;
 
     case "set":
-      return <SetInput argName={argName} child={breakdown.child![0]} initialValue={initialValue}
+      return <SetInput argName={argName} child={breakdown.child![0]} initialValue={currentValue}
         setOutputValue={setOutputValue} displayMode={displayMode} />;
 
     case "query":
       return <QueryComponent element={options.typeKey} multi={options.multi}
-        argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} preloadOptions={forceMountAll} />;
+        argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} preloadOptions={forceMountAll || prewarm} />;
 
     case "boolean":
       if (resolution.booleanMode === "tri-state") {
-        return <TriStateInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+        return <TriStateInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} compact={compact} />;
       }
-      return <BooleanInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
+      return <BooleanInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} />;
 
     case "time":
-      return <TimeInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+      return <TimeInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} compact={compact} />;
 
     case "timediff":
-      return <TimeDiffInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+      return <TimeDiffInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} compact={compact} />;
 
     case "map":
-      return <MapInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
+      return <MapInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue}
         children={breakdown.child!} displayMode={displayMode} preferStaticKeyLayout />;
 
     case "citybuild":
-      return <CityBuildInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue}
+      return <CityBuildInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue}
         displayMode={displayMode} />;
 
     case "color":
-      return <ColorInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+      return <ColorInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} compact={compact} />;
 
     case "number":
       return <NumberInput argName={argName} min={min ?? undefined} max={max ?? undefined}
-        initialValue={initialValue} setOutputValue={setOutputValue}
+        initialValue={currentValue} setOutputValue={commitValue}
+        fieldState={fieldState} setFieldState={setFieldState}
         isFloat={resolution.numberIsFloat ?? false}
         className={compact ? "h-8 text-xs" : undefined} placeholder={breakdown.element} compact={compact} />;
 
     case "cityranges":
-      return <CityRanges argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+      return <CityRanges argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} compact={compact} />;
 
     case "mmr":
-      return <MmrInput allowWildcard={resolution.allowWildcard ?? false} argName={argName} initialValue={initialValue}
+      return <MmrInput allowWildcard={resolution.allowWildcard ?? false} argName={argName} initialValue={currentValue}
         setOutputValue={setOutputValue} compact={compact} />;
 
     case "mmr-double":
-      return <MmrDoubleInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+      return <MmrDoubleInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} compact={compact} />;
 
     case "taxrate":
-      return <TaxRateInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+      return <TaxRateInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} compact={compact} />;
 
     case "custom-condition-message":
-      return <CustomConditionMessageInput argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} compact={compact} />;
+      return <CustomConditionMessageInput argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} compact={compact} />;
 
     case "unknown":
     default:
-      return <UnknownType breakdown={breakdown} argName={argName} initialValue={initialValue} setOutputValue={setOutputValue} />;
+      return <UnknownType breakdown={breakdown} argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} />;
   }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialValue, setOutputValue, displayMode, forceMountAll }: ArgProps) {
+const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialValue, fieldState, setFieldState, setOutputValue, setCommittedValue, displayMode, forceMountAll, prewarm }: ArgProps) {
   const compact = isCompactMode(displayMode);
   const resolution = useMemo(() => resolveArgInput(breakdown), [breakdown]);
 
@@ -180,10 +191,14 @@ const ArgInput = memo(function ArgInput({ argName, breakdown, min, max, initialV
     min,
     max,
     initialValue,
+    fieldState,
+    setFieldState,
     setOutputValue,
+    setCommittedValue,
     displayMode,
     compact,
     forceMountAll,
+    prewarm,
   });
 });
 

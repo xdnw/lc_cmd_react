@@ -8,12 +8,10 @@ import { CM, getTypeBreakdown } from "@/utils/Command";
 
 import { buildStaticOptions } from "../argInputMetadata";
 import {
-    ASYNC_QUERY_OPTION_MIN_QUERY_LENGTH,
     ASYNC_QUERY_OPTION_THRESHOLD,
     combineCompositeSourceResults,
     getQueryOptionCount,
     resolveQueryOptionsPayload,
-    shouldSearchDeferredQueryOptions,
     shouldUseDeferredQueryOptionsPayload,
 } from "../queryOptionUtils";
 import { ensureQueryOptionDatasetFromPayload, searchQueryOptionDataset } from "../queryOptionWorkerClient";
@@ -174,7 +172,13 @@ function getAsyncQueryRequests(requests: ExpressionValueSourceRef[]): AsyncQuery
 }
 
 function shouldSearchAsyncQueryOptions(token: string, optionCount: number): boolean {
-    return shouldSearchDeferredQueryOptions(token, optionCount);
+    if (optionCount < ASYNC_QUERY_OPTION_THRESHOLD) {
+        return true;
+    }
+
+    // Expression panels do their own secondary filtering, so large worker-backed
+    // sources still need the unfiltered top slice when the current token is empty.
+    return token.trim().length >= 0;
 }
 
 function buildAsyncQueryLoadingState(

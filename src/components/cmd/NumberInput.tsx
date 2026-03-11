@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils";
 import { validateNumberInput } from "./field/argValidation";
 import { useArgFieldState } from "./field/useArgFieldState";
 import FieldMessage from "./field/FieldMessage";
+import type { CommandFieldState, CommandFieldStateUpdater } from "./field/commandFieldState";
 
 export default function NumberInput(
-    {argName, min, max, initialValue, setOutputValue, isFloat, className, placeholder, compact}:
+    {argName, min, max, initialValue, setOutputValue, isFloat, className, placeholder, compact, fieldState, setFieldState}:
     {
         argName: string,
         min?: number,
@@ -17,16 +18,18 @@ export default function NumberInput(
         className?: string,
         placeholder?: string,
         compact?: boolean,
+        fieldState?: CommandFieldState,
+        setFieldState?: (updater: CommandFieldStateUpdater) => void,
     }
 ) {
-    const { value, setValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || '');
+    const { value, setDisplayValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || '', fieldState, setFieldState);
 
     const onChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const myStr = e.target.value;
+        setDisplayValue(myStr);
         if (!myStr) {
             resetValidation();
             setOutputValue(argName, "");
-            setValue(myStr);
             return;
         }
 
@@ -35,9 +38,7 @@ export default function NumberInput(
         if (nextValidation.isValid) {
             setOutputValue(argName, nextValidation.normalizedValue);
         }
-
-        setValue(myStr);
-    }, [argName, setOutputValue, setValue, min, max, isFloat, setValidation, resetValidation]);
+    }, [argName, isFloat, max, min, resetValidation, setDisplayValue, setOutputValue, setValidation]);
 
     return (
         <div className="space-y-1.5">

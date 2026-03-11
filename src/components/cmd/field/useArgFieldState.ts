@@ -1,25 +1,4 @@
-import { useCallback, useState } from "react";
-import type { ValidationState } from "./argValidation";
-
-const DEFAULT_VALIDATION: ValidationState = {
-    isValid: true,
-    error: "",
-    note: "",
-};
-
-export function useArgFieldState(initialValue: string) {
-    const [value, setValue] = useState(initialValue || "");
-    const [validation, setValidation] = useState<ValidationState>(DEFAULT_VALIDATION);
-
-    const resetValidation = useCallback(() => {
-        setValidation(DEFAULT_VALIDATION);
-    }, []);
-
-    return {
-        value,
-        setValue,
-        validation,
-        setValidation,
-        resetValidation,
-    };
-}
+export {
+    DEFAULT_FIELD_VALIDATION as DEFAULT_VALIDATION,
+    useCommandFieldBinding as useArgFieldState,
+} from "./commandFieldState";

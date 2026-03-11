@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils";
 import { validateRegexInput } from "./field/argValidation";
 import { useArgFieldState } from "./field/useArgFieldState";
 import FieldMessage from "./field/FieldMessage";
+import type { CommandFieldState, CommandFieldStateUpdater } from "./field/commandFieldState";
 
 export default function StringInput(
-    {argName, initialValue, filter, filterHelp, setOutputValue, compact, placeholder, maxLength}:
+    {argName, initialValue, filter, filterHelp, setOutputValue, compact, placeholder, maxLength, fieldState, setFieldState}:
     {
         argName: string,
         initialValue: string,
@@ -15,14 +16,16 @@ export default function StringInput(
         compact?: boolean,
         placeholder?: string,
         maxLength?: number,
+        fieldState?: CommandFieldState,
+        setFieldState?: (updater: CommandFieldStateUpdater) => void,
         setOutputValue: (name: string, value: string) => void
     }
 ) {
-    const { value, setValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || "");
+    const { value, setDisplayValue, validation, setValidation, resetValidation } = useArgFieldState(initialValue || "", fieldState, setFieldState);
 
     const onChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const myValue = e.target.value;
-        setValue(myValue);
+        setDisplayValue(myValue);
         setOutputValue(argName, myValue);
         if (!myValue) {
             resetValidation();
@@ -30,7 +33,7 @@ export default function StringInput(
         }
 
         setValidation(validateRegexInput(myValue, filter, filterHelp));
-    }, [argName, filter, filterHelp, setOutputValue, setValue, setValidation, resetValidation]);
+    }, [argName, filter, filterHelp, resetValidation, setDisplayValue, setOutputValue, setValidation]);
 
     return (
         <div className="space-y-1.5">

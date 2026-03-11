@@ -1,11 +1,13 @@
-import { ReactElement, ReactNode, useMemo } from 'react';
+import { ReactElement, useMemo } from 'react';
 import { ThemeProvider } from '../ui/theme-provider';
 import Navbar from "@/components/layout/navbar.tsx";
 import Footer from "@/components/layout/footer.tsx";
 import { DialogProvider } from "./DialogContext";
 import { SessionProvider } from '../api/SessionContext';
+import type { AppRouteConfig } from '@/App';
+import RecentPageKeepAlive from './RecentPageKeepAlive';
 
-export default function PageView({ children }: { children: ReactNode }): ReactElement {
+export default function PageView({ routeConfigs }: { routeConfigs: readonly AppRouteConfig[] }): ReactElement {
     const navBar = useMemo(() => {
         return <Navbar />;
     }, []);
@@ -16,7 +18,7 @@ export default function PageView({ children }: { children: ReactNode }): ReactEl
                     <div className="min-h-screen bg-background text-foreground flex flex-col">
                         {navBar}
                         <main className="grow w-full px-2 py-1.5 md:px-3 md:py-2 space-y-1.5">
-                            {children}
+                            <RecentPageKeepAlive routeConfigs={routeConfigs} />
                         </main>
                         <Footer />
                     </div>

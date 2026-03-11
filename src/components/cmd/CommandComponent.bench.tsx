@@ -38,12 +38,24 @@ afterEach(() => {
 });
 
 describe("command component mount", () => {
-    bench("render with deferred mounting", () => {
+    bench("render with virtualized rows", () => {
         render(
             <CommandComponent
                 command={command as never}
                 filterArguments={() => true}
                 initialValues={{}}
+                setOutput={() => {}}
+            />,
+        );
+    });
+
+    bench("render without virtualization", () => {
+        render(
+            <CommandComponent
+                command={command as never}
+                filterArguments={() => true}
+                initialValues={{}}
+                virtualizationMode="off"
                 setOutput={() => {}}
             />,
         );

@@ -1,6 +1,18 @@
 import ArgInput from "./ArgInput";
 import { Argument, BaseCommand } from "../../utils/Command";
-import { memo, useCallback, useMemo, useState, useEffect, type CSSProperties, type FocusEvent } from "react";
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+    type FocusEvent,
+} from "react";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+
 import MarkupRenderer from "../ui/MarkupRenderer";
 import { cn } from "@/lib/utils";
 import type { CommandInputDisplayMode } from "./field/fieldTypes";
@@ -9,15 +21,23 @@ import ArgFieldShell from "./field/ArgFieldShell";
 import { parseCommandStringDetailed } from "../../utils/CommandParser";
 import { useDialog } from "../layout/DialogContext";
 import type { TypeBreakdown } from "@/utils/Command";
+import {
+    applyCommandFieldStateUpdater,
+    commandFieldStatesEqual,
+    createCommandFieldState,
+    type CommandFieldState,
+    type CommandFieldStateUpdater,
+} from "./field/commandFieldState";
 
 interface CommandProps {
-    command: BaseCommand,
-    overrideName?: string,
-    filterArguments: (arg: Argument) => boolean,
-    initialValues: { [key: string]: string },
-    displayMode?: CommandInputDisplayMode,
-    forceMountAll?: boolean,
-    setOutput: (key: string, value: string) => void
+    command: BaseCommand;
+    overrideName?: string;
+    filterArguments: (arg: Argument) => boolean;
+    initialValues: { [key: string]: string };
+    displayMode?: CommandInputDisplayMode;
+    forceMountAll?: boolean;
+    virtualizationMode?: "auto" | "off";
+    setOutput: (key: string, value: string) => void;
 }
 
 type CommandArgEntry = {
@@ -31,6 +51,36 @@ type CommandArgEntry = {
     groupDescription: string;
 };
 
+type CommandArgGroup = {
+    key: string;
+    groupId: number | null;
+    groupTitle: string;
+    groupDescription: string;
+    entries: CommandArgEntry[];
+};
+
+type CommandRowItem =
+    | {
+        key: string;
+        kind: "group-header";
+        groupId: number;
+        groupTitle: string;
+        groupDescription: string;
+    }
+    | {
+        key: string;
+        kind: "arg";
+        entry: CommandArgEntry;
+    };
+
+type CommandFieldStateMap = Record<string, CommandFieldState>;
+
+const COMMAND_VIRTUALIZE_THRESHOLD = 28;
+const COMMAND_INITIAL_PREWARM_ROWS = 10;
+const COMMAND_PREWARM_AHEAD_ROWS = 8;
+const COMMAND_PREWARM_BEHIND_ROWS = 2;
+const COMMAND_VIRTUAL_VIEWPORT = { top: 900, bottom: 1800 };
+const COMMAND_VIRTUAL_OVERSCAN = 420;
 const argBreakdownCache = new WeakMap<Argument, TypeBreakdown>();
 const ARG_CARD_VISIBILITY_STYLE: CSSProperties = {
     contain: "layout style paint",
@@ -48,14 +98,6 @@ function getCachedArgBreakdown(arg: Argument): TypeBreakdown {
     argBreakdownCache.set(arg, breakdown);
     return breakdown;
 }
-
-type CommandArgGroup = {
-    key: string;
-    groupId: number | null;
-    groupTitle: string;
-    groupDescription: string;
-    entries: CommandArgEntry[];
-};
 
 function buildCommandArgEntry(command: BaseCommand, arg: Argument): CommandArgEntry {
     const groupId = arg.arg.group ?? null;
@@ -77,7 +119,7 @@ function buildGroupedArgs(argsArr: CommandArgEntry[]): CommandArgGroup[] {
     let lastGroupId = -1;
     let lastGroup: CommandArgGroup | null = null;
 
-    for (let i = 0; i < argsArr.length; i++) {
+    for (let i = 0; i < argsArr.length; i += 1) {
         const entry = argsArr[i];
         if (entry.groupId == null) {
             groupedArgs.push({
@@ -87,7 +129,10 @@ function buildGroupedArgs(argsArr: CommandArgEntry[]): CommandArgGroup[] {
                 groupDescription: "",
                 entries: [entry],
             });
-        } else if (entry.groupId !== lastGroupId || !lastGroup) {
+            continue;
+        }
+
+        if (entry.groupId !== lastGroupId || !lastGroup) {
             lastGroup = {
                 key: `group-${entry.groupId}-${i}`,
                 groupId: entry.groupId,
@@ -97,13 +142,136 @@ function buildGroupedArgs(argsArr: CommandArgEntry[]): CommandArgGroup[] {
             };
             lastGroupId = entry.groupId;
             groupedArgs.push(lastGroup);
-        } else {
-            lastGroup.entries.push(entry);
+            continue;
         }
+
+        lastGroup.entries.push(entry);
     }
 
     return groupedArgs;
 }
+
+function buildVirtualRows(groups: readonly CommandArgGroup[]): CommandRowItem[] {
+    const items: CommandRowItem[] = [];
+
+    groups.forEach((group) => {
+        if (group.groupId != null) {
+            items.push({
+                key: `${group.key}-header`,
+                kind: "group-header",
+                groupId: group.groupId,
+                groupTitle: group.groupTitle,
+                groupDescription: group.groupDescription,
+            });
+        }
+
+        group.entries.forEach((entry) => {
+            items.push({
+                key: `arg-${entry.arg.name}`,
+                kind: "arg",
+                entry,
+            });
+        });
+    });
+
+    return items;
+}
+
+function synchronizeFieldStates(
+    currentStates: CommandFieldStateMap,
+    entries: readonly CommandArgEntry[],
+    initialValues: Record<string, string>,
+    reseedFromInitialValues: boolean,
+): CommandFieldStateMap {
+    return entries.reduce<CommandFieldStateMap>((accumulator, entry) => {
+        accumulator[entry.arg.name] = reseedFromInitialValues
+            ? createCommandFieldState(initialValues[entry.arg.name] ?? "")
+            : currentStates[entry.arg.name] ?? createCommandFieldState(initialValues[entry.arg.name] ?? "");
+        return accumulator;
+    }, {});
+}
+
+function serializeInitialValues(initialValues: Record<string, string>): string {
+    return Object.entries(initialValues)
+        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+        .map(([key, value]) => `${key}:${value}`)
+        .join("|");
+}
+
+function findArgContainer(root: ParentNode | null, argName: string): HTMLElement | null {
+    if (!root) {
+        return null;
+    }
+
+    const matches = Array.from(root.querySelectorAll<HTMLElement>("[data-arg-name]"));
+    return matches.find((element) => element.dataset.argName === argName) ?? null;
+}
+
+function focusPreferredField(container: HTMLElement | null): boolean {
+    if (!container) {
+        return false;
+    }
+
+    const preferredSelectors = [
+        'textarea:not([disabled])',
+        'input:not([disabled]):not([type="hidden"])',
+        '[contenteditable="true"]',
+        '[role="textbox"]:not([aria-disabled="true"])',
+        'select:not([disabled])',
+    ];
+
+    for (const selector of preferredSelectors) {
+        const candidate = container.querySelector<HTMLElement>(selector);
+        if (!candidate) {
+            continue;
+        }
+
+        candidate.focus();
+        return true;
+    }
+
+    return false;
+}
+
+function collectPrewarmNames(items: readonly CommandRowItem[], startIndex: number, endIndex: number): Set<string> {
+    const nextNames = new Set<string>();
+    const safeStart = Math.max(0, startIndex - COMMAND_PREWARM_BEHIND_ROWS);
+    const safeEnd = Math.min(items.length - 1, endIndex + COMMAND_PREWARM_AHEAD_ROWS);
+
+    for (let index = safeStart; index <= safeEnd; index += 1) {
+        const item = items[index];
+        if (item?.kind === "arg") {
+            nextNames.add(item.entry.arg.name);
+        }
+    }
+
+    return nextNames;
+}
+
+const CommandGroupHeader = memo(function CommandGroupHeader({
+    groupTitle,
+    groupDescription,
+    compact,
+}: {
+    groupTitle: string;
+    groupDescription: string;
+    compact: boolean;
+}) {
+    return (
+        <div className={cn("px-0.5 pt-2", compact && "pt-1.5")}>
+            <div className="border-b border-border/50 pb-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {groupTitle}
+                </p>
+                {groupDescription && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                        {groupDescription}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+});
 
 const CommandArgCard = memo(function CommandArgCard({
     entry,
@@ -111,23 +279,47 @@ const CommandArgCard = memo(function CommandArgCard({
     compact,
     trackFocusedArg,
     handleFocusCapture,
-    initialValue,
+    fieldState,
+    setFieldState,
     setOutput,
+    commitOutput,
     forceMountAll,
+    prewarm,
+    autoFocusOnMount,
+    onAutoFocusComplete,
 }: {
     entry: CommandArgEntry;
     displayMode: CommandInputDisplayMode;
     compact: boolean;
     trackFocusedArg: boolean;
     handleFocusCapture: (event: FocusEvent<HTMLDivElement>) => void;
-    initialValue: string;
+    fieldState: CommandFieldState;
+    setFieldState: (updater: CommandFieldStateUpdater) => void;
     setOutput: (key: string, value: string) => void;
+    commitOutput: (key: string, value: string) => void;
     forceMountAll?: boolean;
+    prewarm?: boolean;
+    autoFocusOnMount?: boolean;
+    onAutoFocusComplete?: () => void;
 }) {
     const { arg } = entry;
+    const containerRef = useRef<HTMLDivElement | null>(null);
+
+    useLayoutEffect(() => {
+        if (!autoFocusOnMount) {
+            return;
+        }
+
+        if (!focusPreferredField(containerRef.current)) {
+            return;
+        }
+
+        onAutoFocusComplete?.();
+    }, [autoFocusOnMount, onAutoFocusComplete]);
 
     return (
         <div
+            ref={containerRef}
             className={cn("w-full rounded-md border border-border/60 bg-background/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]", compact ? "p-px" : "p-0.5")}
             data-arg-name={arg.name}
             onFocusCapture={trackFocusedArg ? handleFocusCapture : undefined}
@@ -148,15 +340,18 @@ const CommandArgCard = memo(function CommandArgCard({
                 )}
                 <div className="min-w-0 flex-1">
                     <ArgInput
-                        key={`${arg.name}:${initialValue}`}
                         argName={arg.name}
                         breakdown={entry.breakdown}
                         min={arg.arg.min}
                         max={arg.arg.max}
-                        initialValue={initialValue}
+                        initialValue={fieldState.displayValue}
+                        fieldState={fieldState}
+                        setFieldState={setFieldState}
                         displayMode={displayMode}
                         forceMountAll={forceMountAll}
+                        prewarm={prewarm}
                         setOutputValue={setOutput}
+                        setCommittedValue={commitOutput}
                     />
                 </div>
             </ArgFieldShell>
@@ -184,18 +379,59 @@ function FocusInfoBar({ arg }: { arg: Argument | null }) {
     );
 }
 
-const CommandComponent = memo(function CommandComponent({ command, overrideName, filterArguments, initialValues, setOutput, displayMode = "card", forceMountAll = false }: CommandProps) {
+const CommandComponent = memo(function CommandComponent({
+    command,
+    overrideName,
+    filterArguments,
+    initialValues,
+    setOutput,
+    displayMode = "card",
+    forceMountAll = false,
+    virtualizationMode = "auto",
+}: CommandProps) {
     const { showDialog } = useDialog();
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    const virtuosoRef = useRef<VirtuosoHandle | null>(null);
+    const [focusedArgName, setFocusedArgName] = useState<string | null>(null);
+    const [fieldStates, setFieldStates] = useState<CommandFieldStateMap>({});
+    const [prewarmedArgNames, setPrewarmedArgNames] = useState<Set<string>>(() => new Set());
+    const [pendingFocusArgName, setPendingFocusArgName] = useState<string | null>(null);
+    const previousInitialValuesSignatureRef = useRef<string | null>(null);
+
     const argEntries = useMemo(() => command.getArguments().filter(filterArguments).map((arg) => buildCommandArgEntry(command, arg)), [command, filterArguments]);
     const groupedArgs = useMemo(() => buildGroupedArgs(argEntries), [argEntries]);
+    const virtualRows = useMemo(() => buildVirtualRows(groupedArgs), [groupedArgs]);
+    const initialValuesSignature = useMemo(() => serializeInitialValues(initialValues), [initialValues]);
     const compact = isCompactMode(displayMode);
     const trackFocusedArg = displayMode === "focus-pane";
-    const [focusedArgName, setFocusedArgName] = useState<string | null>(null);
-    const [localValues, setLocalValues] = useState<{ [key: string]: string }>(initialValues);
+    const shouldVirtualize = virtualizationMode !== "off" && !forceMountAll && argEntries.length >= COMMAND_VIRTUALIZE_THRESHOLD;
+
+    const argOrder = useMemo(() => argEntries.map((entry) => entry.arg.name), [argEntries]);
+    const argRowIndexByName = useMemo(() => {
+        const nextMap = new Map<string, number>();
+        virtualRows.forEach((item, index) => {
+            if (item.kind === "arg") {
+                nextMap.set(item.entry.arg.name, index);
+            }
+        });
+        return nextMap;
+    }, [virtualRows]);
 
     useEffect(() => {
-        setLocalValues(initialValues);
-    }, [initialValues]);
+        const shouldReseedFromInitialValues = previousInitialValuesSignatureRef.current !== initialValuesSignature;
+        previousInitialValuesSignatureRef.current = initialValuesSignature;
+
+        setFieldStates((currentStates) => synchronizeFieldStates(
+            currentStates,
+            argEntries,
+            initialValues,
+            shouldReseedFromInitialValues,
+        ));
+    }, [argEntries, initialValues, initialValuesSignature]);
+
+    useEffect(() => {
+        setPrewarmedArgNames(new Set(argOrder.slice(0, COMMAND_INITIAL_PREWARM_ROWS)));
+    }, [argOrder]);
 
     useEffect(() => {
         if (!trackFocusedArg && focusedArgName != null) {
@@ -208,6 +444,52 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
         return argEntries.find((entry) => entry.arg.name === focusedArgName)?.arg ?? null;
     }, [argEntries, focusedArgName, trackFocusedArg]);
 
+    const updateFieldState = useCallback((argName: string, updater: CommandFieldStateUpdater) => {
+        setFieldStates((currentStates) => {
+            const previousState = currentStates[argName] ?? createCommandFieldState(initialValues[argName] ?? "");
+            const nextState = applyCommandFieldStateUpdater(previousState, updater);
+            if (commandFieldStatesEqual(previousState, nextState)) {
+                return currentStates;
+            }
+
+            return {
+                ...currentStates,
+                [argName]: nextState,
+            };
+        });
+    }, [initialValues]);
+
+    const fieldStateUpdaters = useMemo<Record<string, (updater: CommandFieldStateUpdater) => void>>(() => {
+        return argEntries.reduce<Record<string, (updater: CommandFieldStateUpdater) => void>>((accumulator, entry) => {
+            accumulator[entry.arg.name] = (updater) => updateFieldState(entry.arg.name, updater);
+            return accumulator;
+        }, {});
+    }, [argEntries, updateFieldState]);
+
+    const handleFieldOutput = useCallback((argName: string, value: string) => {
+        updateFieldState(argName, (previousState) => {
+            if (previousState.displayValue === value && previousState.committedValue === value) {
+                return previousState;
+            }
+
+            return {
+                ...previousState,
+                displayValue: value,
+                committedValue: value,
+            };
+        });
+        setOutput(argName, value);
+    }, [setOutput, updateFieldState]);
+
+    const handleFieldCommit = useCallback((argName: string, value: string) => {
+        updateFieldState(argName, (previousState) => (
+            previousState.committedValue === value
+                ? previousState
+                : { ...previousState, committedValue: value }
+        ));
+        setOutput(argName, value);
+    }, [setOutput, updateFieldState]);
+
     const handleFocusCapture = useCallback((event: FocusEvent<HTMLDivElement>) => {
         if (!trackFocusedArg) {
             return;
@@ -219,15 +501,27 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
     }, [trackFocusedArg]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
-        const pastedText = event.clipboardData.getData('text');
+        const pastedText = event.clipboardData.getData("text");
         if (!pastedText) return;
 
         const parsed = parseCommandStringDetailed(command, pastedText);
-        if (parsed.values) {
+        const parsedValues = parsed.values;
+        if (parsedValues) {
             event.preventDefault();
             event.stopPropagation();
-            setLocalValues(prev => ({ ...prev, ...parsed.values }));
-            for (const [key, value] of Object.entries(parsed.values)) {
+            setFieldStates((currentStates) => {
+                const nextStates = { ...currentStates };
+                Object.entries(parsedValues).forEach(([key, value]) => {
+                    const previousState = nextStates[key] ?? createCommandFieldState(initialValues[key] ?? "");
+                    nextStates[key] = {
+                        ...previousState,
+                        displayValue: value,
+                        committedValue: value,
+                    };
+                });
+                return nextStates;
+            });
+            for (const [key, value] of Object.entries(parsedValues)) {
                 setOutput(key, value);
             }
             return;
@@ -238,69 +532,151 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
             event.stopPropagation();
             showDialog("Unable to parse pasted command", <>{parsed.error}</>);
         }
-    }, [command, setOutput, showDialog]);
+    }, [command, initialValues, setOutput, showDialog]);
 
-    const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === 'Enter' && !event.ctrlKey && !event.shiftKey && !event.isDefaultPrevented()) {
-            const target = event.target as HTMLElement;
-            if (target.tagName === 'TEXTAREA') return;
-            if (target.tagName === 'BUTTON') return;
-
-            // Find all focusable inputs within this CommandComponent
-            const container = event.currentTarget;
-            const focusableElements = Array.from(
-                container.querySelectorAll('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')
-            ) as HTMLElement[];
-
-            const currentIndex = focusableElements.indexOf(target);
-            if (currentIndex > -1 && currentIndex < focusableElements.length - 1) {
-                event.preventDefault();
-                focusableElements[currentIndex + 1].focus();
-            }
-        }
+    const tryFocusArg = useCallback((argName: string) => {
+        const root = rootRef.current;
+        return focusPreferredField(findArgContainer(root, argName));
     }, []);
 
+    const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.key !== "Enter" || event.ctrlKey || event.shiftKey || event.isDefaultPrevented()) {
+            return;
+        }
+
+        const target = event.target as HTMLElement;
+        if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") {
+            return;
+        }
+
+        const currentArgContainer = target.closest<HTMLElement>("[data-arg-name]");
+        const currentArgName = currentArgContainer?.dataset.argName;
+        if (!currentArgName) {
+            return;
+        }
+
+        const currentIndex = argOrder.indexOf(currentArgName);
+        if (currentIndex === -1 || currentIndex >= argOrder.length - 1) {
+            return;
+        }
+
+        const nextArgName = argOrder[currentIndex + 1];
+        event.preventDefault();
+        if (tryFocusArg(nextArgName)) {
+            return;
+        }
+
+        const nextRowIndex = argRowIndexByName.get(nextArgName);
+        if (nextRowIndex == null) {
+            return;
+        }
+
+        setPendingFocusArgName(nextArgName);
+        virtuosoRef.current?.scrollToIndex({ index: nextRowIndex, align: "center", behavior: "auto" });
+    }, [argOrder, argRowIndexByName, tryFocusArg]);
+
+    const handleRangeChanged = useCallback((range: { startIndex: number; endIndex: number }) => {
+        if (!shouldVirtualize) {
+            return;
+        }
+
+        setPrewarmedArgNames((currentNames) => {
+            const nextNames = new Set(currentNames);
+            collectPrewarmNames(virtualRows, range.startIndex, range.endIndex).forEach((name) => nextNames.add(name));
+            return nextNames.size === currentNames.size ? currentNames : nextNames;
+        });
+    }, [shouldVirtualize, virtualRows]);
+
+    const handlePendingFocusComplete = useCallback(() => {
+        setPendingFocusArgName(null);
+    }, []);
+
+    const renderArgRow = useCallback((entry: CommandArgEntry) => {
+        const fieldState = fieldStates[entry.arg.name] ?? createCommandFieldState(initialValues[entry.arg.name] ?? "");
+        const setFieldState = fieldStateUpdaters[entry.arg.name];
+        const prewarm = forceMountAll || prewarmedArgNames.has(entry.arg.name);
+        const autoFocusOnMount = pendingFocusArgName === entry.arg.name;
+
+        return (
+            <CommandArgCard
+                key={entry.arg.name}
+                entry={entry}
+                displayMode={displayMode}
+                compact={compact}
+                trackFocusedArg={trackFocusedArg}
+                handleFocusCapture={handleFocusCapture}
+                fieldState={fieldState}
+                setFieldState={setFieldState}
+                setOutput={handleFieldOutput}
+                commitOutput={handleFieldCommit}
+                forceMountAll={forceMountAll}
+                prewarm={prewarm}
+                autoFocusOnMount={autoFocusOnMount}
+                onAutoFocusComplete={autoFocusOnMount ? handlePendingFocusComplete : undefined}
+            />
+        );
+    }, [compact, displayMode, fieldStateUpdaters, fieldStates, forceMountAll, handleFieldCommit, handleFieldOutput, handleFocusCapture, handlePendingFocusComplete, initialValues, pendingFocusArgName, prewarmedArgNames, trackFocusedArg]);
+
+    const computeVirtualItemKey = useCallback((_: number, item: CommandRowItem) => item.key, []);
+
+    const renderVirtualRow = useCallback((index: number, item: CommandRowItem) => {
+        if (item.kind === "group-header") {
+            return (
+                <CommandGroupHeader
+                    groupTitle={item.groupTitle}
+                    groupDescription={item.groupDescription}
+                    compact={compact}
+                />
+            );
+        }
+
+        return (
+            <div className={cn("px-0.5 py-1", compact && "py-0.5")}>
+                {renderArgRow(item.entry)}
+            </div>
+        );
+    }, [compact, renderArgRow]);
+
     return (
-        <div className={cn("space-y-2.5", compact && "space-y-1.5")} data-command-root="true" onPasteCapture={handlePasteCapture} onKeyDown={handleKeyDown}>
+        <div
+            ref={rootRef}
+            className={cn("space-y-2.5", compact && "space-y-1.5")}
+            data-command-root="true"
+            onPasteCapture={handlePasteCapture}
+            onKeyDown={handleKeyDown}
+        >
             <h2 className={cn("text-sm font-semibold tracking-tight", compact && "text-xs")}>{overrideName ?? command.name}</h2>
             {displayMode === "focus-pane" && <FocusInfoBar arg={focusedArg} />}
-            {
-                groupedArgs.map((group, index) => {
+            {shouldVirtualize ? (
+                <Virtuoso
+                    ref={virtuosoRef}
+                    useWindowScroll
+                    data={virtualRows}
+                    computeItemKey={computeVirtualItemKey}
+                    increaseViewportBy={COMMAND_VIRTUAL_VIEWPORT}
+                    overscan={COMMAND_VIRTUAL_OVERSCAN}
+                    rangeChanged={handleRangeChanged}
+                    itemContent={renderVirtualRow}
+                />
+            ) : (
+                groupedArgs.map((group) => {
                     const groupExists = group.groupId != null;
-                    const groupDescExists = Boolean(group.groupDescription);
                     return (
                         <section className={cn("space-y-2 px-0.5", compact && "space-y-1.5")} key={group.key}>
-                            {groupExists &&
-                                <div className="border-b border-border/50 pb-1">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                                        {group.groupTitle}
-                                    </p>
-                                    {groupDescExists &&
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {group.groupDescription}
-                                        </p>
-                                    }
-                                </div>
-                            }
+                            {groupExists && (
+                                <CommandGroupHeader
+                                    groupTitle={group.groupTitle}
+                                    groupDescription={group.groupDescription}
+                                    compact={compact}
+                                />
+                            )}
                             <div className={cn("space-y-2", compact && "space-y-1.5")}>
-                                {group.entries.map((entry, argIndex) => (
-                                    <CommandArgCard
-                                        key={index + "-" + argIndex + "m"}
-                                        entry={entry}
-                                        displayMode={displayMode}
-                                        compact={compact}
-                                        trackFocusedArg={trackFocusedArg}
-                                        handleFocusCapture={handleFocusCapture}
-                                        initialValue={localValues[entry.arg.name] ?? ""}
-                                        setOutput={setOutput}
-                                        forceMountAll={forceMountAll}
-                                    />
-                                ))}
+                                {group.entries.map((entry) => renderArgRow(entry))}
                             </div>
                         </section>
                     );
                 })
-            }
+            )}
         </div>
     );
 });
@@ -308,12 +684,12 @@ const CommandComponent = memo(function CommandComponent({ command, overrideName,
 export function ArgDescComponent(
     { entry, arg: legacyArg, includeType = false, includeDesc = false, includeExamples = false, compact = false }:
         {
-            entry?: CommandArgEntry,
-            arg?: Argument,
-            includeType?: boolean,
-            includeDesc?: boolean,
-            includeExamples?: boolean,
-            compact?: boolean,
+            entry?: CommandArgEntry;
+            arg?: Argument;
+            includeType?: boolean;
+            includeDesc?: boolean;
+            includeExamples?: boolean;
+            compact?: boolean;
         }) {
     const resolvedEntry = entry ?? (legacyArg ? {
         arg: legacyArg,

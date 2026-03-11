@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Props = {
     value: string;
@@ -25,8 +26,8 @@ const SearchBar = React.forwardRef<HTMLInputElement, Props>(
             <div className="relative w-full">
                 <Input
                     ref={ref}
-                    className={["w-full pr-10 h-10", className ?? ""].join(" ")}
-                    type="search"
+                    className={cn("h-7 w-full pr-8", className)}
+                    type="text"
                     placeholder={placeholder}
                     value={value}
                     onChange={onChange}
@@ -39,13 +40,13 @@ const SearchBar = React.forwardRef<HTMLInputElement, Props>(
                     <Button
                         type="button"
                         variant="ghost"
-                        size="icon"
+                        size="iconSm"
                         onClick={onClear}
-                        className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+                        className="absolute right-0.5 top-1/2 -translate-y-1/2"
                         aria-label="Clear search"
                         title="Clear search (Esc)"
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-3.5 w-3.5" />
                     </Button>
                 )}
             </div>

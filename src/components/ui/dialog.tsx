@@ -4,6 +4,22 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+export const DIALOG_CHROME_BUTTON_CLASS_NAME = cn(
+    "inline-flex h-8 w-8 items-center justify-center rounded-md border shadow-sm transition-colors",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+    "disabled:pointer-events-none disabled:opacity-50",
+);
+
+export const DIALOG_EXPAND_BUTTON_CLASS_NAME = cn(
+    DIALOG_CHROME_BUTTON_CLASS_NAME,
+    "border-primary/35 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground",
+);
+
+export const DIALOG_CLOSE_BUTTON_CLASS_NAME = cn(
+    DIALOG_CHROME_BUTTON_CLASS_NAME,
+    "border-destructive/35 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground",
+);
+
 const Dialog = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -46,8 +62,11 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
-    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, onInteractOutside, onPointerDownOutside, onFocusOutside, ...props }, ref) => {
+    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+        headerActions?: React.ReactNode;
+        showCloseButton?: boolean;
+    }
+>(({ className, children, headerActions, showCloseButton = true, onInteractOutside, onPointerDownOutside, onFocusOutside, ...props }, ref) => {
     const handleInteractOutside = React.useCallback((event: DialogInteractOutsideEvent) => {
         if (isHtmlEditorFullscreenTarget(event.target)) {
             event.preventDefault();
@@ -90,10 +109,17 @@ const DialogContent = React.forwardRef<
                 {...props}
             >
                 {children}
-                <DialogPrimitive.Close className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none">
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                </DialogPrimitive.Close>
+                {(headerActions || showCloseButton) && (
+                    <div className="absolute right-3 top-3 flex items-center gap-2">
+                        {headerActions}
+                        {showCloseButton && (
+                            <DialogPrimitive.Close className={DIALOG_CLOSE_BUTTON_CLASS_NAME}>
+                                <X className="h-4 w-4" />
+                                <span className="sr-only">Close</span>
+                            </DialogPrimitive.Close>
+                        )}
+                    </div>
+                )}
             </DialogPrimitive.Content>
         </DialogPortal>
     );

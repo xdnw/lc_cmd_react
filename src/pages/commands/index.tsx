@@ -1,15 +1,50 @@
-import CmdList from "@/components/cmd/CmdList.tsx";
-import {CM, CommandMap} from "@/utils/Command.ts";
-import {withAsyncData} from "@/components/api/Wrapped";
+import { useEffect, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
-const CmdListWithAsyncData = withAsyncData(CmdList, async() => CM, (data: CommandMap) => ({
-    map: data,
-    commands: Object.values(data.getCommands()),
-    prefix: "/"
-}));
+import CmdList from "@/components/cmd/CmdList";
+import {
+    createCmdBrowserSearchParams,
+    isCmdBrowserStateEqual,
+    parseCmdBrowserStateFromSearchParams,
+    type CmdBrowserState,
+} from "@/components/cmd/cmdBrowserState";
+import { CM } from "@/utils/Command";
 
 export default function CommandsPage() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const commands = useMemo(() => CM.getCommands(), []);
+    const browserState = useMemo(() => {
+        return parseCmdBrowserStateFromSearchParams(new URLSearchParams(location.search));
+    }, [location.search]);
+
+    useEffect(() => {
+        const searchParams = createCmdBrowserSearchParams(browserState);
+        const nextSearch = searchParams.size > 0 ? `?${searchParams.toString()}` : "";
+        if (nextSearch !== location.search) {
+            navigate({ pathname: "/commands", search: nextSearch }, { replace: true });
+        }
+    }, [browserState, location.search, navigate]);
+
+    const handleStateChange = (nextState: CmdBrowserState) => {
+        if (isCmdBrowserStateEqual(nextState, browserState)) {
+            return;
+        }
+
+        const searchParams = createCmdBrowserSearchParams(nextState);
+        navigate({
+            pathname: "/commands",
+            search: searchParams.size > 0 ? `?${searchParams.toString()}` : "",
+        }, { replace: true });
+    };
+
     return (
-        <CmdListWithAsyncData />
+        <CmdList
+            commands={commands}
+            prefix="/"
+            state={browserState}
+            onStateChange={handleStateChange}
+            autoFocusSearch={true}
+        />
     );
 }

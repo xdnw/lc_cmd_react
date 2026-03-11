@@ -32,6 +32,8 @@ import {
 interface CommandProps {
     command: BaseCommand;
     overrideName?: string;
+    showTitle?: boolean;
+    autoFocusFirstField?: boolean;
     filterArguments: (arg: Argument) => boolean;
     initialValues: { [key: string]: string };
     displayMode?: CommandInputDisplayMode;
@@ -382,6 +384,8 @@ function FocusInfoBar({ arg }: { arg: Argument | null }) {
 const CommandComponent = memo(function CommandComponent({
     command,
     overrideName,
+    showTitle = true,
+    autoFocusFirstField = false,
     filterArguments,
     initialValues,
     setOutput,
@@ -438,6 +442,24 @@ const CommandComponent = memo(function CommandComponent({
             setFocusedArgName(null);
         }
     }, [focusedArgName, trackFocusedArg]);
+
+    useLayoutEffect(() => {
+        if (!autoFocusFirstField || argOrder.length === 0) {
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => {
+            const firstArgName = argOrder[0];
+            const focused = focusPreferredField(findArgContainer(rootRef.current, firstArgName));
+            if (focused && trackFocusedArg) {
+                setFocusedArgName(firstArgName);
+            }
+        });
+
+        return () => {
+            window.cancelAnimationFrame(frame);
+        };
+    }, [argOrder, autoFocusFirstField, trackFocusedArg]);
 
     const focusedArg = useMemo(() => {
         if (!trackFocusedArg || !focusedArgName) return null;
@@ -645,7 +667,7 @@ const CommandComponent = memo(function CommandComponent({
             onPasteCapture={handlePasteCapture}
             onKeyDown={handleKeyDown}
         >
-            <h2 className={cn("text-sm font-semibold tracking-tight", compact && "text-xs")}>{overrideName ?? command.name}</h2>
+            {showTitle && <h2 className={cn("text-sm font-semibold tracking-tight", compact && "text-xs")}>{overrideName ?? command.name}</h2>}
             {displayMode === "focus-pane" && <FocusInfoBar arg={focusedArg} />}
             {shouldVirtualize ? (
                 <Virtuoso

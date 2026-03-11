@@ -6,6 +6,7 @@ import { DialogProvider } from "./DialogContext";
 import { SessionProvider } from '../api/SessionContext';
 import type { AppRouteConfig } from '@/App';
 import RecentPageKeepAlive from './RecentPageKeepAlive';
+import CommandLauncher from '@/components/cmd/CommandLauncher';
 
 export default function PageView({ routeConfigs }: { routeConfigs: readonly AppRouteConfig[] }): ReactElement {
     const navBar = useMemo(() => {
@@ -21,6 +22,7 @@ export default function PageView({ routeConfigs }: { routeConfigs: readonly AppR
                             <RecentPageKeepAlive routeConfigs={routeConfigs} />
                         </main>
                         <Footer />
+                        <CommandLauncher />
                     </div>
                 </ThemeProvider>
             </SessionProvider>

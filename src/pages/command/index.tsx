@@ -1,11 +1,10 @@
 import React, { startTransition, useCallback, useMemo, useRef, useState } from 'react';
 import CommandComponent from '../../components/cmd/CommandComponent'; // Import CommandComponent
+import CommandStringPreview from '@/components/cmd/CommandStringPreview';
 import { CommandQueryRegistryProvider } from '@/components/cmd/CommandQueryRegistry';
 import { CommandStoreType } from '@/utils/StateUtil.ts';
 import { Command, CM, AnyCommandPath, CommandPath, getTypeBreakdown } from '@/utils/Command.ts';
 import { useLocation, useParams } from "react-router-dom";
-import { BlockCopyButton } from "@/components/ui/block-copy-button.tsx";
-import { TooltipProvider } from "@/components/ui/tooltip.tsx";
 import { Button } from "../../components/ui/button";
 import { getQueryParams } from "@/lib/utils.ts";
 import { UNPACKR } from "@/lib/msgpack";
@@ -426,14 +425,7 @@ export function OutputValuesDisplay({ name, store }: { name: string, store: Comm
 
     return (
         <div className="relative">
-            <div className='flex items-center'>
-                <TooltipProvider>
-                    <BlockCopyButton className="rounded-[5px] [&_svg]:size-3.5 mr-1 mb-1" size="sm" left={true} getText={getText} tabIndex={-1} />
-                </TooltipProvider>
-                <p className="w-full rounded h-6 pl-1 mb-1 bg-accent border border-slate-500 border-opacity-50 overflow-hidden text-ellipsis whitespace-nowrap" ref={textRef}>
-                    {commandString}
-                </p>
-            </div>
+            <CommandStringPreview text={commandString} getText={getText} className="mb-1" />
             <Button variant="outline" size="sm" onClick={runCommandCallback} tabIndex={-1}>Run Ctrl ↩</Button>
             <Button variant="outline" size="sm" className="ms-1" onClick={clearOutput} tabIndex={-1}>Clear</Button>
             <div ref={responseRef}></div>

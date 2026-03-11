@@ -1,12 +1,14 @@
 import CommandActionButton from "@/components/cmd/CommandActionButton";
 import CommandComponent from "@/components/cmd/CommandComponent";
+import CommandStringPreview from "@/components/cmd/CommandStringPreview";
 import type { CommandInputDisplayMode } from "@/components/cmd/field/fieldTypes";
-import { deepEqual } from "@/lib/utils";
+import { cn, deepEqual } from "@/lib/utils";
 import { COMMANDS } from "@/lib/commands";
 import { CM } from "@/utils/Command";
 import type { AnyCommandPath, CommandArguments } from "@/utils/Command";
 import { createCommandStoreWithDef } from "@/utils/StateUtil";
-import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
+import { formatCommandString } from "@/utils/CommandParser";
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 
 type CommandDialogArgs<P extends AnyCommandPath> = Partial<CommandArguments<typeof COMMANDS.commands, P>>;
@@ -20,6 +22,10 @@ export type CommandDialogFormProps<P extends AnyCommandPath> = {
     showResultDialog?: boolean;
     onCompleteSuccess?: () => void;
     runDisabled?: boolean;
+    onOutputChange?: (output: Record<string, string | string[]>) => void;
+    showCommandTitle?: boolean;
+    autoFocusFirstField?: boolean;
+    actionsLayout?: "flow" | "sticky";
     children?: (ctx: {
         output: Record<string, string | string[]>;
         setOutput: (key: string, value: string) => void;
@@ -40,6 +46,8 @@ const CommandDialogFields = memo(function CommandDialogFields<P extends AnyComma
     initialValues,
     description,
     displayMode,
+    showCommandTitle,
+    autoFocusFirstField,
     children,
     setOutput,
 }: {
@@ -47,6 +55,8 @@ const CommandDialogFields = memo(function CommandDialogFields<P extends AnyComma
     initialValues: Record<string, string>;
     description?: string;
     displayMode?: CommandInputDisplayMode;
+    showCommandTitle?: boolean;
+    autoFocusFirstField?: boolean;
     children?: CommandDialogFormProps<P>["children"];
     setOutput: (key: string, value: string) => void;
 }) {
@@ -66,6 +76,8 @@ const CommandDialogFields = memo(function CommandDialogFields<P extends AnyComma
                         initialValues={initialValues}
                         setOutput={setOutput}
                         displayMode={displayMode}
+                        showTitle={showCommandTitle}
+                        autoFocusFirstField={autoFocusFirstField}
                     />
                 )}
             </div>
@@ -89,36 +101,52 @@ function CommandDialogChildrenOutput<P extends AnyCommandPath>({
 function CommandDialogActions<P extends AnyCommandPath>({
     commandStore,
     commandPath,
+    commandPathString,
     commandName,
     runLabel,
     runDisabled,
     showResultDialog,
     onComplete,
+    actionsLayout,
     extraActions,
 }: {
     commandStore: ReturnType<typeof createCommandStoreWithDef>;
     commandPath: P;
+    commandPathString: string;
     commandName: string;
     runLabel?: string;
     runDisabled?: boolean;
     showResultDialog: boolean;
     onComplete?: (result?: { status?: "success" | "error" | "action" }) => void;
+    actionsLayout: "flow" | "sticky";
     extraActions?: ReactNode;
 }) {
     const output = useStoreWithEqualityFn(commandStore, selectOutput, deepEqual);
+    const commandString = useMemo(() => formatCommandString(commandPathString, output), [commandPathString, output]);
+    const getCommandText = useCallback(() => formatCommandString(commandPathString, commandStore.getState().output), [commandPathString, commandStore]);
 
     return (
-        <div className="flex flex-wrap items-center gap-2">
-            <CommandActionButton
-                command={commandPath}
-                args={output as CommandDialogArgs<P>}
-                label={runLabel ?? `Run ${commandName}`}
-                classes="!ms-0"
-                disabled={runDisabled}
-                showResultDialog={showResultDialog}
-                onComplete={onComplete}
-            />
-            {extraActions}
+        <div className={cn(
+            "flex gap-2",
+            actionsLayout === "sticky"
+                ? "sticky bottom-0 z-20 -mx-2 border-t border-border/70 bg-background/96 px-2 pb-2 pt-2 backdrop-blur"
+                : "flex-wrap items-center",
+        )}>
+            <div className="min-w-0 flex-1">
+                <CommandStringPreview text={commandString} getText={getCommandText} />
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+                <CommandActionButton
+                    command={commandPath}
+                    args={output as CommandDialogArgs<P>}
+                    label={runLabel ?? `Run ${commandName}`}
+                    classes="!ms-0"
+                    disabled={runDisabled}
+                    showResultDialog={showResultDialog}
+                    onComplete={onComplete}
+                />
+                {extraActions}
+            </div>
         </div>
     );
 }
@@ -132,12 +160,22 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
     showResultDialog = true,
     onCompleteSuccess,
     runDisabled = false,
+    onOutputChange,
+    showCommandTitle = true,
+    autoFocusFirstField = false,
+    actionsLayout = "flow",
     children,
     extraActions,
 }: CommandDialogFormProps<P>) {
     const [commandStore] = useState(() => createCommandStoreWithDef(initialValues));
     const setOutput = commandStore(selectSetOutput);
+    const output = useStoreWithEqualityFn(commandStore, selectOutput, deepEqual);
     const commandName = useMemo(() => CM.get(commandPath).name, [commandPath]);
+    const commandPathString = useMemo(() => commandPath.join(" "), [commandPath]);
+
+    useEffect(() => {
+        onOutputChange?.(output);
+    }, [onOutputChange, output]);
 
     const onCompleteHandler = useMemo(() => {
         if (!onCompleteSuccess) return undefined;
@@ -148,35 +186,43 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
     }, [onCompleteSuccess]);
 
     return (
-        <div className="space-y-2 max-h-[70vh] overflow-auto">
-            {children ? (
-                <>
-                    {description && <p className="text-sm text-muted-foreground">{description}</p>}
-                    <div className="rounded border border-border p-2">
-                        <CommandDialogChildrenOutput
-                            commandStore={commandStore}
-                            children={children}
+        <div className="flex min-h-0 flex-col gap-2">
+            <div className="min-h-0 flex-1 overflow-auto pr-0.5">
+                <div className="space-y-2">
+                    {children ? (
+                        <>
+                            {description && <p className="text-sm text-muted-foreground">{description}</p>}
+                            <div className="rounded border border-border p-2">
+                                <CommandDialogChildrenOutput
+                                    commandStore={commandStore}
+                                    children={children}
+                                    setOutput={setOutput}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <CommandDialogFields
+                            commandPath={commandPath}
+                            initialValues={initialValues}
+                            description={description}
+                            displayMode={displayMode}
+                            showCommandTitle={showCommandTitle}
+                            autoFocusFirstField={autoFocusFirstField}
                             setOutput={setOutput}
                         />
-                    </div>
-                </>
-            ) : (
-                <CommandDialogFields
-                    commandPath={commandPath}
-                    initialValues={initialValues}
-                    description={description}
-                    displayMode={displayMode}
-                    setOutput={setOutput}
-                />
-            )}
+                    )}
+                </div>
+            </div>
             <CommandDialogActions
                 commandStore={commandStore}
                 commandPath={commandPath}
+                commandPathString={commandPathString}
                 commandName={commandName}
                 runLabel={runLabel}
                 runDisabled={runDisabled}
                 showResultDialog={showResultDialog}
                 onComplete={onCompleteHandler}
+                actionsLayout={actionsLayout}
                 extraActions={extraActions}
             />
         </div>

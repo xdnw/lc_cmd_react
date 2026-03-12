@@ -1,0 +1,1 @@
+import{K as e,N as u}from"./queries-Bd1AkMsM.js";import{u as s}from"./useBaseQuery-g34Zd_QC.js";function n(r,o){return s({...r,enabled:!0,suspense:!0,throwOnError:u,placeholderData:void 0},e)}export{n as u};

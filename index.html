@@ -7,6 +7,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Locutus Commands</title>
   <style>
+    :root {
+      color-scheme: dark;
+      --boot-bg: #0f172a;
+      --boot-surface: #111827;
+      --boot-border: #334155;
+      --boot-text: #e5e7eb;
+      --boot-muted: #94a3b8;
+      --boot-detail: #fca5a5;
+      --boot-button: #1e293b;
+      --boot-link: #e2e8f0;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--boot-bg);
+      color: var(--boot-text);
+    }
+
     #initial-loader {
       position: fixed;
       top: 0;
@@ -41,9 +60,114 @@
       opacity: .8;
       animation: w 1.2s ease-in-out infinite;
     }
+
+    #boot-failure {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem;
+      background: rgba(15, 23, 42, 0.94);
+      box-sizing: border-box;
+    }
+
+    #boot-failure[data-visible="true"] {
+      display: flex;
+    }
+
+    .boot-panel {
+      width: min(100%, 42rem);
+      border: 1px solid var(--boot-border);
+      border-radius: 0.5rem;
+      background: var(--boot-surface);
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+
+    .boot-title {
+      margin: 0;
+      font-size: 1.25rem;
+      line-height: 1.2;
+    }
+
+    .boot-copy {
+      margin: 0.5rem 0 0;
+      color: var(--boot-muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .boot-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .boot-button,
+    .boot-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.5rem;
+      padding: 0.625rem 0.9rem;
+      border: 1px solid var(--boot-border);
+      border-radius: 0.375rem;
+      background: var(--boot-button);
+      color: var(--boot-text);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+
+    .boot-button:hover,
+    .boot-link:hover {
+      border-color: #64748b;
+    }
+
+    .boot-link {
+      background: var(--boot-link);
+      color: #0f172a;
+    }
+
+    .boot-detail {
+      display: none;
+      margin: 0.75rem 0 0;
+      padding: 0.625rem;
+      border-radius: 0.375rem;
+      background: #020617;
+      border: 1px solid var(--boot-border);
+      color: var(--boot-detail);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 14rem;
+      overflow: auto;
+    }
+
+    .boot-detail[data-visible="true"] {
+      display: block;
+    }
+
+    @media (max-width: 640px) {
+      .boot-actions {
+        flex-direction: column;
+      }
+
+      .boot-button,
+      .boot-link {
+        width: 100%;
+      }
+    }
   </style>
-  <script type="module" crossorigin src="/assets/index-CxaO0670.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-JLlkCZEz.css">
+  <script type="module" crossorigin src="/assets/index-2O7Vsc4h.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BfIZqUr5.css">
 <link rel="manifest" href="/manifest.webmanifest"></head>
 
 <body style="background-color: black;">
@@ -59,22 +183,153 @@
       <div class="wave-bar" style="animation-delay:.5s"></div>
     </div>
   </div>
-
+
+  <div id="boot-failure" aria-live="assertive" role="alertdialog" aria-labelledby="boot-failure-title">
+    <div class="boot-panel">
+      <h1 id="boot-failure-title" class="boot-title">The app could not finish loading.</h1>
+      <p id="boot-failure-message" class="boot-copy">A required app file was missing or outdated. This often happens after a fresh deploy when the browser is holding on to cached files.</p>
+      <div class="boot-actions">
+        <a id="boot-reset-link" class="boot-link" href="/reset.html">Reset cached app data</a>
+        <button id="boot-reload-button" class="boot-button" type="button">Reload app</button>
+      </div>
+      <pre id="boot-failure-detail" class="boot-detail"></pre>
+    </div>
+  </div>
+
   <script>
-    // Hide loader when React app loads
-    window.addEventListener('load', function () {
-      // Give React a moment to render
-      setTimeout(function () {
-        const loader = document.getElementById('initial-loader');
-        if (loader) {
-          loader.style.opacity = '0';
-          setTimeout(function () {
-            loader.style.display = 'none';
-          }, 300);
+    (function () {
+      var assetErrorPattern = /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk .* failed|Unable to preload CSS|dynamically imported module/i;
+      var bootResolved = false;
+      var doc = document;
+      var loader = doc.getElementById('initial-loader');
+      var overlay = doc.getElementById('boot-failure');
+      var title = doc.getElementById('boot-failure-title');
+      var message = doc.getElementById('boot-failure-message');
+      var detail = doc.getElementById('boot-failure-detail');
+      var reloadButton = doc.getElementById('boot-reload-button');
+
+      function hideLoader() {
+        if (!loader) {
+          return;
         }
-      }, 200);
-    });
-  </script>
+
+        loader.style.opacity = '0';
+        window.setTimeout(function () {
+          loader.style.display = 'none';
+        }, 300);
+      }
+
+      function getErrorText(error) {
+        if (!error) {
+          return '';
+        }
+
+        if (typeof error === 'string') {
+          return error;
+        }
+
+        if (error instanceof Error) {
+          return [error.name, error.message, error.stack].filter(Boolean).join('\n');
+        }
+
+        if (typeof error === 'object') {
+          return [error.message, error.stack, error.reason, error.detail].filter(Boolean).join('\n');
+        }
+
+        return String(error);
+      }
+
+      function isRecoverableAssetError(error) {
+        return assetErrorPattern.test(getErrorText(error));
+      }
+
+      function setText(node, value) {
+        if (node && value) {
+          node.textContent = value;
+        }
+      }
+
+      function showDetail(value) {
+        if (!detail) {
+          return;
+        }
+
+        var text = value ? String(value) : '';
+        detail.textContent = text;
+        detail.setAttribute('data-visible', text ? 'true' : 'false');
+      }
+
+      function showBootFailure(options) {
+        bootResolved = true;
+        hideLoader();
+
+        setText(title, options && options.title);
+        setText(message, options && options.message);
+        showDetail(options && options.detail);
+
+        if (overlay) {
+          overlay.setAttribute('data-visible', 'true');
+        }
+      }
+
+      window.__appRecovery = {
+        hideLoader: hideLoader,
+        markBootMounted: function () {
+          bootResolved = true;
+          hideLoader();
+        },
+        showBootFailure: showBootFailure
+      };
+
+      if (reloadButton) {
+        reloadButton.addEventListener('click', function () {
+          window.location.reload();
+        });
+      }
+
+      window.addEventListener('error', function (event) {
+        if (bootResolved) {
+          return;
+        }
+
+        var target = event.target;
+        if (target && target !== window && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+          showBootFailure({
+            title: 'A required app file could not be loaded.',
+            message: 'This deploy looks newer than the files cached in this tab. Reset cached app data, then reload the app.',
+            detail: target.src || target.href || 'Unknown asset request failed.'
+          });
+          return;
+        }
+
+        if (isRecoverableAssetError(event.error || event.message)) {
+          showBootFailure({
+            title: 'The app is out of sync with the latest deploy.',
+            message: 'A cached bundle is pointing at an older file that no longer exists. Reset cached app data, then reload the app.',
+            detail: getErrorText(event.error || event.message)
+          });
+        }
+      }, true);
+
+      window.addEventListener('unhandledrejection', function (event) {
+        if (isRecoverableAssetError(event.reason)) {
+          showBootFailure({
+            title: 'A cached bundle failed to load.',
+            message: 'A required module could not be fetched. Reset cached app data, then reload the app.',
+            detail: getErrorText(event.reason)
+          });
+        }
+      });
+
+      window.addEventListener('load', function () {
+        window.setTimeout(function () {
+          if (!bootResolved) {
+            hideLoader();
+          }
+        }, 400);
+      });
+    })();
+  </script>
 </body>
 
 </html>

@@ -325,6 +325,79 @@ describe("CommandComponent", () => {
     expect(setOutput).toHaveBeenLastCalledWith("state", "False");
   });
 
+  it("does not intercept paste into editable fields", () => {
+    const arg = createArg("url");
+    const command = createCommand("paste-target", [arg]);
+    const setOutput = vi.fn();
+
+    render(
+      <CommandComponent
+        command={command as never}
+        filterArguments={allowAllArguments}
+        initialValues={{}}
+        displayMode="card"
+        virtualizationMode="off"
+        setOutput={setOutput}
+      />,
+    );
+
+    fireEvent.paste(screen.getByRole("textbox", { name: "url" }), makeClipboardEventPayload("/paste-target url:https://example.com"));
+
+    expect(setOutput).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("ignores non-command text pasted on the command shell", () => {
+    const arg = createArg("url");
+    const command = createCommand("paste-target", [arg]);
+    const setOutput = vi.fn();
+
+    render(
+      <CommandComponent
+        command={command as never}
+        filterArguments={allowAllArguments}
+        initialValues={{}}
+        displayMode="card"
+        virtualizationMode="off"
+        setOutput={setOutput}
+      />,
+    );
+
+    fireEvent.paste(getCommandRoot(), makeClipboardEventPayload("https://example.com?q=url:test"));
+
+    expect(setOutput).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows a recoverable inline paste error without discarding current field edits", () => {
+    const arg = createArg("name");
+    const command = createCommand("paste-target", [arg]);
+    const setOutput = vi.fn();
+
+    render(
+      <CommandComponent
+        command={command as never}
+        filterArguments={allowAllArguments}
+        initialValues={{}}
+        displayMode="card"
+        virtualizationMode="off"
+        setOutput={setOutput}
+      />,
+    );
+
+    const input = screen.getByRole("textbox", { name: "name" });
+    fireEvent.change(input, { target: { value: "draft" } });
+    expect((input as HTMLInputElement).value).toBe("draft");
+
+    fireEvent.paste(getCommandRoot(), makeClipboardEventPayload("/paste-target unknown:nope"));
+
+    expect(screen.getByRole("alert").textContent).toContain("does not have an argument named \"unknown\"");
+    expect((screen.getByRole("textbox", { name: "name" }) as HTMLInputElement).value).toBe("draft");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "name" }), { target: { value: "retry" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("exposes argument search and focus through its imperative handle", () => {
     const userArg = createArg("user");
     userArg.arg.desc = "Select a user";

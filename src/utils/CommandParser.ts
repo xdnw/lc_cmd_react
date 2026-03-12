@@ -3,7 +3,46 @@ import { Argument, BaseCommand } from "./Command";
 export type CommandParseResult = {
     values: { [key: string]: string } | null;
     error?: string;
+    errorCode?: "unknown-args" | "no-arguments";
+    unknownArgs?: string[];
+    matchedCommandReference?: string;
 };
+
+function matchesCommandReference(text: string, reference: string): boolean {
+    if (text.length < reference.length) {
+        return false;
+    }
+
+    if (text.slice(0, reference.length).toLowerCase() !== reference.toLowerCase()) {
+        return false;
+    }
+
+    return text.length === reference.length || /\s/.test(text.charAt(reference.length));
+}
+
+function getMatchedCommandReference(command: BaseCommand, input: string): string | null {
+    const text = input.trim();
+    if (!text) {
+        return null;
+    }
+
+    const cmdName = command.name;
+    const cmdPath = command.getPathString();
+    const references = [
+        `/${cmdPath}`,
+        cmdPath,
+        `/${cmdName}`,
+        cmdName,
+    ];
+
+    for (const reference of references) {
+        if (matchesCommandReference(text, reference)) {
+            return reference;
+        }
+    }
+
+    return null;
+}
 
 export function parseCommandString(
     command: BaseCommand,
@@ -23,26 +62,14 @@ export function parseCommandStringDetailed(
         };
     }
 
-    // Check if it starts with the command name (with or without slash)
-    const cmdName = command.name;
-    const cmdPath = command.getPathString();
-
-    // Try to strip prefix like `/cmdName ` or `cmdName ` or `/cmdPath ` or `cmdPath `
-    const prefixes = [
-        `/${cmdPath} `,
-        `${cmdPath} `,
-        `/${cmdName} `,
-        `${cmdName} `
-    ];
-
-    let matchedPrefix = false;
-    for (const prefix of prefixes) {
-        if (text.toLowerCase().startsWith(prefix.toLowerCase())) {
-            text = text.substring(prefix.length).trim();
-            matchedPrefix = true;
-            break;
-        }
+    const matchedCommandReference = getMatchedCommandReference(command, text);
+    if (!matchedCommandReference) {
+        return {
+            values: null,
+        };
     }
+
+    text = text.slice(matchedCommandReference.length).trim();
 
     const args = command.getArguments();
     const result: { [key: string]: string } = {};
@@ -84,36 +111,43 @@ export function parseCommandStringDetailed(
         }
     }
 
-    // Only return parsed result if it matched the command prefix,
-    // or if it has named arguments.
-    // Otherwise, it's likely just a single value pasted into an input.
-    if (parsedCount > 0 && (matchedPrefix || hasNamedArgs)) {
+    if (parsedCount > 0) {
         if (unknownNamedArgs.size > 0) {
+            const unknownArgs = Array.from(unknownNamedArgs);
             return {
                 values: null,
-                error: `Unrecognized argument name(s): ${Array.from(unknownNamedArgs).join(", ")}.`,
+                error: unknownArgs.length === 1
+                    ? `Unknown argument: ${unknownArgs[0]}.`
+                    : `Unknown arguments: ${unknownArgs.join(", ")}.`,
+                errorCode: "unknown-args",
+                unknownArgs,
+                matchedCommandReference: matchedCommandReference ?? undefined,
             };
         }
         return {
             values: result,
+            matchedCommandReference: matchedCommandReference ?? undefined,
         };
     }
 
-    if (matchedPrefix || hasNamedArgs) {
-        if (unknownNamedArgs.size > 0) {
-            return {
-                values: null,
-                error: `Unrecognized argument name(s): ${Array.from(unknownNamedArgs).join(", ")}.`,
-            };
-        }
+    if (unknownNamedArgs.size > 0) {
+        const unknownArgs = Array.from(unknownNamedArgs);
         return {
             values: null,
-            error: "Input looked like a command, but no arguments were parsed. Use key:value pairs or a valid positional argument order.",
+            error: unknownArgs.length === 1
+                ? `Unknown argument: ${unknownArgs[0]}.`
+                : `Unknown arguments: ${unknownArgs.join(", ")}.`,
+            errorCode: "unknown-args",
+            unknownArgs,
+            matchedCommandReference: matchedCommandReference ?? undefined,
         };
     }
 
     return {
         values: null,
+        error: `No argument values were found after ${matchedCommandReference}.`,
+        errorCode: "no-arguments",
+        matchedCommandReference: matchedCommandReference ?? undefined,
     };
 }
 

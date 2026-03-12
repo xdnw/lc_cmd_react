@@ -129,6 +129,19 @@ describe("ArgInput resolution", () => {
     expect(parsed.error).toContain("unknown");
   });
 
+  it("ignores named arguments that are not prefixed with the command", () => {
+    const command = CM.builder("test-parse")
+      .argument("known", false, "", "String")
+      .argument("alsoKnown", true, "", "String")
+      .build();
+
+    const parsed = parseCommandStringDetailed(command, "known:ok alsoKnown:still-ok");
+
+    expect(parsed.values).toBeNull();
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.matchedCommandReference).toBeUndefined();
+  });
+
   it("keeps List inputs aligned with Set", () => {
     const listBreakdown = getTypeBreakdown(CM, "List<String>");
     const setBreakdown = getTypeBreakdown(CM, "Set<String>");

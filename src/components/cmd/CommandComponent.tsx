@@ -22,7 +22,6 @@ import { isCompactMode } from "./field/fieldTypes";
 import ArgFieldShell from "./field/ArgFieldShell";
 import { focusPrimaryCommandTarget, getCommandEdgeArrowDirection, shouldAdvanceCommandField } from "./commandKeyboard";
 import { parseCommandStringDetailed } from "../../utils/CommandParser";
-import { useDialog } from "../layout/DialogContext";
 import type { TypeBreakdown } from "@/utils/Command";
 import {
     applyCommandFieldStateUpdater,
@@ -32,6 +31,8 @@ import {
     type CommandFieldStateUpdater,
 } from "./field/commandFieldState";
 import { serializeBooleanValue } from "./booleanValueUtils";
+import { isEditableTarget } from "./commandLaunchUtils";
+import { getPastedText } from "./pasteUtils";
 
 interface CommandProps {
     command: BaseCommand;
@@ -150,6 +151,21 @@ function normalizeParsedCommandArgOutput(entry: CommandArgEntry | undefined, val
 
 function normalizeArgSearchText(text: string): string {
     return text.toLowerCase().replace(/[\s_-]+/g, " ").trim();
+}
+
+function formatCommandPasteError(command: BaseCommand, parsed: ReturnType<typeof parseCommandStringDetailed>): string {
+    const commandPath = `/${command.getPathString()}`;
+    if (parsed.errorCode === "unknown-args" && parsed.unknownArgs && parsed.unknownArgs.length > 0) {
+        return parsed.unknownArgs.length === 1
+            ? `Paste not applied. ${commandPath} does not have an argument named "${parsed.unknownArgs[0]}".`
+            : `Paste not applied. ${commandPath} does not have arguments named ${parsed.unknownArgs.map((arg) => `"${arg}"`).join(", ")}.`;
+    }
+
+    if (parsed.errorCode === "no-arguments") {
+        return `Paste not applied. ${commandPath} was recognized, but no argument values could be read. Use ${commandPath} name:value or paste directly into a field.`;
+    }
+
+    return `Paste not applied. ${parsed.error ?? "The pasted command could not be read."}`;
 }
 
 function getArgJumpTerms(entry: CommandArgEntry): string[] {
@@ -479,9 +495,9 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
     jumpSearchMatches = [],
     jumpSearchActiveArg = null,
 }: CommandProps, ref) {
-    const { showDialog } = useDialog();
     const rootRef = useRef<HTMLDivElement | null>(null);
     const virtuosoRef = useRef<VirtuosoHandle | null>(null);
+    const [commandPasteError, setCommandPasteError] = useState<string>("");
     const [focusedArgName, setFocusedArgName] = useState<string | null>(null);
     const [fieldStates, setFieldStates] = useState<CommandFieldStateMap>({});
     const [prewarmedArgNames, setPrewarmedArgNames] = useState<Set<string>>(() => new Set());
@@ -663,6 +679,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
     }, [argEntries, updateFieldState]);
 
     const handleFieldOutput = useCallback((argName: string, value: string) => {
+        setCommandPasteError("");
         updateFieldState(argName, (previousState) => {
             if (previousState.displayValue === value && previousState.committedValue === value) {
                 return previousState;
@@ -678,6 +695,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
     }, [setOutput, updateFieldState]);
 
     const handleFieldCommit = useCallback((argName: string, value: string) => {
+        setCommandPasteError("");
         updateFieldState(argName, (previousState) => (
             previousState.committedValue === value
                 ? previousState
@@ -712,14 +730,25 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
     }, [clearPendingFocusedArgTimeout, trackFocusedArg]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
-        const pastedText = event.clipboardData.getData("text");
-        if (!pastedText) return;
+        if (event.defaultPrevented || isEditableTarget(event.target)) {
+            return;
+        }
+
+        const pastedText = getPastedText(event).trim();
+        if (!pastedText) {
+            return;
+        }
 
         const parsed = parseCommandStringDetailed(command, pastedText);
+        if (!parsed.matchedCommandReference) {
+            return;
+        }
+
         const parsedValues = parsed.values;
         if (parsedValues) {
             event.preventDefault();
             event.stopPropagation();
+            setCommandPasteError("");
             setFieldStates((currentStates) => {
                 const nextStates = { ...currentStates };
                 Object.entries(parsedValues).forEach(([key, value]) => {
@@ -742,9 +771,13 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
         if (parsed.error) {
             event.preventDefault();
             event.stopPropagation();
-            showDialog("Unable to parse pasted command", <>{parsed.error}</>);
+            setCommandPasteError(formatCommandPasteError(command, parsed));
         }
-    }, [argEntryByName, command, initialValues, setOutput, showDialog]);
+    }, [argEntryByName, command, initialValues, setOutput]);
+
+    const handleDismissCommandPasteError = useCallback(() => {
+        setCommandPasteError("");
+    }, []);
 
     const tryFocusArg = useCallback((argName: string) => {
         const root = rootRef.current;
@@ -881,6 +914,24 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
         >
             {showTitle && <h2 className={cn("text-sm font-semibold tracking-tight", compact && "text-xs")}>{overrideName ?? command.name}</h2>}
             {displayMode === "focus-pane" && <FocusInfoBar arg={focusedArg} />}
+            {commandPasteError && (
+                <div
+                    role="alert"
+                    data-command-paste-error="true"
+                    className="rounded-md border border-destructive/35 bg-destructive/6 px-2 py-1.5 text-[11px] text-destructive"
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <p className="min-w-0 flex-1">{commandPasteError}</p>
+                        <button
+                            type="button"
+                            className="shrink-0 text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                            onClick={handleDismissCommandPasteError}
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            )}
             {shouldVirtualize ? (
                 <Virtuoso
                     ref={virtuosoRef}

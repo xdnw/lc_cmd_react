@@ -21,6 +21,80 @@ function buildOptions(count: number) {
 }
 
 describe("ListComponent keyboard contract", () => {
+  it("toggles all selections with Ctrl+A in multiselect when the search input is empty", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="nation"
+        options={[
+          { label: "Borg", value: "borg" },
+          { label: "Rose", value: "rose" },
+        ]}
+        isMulti
+        initialValue=""
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "a", ctrlKey: true });
+    fireEvent.keyDown(input, { key: "a", ctrlKey: true });
+
+    expect(setOutputValue).toHaveBeenNthCalledWith(1, "nation", "borg,rose");
+    expect(setOutputValue).toHaveBeenNthCalledWith(2, "nation", "");
+  });
+
+  it("keeps multiselect helper buttons out of the tab order and advertises the shortcut", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="nation"
+        options={[
+          { label: "Borg", value: "borg" },
+          { label: "Rose", value: "rose" },
+        ]}
+        isMulti
+        initialValue="borg"
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const allButton = screen.getByRole("button", { name: /select all options/i });
+    const clearButton = screen.getByRole("button", { name: /clear all selected options/i });
+    const input = screen.getByRole("combobox");
+    const descriptionId = input.getAttribute("aria-describedby");
+    const description = descriptionId ? document.getElementById(descriptionId)?.textContent ?? "" : "";
+
+    expect(allButton.getAttribute("tabindex")).toBe("-1");
+    expect(allButton.getAttribute("title")).toMatch(/ctrl\+a|cmd\+a/i);
+    expect(clearButton.getAttribute("tabindex")).toBe("-1");
+    expect(description).toMatch(/ctrl\+a|cmd\+a/i);
+  });
+
+  it("keeps selected-chip remove buttons out of the tab order", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="nation"
+        options={[
+          { label: "Borg", value: "borg" },
+          { label: "Rose", value: "rose" },
+        ]}
+        isMulti
+        initialValue="borg,rose"
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const removeButtons = screen.getAllByRole("button", { name: /remove (borg|rose)/i });
+    expect(removeButtons).toHaveLength(2);
+    expect(removeButtons.every((button) => button.getAttribute("tabindex") === "-1")).toBe(true);
+  });
+
   it("keeps Tab as focus traversal instead of selecting the highlighted option", () => {
     const setOutputValue = vi.fn();
 

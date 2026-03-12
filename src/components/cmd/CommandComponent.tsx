@@ -460,7 +460,7 @@ function FocusInfoBar({ arg }: { arg: Argument | null }) {
                     <span className="font-medium text-rose-700 dark:text-rose-300">required</span>
                 )}
             </div>
-            {arg.arg.desc && <div className="mt-1 text-muted-foreground"><MarkupRenderer content={arg.arg.desc} /></div>}
+            {arg.arg.desc && <div className="mt-1 text-muted-foreground"><MarkupRenderer content={arg.arg.desc} disableLinkTabStops /></div>}
         </div>
     );
 }
@@ -857,9 +857,9 @@ export function ArgDescComponent(
                     {hasDescriptionContent && (
                         <div className="grid gap-x-3 gap-y-1 border-t border-border/50 pt-1.5 text-[11px] sm:grid-cols-[auto_1fr]">
                             {description && <span className="font-medium text-muted-foreground">Info</span>}
-                            {description && <div className="min-w-0 text-muted-foreground"><MarkupRenderer content={description} /></div>}
+                            {description && <div className="min-w-0 text-muted-foreground"><MarkupRenderer content={description} disableLinkTabStops /></div>}
                             {typeDesc && <span className="font-medium text-muted-foreground">Type</span>}
-                            {typeDesc && <div className="min-w-0 text-muted-foreground"><MarkupRenderer content={typeDesc} /></div>}
+                            {typeDesc && <div className="min-w-0 text-muted-foreground"><MarkupRenderer content={typeDesc} disableLinkTabStops /></div>}
                         </div>
                     )}
                     {hasExamplesContent && (

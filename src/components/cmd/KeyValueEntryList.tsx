@@ -12,10 +12,12 @@ const KeyValueEntryRow = memo(function KeyValueEntryRow({
     item,
     compact,
     onRemove,
+    removeButtonTabIndex,
 }: {
     item: KeyValueListEntry;
     compact?: boolean;
     onRemove: (key: string) => void;
+    removeButtonTabIndex?: number;
 }) {
     const handleRemoveClick = useCallback(() => {
         onRemove(item.key);
@@ -35,6 +37,7 @@ const KeyValueEntryRow = memo(function KeyValueEntryRow({
                 onClick={handleRemoveClick}
                 variant="ghost"
                 size="sm"
+                tabIndex={removeButtonTabIndex}
                 aria-label={`Remove ${item.key}`}
                 className={compact ? "h-5 px-1.5 text-[10px]" : "h-5 px-1.5 text-[10px]"}
             >
@@ -49,11 +52,13 @@ export default function KeyValueEntryList({
     emptyText,
     compact,
     onRemove,
+    removeButtonTabIndex,
 }: {
     items: KeyValueListEntry[];
     emptyText: string;
     compact?: boolean;
     onRemove: (key: string) => void;
+    removeButtonTabIndex?: number;
 }) {
     return (
         <div className="space-y-1.5">
@@ -66,6 +71,7 @@ export default function KeyValueEntryList({
                     item={item}
                     compact={compact}
                     onRemove={onRemove}
+                    removeButtonTabIndex={removeButtonTabIndex}
                 />
             ))}
         </div>

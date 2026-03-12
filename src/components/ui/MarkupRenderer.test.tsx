@@ -42,6 +42,14 @@ describe("MarkupRenderer", () => {
         expect(screen.getByText("italic").tagName).toBe("EM");
     });
 
+    it("can keep generated links out of the tab order for embedded arg descriptions", () => {
+        const { container } = render(<MarkupRenderer content="https://example.com" disableLinkTabStops />);
+
+        const anchor = container.querySelector("a");
+        expect(anchor).toBeTruthy();
+        expect(anchor?.getAttribute("tabindex")).toBe("-1");
+    });
+
     it("resolves embed-aware mentions in message content and fields", () => {
         render(
             <Embed

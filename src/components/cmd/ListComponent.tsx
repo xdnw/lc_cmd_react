@@ -44,6 +44,8 @@ const SelectedChip = memo(function SelectedChip({ option, onRemove }: SelectedCh
             <span className="truncate">{option.label || option.value}</span>
             <button
                 type="button"
+                tabIndex={-1}
+                aria-label={`Remove ${option.label || option.value}`}
                 className="font-bold text-muted-foreground transition-colors hover:text-destructive focus:outline-none"
                 onClick={handleRemoveClick}
             >
@@ -158,6 +160,7 @@ type SearchIndexEntry = {
 const LIST_DROPDOWN_ROW_HEIGHT = 36;
 const LIST_DROPDOWN_OVERSCAN = 6;
 const LIST_DROPDOWN_PAGE_SIZE = 8;
+const MULTI_SELECT_SHORTCUT_LABEL = "Ctrl+A or Cmd+A";
 type PopupListInputAction =
     | { type: "open" }
     | { type: "close" }
@@ -223,6 +226,22 @@ function getPopupListInputAction({
     }
 
     return { type: "none" };
+}
+
+function isToggleAllShortcut(event: React.KeyboardEvent<HTMLInputElement>, inputValue: string): boolean {
+    if (event.defaultPrevented || event.altKey || event.shiftKey) {
+        return false;
+    }
+
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "a") {
+        return false;
+    }
+
+    if (inputValue.length > 0) {
+        return false;
+    }
+
+    return event.currentTarget.selectionStart === event.currentTarget.selectionEnd;
 }
 
 function useFilteredOptions({
@@ -803,6 +822,7 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
 
 function MultiSelectListComponent({ argName, options, initialValue, setOutputValue, onSearchValueChange, optionsArePrefiltered = false, loadingOptions = false, emptyMessage }: Omit<ListComponentProps, "isMulti">) {
     const { showDialog } = useDialog();
+    const helperHintId = useId();
 
     const normalizedInitialSelection = useMemo(() => {
         return resolveInitialSelection(initialValue || '', options, true);
@@ -834,6 +854,7 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
     } = usePopupListSearchState({ options, optionsArePrefiltered, onSearchValueChange });
 
     const selectedValueSet = useMemo(() => new Set(value.map((v) => v.value)), [value]);
+    const allOptionsSelected = options.length > 0 && selectedValueSet.size === options.length;
 
     const syncOutput = useCallback((selection: SelectOption[]) => {
         setOutputValue(argName, serializeSelection(selection, true));
@@ -858,7 +879,7 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
         inputRef.current?.focus();
     }, [clearSearch, inputRef, value, selectedValueSet, setValue, syncOutput, showDialog]);
 
-    const handleKeyDown = usePopupListInputKeyDown({
+    const handlePopupKeyDown = usePopupListInputKeyDown({
         isOpen,
         itemCount: filteredOptions.length,
         activeIndex: highlightedIndex,
@@ -892,6 +913,27 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
         syncOutput([]);
         clearSearch();
     }, [clearSearch, setValue, syncOutput]);
+
+    const toggleAllSelections = useCallback(() => {
+        if (allOptionsSelected) {
+            clearAll();
+            inputRef.current?.focus();
+            return;
+        }
+
+        selectAll();
+        inputRef.current?.focus();
+    }, [allOptionsSelected, clearAll, inputRef, selectAll]);
+
+    const handleKeyDown = useCallback<KeyboardEventHandler<HTMLInputElement>>((event) => {
+        if (options.length > 0 && isToggleAllShortcut(event, inputValue)) {
+            event.preventDefault();
+            toggleAllSelections();
+            return;
+        }
+
+        handlePopupKeyDown(event);
+    }, [handlePopupKeyDown, inputValue, options.length, toggleAllSelections]);
 
     const handleInputPaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
         const pastedText = e.clipboardData.getData('text');
@@ -932,6 +974,10 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
     const handleRemoveOption = useCallback((option: SelectOption) => {
         toggleOption(option);
     }, [toggleOption]);
+
+    const helperHint = allOptionsSelected
+        ? `${MULTI_SELECT_SHORTCUT_LABEL} clears all selections when search is empty.`
+        : `${MULTI_SELECT_SHORTCUT_LABEL} selects every option when search is empty.`;
 
     // Virtuoso Render Prop
     const renderItem = useCallback((index: number, option: SelectOption) => {
@@ -985,16 +1031,40 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
                     aria-haspopup="listbox"
                     aria-controls={listboxId}
                     aria-activedescendant={activeDescendantId}
+                    aria-describedby={helperHintId}
                     placeholder="Search..."
                     className="min-w-24 flex-1 bg-transparent px-1 py-0.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
                 />
+                <span id={helperHintId} className="sr-only">{helperHint}</span>
                 {options.length > 0 && (
                     <div className="ml-auto flex items-center gap-1 border-l border-border/60 pl-1">
                         {value.length < options.length && (
-                            <Button variant="ghost" size="sm" onClick={selectAll} className="h-5 px-1.5 text-[10px]">All</Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                tabIndex={-1}
+                                aria-label={`Select all options. Shortcut: ${MULTI_SELECT_SHORTCUT_LABEL} when search is empty.`}
+                                title={`Select all (${MULTI_SELECT_SHORTCUT_LABEL})`}
+                                onClick={selectAll}
+                                className="h-5 px-1.5 text-[10px]"
+                            >
+                                All
+                            </Button>
                         )}
                         {value.length > 0 && (
-                            <Button variant="ghost" size="sm" onClick={clearAll} className="h-5 px-1.5 text-[10px]">Clear</Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                tabIndex={-1}
+                                aria-label="Clear all selected options."
+                                title="Clear all selections"
+                                onClick={clearAll}
+                                className="h-5 px-1.5 text-[10px]"
+                            >
+                                Clear
+                            </Button>
                         )}
                     </div>
                 )}

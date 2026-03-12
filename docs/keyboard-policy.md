@@ -104,6 +104,7 @@ Implications:
 - Internal helper buttons should usually not become separate tab stops if their action is already reachable by local keyboard commands.
 - If internal controls are removed from the tab order, the input must still expose equivalent keyboard actions.
 - If an internal control has unique functionality with no keyboard equivalent, it must become reachable somehow, either by `Tab`, roving focus, or a documented shortcut.
+- Informational markup rendered inside argument labels, descriptions, or type-help chrome should not introduce extra tab stops by default; links there may stay pointer-accessible while using `tabIndex=-1` when the surrounding field already owns the argument's keyboard flow.
 
 ### Roving focus over tab-stop spam
 
@@ -356,6 +357,18 @@ Preferred removal path:
 Typing convenience:
 - If the pending child input is non-textual and does not own letters, unclaimed typing may jump to another nearby matching argument rather than being discarded.
 
+### Popup-backed multiselect lists
+
+Required behavior:
+- The combobox input remains the primary `Tab` stop.
+- Helper actions such as `All` or `Clear` should usually stay out of the normal tab order when equivalent local shortcuts exist.
+- If helper actions are removed from the tab order, the combobox must expose the shortcut through visible or assistive hint text.
+
+Preferred behavior:
+- When the search box is empty, `Ctrl+A` or `Cmd+A` may toggle select-all and clear-all for the multiselect value set.
+- If the search box currently contains text, native text-selection behavior should win over multiselect shortcuts.
+- Select-all and clear-all ownership belongs in the list input component itself rather than in the outer command shell.
+
 ### Map-like inputs
 
 Required behavior:
@@ -377,6 +390,10 @@ Guardrails:
 - Do not steal valid text entry from value controls that legitimately accept letters.
 - Do not trigger key-jump behavior while a popup-backed child input is open.
 - Do not use this behavior for large static maps where matching would become noisy or hard to predict.
+
+Dynamic map convenience:
+- The pending key and pending value fields should stay visually paired in one row; prefer `minmax(0, 1fr)`-style column sizing and `min-w-0` wrappers so child inputs do not force the row into a disjoint stacked layout.
+- If existing-entry remove buttons are taken out of the tab order, the pending key or value field should provide an empty-field `Backspace` or `Delete` path that removes the previous entry and returns focus to the primary pending field.
 
 ### Radio-like and segmented inputs
 
@@ -469,6 +486,13 @@ The launcher and command dialogs may be stricter than generic dialogs, but gener
 - `Ctrl+Enter` or `Cmd+Enter`: optional submit only if explicitly allowed
 - Edge arrows do not leave the field while local multiline navigation still applies
 - `Esc`: close popup first, then move focus to the shell's explicit return target or follow shell-back behavior
+
+### Rich text or HTML editor field
+
+- The editing surface remains the primary entry focus target.
+- If the editor captures `Tab` for local indentation, structure, or toolbar behavior, mode switching must not depend on `Tab` traversal.
+- Raw or WYSIWYG mode switches should stay local to the editor component and use documented local shortcuts or other local controls.
+- If editor mode buttons are removed from the tab order, equivalent shortcuts and discoverable hints are required.
 
 ### Popup-backed argument field
 

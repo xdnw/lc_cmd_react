@@ -21,14 +21,37 @@ import {
 
 export type { DiscordEmbed } from "./markupRenderPlan";
 
-function renderMarkupPlan(plan: PlannedMarkupContent): ReactNode {
+type MarkupRendererOptions = {
+    disableLinkTabStops?: boolean;
+};
+
+function applyLinkTabPolicy(html: string, options?: MarkupRendererOptions): string {
+    if (!options?.disableLinkTabStops || !html.includes("<a")) {
+        return html;
+    }
+
+    if (typeof document === "undefined") {
+        return html.replace(/<a\b(?![^>]*\btabindex=)/gi, '<a tabindex="-1"');
+    }
+
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    container.querySelectorAll("a").forEach((link) => {
+        if (!link.hasAttribute("tabindex")) {
+            link.setAttribute("tabindex", "-1");
+        }
+    });
+    return container.innerHTML;
+}
+
+function renderMarkupPlan(plan: PlannedMarkupContent, options?: MarkupRendererOptions): ReactNode {
     switch (plan.kind) {
         case "empty":
             return null;
         case "text":
             return plan.text;
         case "html":
-            return <span dangerouslySetInnerHTML={{ __html: plan.html }} />;
+            return <span dangerouslySetInnerHTML={{ __html: applyLinkTabPolicy(plan.html, options) }} />;
         default:
             return null;
     }
@@ -208,10 +231,10 @@ export function Embed({ json, responseRef, showDialog }:
     );
 }
 
-const MarkupRenderer = React.memo(function MarkupRenderer({ content, embed, showDialog }: { content: string, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): ReactNode {
+const MarkupRenderer = React.memo(function MarkupRenderer({ content, embed, showDialog, disableLinkTabStops }: { content: string, embed?: DiscordEmbed, showDialog?: ShowDialogFn, disableLinkTabStops?: boolean }): ReactNode {
     const context = useMemo(() => createMarkupRenderContext({ embed, showDialog }), [embed, showDialog]);
     const plan = useMemo(() => planMarkupContent(content, context), [content, context]);
-    return renderMarkupPlan(plan);
+    return renderMarkupPlan(plan, { disableLinkTabStops });
 });
 
 MarkupRenderer.displayName = "MarkupRenderer";

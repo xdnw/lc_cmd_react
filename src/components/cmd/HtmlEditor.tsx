@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   useMemo,
@@ -63,7 +64,7 @@ function loadSunEditorComponent(): Promise<SunEditorComponentType> {
 type SunEditorInstance = {
   setContents: (html: string) => void;
   insertHTML: (html: string) => void;
-  focus: () => void;
+  focus?: () => void;
   getContents?: (onlyContents?: boolean) => string;
   core?: {
     context?: {
@@ -148,6 +149,7 @@ const EMBEDDABLE_IMAGE_ACCEPT = Array.from(EMBEDDABLE_IMAGE_TYPES).join(',');
 
 const EMPTY_EDITOR_HTML_RE =
   /^(?:\s|&nbsp;|<br\s*\/?>|<p>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>)*$/i;
+const MODE_SHORTCUT_HINT = 'Alt+Shift+W for WYSIWYG, Alt+Shift+R for raw HTML.';
 
 const SAFE_DATA_IMAGE_RE =
   /^data:image\/(?:png|jpeg|jpg|gif|webp|bmp|avif|apng);base64,[a-z0-9+/=\s]+$/i;
@@ -391,6 +393,30 @@ function placeCaretFromPoint(root: HTMLElement, x: number, y: number): void {
   selection.addRange(range);
 }
 
+function getSunEditorEditableElement(instance: SunEditorInstance | null): HTMLElement | null {
+  const editable = instance?.core?.context?.element?.wysiwyg;
+  return editable instanceof HTMLElement ? editable : null;
+}
+
+function focusSunEditorInstance(instance: SunEditorInstance | null): boolean {
+  if (!instance) {
+    return false;
+  }
+
+  if (typeof instance.focus === 'function') {
+    instance.focus();
+    return true;
+  }
+
+  const editable = getSunEditorEditableElement(instance);
+  if (!editable) {
+    return false;
+  }
+
+  editable.focus();
+  return true;
+}
+
 function HtmlEditorComponent({
   argName,
   initialValue,
@@ -410,10 +436,12 @@ function HtmlEditorComponent({
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const fullscreenDialogHostRef = useRef<HTMLElement | null>(null);
   const rawTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const pendingEditorFocusModeRef = useRef<EditorMode | null>(null);
   const htmlRef = useRef<string>(sanitizeEditorHtml(initialValue ?? ''));
   const currentArgRef = useRef<string>(argName);
   const lastEmittedSanitizedRef = useRef<string>('');
   const cleanupEditorListenersRef = useRef<(() => void) | null>(null);
+  const modeHelpId = useId();
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenHost, setFullscreenHost] = useState<'body' | 'dialog'>('body');
@@ -586,6 +614,20 @@ function HtmlEditorComponent({
     setHtml(next);
   }, []);
 
+  const focusRawEditor = useCallback((): boolean => {
+    const textarea = rawTextAreaRef.current;
+    if (!textarea) {
+      return false;
+    }
+
+    textarea.focus();
+    return true;
+  }, []);
+
+  const focusWysiwygEditor = useCallback((): boolean => {
+    return focusSunEditorInstance(editorRef.current);
+  }, []);
+
   const emitSanitizedValue = useCallback(() => {
     const sanitized = sanitizeEditorHtml(htmlRef.current);
     lastEmittedSanitizedRef.current = sanitized;
@@ -653,6 +695,7 @@ function HtmlEditorComponent({
       return;
     }
 
+    pendingEditorFocusModeRef.current = 'wysiwyg';
     const sanitized = sanitizeEditorHtml(htmlRef.current);
     if (sanitized !== htmlRef.current) {
       setLocalHtml(sanitized);
@@ -662,6 +705,7 @@ function HtmlEditorComponent({
   }, [isWysiwygUnavailable, setLocalHtml]);
 
   const handleShowRaw = useCallback(() => {
+    pendingEditorFocusModeRef.current = 'raw';
     setMode('raw');
   }, []);
 
@@ -690,7 +734,10 @@ function HtmlEditorComponent({
       const editor = editorRef.current;
       if (!editor) return;
 
-      editor.focus();
+      if (!focusSunEditorInstance(editor)) {
+        return;
+      }
+
       restoreSelectionRange(range ?? null);
       editor.insertHTML(snippet);
 
@@ -769,8 +816,16 @@ function HtmlEditorComponent({
       const typedInstance = instance as SunEditorInstance;
       editorRef.current = typedInstance;
       requestAnimationFrame(() => bindEditorDomListeners(typedInstance));
+
+      if (pendingEditorFocusModeRef.current === 'wysiwyg') {
+        requestAnimationFrame(() => {
+          if (focusWysiwygEditor()) {
+            pendingEditorFocusModeRef.current = null;
+          }
+        });
+      }
     },
-    [bindEditorDomListeners],
+    [bindEditorDomListeners, focusWysiwygEditor],
   );
 
   const handleWysiwygChange = useCallback(
@@ -889,12 +944,56 @@ function HtmlEditorComponent({
     }
   }, [mode]);
 
+  useEffect(() => {
+    const pendingMode = pendingEditorFocusModeRef.current;
+    if (!pendingMode || pendingMode !== mode) {
+      return;
+    }
+
+    const focused = pendingMode === 'raw'
+      ? focusRawEditor()
+      : focusWysiwygEditor();
+
+    if (focused) {
+      pendingEditorFocusModeRef.current = null;
+    }
+  }, [focusRawEditor, focusWysiwygEditor, mode, shouldMountWysiwyg, SunEditorComponent]);
+
+  const handleShellKeyDownCapture = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (
+      event.defaultPrevented
+      || !event.altKey
+      || !event.shiftKey
+      || event.ctrlKey
+      || event.metaKey
+    ) {
+      return;
+    }
+
+    const normalizedKey = event.key.toLowerCase();
+    if (normalizedKey === 'w') {
+      if (isWysiwygUnavailable) {
+        return;
+      }
+
+      event.preventDefault();
+      handleShowWysiwyg();
+      return;
+    }
+
+    if (normalizedKey === 'r') {
+      event.preventDefault();
+      handleShowRaw();
+    }
+  }, [handleShowRaw, handleShowWysiwyg, isWysiwygUnavailable]);
+
   const editorShell = (
-    <div ref={editorShellRef} className={shellClassName}>
+    <div ref={editorShellRef} className={shellClassName} onKeyDownCapture={handleShellKeyDownCapture}>
       <div className="flex items-center justify-between border-b border-slate-200 px-2 py-1.5 dark:border-slate-800">
         <div className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 p-0.5 dark:border-slate-800 dark:bg-slate-900">
           <button
             type="button"
+            tabIndex={-1}
             className={cn(
               TOGGLE_BUTTON_BASE_CLASS,
               mode === 'wysiwyg'
@@ -902,8 +1001,9 @@ function HtmlEditorComponent({
                 : TOGGLE_BUTTON_INACTIVE_CLASS,
             )}
             aria-pressed={mode === 'wysiwyg'}
+            aria-keyshortcuts="Alt+Shift+W"
             disabled={isWysiwygUnavailable}
-            title={isWysiwygUnavailable ? 'WYSIWYG editor unavailable' : undefined}
+            title={isWysiwygUnavailable ? 'WYSIWYG editor unavailable' : `Switch to WYSIWYG (${MODE_SHORTCUT_HINT})`}
             onClick={handleShowWysiwyg}
           >
             WYSIWYG
@@ -911,6 +1011,7 @@ function HtmlEditorComponent({
 
           <button
             type="button"
+            tabIndex={-1}
             className={cn(
               TOGGLE_BUTTON_BASE_CLASS,
               mode === 'raw'
@@ -918,6 +1019,8 @@ function HtmlEditorComponent({
                 : TOGGLE_BUTTON_INACTIVE_CLASS,
             )}
             aria-pressed={mode === 'raw'}
+            aria-keyshortcuts="Alt+Shift+R"
+            title={`Switch to raw HTML (${MODE_SHORTCUT_HINT})`}
             onClick={handleShowRaw}
           >
             Raw
@@ -970,13 +1073,14 @@ function HtmlEditorComponent({
             autoCorrect="off"
             autoComplete="off"
             wrap="off"
+            aria-describedby={modeHelpId}
             aria-label={`${argName} raw HTML editor`}
           />
         )}
       </div>
 
-      <div className="border-t border-slate-200 px-3 py-1.5 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
-        Paste or drop images to embed them.
+      <div id={modeHelpId} className="border-t border-slate-200 px-3 py-1.5 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+        Paste or drop images to embed them. {MODE_SHORTCUT_HINT}
       </div>
     </div>
   );

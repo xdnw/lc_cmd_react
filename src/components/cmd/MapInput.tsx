@@ -41,6 +41,18 @@ function hasStructuredMapInput(input?: string): boolean {
     return Boolean(input?.trim()) && /[=:{}\n,]|[^\x20-\x7e]/.test(input ?? "");
 }
 
+function getEditableTextValue(target: EventTarget | null): string | null {
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+        return target.value;
+    }
+
+    if (target instanceof HTMLElement && (target.isContentEditable || target.getAttribute("role") === "textbox")) {
+        return target.textContent ?? "";
+    }
+
+    return null;
+}
+
 function getStaticMapKeys(children: TypeBreakdown[], preferStaticKeyLayout?: boolean): string[] | null {
     if (!preferStaticKeyLayout) {
         return null;
@@ -430,7 +442,17 @@ function DynamicMapInput(
     const removeMapValue = useCallback((keyToRemove: string) => {
         const newValue = value.filter((entry) => Object.keys(entry)[0] !== keyToRemove);
         syncEntries(newValue);
-    }, [syncEntries, value]);
+        focusPendingKeyField();
+    }, [focusPendingKeyField, syncEntries, value]);
+
+    const removeLastMapValue = useCallback(() => {
+        const lastKey = Object.keys(value[value.length - 1] ?? {})[0] ?? "";
+        if (!lastKey) {
+            return;
+        }
+
+        removeMapValue(lastKey);
+    }, [removeMapValue, value]);
 
     const addKeyFunc = useCallback((_: string, nextValue: string) => {
         setAddKey(nextValue);
@@ -477,8 +499,17 @@ function DynamicMapInput(
         if (e.key === "Enter" && !e.ctrlKey && !e.shiftKey && !e.isDefaultPrevented()) {
             e.preventDefault();
             focusPendingValueField();
+            return;
         }
-    }, [focusPendingValueField]);
+
+        if ((e.key === "Backspace" || e.key === "Delete") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !e.isDefaultPrevented()) {
+            const textValue = getEditableTextValue(e.target);
+            if (textValue != null && textValue.length === 0 && value.length > 0) {
+                e.preventDefault();
+                removeLastMapValue();
+            }
+        }
+    }, [focusPendingValueField, removeLastMapValue, value.length]);
 
     const handleValueKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (isCommandPopupOpenTarget(e.target)) {
@@ -495,8 +526,17 @@ function DynamicMapInput(
             e.preventDefault();
             addPairFunc();
             focusPendingKeyField();
+            return;
         }
-    }, [addPairFunc, focusPendingKeyField]);
+
+        if ((e.key === "Backspace" || e.key === "Delete") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !e.isDefaultPrevented()) {
+            const textValue = getEditableTextValue(e.target);
+            if (textValue != null && textValue.length === 0 && value.length > 0) {
+                e.preventDefault();
+                removeLastMapValue();
+            }
+        }
+    }, [addPairFunc, focusPendingKeyField, removeLastMapValue, value.length]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         const pastedText = event.clipboardData.getData("text");
@@ -529,16 +569,17 @@ function DynamicMapInput(
                     emptyText="No entries yet."
                     compact={compact}
                     onRemove={removeMapValue}
+                    removeButtonTabIndex={-1}
                 />
             </div>
-            <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
-                <div ref={keyFieldRef} onKeyDown={handleKeyKeyDown}>
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-2">
+                <div ref={keyFieldRef} onKeyDown={handleKeyKeyDown} className="min-w-0">
                     <ArgInput argName="key" breakdown={children[0]} min={undefined} max={undefined} initialValue={addKey} displayMode={displayMode} setOutputValue={addKeyFunc} />
                 </div>
-                <div ref={valueFieldRef} onKeyDown={handleValueKeyDown}>
+                <div ref={valueFieldRef} onKeyDown={handleValueKeyDown} className="min-w-0">
                     <ArgInput argName="value" breakdown={children[1]} min={undefined} max={undefined} initialValue={addValue} displayMode={displayMode} setOutputValue={addValueFunc} />
                 </div>
-                <div className="flex justify-end">
+                <div className="flex h-full items-start justify-end">
                     <Button size="sm" onClick={addPairFunc} tabIndex={-1} className="h-6 px-2 text-[11px]">Add</Button>
                 </div>
             </div>

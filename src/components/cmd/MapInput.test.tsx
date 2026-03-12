@@ -164,6 +164,30 @@ describe("MapInput keyboard contract", () => {
     expect(setOutputValue).toHaveBeenLastCalledWith("pairs", "alpha=beta");
   });
 
+  it("removes the previous pair from an empty pending field and keeps remove buttons out of tab order", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <MapInput
+        argName="pairs"
+        children={[getTypeBreakdown(CM, "String"), getTypeBreakdown(CM, "String")]}
+        initialValue="alpha=beta"
+        preferStaticKeyLayout={false}
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const removeButton = screen.getByRole("button", { name: /remove alpha/i });
+    expect(removeButton.tabIndex).toBe(-1);
+
+    const keyInput = screen.getByRole("textbox", { name: "key" });
+    keyInput.focus();
+    fireEvent.keyDown(keyInput, { key: "Backspace" });
+
+    expect(setOutputValue).toHaveBeenLastCalledWith("pairs", "");
+    expect(document.activeElement).toBe(keyInput);
+  });
+
   it("defers Enter handling when a popup-backed child owns the key", () => {
     const setOutputValue = vi.fn();
     popupArgNames.add("value");

@@ -6,10 +6,33 @@ import { QueryClient, QueryClientProvider, defaultShouldDehydrateQuery } from '@
 import { persistQueryClient } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import { registerSW } from 'virtual:pwa-register'
+import { getRecoveryDetail, getRecoverySummary, isLikelyRecoverableAssetError } from '@/lib/deployRecovery'
+
+declare global {
+    interface Window {
+        __appRecovery?: {
+            hideLoader?: () => void;
+            markBootMounted?: () => void;
+            showBootFailure?: (options: {
+                title?: string;
+                message?: string;
+                detail?: string;
+            }) => void;
+        };
+    }
+}
 
 const isDevelopment = import.meta.env.MODE === 'dev' || import.meta.env.MODE === 'dev-test';
 const enableStrictModeInDev = import.meta.env.VITE_ENABLE_STRICT_MODE === '1';
 const queryClient = new QueryClient();
+
+function showBootFailure(error: unknown, title = 'The app could not start.') {
+    window.__appRecovery?.showBootFailure?.({
+        title,
+        message: getRecoverySummary(error),
+        detail: getRecoveryDetail(error),
+    });
+}
 
 // Create a persister that uses localStorage
 const localStoragePersister = createSyncStoragePersister({
@@ -50,18 +73,34 @@ if (import.meta.env.PROD) {
             }, 60_000);
         },
     });
+
+    window.addEventListener('vite:preloadError', (event) => {
+        const preloadEvent = event as Event & { payload?: unknown };
+        preloadEvent.preventDefault?.();
+        showBootFailure(preloadEvent.payload ?? preloadEvent, 'A cached app file is out of date.');
+    });
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-    isDevelopment && enableStrictModeInDev ? (
-        <React.StrictMode>
+try {
+    ReactDOM.createRoot(document.getElementById('root')!).render(
+        isDevelopment && enableStrictModeInDev ? (
+            <React.StrictMode>
+                <QueryClientProvider client={queryClient}>
+                    <App />
+                </QueryClientProvider>
+            </React.StrictMode>
+        ) : (
             <QueryClientProvider client={queryClient}>
                 <App />
             </QueryClientProvider>
-        </React.StrictMode>
-    ) : (
-        <QueryClientProvider client={queryClient}>
-            <App />
-        </QueryClientProvider>
+        )
     )
-)
+    window.__appRecovery?.markBootMounted?.();
+} catch (error) {
+    if (isLikelyRecoverableAssetError(error)) {
+        showBootFailure(error, 'A cached app file is out of date.');
+    } else {
+        showBootFailure(error);
+    }
+    throw error;
+}

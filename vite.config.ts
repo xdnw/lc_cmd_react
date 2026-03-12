@@ -105,19 +105,6 @@ export default defineConfig(({ mode }) => {
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/\/reset\.html$/],
         globPatterns: ['**/*.{js,css,html,ico,png,jpg,svg,webmanifest}'],
-        runtimeCaching: [
-          {
-            // Always try network first for navigation requests so clients pick up the newest index.html.
-            urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'pages-navigation-cache',
-              expiration: {
-                maxEntries: 10,
-              },
-            },
-          },
-        ]
       }
     })
   ];

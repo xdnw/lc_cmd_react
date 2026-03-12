@@ -5,6 +5,7 @@ import { hasToken } from "@/utils/Auth.ts";
 import ReactGA from "react-ga4";
 import AutoRoutePrefetcher from "./components/AutoRoutePrefetcher";
 import Loading from "@/components/ui/loading";
+import { getRecoveryDetail, getRecoveryResetHref, getRecoverySummary, getRecoveryTitle, isLikelyRecoverableAssetError } from "@/lib/deployRecovery";
 
 function handleCopyStackClick(e: React.MouseEvent<HTMLButtonElement>) {
   const text = e.currentTarget.dataset.stack;
@@ -188,25 +189,54 @@ function RouteErrorFallback() {
       ? error.message
       : String(error ?? "Unknown route error");
   const stack = extractRouteErrorStack(error);
+  const resetHref = getRecoveryResetHref();
+  const isRecoverableAssetError = isLikelyRecoverableAssetError(error);
+  const title = getRecoveryTitle(error);
+  const recoverySummary = getRecoverySummary(error);
+  const recoveryDetail = stack ?? getRecoveryDetail(error);
+  const primaryMessage = isRecoverableAssetError ? recoverySummary : message;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full rounded border border-destructive/40 bg-destructive/10 p-4">
-        <h2 className="text-base font-semibold text-destructive">Page failed to load</h2>
-        <p className="mt-2 text-sm wrap-break-word text-secondary">{message}</p>
-        {stack && (
-          <div className="mt-4">
+    <div className="min-h-screen bg-slate-950 px-3 py-6 text-slate-100 sm:px-4 sm:py-8">
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-xl items-center justify-center">
+        <div className="w-full rounded-lg border border-slate-700 bg-slate-900 p-4 sm:p-5">
+          <h2 className="text-xl font-semibold text-white sm:text-2xl">{title}</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-300">{primaryMessage}</p>
+
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <a
+              href={resetHref}
+              className="inline-flex min-h-10 items-center justify-center rounded-md bg-slate-100 px-4 text-sm font-semibold text-slate-950 hover:bg-white"
+            >
+              Reset cached app data
+            </a>
             <button
               type="button"
-              data-stack={stack}
-              onClick={handleCopyStackClick}
-              className="mb-2 bg-primary rounded border px-2 py-1 text-xs text-white active:translate-y-px active:opacity-80"
+              onClick={() => window.location.reload()}
+              className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-600 bg-slate-800 px-4 text-sm font-semibold text-slate-100 hover:border-slate-500"
             >
-              copy
+              Reload app
             </button>
-            <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-black/40 p-2 text-yellow-50">{stack}</pre>
           </div>
-        )}
+
+          {message !== primaryMessage && (
+            <p className="mt-4 text-sm leading-6 text-slate-400 wrap-break-word">{message}</p>
+          )}
+
+          {recoveryDetail && (
+            <div className="mt-4">
+              <button
+                type="button"
+                data-stack={recoveryDetail}
+                onClick={handleCopyStackClick}
+                className="mb-2 rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-white active:translate-y-px active:opacity-80"
+              >
+                copy
+              </button>
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-slate-700 bg-slate-950 p-3 text-[12px] text-rose-200">{recoveryDetail}</pre>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

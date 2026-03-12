@@ -3,10 +3,17 @@ import { afterEach, bench, describe, vi } from "vitest";
 
 import CommandDialogForm from "./CommandDialogForm";
 
+const handleBenchFieldUpdate = (setOutput: (key: string, value: string) => void) => {
+  return () => {
+    setOutput("value", "updated");
+  };
+};
+
 vi.mock("./CommandComponent", () => ({
-  default: ({ setOutput }: { setOutput: (key: string, value: string) => void }) => (
-    <button type="button" onClick={() => setOutput("value", "updated")}>mock field update</button>
-  ),
+  default: ({ setOutput }: { setOutput: (key: string, value: string) => void }) => {
+    const handleClick = handleBenchFieldUpdate(setOutput);
+    return <button type="button" onClick={handleClick}>mock field update</button>;
+  },
 }));
 
 vi.mock("./CommandActionButton", () => ({

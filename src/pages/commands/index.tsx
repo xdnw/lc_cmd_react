@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import CmdList from "@/components/cmd/CmdList";
@@ -26,7 +26,7 @@ export default function CommandsPage() {
         }
     }, [browserState, location.search, navigate]);
 
-    const handleStateChange = (nextState: CmdBrowserState) => {
+    const handleStateChange = useCallback((nextState: CmdBrowserState) => {
         if (isCmdBrowserStateEqual(nextState, browserState)) {
             return;
         }
@@ -36,7 +36,7 @@ export default function CommandsPage() {
             pathname: "/commands",
             search: searchParams.size > 0 ? `?${searchParams.toString()}` : "",
         }, { replace: true });
-    };
+    }, [browserState, navigate]);
 
     return (
         <CmdList

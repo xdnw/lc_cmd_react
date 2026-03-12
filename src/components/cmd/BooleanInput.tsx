@@ -85,6 +85,20 @@ export default function BooleanInput(
         resolveKey,
     });
 
+    const optionRefs = useMemo(
+        () => BOOLEAN_OPTIONS.map((_, index) => (node: HTMLButtonElement | null) => {
+            registerButtonRef(index, node);
+        }),
+        [registerButtonRef],
+    );
+
+    const optionClickHandlers = useMemo(
+        () => BOOLEAN_OPTIONS.map((option) => () => {
+            onChange(option.value);
+        }),
+        [onChange],
+    );
+
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         handleParsedInputPaste(event, {
             parse: parseBooleanControlValue,
@@ -104,7 +118,7 @@ export default function BooleanInput(
             return (
                 <Button
                     key={option.value}
-                    ref={(node) => registerButtonRef(index, node)}
+                    ref={optionRefs[index]}
                     type="button"
                     size="sm"
                     variant={isActive ? "secondary" : "ghost"}
@@ -112,7 +126,7 @@ export default function BooleanInput(
                     aria-checked={isActive}
                     aria-label={option.label}
                     tabIndex={isActive ? 0 : -1}
-                    onClick={() => onChange(option.value)}
+                    onClick={optionClickHandlers[index]}
                     onKeyDown={handleOptionKeyDown}
                     className={cn(segmentClass, !isActive && "text-muted-foreground")}
                 >
@@ -120,7 +134,7 @@ export default function BooleanInput(
                 </Button>
             );
         });
-    }, [handleOptionKeyDown, onChange, registerButtonRef, segmentClass, value]);
+    }, [handleOptionKeyDown, optionClickHandlers, optionRefs, segmentClass, value]);
 
     return (
         <div className="space-y-1" onPasteCapture={handlePasteCapture}>

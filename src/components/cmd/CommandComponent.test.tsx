@@ -1,9 +1,10 @@
-import { createRef, useEffect } from "react";
+import { createRef, useCallback, useEffect } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const argInputMounts = new Map<string, number>();
 const allowAllArguments = () => true;
+const noopSetOutput = vi.fn();
 const { scrollToIndexSpy } = vi.hoisted(() => ({
   scrollToIndexSpy: vi.fn(),
 }));
@@ -69,9 +70,9 @@ vi.mock("./ArgInput", () => ({
       argInputMounts.set(argName, (argInputMounts.get(argName) ?? 0) + 1);
     }, [argName]);
 
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
       setOutputValue(argName, event.currentTarget.value);
-    };
+    }, [argName, setOutputValue]);
 
     return (
       <input
@@ -139,6 +140,7 @@ describe("CommandComponent", () => {
   beforeEach(() => {
     argInputMounts.clear();
     scrollToIndexSpy.mockReset();
+    noopSetOutput.mockReset();
   });
 
   it("renders inputs immediately and reuses cached breakdowns across focus rerenders", () => {
@@ -152,7 +154,7 @@ describe("CommandComponent", () => {
         filterArguments={allowAllArguments}
         initialValues={{}}
         displayMode="focus-pane"
-        setOutput={vi.fn()}
+        setOutput={noopSetOutput}
       />,
     );
 
@@ -285,7 +287,7 @@ describe("CommandComponent", () => {
         initialValues={{}}
         displayMode="card"
         virtualizationMode="off"
-        setOutput={vi.fn()}
+        setOutput={noopSetOutput}
       />,
     );
 
@@ -310,7 +312,7 @@ describe("CommandComponent", () => {
         initialValues={{}}
         displayMode="card"
         virtualizationMode="off"
-        setOutput={vi.fn()}
+        setOutput={noopSetOutput}
       />,
     );
 
@@ -331,7 +333,7 @@ describe("CommandComponent", () => {
         filterArguments={allowAllArguments}
         initialValues={{}}
         displayMode="card"
-        setOutput={vi.fn()}
+        setOutput={noopSetOutput}
       />,
     );
 
@@ -365,7 +367,7 @@ describe("CommandComponent", () => {
         initialValues={{ first: "a", second: "b", third: "c" }}
         displayMode="card"
         virtualizationMode="off"
-        setOutput={vi.fn()}
+        setOutput={noopSetOutput}
       />,
     );
 

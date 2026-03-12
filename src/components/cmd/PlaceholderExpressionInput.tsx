@@ -288,6 +288,10 @@ export default function PlaceholderExpressionInput({
         }
     }, [resetActiveIndex]);
 
+    const dismissWithFocus = useCallback(() => {
+        dismissSuggestionPanel({ focusControl: true });
+    }, [dismissSuggestionPanel]);
+
     const showSuggestionPanel = shouldAnalyze && hasFocusWithin && hasPanelInteraction && (
         analysis.lazyOptionSource != null || analysis.suggestions.length > 0
     );
@@ -503,7 +507,7 @@ export default function PlaceholderExpressionInput({
                             onSearchValueChange={setPanelSearchValue}
                             onApplySuggestion={applySuggestion}
                             onActiveIndexChange={setActiveIndex}
-                            onDismiss={() => dismissSuggestionPanel({ focusControl: true })}
+                            onDismiss={dismissWithFocus}
                         />
                     </div>
                 </div>,

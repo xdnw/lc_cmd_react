@@ -108,6 +108,20 @@ export default function TriStateInput(
         resolveKey,
     });
 
+    const optionRefs = useMemo(
+        () => TRI_STATE_OPTIONS.map((_, index) => (node: HTMLButtonElement | null) => {
+            registerButtonRef(index, node);
+        }),
+        [registerButtonRef],
+    );
+
+    const optionClickHandlers = useMemo(
+        () => TRI_STATE_OPTIONS.map((option) => () => {
+            selectValue(option.value);
+        }),
+        [selectValue],
+    );
+
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         handleParsedInputPaste(event, {
             parse: parseTriStateControlValue,
@@ -125,7 +139,7 @@ export default function TriStateInput(
             return (
                 <button
                     key={option.value}
-                    ref={(node) => registerButtonRef(index, node)}
+                    ref={optionRefs[index]}
                     type="button"
                     role="radio"
                     aria-checked={isActive}
@@ -133,7 +147,7 @@ export default function TriStateInput(
                     title={option.label}
                     value={option.value}
                     tabIndex={isActive ? 0 : -1}
-                    onClick={() => selectValue(option.value)}
+                    onClick={optionClickHandlers[index]}
                     onKeyDown={handleOptionKeyDown}
                     className={cn(
                         "inline-flex items-center justify-center gap-1 rounded-sm leading-none transition-all duration-150",
@@ -148,7 +162,7 @@ export default function TriStateInput(
                 </button>
             );
         });
-    }, [compact, handleOptionKeyDown, normalizedValue, registerButtonRef, segmentClass, selectValue]);
+    }, [compact, handleOptionKeyDown, normalizedValue, optionClickHandlers, optionRefs, segmentClass]);
 
     return (
         <div className="space-y-1" onPasteCapture={handlePasteCapture}>

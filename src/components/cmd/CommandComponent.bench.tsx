@@ -11,6 +11,9 @@ vi.mock("../layout/DialogContext", () => ({
 
 import CommandComponent from "./CommandComponent";
 
+const allowAllArguments = () => true;
+const noopSetOutput = () => {};
+
 const entries = Array.from({ length: 120 }, (_, index) => ({
     name: `arg-${index}`,
     arg: {
@@ -42,9 +45,9 @@ describe("command component mount", () => {
         render(
             <CommandComponent
                 command={command as never}
-                filterArguments={() => true}
+                filterArguments={allowAllArguments}
                 initialValues={{}}
-                setOutput={() => {}}
+                setOutput={noopSetOutput}
             />,
         );
     });
@@ -53,10 +56,10 @@ describe("command component mount", () => {
         render(
             <CommandComponent
                 command={command as never}
-                filterArguments={() => true}
+                filterArguments={allowAllArguments}
                 initialValues={{}}
                 virtualizationMode="off"
-                setOutput={() => {}}
+                setOutput={noopSetOutput}
             />,
         );
     });
@@ -65,10 +68,10 @@ describe("command component mount", () => {
         render(
             <CommandComponent
                 command={command as never}
-                filterArguments={() => true}
+                filterArguments={allowAllArguments}
                 initialValues={{}}
                 forceMountAll
-                setOutput={() => {}}
+                setOutput={noopSetOutput}
             />,
         );
     });

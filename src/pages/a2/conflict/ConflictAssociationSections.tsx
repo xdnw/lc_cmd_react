@@ -146,6 +146,14 @@ export function ConflictForumPostsSection({
         onActionSuccess();
     }, [onActionSuccess]);
 
+    const forumPostConfirmHandlers = useMemo(
+        () => Object.fromEntries(posts.map((post) => [
+            post.key,
+            (next: boolean) => setPendingRemovalUrl(next ? post.key : null),
+        ])) as Record<string, (next: boolean) => void>,
+        [posts],
+    );
+
     return (
         <div className="mt-4 border-t border-border pt-4">
             <h3 className="text-sm font-semibold mb-2">Forum Posts</h3>
@@ -195,7 +203,7 @@ export function ConflictForumPostsSection({
                                         showResultDialog
                                         onComplete={onConfirmRemoveComplete}
                                         isConfirming={isConfirming}
-                                        onConfirmingChange={(next) => setPendingRemovalUrl(next ? post.key : null)}
+                                        onConfirmingChange={forumPostConfirmHandlers[post.key]}
                                         resetOnComplete="non-error"
                                         buttonVariant="destructive"
                                         buttonSize="sm"
@@ -265,6 +273,14 @@ export function ConflictAllianceSection({
         onActionSuccess();
     }, [onActionSuccess]);
 
+    const allianceConfirmHandlers = useMemo(
+        () => Object.fromEntries(entries.map((entry) => {
+            const key = `${entry.coalition}-${entry.allianceId}`;
+            return [key, (next: boolean) => setPendingRemovalKey(next ? key : null)];
+        })) as Record<string, (next: boolean) => void>,
+        [entries],
+    );
+
     return (
         <div className="mt-4 border-t border-border pt-4">
             <h3 className="text-sm font-semibold mb-2">Alliances</h3>
@@ -312,7 +328,7 @@ export function ConflictAllianceSection({
                                                         showResultDialog
                                                         onComplete={onConfirmRemoveComplete}
                                                         isConfirming={isConfirming}
-                                                        onConfirmingChange={(next) => setPendingRemovalKey(next ? key : null)}
+                                                        onConfirmingChange={allianceConfirmHandlers[key]}
                                                         resetOnComplete="non-error"
                                                         buttonVariant="destructive"
                                                         buttonSize="sm"

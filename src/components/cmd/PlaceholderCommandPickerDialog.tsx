@@ -466,6 +466,13 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
         }, {});
     }, [selectedEntry, updateFieldState]);
 
+    const entryHoverHandlers = useMemo(
+        () => visibleEntries.map((_, index) => () => {
+            setActiveIndex(startIndex + index);
+        }),
+        [setActiveIndex, startIndex, visibleEntries],
+    );
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-4xl gap-3 p-0 sm:max-h-[85vh]">
@@ -543,7 +550,7 @@ const PlaceholderCommandPickerDialog = memo(function PlaceholderCommandPickerDia
                                                 className="absolute left-0 right-0 flex h-10 flex-col items-start justify-center gap-0.5 border-b border-border/50 px-3 text-left transition-colors hover:bg-muted/40"
                                                 style={{ top: `${top}px` }}
                                                 onClick={handleEntryClick}
-                                                onMouseMove={() => setActiveIndex(startIndex + index)}
+                                                onMouseMove={entryHoverHandlers[index]}
                                                 title={entry.description}
                                             >
                                                 <div className="flex w-full items-center gap-2">

@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useState } from "react";
+import React, { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,18 +6,27 @@ import CommandDialogForm from "./CommandDialogForm";
 import { DIALOG_LOCAL_ESCAPE_ATTR } from "@/components/ui/dialog";
 import { COMMAND_LOCAL_PRINTABLE_KEYS_ATTR } from "./commandKeyboard";
 
-let commandComponentRenderCount = 0;
-let commandActionButtonRenderCount = 0;
-let commandActionButtonClickCount = 0;
-const searchArgsMock = vi.fn((query: string) => {
-  if (query === "u") {
-    return { matches: ["user"], bestMatch: "user", exactMatch: null };
-  }
-  if (query === "user") {
-    return { matches: ["user"], bestMatch: "user", exactMatch: "user" };
-  }
-  return { matches: [], bestMatch: null, exactMatch: null };
-});
+const {
+  commandComponentRenderSpy,
+  commandActionButtonRenderSpy,
+  commandActionButtonClickSpy,
+  onRequestBackSpy,
+  searchArgsMock,
+} = vi.hoisted(() => ({
+  commandComponentRenderSpy: vi.fn(),
+  commandActionButtonRenderSpy: vi.fn(),
+  commandActionButtonClickSpy: vi.fn(),
+  onRequestBackSpy: vi.fn(),
+  searchArgsMock: vi.fn((query: string) => {
+    if (query === "u") {
+      return { matches: ["user"], bestMatch: "user", exactMatch: null };
+    }
+    if (query === "user") {
+      return { matches: ["user"], bestMatch: "user", exactMatch: "user" };
+    }
+    return { matches: [], bestMatch: null, exactMatch: null };
+  }),
+}));
 
 vi.mock("./CommandComponent", () => ({
   default: forwardRef(({
@@ -29,9 +38,28 @@ vi.mock("./CommandComponent", () => ({
     jumpSearchMatches?: string[];
     jumpSearchActiveArg?: string | null;
   }, ref: React.ForwardedRef<{ focusArg: (argName: string) => boolean; searchArgs: (query: string) => unknown }>) => {
-    commandComponentRenderCount += 1;
+    commandComponentRenderSpy();
     const [popupOpen, setPopupOpen] = useState(false);
     const [boolValue, setBoolValue] = useState("false");
+
+    const handleBoolKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (event.key === "t" || event.key === "T") {
+        event.preventDefault();
+        setBoolValue("true");
+      }
+      if (event.key === "f" || event.key === "F") {
+        event.preventDefault();
+        setBoolValue("false");
+      }
+    }, []);
+
+    const togglePopupOpen = useCallback(() => {
+      setPopupOpen((current) => !current);
+    }, []);
+
+    const handleMockFieldUpdate = useCallback(() => {
+      setOutput("value", "updated");
+    }, [setOutput]);
 
     useImperativeHandle(ref, () => ({
       focusArg: (argName: string) => {
@@ -52,16 +80,7 @@ vi.mock("./CommandComponent", () => ({
             role="radio"
             aria-label="mock false"
             aria-checked={boolValue === "false"}
-            onKeyDown={(event) => {
-              if (event.key === "t" || event.key === "T") {
-                event.preventDefault();
-                setBoolValue("true");
-              }
-              if (event.key === "f" || event.key === "F") {
-                event.preventDefault();
-                setBoolValue("false");
-              }
-            }}
+            onKeyDown={handleBoolKeyDown}
           >
             False
           </button>
@@ -69,8 +88,8 @@ vi.mock("./CommandComponent", () => ({
         </div>
         <input aria-label="user field" data-arg-name="user" />
         <div data-testid="jump-state">{JSON.stringify({ jumpSearchMatches, jumpSearchActiveArg })}</div>
-        <button type="button" onClick={() => setPopupOpen((current) => !current)}>toggle popup state</button>
-        <button type="button" onClick={() => setOutput("value", "updated")}>mock field update</button>
+        <button type="button" onClick={togglePopupOpen}>toggle popup state</button>
+        <button type="button" onClick={handleMockFieldUpdate}>mock field update</button>
       </div>
     );
   }),
@@ -86,13 +105,15 @@ vi.mock("./CommandActionButton", () => ({
     label?: string;
     buttonRef?: React.Ref<HTMLButtonElement>;
   }) => {
-    commandActionButtonRenderCount += 1;
+    commandActionButtonRenderSpy();
+
+    const handleActionButtonClick = useCallback(() => {
+      commandActionButtonClickSpy();
+    }, []);
 
     if (buttonRef && typeof buttonRef !== "function") {
       buttonRef.current = {
-        click: () => {
-          commandActionButtonClickCount += 1;
-        },
+        click: handleActionButtonClick,
       } as HTMLButtonElement;
     }
 
@@ -100,9 +121,7 @@ vi.mock("./CommandActionButton", () => ({
       <button
         type="button"
         data-testid="mock-command-action"
-        onClick={() => {
-          commandActionButtonClickCount += 1;
-        }}
+        onClick={handleActionButtonClick}
       >
         {label}|{JSON.stringify(args)}
       </button>
@@ -112,9 +131,10 @@ vi.mock("./CommandActionButton", () => ({
 
 describe("CommandDialogForm", () => {
   afterEach(() => {
-    commandComponentRenderCount = 0;
-    commandActionButtonRenderCount = 0;
-    commandActionButtonClickCount = 0;
+    commandComponentRenderSpy.mockClear();
+    commandActionButtonRenderSpy.mockClear();
+    commandActionButtonClickSpy.mockClear();
+    onRequestBackSpy.mockClear();
     searchArgsMock.mockClear();
   });
 
@@ -126,15 +146,15 @@ describe("CommandDialogForm", () => {
       />,
     );
 
-    const initialComponentRenderCount = commandComponentRenderCount;
+    const initialComponentRenderCount = commandComponentRenderSpy.mock.calls.length;
     expect(initialComponentRenderCount).toBeGreaterThanOrEqual(1);
-    const initialActionButtonRenderCount = commandActionButtonRenderCount;
+    const initialActionButtonRenderCount = commandActionButtonRenderSpy.mock.calls.length;
     expect(initialActionButtonRenderCount).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole("button", { name: "mock field update" }));
 
-    expect(commandComponentRenderCount).toBe(initialComponentRenderCount);
-    expect(commandActionButtonRenderCount).toBeGreaterThan(initialActionButtonRenderCount);
+    expect(commandComponentRenderSpy.mock.calls.length).toBe(initialComponentRenderCount);
+    expect(commandActionButtonRenderSpy.mock.calls.length).toBeGreaterThan(initialActionButtonRenderCount);
     expect(screen.getByTestId("mock-command-action").textContent).toContain("updated");
   });
 
@@ -149,7 +169,7 @@ describe("CommandDialogForm", () => {
     const input = screen.getByRole("textbox", { name: "mock input" });
     fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
 
-    expect(commandActionButtonClickCount).toBeGreaterThanOrEqual(1);
+    expect(commandActionButtonClickSpy).toHaveBeenCalled();
     expect(screen.getByTestId("mock-command-action").textContent).toContain("Ctrl+Enter");
   });
 
@@ -167,7 +187,7 @@ describe("CommandDialogForm", () => {
       <CommandDialogForm
         commandPath={["settings", "info"]}
         initialValues={{ key: "example" }}
-        onRequestBack={vi.fn()}
+          onRequestBack={onRequestBackSpy}
       />,
     );
 
@@ -185,7 +205,7 @@ describe("CommandDialogForm", () => {
     const textarea = screen.getByRole("textbox", { name: "mock textarea" });
     fireEvent.keyDown(textarea, { key: "Enter", ctrlKey: true });
 
-    expect(commandActionButtonClickCount).toBe(0);
+    expect(commandActionButtonClickSpy).not.toHaveBeenCalled();
   });
 
   it("uses neutral-shell typing to jump to an argument", () => {
@@ -193,7 +213,7 @@ describe("CommandDialogForm", () => {
       <CommandDialogForm
         commandPath={["settings", "info"]}
         initialValues={{ key: "example" }}
-        onRequestBack={vi.fn()}
+          onRequestBack={onRequestBackSpy}
       />,
     );
 
@@ -213,7 +233,7 @@ describe("CommandDialogForm", () => {
       <CommandDialogForm
         commandPath={["settings", "info"]}
         initialValues={{ key: "example" }}
-        onRequestBack={vi.fn()}
+          onRequestBack={onRequestBackSpy}
       />,
     );
 
@@ -238,7 +258,7 @@ describe("CommandDialogForm", () => {
       <CommandDialogForm
         commandPath={["settings", "info"]}
         initialValues={{ key: "example" }}
-        onRequestBack={vi.fn()}
+        onRequestBack={onRequestBackSpy}
       />,
     );
 
@@ -258,7 +278,7 @@ describe("CommandDialogForm", () => {
       <CommandDialogForm
         commandPath={["settings", "info"]}
         initialValues={{ key: "example" }}
-        onRequestBack={vi.fn()}
+        onRequestBack={onRequestBackSpy}
       />,
     );
 
@@ -305,7 +325,7 @@ describe("CommandDialogForm", () => {
       <CommandDialogForm
         commandPath={["settings", "info"]}
         initialValues={{ key: "example" }}
-        onRequestBack={vi.fn()}
+        onRequestBack={onRequestBackSpy}
       />,
     );
 
@@ -324,7 +344,7 @@ describe("CommandDialogForm", () => {
       <CommandDialogForm
         commandPath={["settings", "info"]}
         initialValues={{ key: "example" }}
-        onRequestBack={vi.fn()}
+        onRequestBack={onRequestBackSpy}
       />,
     );
 
@@ -345,7 +365,7 @@ describe("CommandDialogForm", () => {
       <CommandDialogForm
         commandPath={["settings", "info"]}
         initialValues={{ key: "example" }}
-        onRequestBack={vi.fn()}
+        onRequestBack={onRequestBackSpy}
       />,
     );
 
@@ -368,7 +388,7 @@ describe("CommandDialogForm", () => {
       <CommandDialogForm
         commandPath={["settings", "info"]}
         initialValues={{ key: "example" }}
-        onRequestBack={vi.fn()}
+        onRequestBack={onRequestBackSpy}
       />,
     );
 

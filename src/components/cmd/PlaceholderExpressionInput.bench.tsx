@@ -5,6 +5,8 @@ import { CM, getTypeBreakdown } from "@/utils/Command";
 import PlaceholderExpressionInput from "./PlaceholderExpressionInput";
 import type { ExpressionValueSourceRegistry } from "./expression/expressionValueFetcher";
 
+const noopSetOutputValue = () => {};
+
 const registry: ExpressionValueSourceRegistry = {
     "placeholder:DBNation": {
         status: "ready",
@@ -45,7 +47,7 @@ describe("placeholder expression input interaction", () => {
             <PlaceholderExpressionInput
                 argName="value"
                 initialValue="nation:"
-                setOutputValue={() => {}}
+                setOutputValue={noopSetOutputValue}
                 breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
             />,
         );

@@ -110,12 +110,16 @@ function CommandListRow({
         </div>
     );
 
+    const handleSelect = useCallback(() => {
+        onSelectCommand?.(command);
+    }, [command, onSelectCommand]);
+
     if (onSelectCommand) {
         return (
             <button
                 type="button"
                 ref={rowRef as React.Ref<HTMLButtonElement> | undefined}
-                onClick={() => onSelectCommand(command)}
+                onClick={handleSelect}
                 id={optionId}
                 role="option"
                 aria-selected={isActive}
@@ -558,6 +562,55 @@ export default function CmdList({
         rowRefs.current.delete(path);
     }, []);
 
+    const triFilterHandlers = useMemo(
+        () => Object.fromEntries(CMD_TRI_FILTER_DEFS.map((filterDef) => [
+            filterDef.key,
+            (_name: string, value: string) => setTriFilter(filterDef.key, value),
+        ])) as Record<CmdTriFilterKey, (name: string, value: string) => void>,
+        [setTriFilter],
+    );
+
+    const hasArgsFilterHandler = useCallback((_name: string, value: string) => {
+        setHasArgsFilter(value);
+    }, [setHasArgsFilter]);
+
+    const commandRowRefs = useMemo(
+        () => Object.fromEntries(filteredCommands.map((command) => {
+            const path = command.getPathString();
+            return [path, (node: HTMLElement | null) => registerRowRef(path, node)];
+        })) as Record<string, (node: HTMLElement | null) => void>,
+        [filteredCommands, registerRowRef],
+    );
+
+    const commandMouseMoveHandlers = useMemo(
+        () => filteredCommands.map((_, index) => () => {
+            setActiveIndex(index);
+        }),
+        [filteredCommands, setActiveIndex],
+    );
+
+    const computeCommandItemKey = useCallback((_index: number, command: BaseCommand) => {
+        return command.getPathString();
+    }, []);
+
+    const renderCommandRow = useCallback((index: number, command: BaseCommand) => {
+        const path = command.getPathString();
+        return (
+            <div className="px-0.5 py-0.5">
+                <CommandListRow
+                    command={command}
+                    prefix={prefix}
+                    onSelectCommand={onSelectCommand}
+                    optionId={getOptionId(command)}
+                    isActive={index === activeIndex}
+                    compact={modalMode}
+                    rowRef={commandRowRefs[path]}
+                    onMouseMove={commandMouseMoveHandlers[index]}
+                />
+            </div>
+        );
+    }, [activeIndex, commandMouseMoveHandlers, commandRowRefs, getOptionId, modalMode, onSelectCommand, prefix]);
+
     const listHeight = typeof viewportHeight === "number" ? `${viewportHeight}px` : viewportHeight;
     const activeCommand = filteredCommands[activeIndex] ?? null;
     const activeDescendantId = activeCommand ? getOptionId(activeCommand) : undefined;
@@ -662,7 +715,7 @@ export default function CmdList({
                                 <TriStateInput
                                     argName={filterDef.key}
                                     initialValue={browserState.filters.triFilters[filterDef.key] ?? "0"}
-                                    setOutputValue={(_name, value) => setTriFilter(filterDef.key, value)}
+                                    setOutputValue={triFilterHandlers[filterDef.key]}
                                     compact={true}
                                 />
                             </CompactFilterCard>
@@ -671,7 +724,7 @@ export default function CmdList({
                             <TriStateInput
                                 argName="hasArgs"
                                 initialValue={browserState.filters.hasArgs}
-                                setOutputValue={(_name, value) => setHasArgsFilter(value)}
+                                setOutputValue={hasArgsFilterHandler}
                                 compact={true}
                             />
                         </CompactFilterCard>
@@ -710,21 +763,8 @@ export default function CmdList({
                         ref={virtuosoRef}
                         style={{ height: listHeight }}
                         data={filteredCommands}
-                        computeItemKey={(_index, command) => command.getPathString()}
-                        itemContent={(index, command) => (
-                            <div className="px-0.5 py-0.5">
-                                <CommandListRow
-                                    command={command}
-                                    prefix={prefix}
-                                    onSelectCommand={onSelectCommand}
-                                    optionId={getOptionId(command)}
-                                    isActive={index === activeIndex}
-                                    compact={modalMode}
-                                    rowRef={(node) => registerRowRef(command.getPathString(), node)}
-                                    onMouseMove={() => setActiveIndex(index)}
-                                />
-                            </div>
-                        )}
+                        computeItemKey={computeCommandItemKey}
+                        itemContent={renderCommandRow}
                         defaultItemHeight={CMD_LIST_DEFAULT_ROW_HEIGHT}
                         overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
                         increaseViewportBy={600}

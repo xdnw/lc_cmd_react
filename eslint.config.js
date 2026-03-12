@@ -47,7 +47,7 @@ const baseConfig = tseslint.config(
         languageOptions: {
             parser: tseslint.parser,
             parserOptions: {
-                project: './tsconfig.json',
+                project: ['./tsconfig.json', './tsconfig.node.json'],
                 tsconfigRootDir,
                 ecmaVersion: 'latest',
                 sourceType: 'module',

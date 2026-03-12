@@ -14,6 +14,7 @@
   },
   "include": [
     "vite.config.ts",
+    "vitest.config.ts",
     "env.*.ts",
     "scripts/**/*.ts",
     "scripts/**/*.cjs"

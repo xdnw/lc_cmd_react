@@ -3,6 +3,8 @@ import { afterEach, bench, describe } from "vitest";
 
 import ListComponent from "./ListComponent";
 
+const noopSetOutputValue = () => {};
+
 const largeOptions = Array.from({ length: 20000 }, (_, index) => {
     const value = `Nation ${String(index).padStart(5, "0")}`;
     return {
@@ -24,7 +26,7 @@ describe("list component interaction", () => {
                 options={largeOptions}
                 isMulti={false}
                 initialValue=""
-                setOutputValue={() => {}}
+                setOutputValue={noopSetOutputValue}
             />,
         );
     });
@@ -36,7 +38,7 @@ describe("list component interaction", () => {
                 options={largeOptions}
                 isMulti={false}
                 initialValue=""
-                setOutputValue={() => {}}
+                setOutputValue={noopSetOutputValue}
             />,
         );
 

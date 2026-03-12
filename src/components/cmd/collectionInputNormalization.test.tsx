@@ -1,15 +1,25 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("./ArgInput", () => ({
-    default: ({ argName, initialValue, setOutputValue }: { argName: string; initialValue?: string; setOutputValue: (name: string, value: string) => void }) => (
-        <input
-            aria-label={argName}
-            value={initialValue ?? ""}
-            onChange={(event) => setOutputValue(argName, event.target.value)}
-        />
-    ),
-}));
+vi.mock("./ArgInput", async () => {
+    const React = await import("react");
+
+    const MockArgInput = ({ argName, initialValue, setOutputValue }: { argName: string; initialValue?: string; setOutputValue: (name: string, value: string) => void }) => {
+        const handleChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+            setOutputValue(argName, event.target.value);
+        }, [argName, setOutputValue]);
+
+        return (
+            <input
+                aria-label={argName}
+                value={initialValue ?? ""}
+                onChange={handleChange}
+            />
+        );
+    };
+
+    return { default: MockArgInput };
+});
 
 import { CM, getTypeBreakdown } from "@/utils/Command";
 import { DialogProvider } from "../layout/DialogContext";

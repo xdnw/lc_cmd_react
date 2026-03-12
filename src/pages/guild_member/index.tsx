@@ -87,6 +87,24 @@ export function AuditComponent({ audits }: { audits: WebAudits }) {
     }, [setShowDescription]);
 
     const auditRows = useMemo(() => audits.values, [audits.values]);
+    const computeAuditRowKey = useCallback((index: number, audit: WebAudits["values"][number]) => {
+        return `${audit.audit}-${audit.value}-${index}`;
+    }, []);
+
+    const renderAuditRow = useCallback((_: number, audit: WebAudits["values"][number]) => {
+        return (
+            <div className={`p-0.5 mb-0.5 border ${getSeverityColor(audit.severity)} break-all`}>
+                <div className="flex justify-between items-center">
+                    <span className="font-bold">{audit.audit}: {audit.value}</span>
+                </div>
+                {showDescription ? (
+                    <div className="p-1">
+                        <MarkupRenderer content={audit.description} />
+                    </div>
+                ) : null}
+            </div>
+        );
+    }, [showDescription]);
 
     return (
         <div className="bg-light/10 border border-light/10 p-2 mt-2 rounded">
@@ -107,19 +125,8 @@ export function AuditComponent({ audits }: { audits: WebAudits }) {
                     overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
                     increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
                     defaultItemHeight={showDescription ? AUDIT_EXPANDED_ITEM_HEIGHT : AUDIT_DEFAULT_ITEM_HEIGHT}
-                    computeItemKey={(index, audit) => `${audit.audit}-${audit.value}-${index}`}
-                    itemContent={(_, audit) => (
-                        <div className={`p-0.5 mb-0.5 border ${getSeverityColor(audit.severity)} break-all`}>
-                            <div className="flex justify-between items-center">
-                                <span className="font-bold">{audit.audit}: {audit.value}</span>
-                            </div>
-                            {showDescription ? (
-                                <div className="p-1">
-                                    <MarkupRenderer content={audit.description} />
-                                </div>
-                            ) : null}
-                        </div>
-                    )}
+                    computeItemKey={computeAuditRowKey}
+                    itemContent={renderAuditRow}
                 />
             </div>
         </div>
@@ -278,6 +285,26 @@ export function WarsComponent({ wars }: { wars: ApiTypes.WebMyWars }) {
         return items;
     }, [wars.defensives, wars.offensives]);
 
+    const computeWarItemKey = useCallback((_: number, item: WarListItem) => {
+        return item.key;
+    }, []);
+
+    const renderWarItem = useCallback((_: number, item: WarListItem) => {
+        if (item.kind === "header") {
+            return <h4 className="text-lg">{item.title}</h4>;
+        }
+
+        return (
+            <WarComponent
+                me={wars.me}
+                war={item.war}
+                isAttacker={item.isAttacker}
+                oddsOpen={expandedOdds.has(item.war.id)}
+                onToggleOddsOpen={toggleOddsOpen}
+            />
+        );
+    }, [expandedOdds, toggleOddsOpen, wars.me]);
+
     return (
         <div className="bg-light/10 border border-light/10 p-2 rounded mt-2">
             <div className="w-full">
@@ -313,22 +340,8 @@ export function WarsComponent({ wars }: { wars: ApiTypes.WebMyWars }) {
                         overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
                         increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
                         defaultItemHeight={WAR_DEFAULT_ITEM_HEIGHT}
-                        computeItemKey={(_, item) => item.key}
-                        itemContent={(_, item) => {
-                            if (item.kind === "header") {
-                                return <h4 className="text-lg">{item.title}</h4>;
-                            }
-
-                            return (
-                                <WarComponent
-                                    me={wars.me}
-                                    war={item.war}
-                                    isAttacker={item.isAttacker}
-                                    oddsOpen={expandedOdds.has(item.war.id)}
-                                    onToggleOddsOpen={toggleOddsOpen}
-                                />
-                            );
-                        }}
+                        computeItemKey={computeWarItemKey}
+                        itemContent={renderWarItem}
                     />
                 </div>
             </div>
@@ -405,6 +418,10 @@ export function WarComponent({
 }) {
     const now_ms = Date.now();
     const showBeigeReasons = false;
+    const handleToggleOddsOpen = useCallback(() => {
+        onToggleOddsOpen?.(war.id);
+    }, [onToggleOddsOpen, war.id]);
+
     return (
         <div className="border-2 border-red-200 dark:border-red-900 bg-slate-500/50 mb-5 rounded-md">
             <table className="table-auto w-full">
@@ -537,7 +554,7 @@ export function WarComponent({
                                 me={me}
                                 war={war}
                                 isOpen={oddsOpen}
-                                onToggleOpen={onToggleOddsOpen ? () => onToggleOddsOpen(war.id) : undefined}
+                                onToggleOpen={onToggleOddsOpen ? handleToggleOddsOpen : undefined}
                             />
                             {war.beigeReasons != null && isAttacker && showBeigeReasons && <>
                                 <div

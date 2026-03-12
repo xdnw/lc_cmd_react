@@ -23,6 +23,8 @@ vi.mock("./queryOptionWorkerClient", () => ({
 
 import QueryComponent from "./QueryComponent";
 
+const noopSetOutputValue = () => {};
+
 const payload = {
     text: Array.from({ length: 20000 }, (_, index) => `Nation ${index}`),
     key_string: Array.from({ length: 20000 }, (_, index) => `${index}`),
@@ -43,7 +45,7 @@ describe("query component mount", () => {
                     multi={false}
                     argName="target"
                     initialValue=""
-                    setOutputValue={() => {}}
+                    setOutputValue={noopSetOutputValue}
                 />,
             );
             await Promise.resolve();
@@ -60,7 +62,7 @@ describe("query component mount", () => {
                     argName="target"
                     initialValue=""
                     preloadOptions
-                    setOutputValue={() => {}}
+                    setOutputValue={noopSetOutputValue}
                 />,
             );
             await Promise.resolve();

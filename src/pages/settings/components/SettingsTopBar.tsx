@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useCallback, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
 import SearchBar from "@/components/cmd/SearchBar";
 import { Button } from "@/components/ui/button";
 import type {
@@ -22,9 +22,9 @@ export default function SettingsTopBar({
     unsupportedIssues: UnsupportedInputIssue[];
     onBrowserStateChange: Dispatch<SetStateAction<SettingsBrowserState>>;
 }) {
-    const updateState = (updater: (currentState: SettingsBrowserState) => SettingsBrowserState) => {
+    const updateState = useCallback((updater: (currentState: SettingsBrowserState) => SettingsBrowserState) => {
         onBrowserStateChange((currentState) => updater(currentState));
-    };
+    }, [onBrowserStateChange]);
 
     const showAllAvailability = browserState.availability === "all";
     const onlySet = browserState.hasValue === "only";
@@ -32,6 +32,57 @@ export default function SettingsTopBar({
     const showChannels = browserState.channelType === "only";
     const showUnsupported = browserState.unsupported === "only";
     const hasWarnings = schemaErrorCount > 0 || rowParseErrorCount > 0 || unsupportedIssues.length > 0;
+    const handleSearchChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+        const nextQuery = event.target.value;
+        updateState((currentState) => ({
+            ...currentState,
+            query: nextQuery,
+            sort: nextQuery.trim() ? "relevance" : "category",
+        }));
+    }, [updateState]);
+
+    const handleSearchClear = useCallback(() => {
+        updateState((currentState) => ({
+            ...currentState,
+            query: "",
+            sort: "category",
+        }));
+    }, [updateState]);
+
+    const toggleAvailability = useCallback(() => {
+        updateState((currentState) => ({
+            ...currentState,
+            availability: currentState.availability === "all" ? "available" : "all",
+        }));
+    }, [updateState]);
+
+    const toggleHasValue = useCallback(() => {
+        updateState((currentState) => ({
+            ...currentState,
+            hasValue: currentState.hasValue === "only" ? "all" : "only",
+        }));
+    }, [updateState]);
+
+    const toggleInvalid = useCallback(() => {
+        updateState((currentState) => ({
+            ...currentState,
+            invalid: currentState.invalid === "only" ? "all" : "only",
+        }));
+    }, [updateState]);
+
+    const toggleUnsupported = useCallback(() => {
+        updateState((currentState) => ({
+            ...currentState,
+            unsupported: currentState.unsupported === "only" ? "all" : "only",
+        }));
+    }, [updateState]);
+
+    const toggleChannelType = useCallback(() => {
+        updateState((currentState) => ({
+            ...currentState,
+            channelType: currentState.channelType === "only" ? "all" : "only",
+        }));
+    }, [updateState]);
 
     return (
         <section className="border border-border/70 bg-background/95">
@@ -46,21 +97,8 @@ export default function SettingsTopBar({
                 <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(18rem,32rem)_minmax(0,1fr)] lg:items-center">
                     <SearchBar
                         value={browserState.query}
-                        onChange={(event) => {
-                            const nextQuery = event.target.value;
-                            updateState((currentState) => ({
-                                ...currentState,
-                                query: nextQuery,
-                                sort: nextQuery.trim() ? "relevance" : "category",
-                            }));
-                        }}
-                        onClear={() => {
-                            updateState((currentState) => ({
-                                ...currentState,
-                                query: "",
-                                sort: "category",
-                            }));
-                        }}
+                        onChange={handleSearchChange}
+                        onClear={handleSearchClear}
                         placeholder="Search settings"
                         className="h-7 border-border/70 bg-background px-2 pr-8 text-sm"
                     />
@@ -71,10 +109,7 @@ export default function SettingsTopBar({
                                 type="button"
                                 variant={showAllAvailability ? "default" : "outline"}
                                 size="sm"
-                                onClick={() => updateState((currentState) => ({
-                                    ...currentState,
-                                    availability: currentState.availability === "all" ? "available" : "all",
-                                }))}
+                                onClick={toggleAvailability}
                             >
                                 {showAllAvailability
                                     ? "Show available"
@@ -86,10 +121,7 @@ export default function SettingsTopBar({
                                 type="button"
                                 variant={onlySet ? "default" : "outline"}
                                 size="sm"
-                                onClick={() => updateState((currentState) => ({
-                                    ...currentState,
-                                    hasValue: currentState.hasValue === "only" ? "all" : "only",
-                                }))}
+                                onClick={toggleHasValue}
                             >
                                 {onlySet ? "Showing set" : `Show set (${counts.hasValueRows})`}
                             </Button>
@@ -98,10 +130,7 @@ export default function SettingsTopBar({
                                     type="button"
                                     variant={showInvalid ? "default" : "outline"}
                                     size="sm"
-                                    onClick={() => updateState((currentState) => ({
-                                        ...currentState,
-                                        invalid: currentState.invalid === "only" ? "all" : "only",
-                                    }))}
+                                    onClick={toggleInvalid}
                                 >
                                     {showInvalid ? `Showing invalid (${counts.invalidRows})` : `Invalid (${counts.invalidRows})`}
                                 </Button>
@@ -111,10 +140,7 @@ export default function SettingsTopBar({
                                     type="button"
                                     variant={showUnsupported ? "default" : "outline"}
                                     size="sm"
-                                    onClick={() => updateState((currentState) => ({
-                                        ...currentState,
-                                        unsupported: currentState.unsupported === "only" ? "all" : "only",
-                                    }))}
+                                    onClick={toggleUnsupported}
                                 >
                                     {showUnsupported ? `Showing unsupported (${counts.unsupportedRows})` : `Unsupported (${counts.unsupportedRows})`}
                                 </Button>
@@ -124,10 +150,7 @@ export default function SettingsTopBar({
                                     type="button"
                                     variant={showChannels ? "default" : "outline"}
                                     size="sm"
-                                    onClick={() => updateState((currentState) => ({
-                                        ...currentState,
-                                        channelType: currentState.channelType === "only" ? "all" : "only",
-                                    }))}
+                                    onClick={toggleChannelType}
                                 >
                                     {showChannels ? `Showing channels (${counts.channelTypeRows})` : `Channels (${counts.channelTypeRows})`}
                                 </Button>

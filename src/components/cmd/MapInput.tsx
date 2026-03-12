@@ -364,6 +364,10 @@ function StaticKeyMapInput(
 
     const { warningText, noteText } = useMemo(() => summarizeCollectionNotices(state.notices), [state.notices]);
     const extraItems = useMemo(() => toEntryItems(state.extraEntries), [state.extraEntries]);
+    const staticRowRefs = useMemo(
+        () => Object.fromEntries(staticKeys.map((key) => [key, (node: HTMLDivElement | null) => registerRowRef(key, node)])),
+        [registerRowRef, staticKeys],
+    ) as Record<string, (node: HTMLDivElement | null) => void>;
 
     return (
         <div className="space-y-2" onPasteCapture={handlePasteCapture} onKeyDownCapture={handleTypeaheadKeyDownCapture}>
@@ -377,7 +381,7 @@ function StaticKeyMapInput(
                         displayMode={displayMode}
                         compact={compact}
                         onValueChange={handleValueChange}
-                        rowRef={(node) => registerRowRef(key, node)}
+                        rowRef={staticRowRefs[key]}
                     />
                 ))}
             </div>

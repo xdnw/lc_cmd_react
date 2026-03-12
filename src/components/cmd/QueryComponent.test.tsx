@@ -2,27 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useQueriesMock = vi.fn();
-const listComponentMock = vi.fn(({
-  options,
-  onSearchValueChange,
-  loadingOptions,
-  emptyMessage,
-}: {
-  options: Array<{ value: string; label: string }>;
-  onSearchValueChange?: (value: string) => void;
-  loadingOptions?: boolean;
-  emptyMessage?: string;
-}) => (
-  <div>
-    <input
-      aria-label="Search options"
-      onChange={(event) => onSearchValueChange?.(event.currentTarget.value)}
-    />
-    {loadingOptions ? <div data-testid="loading-options">loading</div> : null}
-    {emptyMessage ? <div data-testid="empty-message">{emptyMessage}</div> : null}
-    <div data-testid="list-component">options:{options.map((option) => `${option.label}|${option.value}`).join(",")}</div>
-  </div>
-));
+const listComponentMock = vi.fn();
 const ensureQueryOptionDatasetFromPayloadMock = vi.fn();
 const searchQueryOptionDatasetMock = vi.fn();
 
@@ -30,14 +10,43 @@ vi.mock("@tanstack/react-query", () => ({
   useQueries: (...args: unknown[]) => useQueriesMock(...args),
 }));
 
-vi.mock("./ListComponent", () => ({
-  default: (props: {
+vi.mock("./ListComponent", async () => {
+  const React = await import("react");
+
+  const MockListComponent = (props: {
     options: Array<{ value: string; label: string }>;
     onSearchValueChange?: (value: string) => void;
     loadingOptions?: boolean;
     emptyMessage?: string;
-  }) => listComponentMock(props),
-}));
+  }) => {
+    const {
+      options,
+      onSearchValueChange,
+      loadingOptions,
+      emptyMessage,
+    } = props;
+
+    listComponentMock(props);
+
+    const handleChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+      onSearchValueChange?.(event.currentTarget.value);
+    }, [onSearchValueChange]);
+
+    return (
+      <div>
+        <input
+          aria-label="Search options"
+          onChange={handleChange}
+        />
+        {loadingOptions ? <div data-testid="loading-options">loading</div> : null}
+        {emptyMessage ? <div data-testid="empty-message">{emptyMessage}</div> : null}
+        <div data-testid="list-component">options:{options.map((option) => `${option.label}|${option.value}`).join(",")}</div>
+      </div>
+    );
+  };
+
+  return { default: MockListComponent };
+});
 
 vi.mock("./queryOptionWorkerClient", () => ({
   ensureQueryOptionDatasetFromPayload: (...args: unknown[]) => ensureQueryOptionDatasetFromPayloadMock(...args),

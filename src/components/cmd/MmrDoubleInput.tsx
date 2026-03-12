@@ -1,6 +1,6 @@
 import { useSyncedStateFunc } from "@/utils/StateUtil";
 import { Input } from "../ui/input";
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { acceptedParsedInput, handleParsedInputPaste, rejectedParsedInput, useParsedInputFeedback } from "./field/parsedInputFeedback";
 import FieldMessage from "./field/FieldMessage";
@@ -137,6 +137,13 @@ export default function MmrDoubleInput(
         }
     }, [focusSlot, value.length]);
 
+    const slotRefHandlers = useMemo(
+        () => value.map((_, index) => (node: HTMLInputElement | null) => {
+            slotRefs.current[index] = node;
+        }),
+        [value],
+    );
+
     return (
         <div className="space-y-1" onPasteCapture={handlePasteCapture}>
             <div className={cn("inline-flex items-center rounded-md border border-border/70 bg-background p-1", compact ? "gap-1" : "gap-1.5")}>
@@ -146,9 +153,7 @@ export default function MmrDoubleInput(
                         <React.Fragment key={index}>
                             {index > 0 && <span className="text-xs text-muted-foreground">/</span>}
                             <Input
-                                ref={(node) => {
-                                    slotRefs.current[index] = node;
-                                }}
+                                ref={slotRefHandlers[index]}
                                 type="text"
                                 inputMode="decimal"
                                 data-index={index}

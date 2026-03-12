@@ -66,6 +66,10 @@ export default function TypedInput({
         setValidation(validateRegexInput(nextValue, filter, filterHelp));
     }, [argName, filter, filterHelp, resetValidation, setDisplayValue, setOutputValue, setValidation]);
 
+    const openSimplePicker = useCallback(() => {
+        setShowSimplePicker(true);
+    }, []);
+
     return (
         <div className="space-y-1.5">
             <InputField
@@ -84,7 +88,7 @@ export default function TypedInput({
                     variant="outline"
                     size="sm"
                     className="h-6 w-auto justify-between px-2 text-[11px]"
-                    onClick={() => setShowSimplePicker(true)}
+                    onClick={openSimplePicker}
                 >
                     Add simple
                 </Button>

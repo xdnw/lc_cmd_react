@@ -151,10 +151,10 @@ export function toLegacySelection(type: string, selection: { [key: string]: stri
     const baseSelection = selection[""] ?? "";
     const modifiers = Object.entries(selection)
         .filter(([key]) => key !== "")
-        .map(([key, value]) => `(${key}: ${value})`)
-        .join(" ");
+        .map(([key, value]) => `${key}:${value}`)
+        .join(",");
 
-    return modifiers ? `${type}:${baseSelection} [${modifiers}]` : `${type}:${baseSelection}`;
+    return modifiers ? `${type}(${modifiers}):${baseSelection}` : `${type}:${baseSelection}`;
 }
 
 export { toSelAndModifierString };

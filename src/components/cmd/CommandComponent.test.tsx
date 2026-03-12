@@ -166,8 +166,62 @@ describe("CommandComponent", () => {
 
     fireEvent.focus(inputs[0]);
 
+    expect(screen.getByTestId("focus-info-bar").textContent).toContain("first");
+
     expect(firstArg.getTypeBreakdownSpy).toHaveBeenCalledTimes(1);
     expect(secondArg.getTypeBreakdownSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("defers focus-pane helper updates until pointer interactions finish", async () => {
+    const firstArg = createArg("first");
+    firstArg.arg.desc = "First help";
+    const secondArg = createArg("second");
+    secondArg.arg.desc = "Second help";
+
+    render(
+      <CommandComponent
+        command={createCommand("pointer-focus", [firstArg, secondArg]) as never}
+        filterArguments={allowAllArguments}
+        initialValues={{}}
+        displayMode="focus-pane"
+        virtualizationMode="off"
+        setOutput={noopSetOutput}
+      />,
+    );
+
+    const firstInput = screen.getByRole("textbox", { name: "first" });
+
+    fireEvent.pointerDown(firstInput);
+    fireEvent.focus(firstInput);
+
+    expect(screen.queryByTestId("focus-info-bar")).toBeNull();
+
+    fireEvent.pointerUp(window);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("focus-info-bar").textContent).toContain("first");
+    });
+  });
+
+  it("keeps keyboard focus updates immediate in focus-pane mode", () => {
+    const firstArg = createArg("first");
+    firstArg.arg.desc = "First help";
+
+    render(
+      <CommandComponent
+        command={createCommand("keyboard-focus", [firstArg]) as never}
+        filterArguments={allowAllArguments}
+        initialValues={{}}
+        displayMode="focus-pane"
+        virtualizationMode="off"
+        setOutput={noopSetOutput}
+      />,
+    );
+
+    const firstInput = screen.getByRole("textbox", { name: "first" });
+    fireEvent.focus(firstInput);
+
+    expect(screen.getByTestId("focus-info-bar").textContent).toContain("first");
   });
 
   it("preserves parent-owned field values across rerenders without remounting the row", () => {

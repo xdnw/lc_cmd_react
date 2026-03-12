@@ -159,15 +159,19 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     }, [load, type, selection, columns, sortState, getTableProps, showDialog]);
 
     const exportsComponent = useMemo(() => {
-        if (!type || !selection || !columns) return null;
+        const currentToolbarTable = load
+            ? { type, selection, columns }
+            : getTableProps();
+
+        if (!currentToolbarTable.type || !currentToolbarTable.selection || !currentToolbarTable.columns) return null;
         return (
             <GoogleSheets
-                type={type}
-                selection={selection}
-                columns={columns}
+                type={currentToolbarTable.type}
+                selection={currentToolbarTable.selection}
+                columns={currentToolbarTable.columns}
             />
         );
-    }, [type, selection, columns]);
+    }, [load, type, selection, columns, getTableProps]);
 
     const shareButton = useMemo(() => {
         return (

@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { OrderIdx } from './DataTable';
 import { getQueryParams } from "../../lib/utils";
 import { DEFAULT_TABS } from "../../lib/layouts/defaultTabs";
 import { getSortFromUrl, getColumnsFromUrl, getSelectionFromUrl, getTypeFromUrl, PlaceholderType } from "./table_util";
-import { PlaceholderTabs, PlaceholderTabsHandle } from "@/pages/custom_table/PlaceholderTabs";
+import { PlaceholderTabs, PlaceholderTabsHandle, PlaceholderTabsState } from "@/pages/custom_table/PlaceholderTabs";
 
 import { AbstractTableWithButtons, TableProps } from "@/pages/custom_table/AbstractTable";
 import { useDeepState } from "@/utils/StateUtil";
@@ -45,19 +45,26 @@ export default function CustomTable() {
     );
 
     const tabsRef = useRef<PlaceholderTabsHandle>(null);
+    const [currentTableState, setCurrentTableState] = useState<PlaceholderTabsState>({
+        type,
+        selection,
+        columns,
+        sort,
+        columnRenderers: defaultColumnRenderers,
+    });
 
     const getTableProps = useCallback(() => {
         const currentTabs = tabsRef.current;
-        const resolvedRenderers = currentTabs?.getColumnRenderers() ?? defaultColumnRenderers;
+        const resolvedRenderers = currentTabs?.getColumnRenderers() ?? currentTableState.columnRenderers;
         const data: TableProps = {
-            type: currentTabs?.getType() ?? type,
-            selection: currentTabs?.getSelection() ?? selection,
-            columns: currentTabs?.getColumns() ?? columns,
-            sort: currentTabs?.getSort() ?? sort,
+            type: currentTabs?.getType() ?? currentTableState.type,
+            selection: currentTabs?.getSelection() ?? currentTableState.selection,
+            columns: currentTabs?.getColumns() ?? currentTableState.columns,
+            sort: currentTabs?.getSort() ?? currentTableState.sort,
             columnRenderers: resolvedRenderers,
         };
         return data;
-    }, [tabsRef, type, selection, columns, sort, defaultColumnRenderers]);
+    }, [currentTableState]);
 
     const table = useMemo(() => {
         return <div className="themeDiv p-2 mt-2">
@@ -77,6 +84,7 @@ export default function CustomTable() {
                 defSelection={selection}
                 defColumns={columns}
                 defSort={sort}
+                onStateChange={setCurrentTableState}
             />
             {table}
         </>

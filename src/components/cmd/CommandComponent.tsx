@@ -449,7 +449,7 @@ function FocusInfoBar({ arg }: { arg: Argument | null }) {
     if (!arg) return null;
 
     return (
-        <div className="sticky top-0 z-20 mb-2 rounded-md border border-border/60 bg-background/95 px-2 py-1.5 text-[11px] shadow-sm backdrop-blur">
+        <div className="sticky top-0 z-20 mb-2 rounded-md border border-border/60 bg-background/95 px-2 py-1.5 text-[11px] shadow-sm backdrop-blur" data-testid="focus-info-bar">
             <div className="flex items-center gap-2 leading-none">
                 <p className="min-w-0 truncate font-medium text-foreground">{arg.name}</p>
                 <span className="truncate text-muted-foreground">{arg.arg.type}</span>
@@ -487,6 +487,9 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
     const [prewarmedArgNames, setPrewarmedArgNames] = useState<Set<string>>(() => new Set());
     const [pendingFocusArgName, setPendingFocusArgName] = useState<string | null>(null);
     const previousInitialValuesSignatureRef = useRef<string | null>(null);
+    const pointerFocusActiveRef = useRef(false);
+    const pendingFocusedArgNameRef = useRef<string | null>(null);
+    const pendingFocusedArgTimeoutRef = useRef<number | null>(null);
 
     const argEntries = useMemo(() => command.getArguments().filter(filterArguments).map((arg) => buildCommandArgEntry(command, arg)), [command, filterArguments]);
     const groupedArgs = useMemo(() => buildGroupedArgs(argEntries), [argEntries]);
@@ -524,11 +527,95 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
         setPrewarmedArgNames(new Set(argOrder.slice(0, COMMAND_INITIAL_PREWARM_ROWS)));
     }, [argOrder]);
 
+    const clearPendingFocusedArgTimeout = useCallback(() => {
+        if (pendingFocusedArgTimeoutRef.current == null) {
+            return;
+        }
+
+        window.clearTimeout(pendingFocusedArgTimeoutRef.current);
+        pendingFocusedArgTimeoutRef.current = null;
+    }, []);
+
+    const flushPendingFocusedArg = useCallback(() => {
+        clearPendingFocusedArgTimeout();
+        pointerFocusActiveRef.current = false;
+
+        const pendingArgName = pendingFocusedArgNameRef.current;
+        pendingFocusedArgNameRef.current = null;
+        if (!pendingArgName) {
+            return;
+        }
+
+        setFocusedArgName((currentArgName) => currentArgName === pendingArgName ? currentArgName : pendingArgName);
+    }, [clearPendingFocusedArgTimeout]);
+
+    const schedulePendingFocusedArgFlush = useCallback(() => {
+        pointerFocusActiveRef.current = false;
+        clearPendingFocusedArgTimeout();
+
+        if (!pendingFocusedArgNameRef.current) {
+            return;
+        }
+
+        // Pointerup fires before click. Flush on the next task so layout changes
+        // cannot move the target out from under the click that is about to land.
+        pendingFocusedArgTimeoutRef.current = window.setTimeout(() => {
+            pendingFocusedArgTimeoutRef.current = null;
+            flushPendingFocusedArg();
+        }, 0);
+    }, [clearPendingFocusedArgTimeout, flushPendingFocusedArg]);
+
+    const cancelPendingFocusedArg = useCallback(() => {
+        pointerFocusActiveRef.current = false;
+        pendingFocusedArgNameRef.current = null;
+        clearPendingFocusedArgTimeout();
+    }, [clearPendingFocusedArgTimeout]);
+
     useEffect(() => {
-        if (!trackFocusedArg && focusedArgName != null) {
+        if (trackFocusedArg) {
+            return;
+        }
+
+        cancelPendingFocusedArg();
+        if (focusedArgName != null) {
             setFocusedArgName(null);
         }
-    }, [focusedArgName, trackFocusedArg]);
+    }, [cancelPendingFocusedArg, focusedArgName, trackFocusedArg]);
+
+    useEffect(() => {
+        if (!trackFocusedArg) {
+            return;
+        }
+
+        const handleWindowPointerUp = () => {
+            if (!pointerFocusActiveRef.current) {
+                return;
+            }
+
+            schedulePendingFocusedArgFlush();
+        };
+        const handleWindowPointerCancel = () => {
+            if (!pointerFocusActiveRef.current) {
+                return;
+            }
+
+            cancelPendingFocusedArg();
+        };
+
+        window.addEventListener("pointerup", handleWindowPointerUp);
+        window.addEventListener("pointercancel", handleWindowPointerCancel);
+
+        return () => {
+            window.removeEventListener("pointerup", handleWindowPointerUp);
+            window.removeEventListener("pointercancel", handleWindowPointerCancel);
+        };
+    }, [cancelPendingFocusedArg, schedulePendingFocusedArgFlush, trackFocusedArg]);
+
+    useEffect(() => {
+        return () => {
+            cancelPendingFocusedArg();
+        };
+    }, [cancelPendingFocusedArg]);
 
     useLayoutEffect(() => {
         if (!autoFocusFirstField || argOrder.length === 0) {
@@ -605,9 +692,24 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
         }
         const argName = event.currentTarget.dataset.argName;
         if (argName) {
-            setFocusedArgName(argName);
+            if (pointerFocusActiveRef.current) {
+                pendingFocusedArgNameRef.current = argName;
+                return;
+            }
+
+            setFocusedArgName((currentArgName) => currentArgName === argName ? currentArgName : argName);
         }
     }, [trackFocusedArg]);
+
+    const handlePointerDownCapture = useCallback(() => {
+        if (!trackFocusedArg) {
+            return;
+        }
+
+        clearPendingFocusedArgTimeout();
+        pointerFocusActiveRef.current = true;
+        pendingFocusedArgNameRef.current = null;
+    }, [clearPendingFocusedArgTimeout, trackFocusedArg]);
 
     const handlePasteCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
         const pastedText = event.clipboardData.getData("text");
@@ -775,6 +877,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
             data-command-root="true"
             onPasteCapture={handlePasteCapture}
             onKeyDown={handleKeyDown}
+            onPointerDownCapture={trackFocusedArg ? handlePointerDownCapture : undefined}
         >
             {showTitle && <h2 className={cn("text-sm font-semibold tracking-tight", compact && "text-xs")}>{overrideName ?? command.name}</h2>}
             {displayMode === "focus-pane" && <FocusInfoBar arg={focusedArg} />}

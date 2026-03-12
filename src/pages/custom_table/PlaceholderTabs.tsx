@@ -44,12 +44,21 @@ export interface PlaceholderTabsHandle {
     getColumnRenderers: () => Record<string, string> | undefined;
 }
 
+export interface PlaceholderTabsState {
+    type: keyof typeof COMMANDS.placeholders;
+    selection: { [key: string]: string };
+    columns: Map<string, string | null>;
+    sort: OrderIdx | OrderIdx[] | undefined;
+    columnRenderers: Record<string, string> | undefined;
+}
+
 export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
     defType: keyof typeof COMMANDS.placeholders,
     defSelection: { [key: string]: string },
     defColumns: Map<string, string | null>,
     defSort: OrderIdx | OrderIdx[] | undefined,
-}>(function PlaceholderTabs({ defType, defSelection, defColumns, defSort }, ref) {
+    onStateChange?: (state: PlaceholderTabsState) => void,
+}>(function PlaceholderTabs({ defType, defSelection, defColumns, defSort, onStateChange }, ref) {
     const { showDialog, hideDialog } = useDialog();
     const [type, setType] = useDeepState(defType);
     const [selection, setSelection] = useDeepState(defSelection);
@@ -92,6 +101,16 @@ export const PlaceholderTabs = forwardRef<PlaceholderTabsHandle, {
     useEffect(() => {
         setQueryParam();
     }, [type, selection, columns, sort, setQueryParam]);
+
+    useEffect(() => {
+        onStateChange?.({
+            type,
+            selection,
+            columns,
+            sort,
+            columnRenderers,
+        });
+    }, [type, selection, columns, sort, columnRenderers, onStateChange]);
 
     // Handle tab selection change
     const setSelectedTab = useCallback((valueStr: string) => {

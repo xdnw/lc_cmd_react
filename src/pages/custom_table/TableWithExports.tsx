@@ -1,4 +1,5 @@
 import CopyToClipboard from "@/components/ui/copytoclipboard";
+import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { downloadTableData, toLegacySelection } from "./table_util";
 import { ExportTypes } from "@/utils/StringUtil";
@@ -8,8 +9,8 @@ import LazyIcon from "@/components/ui/LazyIcon";
 import { JSONValue } from "@/lib/internaltypes";
 import { ConfigColumns } from "./DataTable";
 import { useCallback, useMemo } from "react";
-import { COMMANDS } from "@/lib/commands";
-import { commandMention, CommandPath } from "@/utils/Command";
+
+const SHEET_CUSTOM_IMPORT_JSON_COMMAND = ["sheet_custom", "import_json"] as const;
 
 export function GoogleSheets({ type, selection, columns }: {
     readonly type: string
@@ -17,21 +18,20 @@ export function GoogleSheets({ type, selection, columns }: {
     readonly columns: Map<string, string | null>
 }) {
     const { showDialog } = useDialog();
-
-    const dialogBody = useMemo(() => {
-        const legacySel = toLegacySelection(type, selection);
-        const columnsArr = Array.from(columns.keys());
+    const legacySel = useMemo(() => toLegacySelection(type, selection), [type, selection]);
+    const columnsArr = useMemo(() => Array.from(columns.keys()), [columns]);
+    const commandInitialValues = useMemo(() => {
         const json = JSON.stringify({ [legacySel]: columnsArr });
-        const mention: string = commandMention({ command: ['sheet_custom', 'import_json'], args: { sheet: "", json: json } });
+        return {
+            sheet: "",
+            json,
+        };
+    }, [legacySel, columnsArr]);
 
+    const manualDialogBody = useMemo(() => {
         return (
             <>
-                {/* Option 1: Copy the Discord import command */}
-                <p className="font-semibold mb-1">Option 1: Run import in Discord</p>
-                <CopyToClipboard text={mention} />
-                <hr className="my-4" />
-                {/* Option 2: Your existing Google Sheets setup instructions */}
-                <p className="font-semibold mb-1">Option 2: Manually set up Google Sheets</p>
+                <p className="font-semibold mb-1">Manual Google Sheets setup</p>
                 <ul className="list-decimal list-inside">
                     <li className="bg-accent/20 mb-1 p-1 border-primary/5 border-2 rounded">
                         Set the google sheet tab name as the selection:<br />
@@ -47,22 +47,44 @@ export function GoogleSheets({ type, selection, columns }: {
                     </li>
                 </ul>
             </>
-        )
-    }, [type, selection, columns]);
+        );
+    }, [legacySel, columnsArr]);
 
-    const onClick = useCallback(() => {
-        showDialog("Creating custom google sheets", dialogBody);
-    }, [showDialog, dialogBody]);
+    const openCommandDialog = useCallback(() => {
+        showDialog("Import into Google Sheets", (
+            <CommandDialogForm
+                commandPath={SHEET_CUSTOM_IMPORT_JSON_COMMAND}
+                initialValues={commandInitialValues}
+                description="Review the generated JSON and enter the destination sheet before running the import command."
+                runLabel="Run import_json"
+                showResultDialog={true}
+                showCommandTitle={false}
+            />
+        ));
+    }, [showDialog, commandInitialValues]);
 
-    // Memoize the button for stable rendering
+    const openManualDialog = useCallback(() => {
+        showDialog("Creating custom google sheets", manualDialogBody);
+    }, [showDialog, manualDialogBody]);
+
     const buttonContent = useMemo(() => (
         <><LazyIcon name="Sheet" className="h-2 w-2" />&nbsp;To Google Sheets</>
     ), []);
 
     return (
-        <Button variant="outline" size="sm" className="me-1" onClick={onClick}>
-            {buttonContent}
-        </Button>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="me-1">{buttonContent}</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+                <DropdownMenuItem className="cursor-pointer" onClick={openCommandDialog}>
+                    Command
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={openManualDialog}>
+                    Manual
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 

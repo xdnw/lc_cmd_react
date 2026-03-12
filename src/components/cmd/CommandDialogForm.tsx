@@ -225,7 +225,10 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
         clearShellState: clearEscapeState,
         enabled: jumpEnabled,
     });
-    neutralCommitRef.current = jumpState.commitJump;
+
+    useEffect(() => {
+        neutralCommitRef.current = jumpState.commitJump;
+    }, [jumpState.commitJump]);
 
     useEffect(() => {
         onOutputChange?.(output);

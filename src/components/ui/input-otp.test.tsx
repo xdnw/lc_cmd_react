@@ -2,10 +2,12 @@ import * as React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("input-otp", () => {
-  const React = require("react") as typeof import("react");
+const handleOtpChange = vi.fn();
 
-  const OTPInputContext = React.createContext({
+vi.mock("input-otp", async () => {
+  const ReactModule = await vi.importActual<typeof import("react")>("react");
+
+  const OTPInputContext = ReactModule.createContext({
     slots: [
       { char: "1", hasFakeCaret: false, isActive: false },
       { char: null, hasFakeCaret: true, isActive: true },
@@ -16,7 +18,7 @@ vi.mock("input-otp", () => {
 
   return {
     OTPInputContext,
-    OTPInput: React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { containerClassName?: string }>((props, ref) => {
+    OTPInput: ReactModule.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { containerClassName?: string }>((props, ref) => {
       const { containerClassName, children, ...inputProps } = props;
       return (
         <div data-testid="otp-container" className={containerClassName}>
@@ -41,8 +43,10 @@ import { InputOTP, InputOTPGroup, InputOTPSlot, INPUT_OTP_SLOT_ACTIVE_ATTR, INPU
 
 describe("InputOTP wrapper", () => {
   it("forwards standard input props to the underlying OTP input and marks slot state explicitly", () => {
+    handleOtpChange.mockReset();
+
     const { container } = render(
-      <InputOTP aria-label="mmr" inputMode="numeric" value="1" onChange={() => undefined} maxLength={2}>
+      <InputOTP aria-label="mmr" inputMode="numeric" value="1" onChange={handleOtpChange} maxLength={2}>
         <InputOTPGroup>
           <InputOTPSlot index={0} />
           <InputOTPSlot index={1} />

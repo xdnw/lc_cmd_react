@@ -25,8 +25,8 @@ import { deepEqual } from '@/lib/utils';
 
 export default function CommandPage() {
     const { command } = useParams();
-    const location = useLocation();
-    const queryParams = useMemo(() => getQueryParams(), [location.key]);
+    useLocation();
+    const queryParams = getQueryParams();
     const forceMountAll = queryParams.get("mount") === "all" || queryParams.get("forceMount") === "all" || queryParams.get("forceMountAll") === "1";
     const benchMode = queryParams.get("bench") === "1";
     const cmdObj = useMemo(() => {
@@ -57,10 +57,11 @@ export default function CommandPage() {
         return nextValues;
     }, [queryParams]);
     const commandStore = useMemo(() => createCommandStoreWithDef(initialValues), [initialValues]);
+    const commandArgs = useMemo(() => cmdObj?.getArguments() ?? [], [cmdObj]);
     const queryBreakdowns = useMemo(() => {
-        const uniqueTypes = new Set(cmdObj.getArguments().map((arg) => arg.arg.type));
+        const uniqueTypes = new Set(commandArgs.map((arg) => arg.arg.type));
         return Array.from(uniqueTypes, (type) => getTypeBreakdown(CM, type));
-    }, [cmdObj]);
+    }, [commandArgs]);
 
     React.useEffect(() => {
         if (!benchMode) {
@@ -119,11 +120,6 @@ export default function CommandPage() {
         };
     }, [benchMode, displayMode, forceMountAll, pathJoined]);
 
-    if (!cmdObj) {
-        console.log("Not command");
-        return <div>No command found</div>; // or some loading spinner
-    }
-
     const alwaysTrue = useCallback(() => true, []);
     const submitShortcutLabel = useMemo(() => getCommandSubmitShortcutLabel(), []);
 
@@ -153,7 +149,15 @@ export default function CommandPage() {
         neutralQuery,
         clearShellState: clearEscapeState,
     });
-    neutralCommitRef.current = jumpState.commitJump;
+
+    React.useEffect(() => {
+        neutralCommitRef.current = jumpState.commitJump;
+    }, [jumpState.commitJump]);
+
+    if (!cmdObj) {
+        console.log("Not command");
+        return <div>No command found</div>;
+    }
 
     return (
         <div

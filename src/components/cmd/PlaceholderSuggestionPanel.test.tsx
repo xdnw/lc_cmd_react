@@ -58,6 +58,7 @@ describe("PlaceholderSuggestionPanel", () => {
                 onSearchValueChange={vi.fn()}
                 onApplySuggestion={vi.fn()}
                 onActiveIndexChange={vi.fn()}
+                onDismiss={vi.fn()}
             />,
         );
 
@@ -100,6 +101,7 @@ describe("PlaceholderSuggestionPanel", () => {
                 onSearchValueChange={vi.fn()}
                 onApplySuggestion={vi.fn()}
                 onActiveIndexChange={vi.fn()}
+                onDismiss={vi.fn()}
             />,
         );
 

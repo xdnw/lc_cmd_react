@@ -23,6 +23,9 @@ export function useCommandEscapeArming({
     onPopupOwnershipChange?: () => void;
 }) {
     const rootRef = useRef<HTMLDivElement | null>(null);
+    const setRootRef = useCallback((node: HTMLDivElement | null) => {
+        rootRef.current = node;
+    }, []);
     const [escapeArmedUntil, setEscapeArmedUntil] = useState<number | null>(null);
     const [escapeHint, setEscapeHint] = useState<string | null>(null);
 
@@ -97,6 +100,7 @@ export function useCommandEscapeArming({
 
     return {
         rootRef,
+        setRootRef,
         escapeHint,
         escapeArmedUntil,
         clearEscapeArming,

@@ -53,7 +53,7 @@ export function normalizeColorValue(value: string): string {
 }
 
 export function normalizeMmrValue(value: string, allowWildcard: boolean): string {
-    const upper = (value || "").toUpperCase().replace(/[\/\s,-]+/g, "");
+    const upper = (value || "").toUpperCase().replace(/[/\s,-]+/g, "");
     const pattern = allowWildcard ? /[^0-9X]/g : /[^0-9]/g;
     return upper.replace(pattern, "").slice(0, 4);
 }

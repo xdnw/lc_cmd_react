@@ -545,7 +545,7 @@ function isCompactAliasLikeEqualityToken(text: string): boolean {
     // Compact scalar aliases like `war=1234`, `tax_id=1234`, `nation/id=1234`,
     // or full URLs with query params should resolve through query-option aliasing,
     // not be reinterpreted as predicate comparisons at the root level.
-    return !/[<>!()\[\]{}]/.test(trimmed);
+    return !/[<>!()[\]{}]/.test(trimmed);
 }
 
 function looksLikePredicateToken(text: string): boolean {

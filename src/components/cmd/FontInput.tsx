@@ -73,7 +73,7 @@ function parseFontControlValue(input: string, options: string[]) {
     const labelled = options.map((value) => ({ label: value, value }));
     const matched = resolveOptionMatch(parsed.base, labelled);
     if (!matched.option) {
-        return rejectedParsedInput(parsed, `Unknown font \"${parsed.base}\".`);
+        return rejectedParsedInput(parsed, `Unknown font "${parsed.base}".`);
     }
 
     return acceptedParsedInput({ ...parsed, base: matched.option.value });

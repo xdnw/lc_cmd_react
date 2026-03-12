@@ -153,7 +153,7 @@ export default function CommandLauncher() {
     }, [returnToBrowser]);
 
     const {
-        rootRef: commandChromeEscapeRef,
+        setRootRef: setCommandChromeEscapeRef,
         escapeHint: commandChromeEscapeHint,
         escapeArmedUntil: commandChromeEscapeArmedUntil,
         clearEscapeArming: clearCommandChromeEscape,
@@ -167,16 +167,16 @@ export default function CommandLauncher() {
 
     const setCommandDialogRef = useCallback((node: HTMLDivElement | null) => {
         commandDialogRef.current = node;
-        commandChromeEscapeRef.current = node;
-    }, [commandChromeEscapeRef]);
+        setCommandChromeEscapeRef(node);
+    }, [setCommandChromeEscapeRef]);
 
     const setCardDisplayMode = useCallback(() => {
         startTransition(() => setCommandDisplayMode("card"));
-    }, []);
+    }, [setCommandDisplayMode]);
 
     const setFocusPaneDisplayMode = useCallback(() => {
         startTransition(() => setCommandDisplayMode("focus-pane"));
-    }, []);
+    }, [setCommandDisplayMode]);
 
     const handleBrowserOpenAutoFocus = useCallback((event: Event) => {
         event.preventDefault();
@@ -210,6 +210,11 @@ export default function CommandLauncher() {
         event.preventDefault();
         triggerCommandChromeEscape();
     }, [triggerCommandChromeEscape]);
+
+    const handleReturnToBrowserClick = useCallback(() => {
+        clearCommandChromeEscape();
+        handleReturnToBrowser();
+    }, [clearCommandChromeEscape, handleReturnToBrowser]);
 
     const browserExpand = useMemo(() => buildExpandButton(() => {
         const searchParams = createCmdBrowserSearchParams(browserState);
@@ -282,10 +287,7 @@ export default function CommandLauncher() {
                                             ref={commandBackButtonRef}
                                             type="button"
                                             className={cn(DIALOG_CHROME_BUTTON_CLASS_NAME, "shrink-0 border-border/70 bg-background text-foreground hover:bg-accent hover:text-accent-foreground")}
-                                            onClick={() => {
-                                                clearCommandChromeEscape();
-                                                handleReturnToBrowser();
-                                            }}
+                                            onClick={handleReturnToBrowserClick}
                                             title="Return to command list"
                                             aria-label="Return to command list"
                                         >

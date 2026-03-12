@@ -10,7 +10,7 @@ export type ActionWithDetailSpec = ActionWithDetailRole & {
 
 export function withActionPrefillArgs<Context, BuildArgs, Action extends {
     prefillArgs?: (context: Context) => BuildArgs;
-    buildArgs: (...args: any[]) => BuildArgs;
+    buildArgs: (...args: unknown[]) => BuildArgs;
 }>(
     action: Action,
     context: Context,

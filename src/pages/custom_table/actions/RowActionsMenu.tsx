@@ -65,11 +65,11 @@ export default function RowActionsMenu<
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="max-w-[180px] truncate justify-start">
+                <Button variant="outline" size="sm" className="max-w-45 truncate justify-start">
                     {rowLabel}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="min-w-[220px]">
+            <DropdownMenuContent className="min-w-55">
                 {visibleActions.map((action) => {
                     if (action.requiresDialog) {
                         return (

@@ -304,9 +304,11 @@ function useAsyncQueryOptionStates(
         asyncQueryOptionsRef.current = asyncQueryOptions;
     }, [asyncQueryOptions]);
 
-    requestsRef.current = requests;
-    queryByRequestKeyRef.current = queryByRequestKey;
-    searchTokensRef.current = searchTokensByCacheKey;
+    useEffect(() => {
+        requestsRef.current = requests;
+        queryByRequestKeyRef.current = queryByRequestKey;
+        searchTokensRef.current = searchTokensByCacheKey;
+    }, [queryByRequestKey, requests, searchTokensByCacheKey]);
 
     useEffect(() => {
         const latestRequests = requestsRef.current;
@@ -741,5 +743,5 @@ export function useExpressionValueSources(
 
         uniqueRequests.forEach(resolveRequest);
         return registry;
-    }, [asyncQueryOptions, queryPayloadSignature, uniqueRequests]);
+    }, [asyncQueryOptions, queryByRequestKey, uniqueRequests]);
 }

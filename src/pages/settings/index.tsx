@@ -33,11 +33,10 @@ import {
 } from "./settingsDomain";
 import LoginPickerPage from "../login_picker";
 
-function SettingsTrackedListItem({
+function SettingsListItem({
     item,
     showCategorySeparator,
     isHighlighted,
-    registerElement,
     onEdit,
     onShowHelp,
     onRefreshSetting,
@@ -45,17 +44,12 @@ function SettingsTrackedListItem({
     item: FlattenedSettingsItem;
     showCategorySeparator: boolean;
     isHighlighted: boolean;
-    registerElement: (key: string, element: HTMLDivElement | null) => void;
     onEdit: (row: SettingRow) => void;
     onShowHelp: (row: SettingRow) => void;
     onRefreshSetting: (settingKey: string) => void;
 }) {
-    const handleRef = useCallback((element: HTMLDivElement | null) => {
-        registerElement(item.key, element);
-    }, [item.key, registerElement]);
-
     return (
-        <div ref={handleRef} data-settings-item-key={item.key}>
+        <div data-settings-item-key={item.key}>
             {item.kind === "category"
                 ? (
                     <SettingsCategoryHeader
@@ -180,12 +174,11 @@ export default function SettingsPage() {
     const { showDialog } = useDialog();
     const queryClient = useQueryClient();
     const virtuosoRef = useRef<VirtuosoHandle | null>(null);
-    const topBarRef = useRef<HTMLDivElement | null>(null);
-    const itemElementRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const [browserState, setBrowserState] = useState(() => createDefaultSettingsBrowserState());
     const [perSettingWarning, setPerSettingWarning] = useState<string | null>(null);
-    const [visibleItemKey, setVisibleItemKey] = useState<string | null>(null);
+    const [visibleIndex, setVisibleIndex] = useState(0);
     const [highlightedSettingKey, setHighlightedSettingKey] = useState<string | null>(null);
+    const [pendingScrollIndex, setPendingScrollIndex] = useState<number | null>(null);
 
     const listQueryArgs = useMemo(() => {
         return {
@@ -196,21 +189,11 @@ export default function SettingsPage() {
     }, []);
 
     const listQuery = useQuery({
-        ...(listQueryArgs
-            ? bulkQueryOptions(TABLE.endpoint, listQueryArgs)
-            : {
-                queryKey: ["settings", "disabled"] as const,
-                queryFn: async () => {
-                    throw new Error("settings query disabled");
-                },
-            }),
-        enabled: Boolean(listQueryArgs),
+        ...bulkQueryOptions(TABLE.endpoint, listQueryArgs),
+        enabled: Boolean(session?.guild),
     });
 
-    const listQueryKey = useMemo(() => {
-        if (!listQueryArgs) return undefined;
-        return [TABLE.endpoint.name, listQueryArgs] as const;
-    }, [listQueryArgs]);
+    const listQueryKey = useMemo(() => [TABLE.endpoint.name, listQueryArgs] as const, [listQueryArgs]);
 
     const normalized = useMemo(() => {
         if (!listQuery.data?.data) {
@@ -230,75 +213,6 @@ export default function SettingsPage() {
         [browserState, normalized.rows],
     );
 
-    const itemIndexByKey = useMemo(() => Object.fromEntries(
-        browserResult.flattenedItems.map((item, index) => [item.key, index]),
-    ) as Record<string, number>, [browserResult.flattenedItems]);
-
-    const registerItemElement = useCallback((key: string, element: HTMLDivElement | null) => {
-        itemElementRefs.current[key] = element;
-    }, []);
-
-    const updateVisibleItemFromDom = useCallback(() => {
-        if (browserResult.flattenedItems.length === 0) {
-            setVisibleItemKey((current) => (current === null ? current : null));
-            return;
-        }
-
-        const stickyBottom = (topBarRef.current?.getBoundingClientRect().bottom ?? 0) + 8;
-        const focusLine = stickyBottom + ((window.innerHeight - stickyBottom) / 2);
-        const renderedItems = browserResult.flattenedItems
-            .map((item) => ({ key: item.key, element: itemElementRefs.current[item.key] }))
-            .filter((entry): entry is { key: string; element: HTMLDivElement } => Boolean(entry.element))
-            .map((entry) => ({
-                key: entry.key,
-                element: entry.element,
-                rect: entry.element.getBoundingClientRect(),
-            }))
-            .filter((entry) => entry.rect.height > 0)
-            .sort((left, right) => left.rect.top - right.rect.top);
-
-        if (renderedItems.length === 0) {
-            return;
-        }
-
-        const candidate = renderedItems.find((entry) => entry.rect.top <= focusLine && entry.rect.bottom >= focusLine)
-            ?? renderedItems.find((entry) => entry.rect.bottom > stickyBottom)
-            ?? renderedItems[renderedItems.length - 1];
-
-        if (!candidate) {
-            return;
-        }
-
-        setVisibleItemKey((current) => (current === candidate.key ? current : candidate.key));
-    }, [browserResult.flattenedItems]);
-
-    useEffect(() => {
-        updateVisibleItemFromDom();
-
-        let frameId = 0;
-        const scheduleUpdate = () => {
-            if (frameId !== 0) {
-                return;
-            }
-
-            frameId = window.requestAnimationFrame(() => {
-                frameId = 0;
-                updateVisibleItemFromDom();
-            });
-        };
-
-        window.addEventListener("scroll", scheduleUpdate, { passive: true });
-        window.addEventListener("resize", scheduleUpdate);
-
-        return () => {
-            if (frameId !== 0) {
-                window.cancelAnimationFrame(frameId);
-            }
-            window.removeEventListener("scroll", scheduleUpdate);
-            window.removeEventListener("resize", scheduleUpdate);
-        };
-    }, [updateVisibleItemFromDom]);
-
     useEffect(() => {
         if (!highlightedSettingKey) {
             return;
@@ -313,51 +227,73 @@ export default function SettingsPage() {
         };
     }, [highlightedSettingKey]);
 
-    const visibleIndex = useMemo(() => {
-        if (!visibleItemKey) {
+    const activeIndex = useMemo(() => {
+        if (browserResult.flattenedItems.length === 0) {
             return 0;
         }
 
-        return itemIndexByKey[visibleItemKey] ?? 0;
-    }, [itemIndexByKey, visibleItemKey]);
+        return Math.min(visibleIndex, browserResult.flattenedItems.length - 1);
+    }, [browserResult.flattenedItems.length, visibleIndex]);
 
     const activeItem = useMemo(() => {
-        if (browserResult.flattenedItems.length === 0 || visibleIndex < 0) {
+        if (browserResult.flattenedItems.length === 0) {
             return null;
         }
 
-        return browserResult.flattenedItems[Math.min(visibleIndex, browserResult.flattenedItems.length - 1)] ?? null;
-    }, [visibleIndex, browserResult.flattenedItems]);
+        return browserResult.flattenedItems[activeIndex] ?? null;
+    }, [activeIndex, browserResult.flattenedItems]);
 
     const visibleContext = useMemo(
-        () => getSettingsVisibleContext(browserResult.flattenedItems, visibleIndex),
-        [browserResult.flattenedItems, visibleIndex],
+        () => getSettingsVisibleContext(browserResult.flattenedItems, activeIndex),
+        [activeIndex, browserResult.flattenedItems],
     );
 
     const setVirtuosoInstance = useCallback((instance: VirtuosoHandle | null) => {
         virtuosoRef.current = instance;
     }, []);
 
-    const scrollToSettingsIndex = useCallback((index: number) => {
+    useEffect(() => {
+        if (pendingScrollIndex == null) {
+            return;
+        }
+
+        if (browserResult.flattenedItems.length === 0) {
+            setPendingScrollIndex((current) => (current === pendingScrollIndex ? null : current));
+            return;
+        }
+
+        const targetIndex = Math.min(pendingScrollIndex, browserResult.flattenedItems.length - 1);
+        const frameId = window.requestAnimationFrame(() => {
+            virtuosoRef.current?.scrollToIndex({
+                index: targetIndex,
+                align: "center",
+                behavior: "auto",
+            });
+            setPendingScrollIndex((current) => (current === pendingScrollIndex ? null : current));
+        });
+
+        return () => {
+            window.cancelAnimationFrame(frameId);
+        };
+    }, [browserResult.flattenedItems.length, pendingScrollIndex]);
+
+    const handleVisibleRangeChanged = useCallback(({ startIndex }: { startIndex: number; endIndex: number }) => {
+        setVisibleIndex((current) => (current === startIndex ? current : startIndex));
+    }, []);
+
+    const handleSelectSidebarItem = useCallback((index: number) => {
         const targetItem = browserResult.flattenedItems[index];
-        setVisibleItemKey(targetItem?.key ?? null);
-        setHighlightedSettingKey(targetItem?.kind === "setting" ? targetItem.row.settingKey : null);
+        if (!targetItem) {
+            return;
+        }
 
-        virtuosoRef.current?.scrollToIndex({
-            index,
-            align: "center",
-            behavior: "auto",
-        });
-
-        window.requestAnimationFrame(() => {
-            updateVisibleItemFromDom();
-        });
+        setVisibleIndex(index);
+        setPendingScrollIndex(index);
+        setHighlightedSettingKey(targetItem.kind === "setting" ? targetItem.row.settingKey : null);
     }, [browserResult.flattenedItems]);
 
     const refreshSingleSetting = useCallback(async (settingKey: string) => {
-        if (!session?.guild || !listQueryArgs || !listQueryKey) return;
-
-        if (!settingKey) return;
+        if (!session?.guild || !settingKey) return;
 
         const singleArgs = {
             type: "GuildSetting",
@@ -384,7 +320,7 @@ export default function SettingsPage() {
         queryClient.setQueryData(listQueryKey, (old) => {
             return mergeRowIntoTableCache({ oldResult: old as QueryResult<WebTable> | undefined, updatedRow });
         });
-    }, [session?.guild, listQueryArgs, listQueryKey, queryClient]);
+    }, [session?.guild, listQueryKey, queryClient]);
 
     const openEditDialog = useCallback((row: SettingRow) => {
         showDialog(
@@ -429,27 +365,26 @@ export default function SettingsPage() {
 
     const sidebarItems = useMemo(() => buildSettingsSidebarItems({
         items: browserResult.flattenedItems,
-        activeKey: activeItem?.kind === "setting" ? activeItem.key : null,
+        activeKey: activeItem?.key ?? null,
         activeCategory: visibleContext.category,
         activeSubgroup: visibleContext.subgroup,
         activeSettingKey: activeItem?.kind === "setting" ? activeItem.row.settingKey : null,
-        onSelect: scrollToSettingsIndex,
+        onSelect: handleSelectSidebarItem,
         onEdit: openEditDialog,
-    }), [activeItem, browserResult.flattenedItems, openEditDialog, scrollToSettingsIndex, visibleContext.category, visibleContext.subgroup]);
+    }), [activeItem, browserResult.flattenedItems, handleSelectSidebarItem, openEditDialog, visibleContext.category, visibleContext.subgroup]);
 
     const getFlattenedItemKey = useCallback((_: number, item: FlattenedSettingsItem) => item.key, []);
 
-    const renderFlattenedItem = useCallback((_: number, item: FlattenedSettingsItem) => (
-        <SettingsTrackedListItem
+    const renderFlattenedItem = useCallback((index: number, item: FlattenedSettingsItem) => (
+        <SettingsListItem
             item={item}
-            showCategorySeparator={_ > 0}
+            showCategorySeparator={index > 0}
             isHighlighted={item.kind === "setting" && highlightedSettingKey === item.row.settingKey}
-            registerElement={registerItemElement}
             onEdit={openEditDialog}
             onShowHelp={openHelpDialog}
             onRefreshSetting={refreshSingleSetting}
         />
-    ), [highlightedSettingKey, openEditDialog, openHelpDialog, refreshSingleSetting, registerItemElement]);
+    ), [highlightedSettingKey, openEditDialog, openHelpDialog, refreshSingleSetting]);
 
     const onRefreshAll = useCallback(() => {
         void listQuery.refetch();
@@ -496,7 +431,7 @@ export default function SettingsPage() {
 
                 <div className="min-w-0 xl:pl-80">
                     <div className="mx-auto max-w-6xl space-y-2">
-                        <div ref={topBarRef} className="sticky top-2 z-20">
+                        <div className="sticky top-2 z-20">
                             <SettingsTopBar
                                 browserState={browserState}
                                 counts={browserResult.counts}
@@ -537,6 +472,7 @@ export default function SettingsPage() {
                                 increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
                                 defaultItemHeight={SETTINGS_ROW_ITEM_HEIGHT}
                                 computeItemKey={getFlattenedItemKey}
+                                rangeChanged={handleVisibleRangeChanged}
                                 itemContent={renderFlattenedItem}
                             />
                         ) : (

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const editorFocusSpy = vi.fn();
 let exposeFocusMethod = true;

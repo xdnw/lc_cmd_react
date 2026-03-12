@@ -190,7 +190,7 @@ function RenderBalance({ balance }: { balance: WebBalance }) {
             <div className="mb-1">
                 <PageHeader />
                 <div className="inline-block">
-                    <div className="inline-block flex">
+                    <div className="flex">
                         <ResourceTable
                             balance={balance}
                             canWithdraw={canWithdraw}

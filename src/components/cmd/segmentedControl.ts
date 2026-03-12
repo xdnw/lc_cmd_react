@@ -37,7 +37,7 @@ export function useSegmentedControlKeyboard<TValue extends string>({
         if (focus) {
             focusIndex(normalizedIndex);
         }
-    }, [onSelect, values]);
+    }, [focusIndex, onSelect, values]);
 
     const registerButtonRef = useCallback((index: number, node: HTMLButtonElement | null) => {
         buttonRefs.current[index] = node;
@@ -80,7 +80,7 @@ export function useSegmentedControlKeyboard<TValue extends string>({
         if (binding.selectNext) {
             selectIndex(activeIndex + 1, true);
         }
-    }, [activeIndex, focusIndex, onSelect, resolveKey, selectIndex, values.length]);
+    }, [activeIndex, focusIndex, onSelect, resolveKey, selectIndex, values]);
 
     return {
         activeIndex,

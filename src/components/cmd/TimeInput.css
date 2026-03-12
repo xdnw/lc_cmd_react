@@ -1,0 +1,13 @@
+/* Chrome exposes the native datetime picker affordance as a second tab stop.
+   Hide that internal control and let TimeInput own the explicit picker trigger. */
+.command-datetime-input {
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.command-datetime-input::-webkit-calendar-picker-indicator,
+.command-datetime-input::-webkit-clear-button,
+.command-datetime-input::-webkit-inner-spin-button {
+    display: none;
+    -webkit-appearance: none;
+}

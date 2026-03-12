@@ -8,6 +8,7 @@ import {
     deriveSettingsBrowserRows,
     estimateSettingsItemHeight,
     flattenSettingsRows,
+    hasVisibleSettingsSubgroup,
     type SettingRow,
 } from "./settingsDomain";
 
@@ -98,6 +99,25 @@ describe("flattenSettingsRows", () => {
         expect(flattened[3]).toMatchObject({ kind: "setting", subgroupPosition: "last", subgroupSettingCount: 2 });
         expect(flattened[4]).toMatchObject({ kind: "category", subgroupCount: 1, settingCount: 1 });
         expect(flattened[6]).toMatchObject({ kind: "setting", subgroupPosition: "only", subgroupSettingCount: 1 });
+    });
+
+    it("skips subgroup headers for placeholder none buckets", () => {
+        const rows: SettingRow[] = [
+            createSettingRow({ settingKey: "alpha", category: "Admin", subgroup: "NONE" }),
+        ];
+
+        const flattened = flattenSettingsRows(rows);
+
+        expect(flattened.map((item) => item.kind)).toEqual(["category", "setting"]);
+        expect(flattened[0]).toMatchObject({ subgroupCount: 0, settingCount: 1 });
+    });
+});
+
+describe("hasVisibleSettingsSubgroup", () => {
+    it("hides empty placeholder subgroup labels", () => {
+        expect(hasVisibleSettingsSubgroup("NONE")).toBe(false);
+        expect(hasVisibleSettingsSubgroup("   ")).toBe(false);
+        expect(hasVisibleSettingsSubgroup("General")).toBe(true);
     });
 });
 

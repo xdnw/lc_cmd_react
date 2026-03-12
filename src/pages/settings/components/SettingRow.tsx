@@ -1,7 +1,7 @@
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCallback } from "react";
-import type { SettingRow } from "../settingsDomain";
+import { hasVisibleSettingsSubgroup, type SettingRow } from "../settingsDomain";
 import SettingClearAction from "./SettingClearAction";
 import { getSettingRowStateClasses, getSettingTypeToneStyle, getSubgroupTone } from "./settingsVisuals";
 
@@ -31,6 +31,7 @@ export default function SettingRow({
     const unavailableReason = !row.flags.isAllowed ? "Unavailable in current guild context" : undefined;
     const valueSummary = summarizeValue(row.value.displayText, row.value.hasValue);
     const hasMoreHelp = row.metadata.helpFull.trim() !== row.metadata.helpShort.trim();
+    const subgroupVisible = hasVisibleSettingsSubgroup(row.metadata.subgroup);
 
     const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
     const handleRefreshSetting = useCallback(
@@ -47,23 +48,16 @@ export default function SettingRow({
         unsupported: isUnsupported,
     });
     const typeToneStyle = getSettingTypeToneStyle(row.metadata.argType);
-
-    const rowShellClassName = subgroupPosition === "last" || subgroupPosition === "only"
-        ? `rounded-b-md border-r border-b px-2 py-1 ${stateTone.background}`
-        : `border-r border-b px-2 py-1 ${stateTone.background}`;
+    const rowSpacingClass = subgroupPosition === "last" || subgroupPosition === "only" ? "mb-0" : "mb-1.5";
 
     return (
         <div
-            className={`${rowShellClassName} border-l-2 ${stateTone.leftAccent}`}
-            style={{
-                borderRightColor: subgroupTone.borderColor,
-                borderBottomColor: subgroupTone.borderColor,
-            }}
+            className={`${rowSpacingClass} rounded-sm border border-border/70 px-2.5 py-2 ${stateTone.background}`}
         >
-            <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,0.95fr)_auto] sm:items-start">
-                <div className="min-w-0 space-y-0.5">
+            <div className="grid gap-x-3 gap-y-2 lg:grid-cols-[minmax(0,1.55fr)_minmax(12rem,0.9fr)_auto] lg:items-start">
+                <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                        <div className="min-w-0 text-sm font-medium wrap-break-word">{row.settingKey}</div>
+                        <div className="min-w-0 text-sm font-semibold tracking-tight wrap-break-word">{row.settingKey}</div>
                         <span
                             className="rounded border px-1.5 py-0.5 text-[10px] font-medium leading-none"
                             style={typeToneStyle}
@@ -76,10 +70,12 @@ export default function SettingRow({
                         {isUnsupported && <Badge variant="destructive">Unsupported</Badge>}
                     </div>
 
-                    <div className="flex items-start gap-2">
-                        <div className="mt-0.5 h-4 w-0.5 shrink-0 rounded-full" style={subgroupTone.railStyle} />
-                        <div className="min-w-0 flex-1">
-                            <div className="text-[11px] leading-4.5 text-muted-foreground wrap-break-word whitespace-pre-wrap">
+                    <div className="flex items-start gap-2 text-[11px] leading-4.5 text-muted-foreground">
+                        {subgroupVisible && (
+                            <div className="mt-0.5 h-4 w-0.5 shrink-0 rounded-full" style={subgroupTone.railStyle} />
+                        )}
+                        <div className="min-w-0 flex-1 space-y-1">
+                            <div className="wrap-break-word whitespace-pre-wrap">
                                 {row.metadata.helpShort}
                                 {hasMoreHelp && (
                                     <>
@@ -104,18 +100,19 @@ export default function SettingRow({
                 </div>
 
                 <div className="min-w-0 text-left">
+                    <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Current value</div>
                     {row.value.hasValue ? (
-                        <div className={`w-full rounded-sm border border-border/50 bg-background/75 px-2 py-1 text-left text-[13px] wrap-break-word ${stateTone.value}`}>
+                        <div className={`w-full rounded-sm border border-border/60 bg-background px-2 py-1.5 text-left text-[13px] leading-5 wrap-break-word ${stateTone.value}`}>
                             {valueSummary}
                         </div>
                     ) : (
-                        <div className="w-full rounded px-1.5 py-0.5 text-left text-[10px] font-medium bg-amber-500/14 text-amber-800 dark:text-amber-200">
+                        <div className="w-full rounded-sm border border-amber-500/30 bg-amber-500/8 px-2 py-1.5 text-left text-[11px] font-medium text-amber-800 dark:text-amber-200">
                             No value set
                         </div>
                     )}
                 </div>
 
-                <div className="flex flex-wrap items-start justify-start gap-1.5">
+                <div className="flex flex-wrap items-start justify-start gap-1.5 lg:justify-end">
                     {!unavailableReason && !isUnsupported && (
                         <>
                             <Button

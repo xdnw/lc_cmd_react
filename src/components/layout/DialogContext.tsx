@@ -21,6 +21,7 @@ type DialogContextType = {
 type DialogProps = {
     id: string;
     title: string;
+    header?: ReactNode;
     message: ReactNode;
     quote?: boolean;
 };
@@ -100,6 +101,7 @@ const dialogReducer = (state: DialogState, action: DialogAction): DialogState =>
         case "SHOW": {
             const { title, message, options } = action;
             const quote = options.quote ?? false;
+            const header = options.header;
 
             const hasActive = state.activeDialogId !== null && state.dialogs.some((dialog) => dialog.id === state.activeDialogId);
             const openInNewTab = options.openInNewTab ?? false;
@@ -108,7 +110,7 @@ const dialogReducer = (state: DialogState, action: DialogAction): DialogState =>
             if (replaceActive && hasActive && state.activeDialogId) {
                 const nextDialogs = state.dialogs.map((dialog) => {
                     if (dialog.id !== state.activeDialogId) return dialog;
-                    return { ...dialog, title, message, quote };
+                    return { ...dialog, title, header, message, quote };
                 });
                 const nextDialogIdSet = new Set(nextDialogs.map((dialog) => dialog.id));
                 const nextHistory = appendHistory(pruneHistory(state.tabHistory, nextDialogIdSet), state.activeDialogId);
@@ -121,7 +123,7 @@ const dialogReducer = (state: DialogState, action: DialogAction): DialogState =>
             }
 
             const id = createDialogId();
-            const nextDialogs = [...state.dialogs, { id, title, message, quote }];
+            const nextDialogs = [...state.dialogs, { id, title, header, message, quote }];
             const shouldFocusNewTab = options.focusNewTab ?? true;
             const nextActiveDialogId = shouldFocusNewTab || !hasActive
                 ? id
@@ -254,6 +256,7 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             {isDialogVisible && selectedDialog && (
                 <SimpleDialog
                     title={selectedDialog.title}
+                    header={selectedDialog.header}
                     message={
                         dialogs.length < 2 ? (
                             selectedDialog.message

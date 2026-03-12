@@ -284,6 +284,11 @@ export type SettingsVisibleContext = {
     subgroup: GuildSettingSubgroup | null;
 };
 
+export function hasVisibleSettingsSubgroup(subgroup: string | null | undefined): subgroup is GuildSettingSubgroup {
+    const normalized = subgroup?.trim() ?? "";
+    return normalized.length > 0 && normalized.toUpperCase() !== "NONE";
+}
+
 export const SETTINGS_CATEGORY_ITEM_HEIGHT = 52;
 export const SETTINGS_SUBGROUP_ITEM_HEIGHT = 42;
 export const SETTINGS_ROW_ITEM_HEIGHT = 118;
@@ -742,22 +747,26 @@ export function flattenSettingsRows(rows: SettingRow[]): FlattenedSettingsItem[]
     const items: FlattenedSettingsItem[] = [];
 
     groupedRows.forEach((category) => {
+        const visibleSubgroupCount = category.subgroups.filter((subgroup) => hasVisibleSettingsSubgroup(subgroup.subgroup)).length;
+
         items.push({
             key: `category-${category.category}`,
             kind: "category",
             category: category.category,
-            subgroupCount: category.subgroups.length,
+            subgroupCount: visibleSubgroupCount,
             settingCount: category.subgroups.reduce((count, subgroup) => count + subgroup.rows.length, 0),
         });
 
         category.subgroups.forEach((subgroup) => {
-            items.push({
-                key: `subgroup-${category.category}-${subgroup.subgroup}`,
-                kind: "subgroup",
-                category: category.category,
-                subgroup: subgroup.subgroup,
-                settingCount: subgroup.rows.length,
-            });
+            if (hasVisibleSettingsSubgroup(subgroup.subgroup)) {
+                items.push({
+                    key: `subgroup-${category.category}-${subgroup.subgroup}`,
+                    kind: "subgroup",
+                    category: category.category,
+                    subgroup: subgroup.subgroup,
+                    settingCount: subgroup.rows.length,
+                });
+            }
 
             subgroup.rows.forEach((row) => {
                 const subgroupSettingCount = subgroup.rows.length;

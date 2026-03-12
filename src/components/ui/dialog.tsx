@@ -45,6 +45,11 @@ function isHtmlEditorFullscreenTarget(target: EventTarget | null): boolean {
         && target.closest('[data-html-editor-fullscreen="true"]') !== null;
 }
 
+function isDialogOwnedPopupTarget(target: EventTarget | null): boolean {
+    return target instanceof HTMLElement
+        && target.closest(DIALOG_POPUP_OPEN_SELECTOR) !== null;
+}
+
 type DialogInteractOutsideEvent = Parameters<
     NonNullable<React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>["onInteractOutside"]>
 >[0];
@@ -121,6 +126,11 @@ const DialogContent = React.forwardRef<
             return;
         }
 
+        if (isDialogOwnedPopupTarget(event.target)) {
+            event.preventDefault();
+            return;
+        }
+
         onInteractOutside?.(event);
     }, [onInteractOutside]);
 
@@ -130,11 +140,21 @@ const DialogContent = React.forwardRef<
             return;
         }
 
+        if (isDialogOwnedPopupTarget(event.target)) {
+            event.preventDefault();
+            return;
+        }
+
         onPointerDownOutside?.(event);
     }, [onPointerDownOutside]);
 
     const handleFocusOutside = React.useCallback((event: DialogFocusOutsideEvent) => {
         if (isHtmlEditorFullscreenTarget(event.target)) {
+            event.preventDefault();
+            return;
+        }
+
+        if (isDialogOwnedPopupTarget(event.target)) {
             event.preventDefault();
             return;
         }

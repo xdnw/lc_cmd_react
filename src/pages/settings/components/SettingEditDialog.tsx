@@ -5,7 +5,6 @@ import { useCallback, useMemo } from "react";
 import type { ArgInputSupport } from "@/components/cmd/ArgInput";
 import type { TypeBreakdown } from "@/utils/Command";
 import type { SettingRow } from "../settingsDomain";
-import SettingClearAction from "./SettingClearAction";
 
 const SETTINGS_INFO_COMMAND: ["settings", "info"] = ["settings", "info"];
 
@@ -64,8 +63,6 @@ export default function SettingEditDialog({
     const statusBadges = [
         row.flags.invalid ? <Badge key="invalid" variant="destructive">Invalid</Badge> : null,
         !row.flags.isAllowed ? <Badge key="unavailable" variant="secondary">Unavailable</Badge> : null,
-        !row.value.hasValue ? <Badge key="unset" variant="secondary">Unset</Badge> : null,
-        row.flags.isChannelType ? <Badge key="channel" variant="outline">Channel type</Badge> : null,
         !row.editor.inputSupport.supported ? <Badge key="unsupported" variant="destructive">Unsupported web input</Badge> : null,
     ].filter(Boolean);
 
@@ -73,22 +70,25 @@ export default function SettingEditDialog({
         <CommandDialogForm
             commandPath={SETTINGS_INFO_COMMAND}
             initialValues={initialValues}
-            description={`Edit ${row.settingKey}`}
             runLabel="Save"
             runDisabled={!row.editor.inputSupport.supported}
             showResultDialog={true}
             onCompleteSuccess={handleRefreshSetting}
-            extraActions={
-                <SettingClearAction
-                    settingKey={row.settingKey}
-                    hasValue={row.value.hasValue}
-                    onSuccess={handleRefreshSetting}
-                    showResultDialog={true}
-                />
-            }
+            showCommandTitle={false}
+            actionsLayout="sticky"
         >
             {({ setOutput }) => (
                 <div className="space-y-3">
+                    {statusBadges.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                            {statusBadges}
+                        </div>
+                    )}
+
+                    <div className="text-sm leading-6 text-muted-foreground whitespace-pre-wrap wrap-break-word">
+                        {row.metadata.helpFull || row.metadata.helpShort}
+                    </div>
+
                     <SettingArgInputContent
                         breakdown={row.editor.breakdown}
                         inputSupport={row.editor.inputSupport}
@@ -97,27 +97,16 @@ export default function SettingEditDialog({
                         setOutput={setOutput}
                     />
 
-                    <div className="space-y-2 rounded-md border border-border/60 bg-muted/15 px-3 py-2.5">
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                            <span>{row.metadata.argType}</span>
-                            <span>{row.metadata.category}</span>
-                            <span>{row.metadata.subgroup}</span>
-                            {statusBadges.length > 0 && statusBadges}
-                        </div>
-
-                        <div className="text-sm text-muted-foreground whitespace-pre-wrap wrap-break-word">
-                            {row.metadata.helpFull || row.metadata.helpShort}
-                        </div>
-
-                        <div className="text-xs text-muted-foreground">
-                            Current value
-                        </div>
-                        <div className="rounded border border-border/60 bg-background px-2.5 py-2 text-sm wrap-break-word whitespace-pre-wrap">
-                            {row.value.hasValue ? (row.value.displayText || "Empty value") : "Unset"}
+                    <div className="space-y-3 border-t border-border/60 pt-3">
+                        <div>
+                            <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Current value</div>
+                            <div className="mt-1 rounded-md border border-border/60 bg-background px-3 py-2 text-sm wrap-break-word whitespace-pre-wrap">
+                                {row.value.hasValue ? (row.value.displayText || "Empty value") : "Unset"}
+                            </div>
                         </div>
 
                         {row.rowParseErrors.length > 0 && (
-                            <div className="rounded border border-destructive/40 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
+                            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                                 {row.rowParseErrors.join("; ")}
                             </div>
                         )}

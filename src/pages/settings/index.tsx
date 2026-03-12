@@ -1,7 +1,6 @@
-import { useMemo, useState, useCallback, useLayoutEffect, useRef } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ListItem } from "react-virtuoso";
-import { GroupedVirtuoso } from "react-virtuoso";
+import { Virtuoso } from "react-virtuoso";
 import { useSession } from "@/components/api/SessionContext";
 import { useDialog } from "@/components/layout/DialogContext";
 import Loading from "@/components/ui/loading";
@@ -13,7 +12,7 @@ import {
 import { TABLE } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
 import type { QueryResult } from "@/lib/BulkQuery";
-import type { GuildSettingSubgroup, WebTable } from "@/lib/apitypes";
+import type { WebTable } from "@/lib/apitypes";
 import SettingEditDialog from "./components/SettingEditDialog";
 import SettingsCategorySection, { SettingsCategoryHeader, SettingsSubgroupHeader } from "./components/SettingsCategorySection";
 import SettingsTopBar from "./components/SettingsTopBar";
@@ -22,7 +21,7 @@ import {
     SETTINGS_ROW_ITEM_HEIGHT,
     createDefaultSettingsBrowserState,
     deriveSettingsBrowserRows,
-    groupRowsByCategory,
+    hasVisibleSettingsSubgroup,
     normalizeGuildSettingRows,
     mergeRowIntoTableCache,
     removeRowFromTableCache,
@@ -30,32 +29,12 @@ import {
 } from "./settingsDomain";
 import LoginPickerPage from "../login_picker";
 
-const PAGE_STICKY_TOP_PX = 8;
-
-type VirtualizedSettingsItem =
-    | {
-        key: string;
-        kind: "subgroup";
-        category: SettingRow["metadata"]["category"];
-        subgroup: SettingRow["metadata"]["subgroup"];
-        settingCount: number;
-    }
-    | {
-        key: string;
-        kind: "setting";
-        row: SettingRow;
-        subgroupPosition: "first" | "middle" | "last" | "only";
-    };
-
 export default function SettingsPage() {
     const { session } = useSession();
     const { showDialog } = useDialog();
     const queryClient = useQueryClient();
     const [browserState, setBrowserState] = useState(() => createDefaultSettingsBrowserState());
     const [perSettingWarning, setPerSettingWarning] = useState<string | null>(null);
-    const [topBarHeight, setTopBarHeight] = useState(0);
-    const [stickySubgroupByCategory, setStickySubgroupByCategory] = useState<Record<number, GuildSettingSubgroup | null>>({});
-    const topBarRef = useRef<HTMLDivElement | null>(null);
 
     const listQueryArgs = useMemo(() => {
         return {
@@ -99,63 +78,6 @@ export default function SettingsPage() {
         () => deriveSettingsBrowserRows(normalized.rows, browserState),
         [browserState, normalized.rows],
     );
-    const categoryGroups = useMemo(() => {
-        return groupRowsByCategory(browserResult.rows);
-    }, [browserResult.rows]);
-    const groupCounts = useMemo(
-        () => categoryGroups.map((category) => category.subgroups.reduce((count, subgroup) => count + subgroup.rows.length + 1, 0)),
-        [categoryGroups],
-    );
-    const groupedSettingsItems = useMemo(() => {
-        return categoryGroups.flatMap((category) => {
-            return category.subgroups.flatMap((subgroup) => {
-                const subgroupHeader: VirtualizedSettingsItem = {
-                    key: `${category.category}:${subgroup.subgroup}:header`,
-                    kind: "subgroup",
-                    category: category.category,
-                    subgroup: subgroup.subgroup,
-                    settingCount: subgroup.rows.length,
-                };
-
-                const settingItems: VirtualizedSettingsItem[] = subgroup.rows.map((row, index) => ({
-                    key: `${category.category}:${subgroup.subgroup}:${row.settingKey}`,
-                    kind: "setting",
-                    row,
-                    subgroupPosition: subgroup.rows.length === 1
-                        ? "only"
-                        : index === 0
-                            ? "first"
-                            : index === subgroup.rows.length - 1
-                                ? "last"
-                                : "middle",
-                }));
-
-                return [subgroupHeader, ...settingItems];
-            });
-        });
-    }, [categoryGroups]);
-
-    useLayoutEffect(() => {
-        const element = topBarRef.current;
-        if (!element) return;
-
-        const updateHeight = () => {
-            setTopBarHeight(element.getBoundingClientRect().height);
-        };
-
-        updateHeight();
-
-        const observer = new ResizeObserver(() => {
-            updateHeight();
-        });
-        observer.observe(element);
-        window.addEventListener("resize", updateHeight);
-
-        return () => {
-            observer.disconnect();
-            window.removeEventListener("resize", updateHeight);
-        };
-    }, []);
 
     const refreshSingleSetting = useCallback(async (settingKey: string) => {
         if (!session?.guild || !listQueryArgs || !listQueryKey) return;
@@ -191,8 +113,26 @@ export default function SettingsPage() {
 
     const openEditDialog = useCallback((row: SettingRow) => {
         showDialog(
-            `Edit ${row.settingKey}`,
+            row.settingKey,
             <SettingEditDialog row={row} onRefreshSetting={refreshSingleSetting} />,
+            {
+                header: (
+                    <div className="space-y-1 pr-8">
+                        <div className="wrap-break-word text-base font-semibold tracking-tight text-foreground">{row.settingKey}</div>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                            <span>{row.metadata.category}</span>
+                            {hasVisibleSettingsSubgroup(row.metadata.subgroup) && (
+                                <>
+                                    <span aria-hidden="true">/</span>
+                                    <span>{row.metadata.subgroup}</span>
+                                </>
+                            )}
+                            <span aria-hidden="true">/</span>
+                            <span>{row.metadata.argType}</span>
+                        </div>
+                    </div>
+                ),
+            },
         );
     }, [showDialog, refreshSingleSetting]);
 
@@ -203,7 +143,7 @@ export default function SettingsPage() {
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>{row.metadata.argType}</span>
                     <span>{row.metadata.category}</span>
-                    <span>{row.metadata.subgroup}</span>
+                    {hasVisibleSettingsSubgroup(row.metadata.subgroup) && <span>{row.metadata.subgroup}</span>}
                 </div>
                 <div className="whitespace-pre-wrap wrap-break-word text-foreground">
                     {row.metadata.helpFull || row.metadata.helpShort}
@@ -215,28 +155,6 @@ export default function SettingsPage() {
     const onRefreshAll = useCallback(() => {
         void listQuery.refetch();
     }, [listQuery]);
-
-    const updateStickySubgroup = useCallback((items: ListItem<VirtualizedSettingsItem>[]) => {
-        const firstRecord = items.find((item) => item.type !== "group" && item.data);
-        if (!firstRecord || firstRecord.groupIndex == null || !firstRecord.data) {
-            return;
-        }
-
-        const nextSubgroup = firstRecord.data.kind === "subgroup"
-            ? firstRecord.data.subgroup
-            : firstRecord.data.row.metadata.subgroup;
-
-        setStickySubgroupByCategory((current) => {
-            if (current[firstRecord.groupIndex!] === nextSubgroup) {
-                return current;
-            }
-
-            return {
-                ...current,
-                [firstRecord.groupIndex!]: nextSubgroup,
-            };
-        });
-    }, []);
 
     if (!session?.guild) {
         return <LoginPickerPage />;
@@ -256,7 +174,7 @@ export default function SettingsPage() {
 
     return (
         <div className="space-y-2 pb-6">
-            <div ref={topBarRef} className="sticky top-2 z-20">
+            <div className="sticky top-2 z-20">
                 <SettingsTopBar
                     browserState={browserState}
                     counts={browserResult.counts}
@@ -288,41 +206,23 @@ export default function SettingsPage() {
                 </div>
             )}
 
-            {groupedSettingsItems.length > 0 ? (
-                <GroupedVirtuoso
+            {browserResult.flattenedItems.length > 0 ? (
+                <Virtuoso
                     useWindowScroll
-                    data={groupedSettingsItems}
-                    groupCounts={groupCounts}
+                    data={browserResult.flattenedItems}
                     overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
                     increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
                     defaultItemHeight={SETTINGS_ROW_ITEM_HEIGHT}
-                    components={{
-                        Group: ({ children, style, ...props }) => (
-                            <div
-                                {...props}
-                                style={{
-                                    ...style,
-                                    top: topBarHeight + PAGE_STICKY_TOP_PX,
-                                    zIndex: 9,
-                                }}
-                            >
-                                {children}
-                            </div>
-                        ),
-                    }}
-                    itemsRendered={updateStickySubgroup}
                     computeItemKey={(_, item) => item.key}
-                    groupContent={(groupIndex) => {
-                        const group = categoryGroups[groupIndex];
-                        return group ? (
-                            <SettingsCategoryHeader
-                                category={group.category}
-                                stickySubgroup={stickySubgroupByCategory[groupIndex] ?? group.subgroups[0]?.subgroup ?? null}
-                            />
-                        ) : null;
-                    }}
-                    itemContent={(_, __, item) => (
-                        item.kind === "subgroup"
+                    itemContent={(_, item) => (
+                        item.kind === "category"
+                            ? (
+                                <SettingsCategoryHeader
+                                    category={item.category}
+                                    settingCount={item.settingCount}
+                                />
+                            )
+                            : item.kind === "subgroup"
                             ? (
                                 <SettingsSubgroupHeader
                                     category={item.category}

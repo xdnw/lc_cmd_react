@@ -1,14 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Dialog,
-    DialogClose,
     DialogContent,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
 import { CopyToClipboardTextArea } from "./copytoclipboard";
-import { Button } from "./button";
 import { cn } from "@/lib/utils";
 import {
     getHtmlEditorFullscreenEventName,
@@ -17,6 +14,7 @@ import {
 
 type SimpleDialogProps = {
     title: string;
+    header?: React.ReactNode;
     message: React.ReactNode;
     quote?: boolean;
     showDialog: boolean;
@@ -27,11 +25,7 @@ type SimpleDialogProps = {
  * Internal wrapper around shared dialog primitives.
  * Ownership: `DialogContext` controls all dialog state and calls this component.
  */
-export default function SimpleDialog({ title, message, quote, showDialog, setShowDialog }: SimpleDialogProps) {
-    const hideDialog = useCallback(() => {
-        setShowDialog(false);
-    }, [setShowDialog]);
-
+export default function SimpleDialog({ title, header, message, quote, showDialog, setShowDialog }: SimpleDialogProps) {
     const [isHtmlEditorFullscreenActive, setIsHtmlEditorFullscreenActive] = useState<boolean>(getIsHtmlEditorFullscreenActive);
 
     useEffect(() => {
@@ -59,9 +53,16 @@ export default function SimpleDialog({ title, message, quote, showDialog, setSho
                     "overflow-x-auto overflow-y-auto",
                     isHtmlEditorFullscreenActive
                         ? "min-h-0 flex-1 space-y-0 overflow-hidden p-0"
-                        : "max-h-[75vh]",
+                        : "max-h-[75vh] pr-8",
                 )}>
-                    <DialogTitle className={cn(isHtmlEditorFullscreenActive && "sr-only")}>{title}</DialogTitle>
+                    {header ? (
+                        <>
+                            <DialogTitle className="sr-only">{title}</DialogTitle>
+                            <div className={cn(isHtmlEditorFullscreenActive && "sr-only")}>{header}</div>
+                        </>
+                    ) : (
+                        <DialogTitle className={cn(isHtmlEditorFullscreenActive && "sr-only")}>{title}</DialogTitle>
+                    )}
                     <div className={cn(
                         "relative overflow-x-auto",
                         isHtmlEditorFullscreenActive && "min-h-0 flex-1 overflow-hidden",
@@ -75,11 +76,6 @@ export default function SimpleDialog({ title, message, quote, showDialog, setSho
                         )}
                     </div>
                 </DialogHeader>
-                <DialogFooter className={cn(isHtmlEditorFullscreenActive && "hidden")}>
-                    <DialogClose asChild>
-                        <Button variant="outline" size="sm" onClick={hideDialog}>Dismiss</Button>
-                    </DialogClose>
-                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

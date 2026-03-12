@@ -3,7 +3,6 @@ import type { CSSProperties } from "react";
 type Tone = {
     borderColor: string;
     railStyle: CSSProperties;
-    softBgStyle: CSSProperties;
     pillStyle: CSSProperties;
 };
 
@@ -17,18 +16,15 @@ function hashText(text: string): number {
 
 function buildTone(seed: string, saturation: number, lightness: number): Tone {
     const hue = hashText(seed) % 360;
-    const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.22)`;
+    const borderColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.16)`;
 
     return {
         borderColor,
         railStyle: {
-            backgroundColor: `hsla(${hue}, ${Math.min(90, saturation + 8)}%, ${lightness}%, 0.58)`,
-        },
-        softBgStyle: {
-            backgroundColor: `hsla(${hue}, ${saturation}%, ${lightness}%, 0.06)`,
+            backgroundColor: `hsla(${hue}, ${Math.min(90, saturation + 8)}%, ${lightness}%, 0.44)`,
         },
         pillStyle: {
-            backgroundColor: `hsla(${hue}, ${saturation}%, ${lightness}%, 0.11)`,
+            backgroundColor: `hsla(${hue}, ${saturation}%, ${lightness}%, 0.06)`,
             borderColor,
             color: "inherit",
         },
@@ -59,44 +55,38 @@ export function getSettingRowStateClasses({
     unsupported: boolean;
 }): {
     background: string;
-    leftAccent: string;
     value: string;
 } {
     if (invalid) {
         return {
-            background: "bg-destructive/6",
-            leftAccent: "border-l-destructive/60",
+            background: "bg-destructive/[0.025]",
             value: "text-destructive/90",
         };
     }
 
     if (unsupported) {
         return {
-            background: "bg-rose-500/5",
-            leftAccent: "border-l-rose-500/45",
+            background: "bg-rose-500/[0.02]",
             value: "text-foreground",
         };
     }
 
     if (unavailable) {
         return {
-            background: "bg-slate-500/6",
-            leftAccent: "border-l-slate-500/40",
+            background: "bg-muted/40",
             value: "text-muted-foreground",
         };
     }
 
     if (unset) {
         return {
-            background: "bg-amber-500/6",
-            leftAccent: "border-l-amber-500/45",
+            background: "bg-amber-500/[0.02]",
             value: "text-amber-800 dark:text-amber-200",
         };
     }
 
     return {
         background: "bg-background/92",
-        leftAccent: "border-l-border/50",
         value: "text-foreground",
     };
 }

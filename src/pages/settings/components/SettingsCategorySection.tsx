@@ -1,33 +1,26 @@
 import type { GuildSettingCategory, GuildSettingSubgroup } from "@/lib/apitypes";
-import type { SettingRow as SettingRowModel } from "../settingsDomain";
+import { hasVisibleSettingsSubgroup, type SettingRow as SettingRowModel } from "../settingsDomain";
 import SettingRow from "./SettingRow";
 import { getCategoryTone, getSubgroupTone } from "./settingsVisuals";
 
 export function SettingsCategoryHeader({
     category,
-    stickySubgroup,
+    settingCount,
 }: {
     category: GuildSettingCategory;
-    stickySubgroup: GuildSettingSubgroup | null;
+    settingCount: number;
 }) {
     const categoryTone = getCategoryTone(category);
-    const subgroupTone = stickySubgroup ? getSubgroupTone(stickySubgroup) : null;
 
     return (
-        <div className="border-b border-border/50 bg-background px-1 py-1">
-            <div className="flex items-start gap-2">
-                <div className="mt-0.5 w-1 self-stretch rounded-full" style={categoryTone.railStyle} />
+        <div className="px-1 pt-6 pb-2 first:pt-0">
+            <div className="flex items-center gap-3 border-t border-border/75 px-1 pt-3.5">
+                <div className="h-5 w-px rounded-full" style={categoryTone.railStyle} />
                 <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-semibold tracking-tight text-foreground">{category}</div>
-                    {stickySubgroup && subgroupTone && (
-                        <div
-                            className="mt-0.5 flex items-center gap-2 border-l pl-2 text-[11px] text-muted-foreground"
-                            style={{ borderLeftColor: subgroupTone.borderColor }}
-                        >
-                            <div className="h-3.5 w-0.5 rounded-full" style={subgroupTone.railStyle} />
-                            <span className="truncate">{stickySubgroup}</span>
-                        </div>
-                    )}
+                    <div className="text-[15px] font-semibold tracking-tight text-foreground">{category}</div>
+                </div>
+                <div className="shrink-0 text-[11px] text-muted-foreground">
+                    {settingCount} setting{settingCount === 1 ? "" : "s"}
                 </div>
             </div>
         </div>
@@ -35,7 +28,7 @@ export function SettingsCategoryHeader({
 }
 
 export function SettingsSubgroupHeader({
-    category,
+    category: _category,
     subgroup,
     settingCount,
 }: {
@@ -43,23 +36,21 @@ export function SettingsSubgroupHeader({
     subgroup: GuildSettingSubgroup;
     settingCount: number;
 }) {
-    const categoryTone = getCategoryTone(category);
+    if (!hasVisibleSettingsSubgroup(subgroup)) {
+        return null;
+    }
+
     const subgroupTone = getSubgroupTone(subgroup);
 
     return (
-        <div className="ml-1 border-l pl-3" style={{ borderLeftColor: categoryTone.borderColor }}>
-            <div className="py-1 pr-1">
-                <div
-                    className="flex items-center gap-2 border-l pl-2"
-                    style={{ borderLeftColor: subgroupTone.borderColor }}
-                >
-                    <div className="h-4 w-0.5 rounded-full" style={subgroupTone.railStyle} />
-                    <div className="min-w-0 flex-1 text-xs font-semibold tracking-[0.01em] text-foreground">
-                        {subgroup}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                        {settingCount} setting{settingCount === 1 ? "" : "s"}
-                    </div>
+        <div className="px-1 pt-2 pb-1.5">
+            <div className="ml-4 flex items-center gap-3 border-t border-border/50 px-3 pt-2.5">
+                <div className="h-4 w-px rounded-full" style={subgroupTone.railStyle} />
+                <div className="min-w-0 flex-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/95">
+                    <span className="truncate align-middle">{subgroup}</span>
+                </div>
+                <div className="shrink-0 text-[11px] text-muted-foreground">
+                    {settingCount} setting{settingCount === 1 ? "" : "s"}
                 </div>
             </div>
         </div>
@@ -80,16 +71,25 @@ export default function SettingsCategorySection({
     onRefreshSetting: (settingKey: string) => void;
 }) {
     const categoryTone = getCategoryTone(row.metadata.category);
+    const subgroupVisible = hasVisibleSettingsSubgroup(row.metadata.subgroup);
+    const subgroupTone = subgroupVisible ? getSubgroupTone(row.metadata.subgroup) : null;
 
     return (
-        <div className="ml-1 border-l pl-3" style={{ borderLeftColor: categoryTone.borderColor }}>
-            <SettingRow
-                row={row}
-                subgroupPosition={subgroupPosition}
-                onEdit={onEdit}
-                onShowHelp={onShowHelp}
-                onRefreshSetting={onRefreshSetting}
-            />
+        <div className="px-1 pb-1">
+            <div
+                className={subgroupVisible ? "pl-4" : "pl-1"}
+                style={{
+                    borderLeft: subgroupVisible ? `1px solid ${subgroupTone?.borderColor ?? categoryTone.borderColor}` : undefined,
+                }}
+            >
+                <SettingRow
+                    row={row}
+                    subgroupPosition={subgroupPosition}
+                    onEdit={onEdit}
+                    onShowHelp={onShowHelp}
+                    onRefreshSetting={onRefreshSetting}
+                />
+            </div>
         </div>
     );
 }

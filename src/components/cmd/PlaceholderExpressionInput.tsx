@@ -350,10 +350,6 @@ export default function PlaceholderExpressionInput({
         }
     }, [activeIndex, activeSuggestion, applySuggestion, dismissSuggestionPanel, moveActiveIndex, requestPanelInteraction, showSuggestionPanel, suggestionView.visibleSuggestions, topSuggestion, value]);
 
-    const handleSuggestionPanelMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-        event.preventDefault();
-    }, []);
-
     const handleFocusWithin = useCallback(() => {
         setHasFocusWithin((previous) => previous ? previous : true);
     }, []);
@@ -494,8 +490,8 @@ export default function PlaceholderExpressionInput({
                 <div
                     ref={panelRef}
                     style={panelStyle}
-                    className="overflow-hidden rounded-md border border-border/70 bg-popover shadow-xl"
-                    onMouseDown={handleSuggestionPanelMouseDown}
+                    className="pointer-events-auto overflow-hidden rounded-md border border-border/70 bg-popover shadow-xl"
+                    {...{ [COMMAND_POPUP_OPEN_ATTR]: "true" }}
                 >
                     <div className="max-h-[inherit] overflow-y-auto">
                         <PlaceholderSuggestionPanel

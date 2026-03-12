@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 export type ShowDialogOptions = {
     /** Render dialog body in quote/copy-friendly textarea mode. */
     quote?: boolean;
+    /** Optional rich header shown in the dialog title area while preserving the string title for tabs/accessibility. */
+    header?: ReactNode;
     /** Open the incoming dialog as a new tab instead of replacing active tab. */
     openInNewTab?: boolean;
     /** When opening a new tab, make it active immediately. Defaults to true. */

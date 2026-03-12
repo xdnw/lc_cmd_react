@@ -42,7 +42,7 @@ import { normalizeMapEntries, normalizeSetValues, parseSetString, serializeMapEn
 import { formatCityBuildCityId, parseCityBuildInput, serializeCityBuildValue } from "./cityBuildInputUtils";
 import { normalizeBooleanValue, normalizeTriStateValue } from "./scalarInputNormalization";
 import { resolveQueryOptionsPayload } from "./queryOptionUtils";
-import { formatBooleanOutput, formatTriStateOutput } from "./booleanValueUtils";
+import { serializeBooleanValue } from "./booleanValueUtils";
 import {
   resolveInitialSelection,
   resolveSelectionInput,
@@ -639,13 +639,13 @@ async function applyPasteAndCheck(type: string, example: string, breakdown: Type
     fireEvent.paste(container.firstElementChild ?? container, makeClipboardEventPayload(example));
     const actual = getLastOutput() ?? "";
     const expected = controlKind === "boolean"
-      ? formatBooleanOutput(normalizeBooleanValue(example))
+      ? serializeBooleanValue(normalizeBooleanValue(example), { mode: "boolean" })
       : controlKind === "tri-state"
-        ? formatTriStateOutput(normalizeTriStateValue(example))
+        ? serializeBooleanValue(normalizeTriStateValue(example), { mode: "tri-state" })
         : actual;
     if (controlKind === "boolean" || controlKind === "tri-state") {
       return actual === expected
-        ? { status: "pass", detail: `Paste emitted ${actual}.`, actualOutput: actual }
+        ? { status: "pass", detail: `Paste emitted ${actual || "(empty)"}.`, actualOutput: actual }
         : { status: "fail", detail: `Expected pasted output for ${controlKind} to be ${expected}, got ${getOutputValueText(actual)}.`, actualOutput: actual };
     }
     return actual !== ""

@@ -46,7 +46,7 @@ describe("TriStateInput keyboard contract", () => {
     fireEvent.keyDown(checked!, { key: "ArrowRight" });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("Any");
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "Any");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "");
   });
 
   it("supports mnemonic keys and Space cycling in visible order", () => {
@@ -65,7 +65,7 @@ describe("TriStateInput keyboard contract", () => {
     fireEvent.keyDown(checked!, { key: " " });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("Any");
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "Any");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "");
 
     fireEvent.keyDown(checked!, { key: "t" });
     checked = getCheckedRadio();
@@ -75,7 +75,7 @@ describe("TriStateInput keyboard contract", () => {
     fireEvent.keyDown(checked!, { key: "a" });
     checked = getCheckedRadio();
     expect(checked?.textContent).toContain("Any");
-    expect(setOutputValue).toHaveBeenLastCalledWith("state", "Any");
+    expect(setOutputValue).toHaveBeenLastCalledWith("state", "");
 
     fireEvent.keyDown(checked!, { key: "f" });
     checked = getCheckedRadio();

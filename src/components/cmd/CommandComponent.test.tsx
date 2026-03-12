@@ -91,6 +91,22 @@ vi.mock("../layout/DialogContext", () => ({
 
 import CommandComponent, { type CommandComponentHandle } from "./CommandComponent";
 
+function makeClipboardEventPayload(text: string) {
+  return {
+    clipboardData: {
+      getData: (type: string) => (type === "text" ? text : ""),
+    },
+  };
+}
+
+function getCommandRoot() {
+  const root = document.querySelector('[data-command-root="true"]');
+  if (!(root instanceof HTMLElement)) {
+    throw new Error("Expected command root to be rendered");
+  }
+  return root;
+}
+
 function createArg(name: string) {
   return createArgWithOptions(name);
 }
@@ -110,6 +126,15 @@ function createArgWithOptions(
   };
 }
 
+function createCommand(name: string, args: ReturnType<typeof createArgWithOptions>[]) {
+  return {
+    name,
+    command: { groups: [], group_descs: [] },
+    getArguments: () => args,
+    getPathString: () => name,
+  };
+}
+
 describe("CommandComponent", () => {
   beforeEach(() => {
     argInputMounts.clear();
@@ -119,11 +144,7 @@ describe("CommandComponent", () => {
   it("renders inputs immediately and reuses cached breakdowns across focus rerenders", () => {
     const firstArg = createArg("first");
     const secondArg = createArg("second");
-    const command = {
-      name: "perf-regression",
-      command: { groups: [], group_descs: [] },
-      getArguments: () => [firstArg, secondArg],
-    };
+    const command = createCommand("perf-regression", [firstArg, secondArg]);
 
     render(
       <CommandComponent
@@ -149,11 +170,7 @@ describe("CommandComponent", () => {
 
   it("preserves parent-owned field values across rerenders without remounting the row", () => {
     const arg = createArg("name");
-    const command = {
-      name: "stable-row",
-      command: { groups: [], group_descs: [] },
-      getArguments: () => [arg],
-    };
+    const command = createCommand("stable-row", [arg]);
     const setOutput = vi.fn();
 
     const { rerender } = render(
@@ -189,13 +206,9 @@ describe("CommandComponent", () => {
     expect(argInputMounts.get("name")).toBe(1);
   });
 
-  it("omits false output for optional binary booleans", () => {
+  it("omits false output for optional binary booleans when parsing a pasted command", () => {
     const arg = createArgWithOptions("enabled", { element: "boolean", optional: true });
-    const command = {
-      name: "optional-bool",
-      command: { groups: [], group_descs: [] },
-      getArguments: () => [arg],
-    };
+    const command = createCommand("optional-bool", [arg]);
     const setOutput = vi.fn();
 
     render(
@@ -209,21 +222,13 @@ describe("CommandComponent", () => {
       />,
     );
 
-    const input = screen.getByRole("textbox", { name: "enabled" });
-    fireEvent.change(input, { target: { value: "True" } });
-    expect(setOutput).toHaveBeenLastCalledWith("enabled", "True");
-
-    fireEvent.change(input, { target: { value: "False" } });
+    fireEvent.paste(getCommandRoot(), makeClipboardEventPayload("/optional-bool enabled:False"));
     expect(setOutput).toHaveBeenLastCalledWith("enabled", "");
   });
 
-  it("keeps false output for required binary booleans", () => {
+  it("keeps false output for required binary booleans when parsing a pasted command", () => {
     const arg = createArgWithOptions("enabled", { element: "boolean", optional: false });
-    const command = {
-      name: "required-bool",
-      command: { groups: [], group_descs: [] },
-      getArguments: () => [arg],
-    };
+    const command = createCommand("required-bool", [arg]);
     const setOutput = vi.fn();
 
     render(
@@ -237,17 +242,13 @@ describe("CommandComponent", () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole("textbox", { name: "enabled" }), { target: { value: "False" } });
+    fireEvent.paste(getCommandRoot(), makeClipboardEventPayload("/required-bool enabled:False"));
     expect(setOutput).toHaveBeenLastCalledWith("enabled", "False");
   });
 
-  it("keeps false output for optional tri-state booleans", () => {
+  it("drops neutral tri-state output when parsing a pasted command", () => {
     const arg = createArgWithOptions("state", { element: "Boolean", optional: true });
-    const command = {
-      name: "optional-tristate",
-      command: { groups: [], group_descs: [] },
-      getArguments: () => [arg],
-    };
+    const command = createCommand("optional-tristate", [arg]);
     const setOutput = vi.fn();
 
     render(
@@ -261,7 +262,10 @@ describe("CommandComponent", () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole("textbox", { name: "state" }), { target: { value: "False" } });
+    fireEvent.paste(getCommandRoot(), makeClipboardEventPayload("/optional-tristate state:0"));
+    expect(setOutput).toHaveBeenLastCalledWith("state", "");
+
+    fireEvent.paste(getCommandRoot(), makeClipboardEventPayload("/optional-tristate state:False"));
     expect(setOutput).toHaveBeenLastCalledWith("state", "False");
   });
 
@@ -270,11 +274,7 @@ describe("CommandComponent", () => {
     userArg.arg.desc = "Select a user";
     const noteArg = createArg("note");
     noteArg.arg.desc = "Write a note";
-    const command = {
-      name: "jump-targets",
-      command: { groups: [], group_descs: [] },
-      getArguments: () => [userArg, noteArg],
-    };
+    const command = createCommand("jump-targets", [userArg, noteArg]);
     const ref = createRef<CommandComponentHandle>();
 
     render(
@@ -300,11 +300,7 @@ describe("CommandComponent", () => {
     const userArg = createArg("user");
     userArg.arg.desc = "A discord user mention";
     const ref = createRef<CommandComponentHandle>();
-    const command = {
-      name: "name-first-jump",
-      command: { groups: [], group_descs: [] },
-      getArguments: () => [cityArg, userArg],
-    };
+    const command = createCommand("name-first-jump", [cityArg, userArg]);
 
     render(
       <CommandComponent
@@ -325,11 +321,7 @@ describe("CommandComponent", () => {
 
   it("focuses offscreen arguments through the imperative handle when rows are virtualized", async () => {
     const args = Array.from({ length: 35 }, (_, index) => createArg(`arg-${index + 1}`));
-    const command = {
-      name: "virtual-jump",
-      command: { groups: [], group_descs: [] },
-      getArguments: () => args,
-    };
+    const command = createCommand("virtual-jump", args);
     const ref = createRef<CommandComponentHandle>();
 
     render(

@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 import type { ArgInputSupport } from "@/components/cmd/ArgInput";
 import type { TypeBreakdown } from "@/utils/Command";
 import type { SettingRow } from "../settingsDomain";
+import SettingClearAction from "./SettingClearAction";
 
 const SETTINGS_INFO_COMMAND: ["settings", "info"] = ["settings", "info"];
 
@@ -98,12 +99,28 @@ export default function SettingEditDialog({
                     />
 
                     <div className="space-y-3 border-t border-border/60 pt-3">
-                        <div>
-                            <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Current value</div>
-                            <div className="mt-1 rounded-md border border-border/60 bg-background px-3 py-2 text-sm wrap-break-word whitespace-pre-wrap">
-                                {row.value.hasValue ? (row.value.displayText || "Empty value") : "Unset"}
+                        {row.value.hasValue ? (
+                            <>
+                                <div>
+                                    <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Current value</div>
+                                    <div className="mt-1 rounded-md border border-border/60 bg-background px-3 py-2 text-sm wrap-break-word whitespace-pre-wrap">
+                                        {row.value.displayText || "Empty value"}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <SettingClearAction
+                                        settingKey={row.settingKey}
+                                        hasValue={row.value.hasValue}
+                                        onSuccess={handleRefreshSetting}
+                                    />
+                                </div>
+                            </>
+                        ) : (
+                            <div className="rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-muted-foreground">
+                                No value set
                             </div>
-                        </div>
+                        )}
 
                         {row.rowParseErrors.length > 0 && (
                             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">

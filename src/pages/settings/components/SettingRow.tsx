@@ -17,12 +17,14 @@ function summarizeValue(valueText: string, hasValue: boolean): string {
 export default function SettingRow({
     row,
     subgroupPosition,
+    isHighlighted = false,
     onEdit,
     onShowHelp,
     onRefreshSetting,
 }: {
     row: SettingRow;
     subgroupPosition: "first" | "middle" | "last" | "only";
+    isHighlighted?: boolean;
     onEdit: (row: SettingRow) => void;
     onShowHelp: (row: SettingRow) => void;
     onRefreshSetting: (settingKey: string) => void;
@@ -51,7 +53,13 @@ export default function SettingRow({
 
     return (
         <div
-            className={`${rowSpacingClass} rounded-sm border border-border/65 bg-background px-2 py-1.5`}
+            className={[
+                rowSpacingClass,
+                "rounded-sm border bg-background px-2 py-1.5 transition-[border-color,box-shadow,background-color] duration-300",
+                isHighlighted
+                    ? "border-primary/55 bg-primary/6 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.14)]"
+                    : "border-border/65",
+            ].join(" ")}
         >
             <div className="grid gap-x-3 gap-y-1.5 lg:grid-cols-[minmax(0,1.55fr)_minmax(12rem,0.95fr)_auto] lg:items-start">
                 <div className="min-w-0 space-y-0.75">

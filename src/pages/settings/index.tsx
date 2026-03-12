@@ -1,6 +1,7 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useLayoutEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Virtuoso } from "react-virtuoso";
+import type { ListItem } from "react-virtuoso";
+import { GroupedVirtuoso } from "react-virtuoso";
 import { useSession } from "@/components/api/SessionContext";
 import { useDialog } from "@/components/layout/DialogContext";
 import Loading from "@/components/ui/loading";
@@ -12,13 +13,16 @@ import {
 import { TABLE } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
 import type { QueryResult } from "@/lib/BulkQuery";
-import type { WebTable } from "@/lib/apitypes";
+import type { GuildSettingSubgroup, WebTable } from "@/lib/apitypes";
 import SettingEditDialog from "./components/SettingEditDialog";
-import SettingsCategorySection from "./components/SettingsCategorySection";
+import SettingsCategorySection, { SettingsCategoryHeader, SettingsSubgroupHeader } from "./components/SettingsCategorySection";
 import SettingsTopBar from "./components/SettingsTopBar";
 import {
     GUILD_SETTING_COLUMNS,
-    flattenSettingsRows,
+    SETTINGS_ROW_ITEM_HEIGHT,
+    createDefaultSettingsBrowserState,
+    deriveSettingsBrowserRows,
+    groupRowsByCategory,
     normalizeGuildSettingRows,
     mergeRowIntoTableCache,
     removeRowFromTableCache,
@@ -26,12 +30,32 @@ import {
 } from "./settingsDomain";
 import LoginPickerPage from "../login_picker";
 
+const PAGE_STICKY_TOP_PX = 8;
+
+type VirtualizedSettingsItem =
+    | {
+        key: string;
+        kind: "subgroup";
+        category: SettingRow["metadata"]["category"];
+        subgroup: SettingRow["metadata"]["subgroup"];
+        settingCount: number;
+    }
+    | {
+        key: string;
+        kind: "setting";
+        row: SettingRow;
+        subgroupPosition: "first" | "middle" | "last" | "only";
+    };
+
 export default function SettingsPage() {
     const { session } = useSession();
     const { showDialog } = useDialog();
     const queryClient = useQueryClient();
-    const [showUnavailable, setShowUnavailable] = useState(false);
+    const [browserState, setBrowserState] = useState(() => createDefaultSettingsBrowserState());
     const [perSettingWarning, setPerSettingWarning] = useState<string | null>(null);
+    const [topBarHeight, setTopBarHeight] = useState(0);
+    const [stickySubgroupByCategory, setStickySubgroupByCategory] = useState<Record<number, GuildSettingSubgroup | null>>({});
+    const topBarRef = useRef<HTMLDivElement | null>(null);
 
     const listQueryArgs = useMemo(() => {
         return {
@@ -71,11 +95,67 @@ export default function SettingsPage() {
         return normalizeGuildSettingRows(listQuery.data.data);
     }, [listQuery.data]);
 
-    const filteredRows = useMemo(() => {
-        return normalized.rows.filter((row) => showUnavailable || row.flags.isAllowed);
-    }, [normalized.rows, showUnavailable]);
+    const browserResult = useMemo(
+        () => deriveSettingsBrowserRows(normalized.rows, browserState),
+        [browserState, normalized.rows],
+    );
+    const categoryGroups = useMemo(() => {
+        return groupRowsByCategory(browserResult.rows);
+    }, [browserResult.rows]);
+    const groupCounts = useMemo(
+        () => categoryGroups.map((category) => category.subgroups.reduce((count, subgroup) => count + subgroup.rows.length + 1, 0)),
+        [categoryGroups],
+    );
+    const groupedSettingsItems = useMemo(() => {
+        return categoryGroups.flatMap((category) => {
+            return category.subgroups.flatMap((subgroup) => {
+                const subgroupHeader: VirtualizedSettingsItem = {
+                    key: `${category.category}:${subgroup.subgroup}:header`,
+                    kind: "subgroup",
+                    category: category.category,
+                    subgroup: subgroup.subgroup,
+                    settingCount: subgroup.rows.length,
+                };
 
-    const flattenedRows = useMemo(() => flattenSettingsRows(filteredRows), [filteredRows]);
+                const settingItems: VirtualizedSettingsItem[] = subgroup.rows.map((row, index) => ({
+                    key: `${category.category}:${subgroup.subgroup}:${row.settingKey}`,
+                    kind: "setting",
+                    row,
+                    subgroupPosition: subgroup.rows.length === 1
+                        ? "only"
+                        : index === 0
+                            ? "first"
+                            : index === subgroup.rows.length - 1
+                                ? "last"
+                                : "middle",
+                }));
+
+                return [subgroupHeader, ...settingItems];
+            });
+        });
+    }, [categoryGroups]);
+
+    useLayoutEffect(() => {
+        const element = topBarRef.current;
+        if (!element) return;
+
+        const updateHeight = () => {
+            setTopBarHeight(element.getBoundingClientRect().height);
+        };
+
+        updateHeight();
+
+        const observer = new ResizeObserver(() => {
+            updateHeight();
+        });
+        observer.observe(element);
+        window.addEventListener("resize", updateHeight);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener("resize", updateHeight);
+        };
+    }, []);
 
     const refreshSingleSetting = useCallback(async (settingKey: string) => {
         if (!session?.guild || !listQueryArgs || !listQueryKey) return;
@@ -116,9 +196,47 @@ export default function SettingsPage() {
         );
     }, [showDialog, refreshSingleSetting]);
 
+    const openHelpDialog = useCallback((row: SettingRow) => {
+        showDialog(
+            row.settingKey,
+            <div className="space-y-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>{row.metadata.argType}</span>
+                    <span>{row.metadata.category}</span>
+                    <span>{row.metadata.subgroup}</span>
+                </div>
+                <div className="whitespace-pre-wrap wrap-break-word text-foreground">
+                    {row.metadata.helpFull || row.metadata.helpShort}
+                </div>
+            </div>,
+        );
+    }, [showDialog]);
+
     const onRefreshAll = useCallback(() => {
         void listQuery.refetch();
     }, [listQuery]);
+
+    const updateStickySubgroup = useCallback((items: ListItem<VirtualizedSettingsItem>[]) => {
+        const firstRecord = items.find((item) => item.type !== "group" && item.data);
+        if (!firstRecord || firstRecord.groupIndex == null || !firstRecord.data) {
+            return;
+        }
+
+        const nextSubgroup = firstRecord.data.kind === "subgroup"
+            ? firstRecord.data.subgroup
+            : firstRecord.data.row.metadata.subgroup;
+
+        setStickySubgroupByCategory((current) => {
+            if (current[firstRecord.groupIndex!] === nextSubgroup) {
+                return current;
+            }
+
+            return {
+                ...current,
+                [firstRecord.groupIndex!]: nextSubgroup,
+            };
+        });
+    }, []);
 
     if (!session?.guild) {
         return <LoginPickerPage />;
@@ -137,13 +255,17 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="space-y-3">
-            <SettingsTopBar
-                invalidCount={normalized.rows.filter((row) => row.flags.invalid).length}
-                unsupportedIssues={normalized.unsupportedInputRows}
-                showUnavailable={showUnavailable}
-                setShowUnavailable={setShowUnavailable}
-            />
+        <div className="space-y-2 pb-6">
+            <div ref={topBarRef} className="sticky top-2 z-20">
+                <SettingsTopBar
+                    browserState={browserState}
+                    counts={browserResult.counts}
+                    rowParseErrorCount={normalized.rowParseErrors.length}
+                    schemaErrorCount={normalized.schemaErrors.length}
+                    unsupportedIssues={normalized.unsupportedInputRows}
+                    onBrowserStateChange={setBrowserState}
+                />
+            </div>
 
             {(normalized.schemaErrors.length > 0 || normalized.rowParseErrors.length > 0) && (
                 <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
@@ -166,26 +288,65 @@ export default function SettingsPage() {
                 </div>
             )}
 
-            {flattenedRows.length > 0 ? (
-                <Virtuoso
+            {groupedSettingsItems.length > 0 ? (
+                <GroupedVirtuoso
                     useWindowScroll
-                    data={flattenedRows}
+                    data={groupedSettingsItems}
+                    groupCounts={groupCounts}
                     overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
                     increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
-                    defaultItemHeight={124}
+                    defaultItemHeight={SETTINGS_ROW_ITEM_HEIGHT}
+                    components={{
+                        Group: ({ children, style, ...props }) => (
+                            <div
+                                {...props}
+                                style={{
+                                    ...style,
+                                    top: topBarHeight + PAGE_STICKY_TOP_PX,
+                                    zIndex: 9,
+                                }}
+                            >
+                                {children}
+                            </div>
+                        ),
+                    }}
+                    itemsRendered={updateStickySubgroup}
                     computeItemKey={(_, item) => item.key}
-                    itemContent={(_, item) => (
-                        <div className="pb-3">
-                            <SettingsCategorySection
-                                item={item}
-                                onEdit={openEditDialog}
-                                onRefreshSetting={refreshSingleSetting}
+                    groupContent={(groupIndex) => {
+                        const group = categoryGroups[groupIndex];
+                        return group ? (
+                            <SettingsCategoryHeader
+                                category={group.category}
+                                stickySubgroup={stickySubgroupByCategory[groupIndex] ?? group.subgroups[0]?.subgroup ?? null}
                             />
-                        </div>
+                        ) : null;
+                    }}
+                    itemContent={(_, __, item) => (
+                        item.kind === "subgroup"
+                            ? (
+                                <SettingsSubgroupHeader
+                                    category={item.category}
+                                    subgroup={item.subgroup}
+                                    settingCount={item.settingCount}
+                                />
+                            )
+                            : (
+                                <SettingsCategorySection
+                                    row={item.row}
+                                    subgroupPosition={item.subgroupPosition}
+                                    onEdit={openEditDialog}
+                                    onShowHelp={openHelpDialog}
+                                    onRefreshSetting={refreshSingleSetting}
+                                />
+                            )
                     )}
                 />
             ) : (
-                <div className="text-sm text-muted-foreground">No settings available for this guild selection.</div>
+                <div className="text-sm text-muted-foreground">
+                    {browserResult.counts.totalRows === 0
+                        ? "No settings available for this guild selection."
+                        : "No settings match the current search and filters."}
+                </div>
             )}
         </div>
     );

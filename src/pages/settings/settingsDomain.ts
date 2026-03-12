@@ -226,20 +226,350 @@ export type FlattenedSettingsItem =
         key: string;
         kind: "category";
         category: GuildSettingCategory;
+        subgroupCount: number;
+        settingCount: number;
     }
     | {
         key: string;
         kind: "subgroup";
         category: GuildSettingCategory;
         subgroup: GuildSettingSubgroup;
+        settingCount: number;
     }
     | {
         key: string;
         kind: "setting";
         category: GuildSettingCategory;
         subgroup: GuildSettingSubgroup;
+        subgroupSettingCount: number;
+        subgroupPosition: "first" | "middle" | "last" | "only";
         row: SettingRow;
     };
+
+export type SettingsAvailabilityFilter = "available" | "all" | "unavailable";
+export type SettingsFlagFilter = "all" | "only" | "exclude";
+export type SettingsSortMode = "category" | "name" | "relevance";
+
+export type SettingsBrowserState = {
+    query: string;
+    showFilters: boolean;
+    availability: SettingsAvailabilityFilter;
+    invalid: SettingsFlagFilter;
+    unsupported: SettingsFlagFilter;
+    hasValue: SettingsFlagFilter;
+    channelType: SettingsFlagFilter;
+    sort: SettingsSortMode;
+};
+
+export type SettingsBrowserCounts = {
+    totalRows: number;
+    visibleRows: number;
+    availableRows: number;
+    unavailableRows: number;
+    invalidRows: number;
+    unsupportedRows: number;
+    hasValueRows: number;
+    unsetRows: number;
+    channelTypeRows: number;
+};
+
+export type SettingsBrowserDerivedResult = {
+    rows: SettingRow[];
+    flattenedItems: FlattenedSettingsItem[];
+    counts: SettingsBrowserCounts;
+};
+
+export type SettingsVisibleContext = {
+    category: GuildSettingCategory | null;
+    subgroup: GuildSettingSubgroup | null;
+};
+
+export const SETTINGS_CATEGORY_ITEM_HEIGHT = 52;
+export const SETTINGS_SUBGROUP_ITEM_HEIGHT = 42;
+export const SETTINGS_ROW_ITEM_HEIGHT = 118;
+
+function compareSettingRowsByCategory(left: SettingRow, right: SettingRow): number {
+    return left.metadata.category.localeCompare(right.metadata.category)
+        || left.metadata.subgroup.localeCompare(right.metadata.subgroup)
+        || left.settingKey.localeCompare(right.settingKey);
+}
+
+function compareSettingRowsByName(left: SettingRow, right: SettingRow): number {
+    return left.settingKey.localeCompare(right.settingKey)
+        || left.metadata.category.localeCompare(right.metadata.category)
+        || left.metadata.subgroup.localeCompare(right.metadata.subgroup);
+}
+
+function normalizeSettingsQuery(query: string): string {
+    return query.trim().toLowerCase();
+}
+
+function getSettingsFlagFilterMatch(mode: SettingsFlagFilter, value: boolean): boolean {
+    switch (mode) {
+        case "only":
+            return value;
+        case "exclude":
+            return !value;
+        default:
+            return true;
+    }
+}
+
+function getSettingSearchRank(row: SettingRow, normalizedQuery: string): number {
+    if (!normalizedQuery) {
+        return 0;
+    }
+
+    const prefixCandidates = [
+        row.settingKey,
+        row.metadata.category,
+        row.metadata.subgroup,
+    ].map((value) => value.toLowerCase());
+
+    if (prefixCandidates.some((value) => value.startsWith(normalizedQuery))) {
+        return 0;
+    }
+
+    const keyText = row.settingKey.toLowerCase();
+    if (keyText.includes(normalizedQuery)) {
+        return 1;
+    }
+
+    const metadataText = [
+        row.metadata.argType,
+        row.metadata.helpShort,
+        row.value.displayText,
+        row.value.rawText,
+    ].join("\n").toLowerCase();
+
+    if (metadataText.includes(normalizedQuery)) {
+        return 2;
+    }
+
+    return Number.POSITIVE_INFINITY;
+}
+
+export function createDefaultSettingsBrowserState(
+    overrides?: Partial<SettingsBrowserState>,
+): SettingsBrowserState {
+    return {
+        query: overrides?.query ?? "",
+        showFilters: overrides?.showFilters ?? false,
+        availability: overrides?.availability ?? "available",
+        invalid: overrides?.invalid ?? "all",
+        unsupported: overrides?.unsupported ?? "all",
+        hasValue: overrides?.hasValue ?? "all",
+        channelType: overrides?.channelType ?? "all",
+        sort: overrides?.sort ?? "category",
+    };
+}
+
+export function countActiveSettingsBrowserFilters(state: SettingsBrowserState): number {
+    let count = 0;
+
+    if (normalizeSettingsQuery(state.query)) {
+        count += 1;
+    }
+
+    if (state.availability !== "available") {
+        count += 1;
+    }
+
+    if (state.invalid !== "all") {
+        count += 1;
+    }
+
+    if (state.unsupported !== "all") {
+        count += 1;
+    }
+
+    if (state.hasValue !== "all") {
+        count += 1;
+    }
+
+    if (state.channelType !== "all") {
+        count += 1;
+    }
+
+    if (state.sort !== "category") {
+        count += 1;
+    }
+
+    return count;
+}
+
+export function getSettingSearchableText(row: SettingRow): string {
+    return [
+        row.settingKey,
+        row.metadata.argType,
+        row.metadata.category,
+        row.metadata.subgroup,
+        row.metadata.helpShort,
+        row.metadata.helpFull,
+        row.value.displayText,
+        row.value.rawText,
+        row.flags.invalid ? "invalid" : "",
+        row.flags.isAllowed ? "available" : "unavailable",
+        row.editor.inputSupport.supported ? "" : "unsupported",
+        row.value.hasValue ? "set" : "unset",
+        row.flags.isChannelType ? "channel" : "",
+    ]
+        .filter(Boolean)
+        .join("\n")
+        .toLowerCase();
+}
+
+export function matchesSettingsBrowserFilters(row: SettingRow, state: SettingsBrowserState): boolean {
+    const normalizedQuery = normalizeSettingsQuery(state.query);
+    if (normalizedQuery && !getSettingSearchableText(row).includes(normalizedQuery)) {
+        return false;
+    }
+
+    if (state.availability === "available" && !row.flags.isAllowed) {
+        return false;
+    }
+
+    if (state.availability === "unavailable" && row.flags.isAllowed) {
+        return false;
+    }
+
+    if (!getSettingsFlagFilterMatch(state.invalid, row.flags.invalid)) {
+        return false;
+    }
+
+    if (!getSettingsFlagFilterMatch(state.unsupported, !row.editor.inputSupport.supported)) {
+        return false;
+    }
+
+    if (!getSettingsFlagFilterMatch(state.hasValue, row.value.hasValue)) {
+        return false;
+    }
+
+    if (!getSettingsFlagFilterMatch(state.channelType, row.flags.isChannelType)) {
+        return false;
+    }
+
+    return true;
+}
+
+export function getSettingsBrowserCounts(rows: SettingRow[]): SettingsBrowserCounts {
+    let availableRows = 0;
+    let invalidRows = 0;
+    let unsupportedRows = 0;
+    let hasValueRows = 0;
+    let channelTypeRows = 0;
+
+    rows.forEach((row) => {
+        if (row.flags.isAllowed) {
+            availableRows += 1;
+        }
+
+        if (row.flags.invalid) {
+            invalidRows += 1;
+        }
+
+        if (!row.editor.inputSupport.supported) {
+            unsupportedRows += 1;
+        }
+
+        if (row.value.hasValue) {
+            hasValueRows += 1;
+        }
+
+        if (row.flags.isChannelType) {
+            channelTypeRows += 1;
+        }
+    });
+
+    return {
+        totalRows: rows.length,
+        visibleRows: rows.length,
+        availableRows,
+        unavailableRows: rows.length - availableRows,
+        invalidRows,
+        unsupportedRows,
+        hasValueRows,
+        unsetRows: rows.length - hasValueRows,
+        channelTypeRows,
+    };
+}
+
+export function deriveSettingsBrowserRows(
+    rows: SettingRow[],
+    state: SettingsBrowserState,
+): SettingsBrowserDerivedResult {
+    const counts = getSettingsBrowserCounts(rows);
+    const normalizedQuery = normalizeSettingsQuery(state.query);
+
+    const filteredRows = rows.filter((row) => matchesSettingsBrowserFilters(row, state));
+    const sortedRows = [...filteredRows].sort((left, right) => {
+        if (state.sort === "name") {
+            return compareSettingRowsByName(left, right);
+        }
+
+        if (state.sort === "relevance") {
+            const leftRank = getSettingSearchRank(left, normalizedQuery);
+            const rightRank = getSettingSearchRank(right, normalizedQuery);
+            return leftRank - rightRank || compareSettingRowsByCategory(left, right);
+        }
+
+        return compareSettingRowsByCategory(left, right);
+    });
+
+    return {
+        rows: sortedRows,
+        flattenedItems: flattenSettingsRows(sortedRows),
+        counts: {
+            ...counts,
+            visibleRows: sortedRows.length,
+        },
+    };
+}
+
+export function estimateSettingsItemHeight(item: FlattenedSettingsItem): number {
+    switch (item.kind) {
+        case "category":
+            return SETTINGS_CATEGORY_ITEM_HEIGHT;
+        case "subgroup":
+            return SETTINGS_SUBGROUP_ITEM_HEIGHT;
+        case "setting":
+            return SETTINGS_ROW_ITEM_HEIGHT;
+    }
+}
+
+export function getSettingsVisibleContext(
+    items: FlattenedSettingsItem[],
+    firstVisibleIndex: number,
+): SettingsVisibleContext {
+    let category: GuildSettingCategory | null = null;
+    let subgroup: GuildSettingSubgroup | null = null;
+
+    const clampedIndex = Math.max(0, Math.min(firstVisibleIndex, Math.max(0, items.length - 1)));
+
+    for (let index = 0; index <= clampedIndex; index++) {
+        const item = items[index];
+        if (!item) {
+            continue;
+        }
+
+        if (item.kind === "category") {
+            category = item.category;
+            subgroup = null;
+            continue;
+        }
+
+        if (item.kind === "subgroup") {
+            category = item.category;
+            subgroup = item.subgroup;
+            continue;
+        }
+
+        category = item.category;
+        subgroup = item.subgroup;
+    }
+
+    return { category, subgroup };
+}
 
 function buildSettingMetadata(
     rawRow: readonly JSONValue[],
@@ -416,6 +746,8 @@ export function flattenSettingsRows(rows: SettingRow[]): FlattenedSettingsItem[]
             key: `category-${category.category}`,
             kind: "category",
             category: category.category,
+            subgroupCount: category.subgroups.length,
+            settingCount: category.subgroups.reduce((count, subgroup) => count + subgroup.rows.length, 0),
         });
 
         category.subgroups.forEach((subgroup) => {
@@ -424,14 +756,26 @@ export function flattenSettingsRows(rows: SettingRow[]): FlattenedSettingsItem[]
                 kind: "subgroup",
                 category: category.category,
                 subgroup: subgroup.subgroup,
+                settingCount: subgroup.rows.length,
             });
 
             subgroup.rows.forEach((row) => {
+                const subgroupSettingCount = subgroup.rows.length;
+                const subgroupPosition = subgroupSettingCount === 1
+                    ? "only"
+                    : subgroup.rows[0] === row
+                        ? "first"
+                        : subgroup.rows[subgroup.rows.length - 1] === row
+                            ? "last"
+                            : "middle";
+
                 items.push({
                     key: `setting-${row.settingKey}`,
                     kind: "setting",
                     category: category.category,
                     subgroup: subgroup.subgroup,
+                    subgroupSettingCount,
+                    subgroupPosition,
                     row,
                 });
             });

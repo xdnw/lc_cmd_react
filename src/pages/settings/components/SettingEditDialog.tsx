@@ -61,6 +61,14 @@ export default function SettingEditDialog({
         [onRefreshSetting, row.settingKey],
     );
 
+    const statusBadges = [
+        row.flags.invalid ? <Badge key="invalid" variant="destructive">Invalid</Badge> : null,
+        !row.flags.isAllowed ? <Badge key="unavailable" variant="secondary">Unavailable</Badge> : null,
+        !row.value.hasValue ? <Badge key="unset" variant="secondary">Unset</Badge> : null,
+        row.flags.isChannelType ? <Badge key="channel" variant="outline">Channel type</Badge> : null,
+        !row.editor.inputSupport.supported ? <Badge key="unsupported" variant="destructive">Unsupported web input</Badge> : null,
+    ].filter(Boolean);
+
     return (
         <CommandDialogForm
             commandPath={SETTINGS_INFO_COMMAND}
@@ -80,13 +88,41 @@ export default function SettingEditDialog({
             }
         >
             {({ setOutput }) => (
-                <SettingArgInputContent
-                    breakdown={row.editor.breakdown}
-                    inputSupport={row.editor.inputSupport}
-                    argType={row.metadata.argType}
-                    initialValue={row.editor.initialValue}
-                    setOutput={setOutput}
-                />
+                <div className="space-y-3">
+                    <SettingArgInputContent
+                        breakdown={row.editor.breakdown}
+                        inputSupport={row.editor.inputSupport}
+                        argType={row.metadata.argType}
+                        initialValue={row.editor.initialValue}
+                        setOutput={setOutput}
+                    />
+
+                    <div className="space-y-2 rounded-md border border-border/60 bg-muted/15 px-3 py-2.5">
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                            <span>{row.metadata.argType}</span>
+                            <span>{row.metadata.category}</span>
+                            <span>{row.metadata.subgroup}</span>
+                            {statusBadges.length > 0 && statusBadges}
+                        </div>
+
+                        <div className="text-sm text-muted-foreground whitespace-pre-wrap wrap-break-word">
+                            {row.metadata.helpFull || row.metadata.helpShort}
+                        </div>
+
+                        <div className="text-xs text-muted-foreground">
+                            Current value
+                        </div>
+                        <div className="rounded border border-border/60 bg-background px-2.5 py-2 text-sm wrap-break-word whitespace-pre-wrap">
+                            {row.value.hasValue ? (row.value.displayText || "Empty value") : "Unset"}
+                        </div>
+
+                        {row.rowParseErrors.length > 0 && (
+                            <div className="rounded border border-destructive/40 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">
+                                {row.rowParseErrors.join("; ")}
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </CommandDialogForm>
     );

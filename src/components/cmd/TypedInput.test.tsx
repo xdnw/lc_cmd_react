@@ -39,7 +39,7 @@ describe("TypedInput", () => {
     fireEvent.change(screen.getByPlaceholderText(/search placeholder path/i), {
       target: { value: "getscore" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /getscore/i }));
+    fireEvent.click(screen.getByRole("option", { name: /getscore/i }));
 
     expect((screen.getByPlaceholderText("Expression or token") as HTMLInputElement).value).toBe("{getscore}");
     expect(setOutputValue).toHaveBeenLastCalledWith("value", "{getscore}");
@@ -62,7 +62,7 @@ describe("TypedInput", () => {
     fireEvent.change(screen.getByPlaceholderText(/search placeholder path/i), {
       target: { value: "canbedeclaredonbyscore" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /canbedeclaredonbyscore/i }));
+    fireEvent.click(screen.getByRole("option", { name: /canbedeclaredonbyscore/i }));
 
     expect(screen.getByRole("heading", { name: /configure canbedeclaredonbyscore/i })).toBeTruthy();
 
@@ -91,7 +91,7 @@ describe("TypedInput", () => {
       target: { value: "nation score" },
     });
 
-    expect(screen.getByRole("button", { name: /getscore/i })).toBeTruthy();
+    expect(screen.getByRole("option", { name: /getscore/i })).toBeTruthy();
   });
 
   it("limits the double picker to numeric-return placeholders", () => {
@@ -112,9 +112,9 @@ describe("TypedInput", () => {
       target: { value: "score" },
     });
 
-    expect(screen.getByRole("button", { name: /getscore/i })).toBeTruthy();
+    expect(screen.getByRole("option", { name: /getscore/i })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /getscore/i }));
+    fireEvent.click(screen.getByRole("option", { name: /getscore/i }));
 
     expect((screen.getByPlaceholderText("Expression or token") as HTMLInputElement).value).toBe("{getscore}");
     expect(setOutputValue).toHaveBeenLastCalledWith("value", "{getscore}");

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("react-virtuoso", () => ({
@@ -97,7 +97,7 @@ describe("ListComponent keyboard contract", () => {
     expect(input.getAttribute("aria-expanded")).toBe("true");
   });
 
-  it("blurs the input when Escape is pressed after the popup is already closed", () => {
+  it("blurs the input when Escape is pressed after the popup is already closed", async () => {
     const setOutputValue = vi.fn();
 
     render(
@@ -114,12 +114,20 @@ describe("ListComponent keyboard contract", () => {
     );
 
     const input = screen.getByRole("combobox");
-    input.focus();
-    fireEvent.keyDown(input, { key: "Escape" });
+    await act(async () => {
+      input.focus();
+      fireEvent.keyDown(input, { key: "Escape" });
+    });
+
     expect(input.getAttribute("aria-expanded")).toBe("false");
 
-    fireEvent.keyDown(input, { key: "Escape" });
-    expect(document.activeElement).not.toBe(input);
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Escape" });
+    });
+
+    await waitFor(() => {
+      expect(document.activeElement).not.toBe(input);
+    });
   });
 
   it("uses active-descendant combobox semantics with Home and End navigation", () => {

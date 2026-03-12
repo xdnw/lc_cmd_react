@@ -32,24 +32,32 @@ type SunEditorComponentType = typeof import('suneditor-react').default;
 
 let sunEditorComponentPromise: Promise<SunEditorComponentType> | null = null;
 let resolvedSunEditorComponent: SunEditorComponentType | null = null;
+let sunEditorComponentLoadFailed = false;
 
 function loadSunEditorComponent(): Promise<SunEditorComponentType> {
   if (resolvedSunEditorComponent) {
     return Promise.resolve(resolvedSunEditorComponent);
   }
 
+  if (sunEditorComponentLoadFailed) {
+    return Promise.reject(new Error('SunEditor failed to load.'));
+  }
+
   if (!sunEditorComponentPromise) {
-    sunEditorComponentPromise = import('suneditor-react').then((module) => {
-      resolvedSunEditorComponent = module.default;
-      return module.default;
-    });
+    sunEditorComponentPromise = import('suneditor-react')
+      .then((module) => {
+        resolvedSunEditorComponent = module.default;
+        sunEditorComponentLoadFailed = false;
+        return module.default;
+      })
+      .catch((error: unknown) => {
+        sunEditorComponentLoadFailed = true;
+        sunEditorComponentPromise = null;
+        throw error;
+      });
   }
 
   return sunEditorComponentPromise;
-}
-
-if (typeof window !== 'undefined') {
-  void loadSunEditorComponent();
 }
 
 type SunEditorInstance = {
@@ -396,6 +404,7 @@ function HtmlEditorComponent({
   const [shouldMountWysiwyg, setShouldMountWysiwyg] = useState(false);
   const [SunEditorComponent, setSunEditorComponent] =
     useState<SunEditorComponentType | null>(() => resolvedSunEditorComponent);
+  const [isWysiwygUnavailable, setIsWysiwygUnavailable] = useState(() => sunEditorComponentLoadFailed);
 
   const editorRef = useRef<SunEditorInstance | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
@@ -442,21 +451,33 @@ function HtmlEditorComponent({
   }, [mode]);
 
   useEffect(() => {
-    if (mode !== 'wysiwyg' || !shouldMountWysiwyg || SunEditorComponent) {
+    if (
+      mode !== 'wysiwyg'
+      || !shouldMountWysiwyg
+      || SunEditorComponent
+      || isWysiwygUnavailable
+    ) {
       return;
     }
 
     let cancelled = false;
-    void loadSunEditorComponent().then((component) => {
-      if (!cancelled) {
-        setSunEditorComponent(() => component);
-      }
-    });
+    void loadSunEditorComponent()
+      .then((component) => {
+        if (!cancelled) {
+          setSunEditorComponent(() => component);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIsWysiwygUnavailable(true);
+          setMode('raw');
+        }
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [SunEditorComponent, mode, shouldMountWysiwyg]);
+  }, [SunEditorComponent, isWysiwygUnavailable, mode, shouldMountWysiwyg]);
 
   const handleEnterFullscreen = useCallback(function handleEnterFullscreen(): void {
     const dialogHost = editorShellRef.current?.closest('[role="dialog"]');
@@ -628,13 +649,17 @@ function HtmlEditorComponent({
   }, [argName, setOutputValue]);
 
   const handleShowWysiwyg = useCallback(() => {
+    if (isWysiwygUnavailable) {
+      return;
+    }
+
     const sanitized = sanitizeEditorHtml(htmlRef.current);
     if (sanitized !== htmlRef.current) {
       setLocalHtml(sanitized);
     }
     setShouldMountWysiwyg(true);
     setMode('wysiwyg');
-  }, [setLocalHtml]);
+  }, [isWysiwygUnavailable, setLocalHtml]);
 
   const handleShowRaw = useCallback(() => {
     setMode('raw');
@@ -877,6 +902,8 @@ function HtmlEditorComponent({
                 : TOGGLE_BUTTON_INACTIVE_CLASS,
             )}
             aria-pressed={mode === 'wysiwyg'}
+            disabled={isWysiwygUnavailable}
+            title={isWysiwygUnavailable ? 'WYSIWYG editor unavailable' : undefined}
             onClick={handleShowWysiwyg}
           >
             WYSIWYG
@@ -910,7 +937,11 @@ function HtmlEditorComponent({
       <div className={panelClassName}>
         {mode === 'wysiwyg' ? (
           <div className={editorSkinClassName}>
-            {shouldMountWysiwyg && SunEditorComponent ? (
+            {isWysiwygUnavailable ? (
+              <div className="flex min-h-40 items-center justify-center px-3 py-4 text-[12px] text-slate-500 dark:text-slate-400">
+                WYSIWYG editor unavailable. Using raw HTML mode.
+              </div>
+            ) : shouldMountWysiwyg && SunEditorComponent ? (
               <SunEditorComponent
                 defaultValue={html}
                 getSunEditorInstance={handleEditorInstance}
@@ -919,7 +950,7 @@ function HtmlEditorComponent({
                 setOptions={sunEditorOptions}
               />
             ) : (
-              <div className="flex min-h-[160px] items-center justify-center px-3 py-4 text-[12px] text-slate-500 dark:text-slate-400">
+              <div className="flex min-h-40 items-center justify-center px-3 py-4 text-[12px] text-slate-500 dark:text-slate-400">
                 Loading WYSIWYG editor...
               </div>
             )}

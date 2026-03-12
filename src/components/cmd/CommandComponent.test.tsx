@@ -1,5 +1,5 @@
 import { createRef, useEffect } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const argInputMounts = new Map<string, number>();
@@ -337,11 +337,15 @@ describe("CommandComponent", () => {
 
     expect(screen.queryByRole("textbox", { name: "arg-35" })).toBeNull();
 
-    expect(ref.current?.focusArg("arg-35")).toBe(true);
+    await act(async () => {
+      expect(ref.current?.focusArg("arg-35")).toBe(true);
+    });
 
     const target = await screen.findByRole("textbox", { name: "arg-35" });
-    expect(scrollToIndexSpy).toHaveBeenCalledWith(expect.any(Number));
-    expect(document.activeElement).toBe(target);
+    await waitFor(() => {
+      expect(scrollToIndexSpy).toHaveBeenCalledWith(expect.any(Number));
+      expect(document.activeElement).toBe(target);
+    });
   });
 
   it("uses shared edge-arrow checks to move between arguments", () => {

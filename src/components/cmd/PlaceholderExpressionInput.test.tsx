@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CM, getTypeBreakdown } from "@/utils/Command";
@@ -34,6 +34,41 @@ function mockExpressionSources(registry: ExpressionValueSourceRegistry) {
   vi.spyOn(expressionValueFetcher, "useExpressionValueSources").mockReturnValue(registry);
 }
 
+type ExpressionControl = HTMLInputElement | HTMLTextAreaElement;
+
+async function focusExpressionInput(
+  input: ExpressionControl,
+  caret = input.value.length,
+  options?: { waitForSuggestions?: boolean },
+) {
+  await act(async () => {
+    fireEvent.focus(input);
+    input.setSelectionRange(caret, caret);
+    fireEvent.select(input);
+  });
+
+  if (options?.waitForSuggestions === false) {
+    return;
+  }
+
+  await waitFor(() => {
+    expect(input.getAttribute("role")).toBe("combobox");
+    expect(input.closest("[data-command-popup-open]")?.getAttribute("data-command-popup-open")).toBe("true");
+    expect(
+      screen.queryByRole("listbox", { name: "Expression suggestions" })
+      ?? screen.queryByRole("combobox", { name: "Search suggestions" }),
+    ).toBeTruthy();
+  });
+}
+
+async function clickSuggestion(name: string | RegExp) {
+  const option = await screen.findByRole("option", { name });
+
+  await act(async () => {
+    fireEvent.click(option);
+  });
+}
+
 describe("PlaceholderExpressionInput", () => {
   it("builds schema data from generated placeholder metadata", () => {
     const schema = getExpressionTypeSchema("DBNation");
@@ -64,22 +99,18 @@ describe("PlaceholderExpressionInput", () => {
       );
     });
 
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.focus(textarea);
-      textarea.setSelectionRange(
-        textarea.value.indexOf("getna") + "getna".length,
-        textarea.value.indexOf("getna") + "getna".length,
-      );
-      fireEvent.select(textarea);
+    const textarea = screen.getByRole("textbox") as HTMLInputElement;
+    await focusExpressionInput(
+      textarea,
+      textarea.value.indexOf("getna") + "getna".length,
+    );
+
+    await clickSuggestion("getname");
+
+    await waitFor(() => {
+      expect(textarea.value).toBe("prefix {getalliance.getname} suffix");
     });
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("option", { name: "getname" }));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-
-    expect(textarea.value).toBe("prefix {getalliance.getname} suffix");
     expect(setOutputValue).toHaveBeenLastCalledWith("value", "prefix {getalliance.getname} suffix");
   });
 
@@ -97,19 +128,15 @@ describe("PlaceholderExpressionInput", () => {
       );
     });
 
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.focus(textarea);
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      fireEvent.select(textarea);
+    const textarea = screen.getByRole("textbox") as HTMLInputElement;
+    await focusExpressionInput(textarea);
+
+    await clickSuggestion("getname");
+
+    await waitFor(() => {
+      expect(textarea.value).toBe("prefix {getalliance.getname}");
     });
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("option", { name: "getname" }));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-
-    expect(textarea.value).toBe("prefix {getalliance.getname}");
     expect(setOutputValue).toHaveBeenLastCalledWith("value", "prefix {getalliance.getname}");
   });
 
@@ -143,21 +170,18 @@ describe("PlaceholderExpressionInput", () => {
 
     expect(useExpressionValueSourcesSpy).toHaveBeenLastCalledWith([], {}, false);
 
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.focus(textarea);
-      textarea.setSelectionRange(0, 0);
-      fireEvent.select(textarea);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    const textarea = screen.getByRole("textbox") as HTMLInputElement;
+    await focusExpressionInput(textarea, 0, { waitForSuggestions: false });
 
-    expect(useExpressionValueSourcesSpy).toHaveBeenLastCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ kind: "placeholder" }),
-      ]),
-      {},
-      true,
-    );
+    await waitFor(() => {
+      expect(useExpressionValueSourcesSpy).toHaveBeenLastCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: "placeholder" }),
+        ]),
+        {},
+        true,
+      );
+    });
   });
 
   it("does not auto-open empty suggestions on focus until the user interacts", async () => {
@@ -190,7 +214,6 @@ describe("PlaceholderExpressionInput", () => {
     const input = screen.getByRole("textbox") as HTMLInputElement;
     await act(async () => {
       fireEvent.focus(input);
-      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(screen.queryByText(/Accept: Ctrl\+Right \/ Ctrl\+Enter/i)).toBeNull();
@@ -198,10 +221,8 @@ describe("PlaceholderExpressionInput", () => {
 
     await act(async () => {
       fireEvent.click(input);
-      input.setSelectionRange(0, 0);
-      fireEvent.select(input);
-      await new Promise((resolve) => setTimeout(resolve, 0));
     });
+    await focusExpressionInput(input, 0);
 
     expect(screen.getByText(/Accept: Ctrl\+Right \/ Ctrl\+Enter/i)).toBeTruthy();
     expect(screen.getByRole("option", { name: "nation:" })).toBeTruthy();
@@ -236,22 +257,17 @@ describe("PlaceholderExpressionInput", () => {
       />,
     );
 
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.focus(textarea);
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      fireEvent.select(textarea);
-    });
+    const textarea = screen.getByRole("textbox") as HTMLInputElement;
+    await focusExpressionInput(textarea);
 
     expect(screen.getByRole("option", { name: "Borg" })).toBeTruthy();
     expect(screen.getByText(/Type to match Nation options/i)).toBeTruthy();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("option", { name: "Borg" }));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    await clickSuggestion("Borg");
 
-    expect(textarea.value).toBe("nation:Borg");
+    await waitFor(() => {
+      expect(textarea.value).toBe("nation:Borg");
+    });
   });
 
   it("accepts the first suggestion on Ctrl+RightArrow without consuming Tab", async () => {
@@ -284,12 +300,7 @@ describe("PlaceholderExpressionInput", () => {
     );
 
     const input = screen.getByRole("textbox") as HTMLInputElement;
-    await act(async () => {
-      fireEvent.focus(input);
-      input.setSelectionRange(input.value.length, input.value.length);
-      fireEvent.select(input);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    await focusExpressionInput(input);
 
     expect(screen.getByRole("option", { name: "Borg" })).toBeTruthy();
     expect(screen.getByText(/Accept: Ctrl\+Right \/ Ctrl\+Enter/i)).toBeTruthy();
@@ -332,12 +343,7 @@ describe("PlaceholderExpressionInput", () => {
     );
 
     const input = screen.getByRole("textbox", { name: "" }) as HTMLInputElement;
-    await act(async () => {
-      fireEvent.focus(input);
-      input.setSelectionRange(input.value.length, input.value.length);
-      fireEvent.select(input);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    await focusExpressionInput(input);
 
     expect(input.getAttribute("role")).toBe("combobox");
     expect(input.getAttribute("aria-activedescendant")).toContain("option-Borg");
@@ -378,12 +384,8 @@ describe("PlaceholderExpressionInput", () => {
       />,
     );
 
-    const textarea = screen.getByRole("textbox", { name: "" }) as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.focus(textarea);
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      fireEvent.select(textarea);
-    });
+    const textarea = screen.getByRole("textbox", { name: "" }) as HTMLInputElement;
+    await focusExpressionInput(textarea);
 
     const searchInput = screen.getByRole("combobox", { name: "Search suggestions" });
 
@@ -394,12 +396,11 @@ describe("PlaceholderExpressionInput", () => {
 
     expect(screen.getByText("1 / 120")).toBeTruthy();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("option", { name: /Nation 119/i }));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    await clickSuggestion(/Nation 119/i);
 
-    expect(textarea.value).toBe("nation:Nation 119");
+    await waitFor(() => {
+      expect(textarea.value).toBe("nation:Nation 119");
+    });
     expect(setOutputValue).toHaveBeenLastCalledWith("value", "nation:Nation 119");
   });
 
@@ -434,12 +435,7 @@ describe("PlaceholderExpressionInput", () => {
     const input = screen.getByRole("textbox") as HTMLInputElement;
     const popupShell = input.closest("[data-command-popup-open]") as HTMLElement;
 
-    await act(async () => {
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-      fireEvent.select(input);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    await focusExpressionInput(input);
 
     expect(screen.getByRole("option", { name: "Borg" })).toBeTruthy();
 
@@ -480,19 +476,18 @@ describe("PlaceholderExpressionInput", () => {
     );
 
     const input = screen.getByRole("textbox") as HTMLInputElement;
-    await act(async () => {
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-      fireEvent.select(input);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    await focusExpressionInput(input);
 
     const searchInput = screen.getByRole("combobox", { name: "Search suggestions" }) as HTMLInputElement;
-    searchInput.focus();
-    fireEvent.keyDown(searchInput, { key: "Escape" });
+    await act(async () => {
+      searchInput.focus();
+      fireEvent.keyDown(searchInput, { key: "Escape" });
+    });
 
-    expect(screen.queryByRole("combobox", { name: "Search suggestions" })).toBeNull();
-    expect(document.activeElement).toBe(input);
+    await waitFor(() => {
+      expect(screen.queryByRole("combobox", { name: "Search suggestions" })).toBeNull();
+      expect(document.activeElement).toBe(input);
+    });
   });
 
   it("uses the panel search text as the worker fetch token for lazy query sources", async () => {
@@ -537,12 +532,8 @@ describe("PlaceholderExpressionInput", () => {
       />,
     );
 
-    const textarea = screen.getByRole("textbox", { name: "" }) as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.focus(textarea);
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      fireEvent.select(textarea);
-    });
+    const textarea = screen.getByRole("textbox", { name: "" }) as HTMLInputElement;
+    await focusExpressionInput(textarea);
 
     const searchInput = screen.getByRole("combobox", { name: "Search suggestions" });
 
@@ -550,16 +541,14 @@ describe("PlaceholderExpressionInput", () => {
       fireEvent.change(searchInput, { target: { value: "Nation 119" } });
     });
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitFor(() => {
+      expect(useExpressionValueSourcesSpy).toHaveBeenLastCalledWith(
+        expect.any(Array),
+        { "query:DBNation": "Nation 119" },
+        true,
+      );
+      expect(screen.getByRole("option", { name: /Nation 119/i })).toBeTruthy();
     });
-
-    expect(useExpressionValueSourcesSpy).toHaveBeenLastCalledWith(
-      expect.any(Array),
-      { "query:DBNation": "Nation 119" },
-      true,
-    );
-    expect(screen.getByRole("option", { name: /Nation 119/i })).toBeTruthy();
   });
 
   it("shows the lazy search prompt immediately for very large query-backed sources", async () => {
@@ -589,12 +578,8 @@ describe("PlaceholderExpressionInput", () => {
       />,
     );
 
-    const textarea = screen.getByRole("textbox", { name: "" }) as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.focus(textarea);
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      fireEvent.select(textarea);
-    });
+    const textarea = screen.getByRole("textbox", { name: "" }) as HTMLInputElement;
+    await focusExpressionInput(textarea);
 
     expect(screen.getByText(/Type 1\+ characters to search 14,988 options\./i)).toBeTruthy();
   });
@@ -626,12 +611,8 @@ describe("PlaceholderExpressionInput", () => {
       />,
     );
 
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.focus(textarea);
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      fireEvent.select(textarea);
-    });
+    const textarea = screen.getByRole("textbox") as HTMLInputElement;
+    await focusExpressionInput(textarea, textarea.value.length, { waitForSuggestions: false });
 
     expect(screen.getByText(/Unrecognized selector or option/i)).toBeTruthy();
   });
@@ -673,20 +654,16 @@ describe("PlaceholderExpressionInput", () => {
       );
     });
 
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+    const textarea = screen.getByRole("textbox") as HTMLInputElement;
     const cursor = textarea.value.indexOf("]");
-    await act(async () => {
-      fireEvent.focus(textarea);
-      textarea.setSelectionRange(cursor, cursor);
-      fireEvent.select(textarea);
+    await focusExpressionInput(textarea, cursor);
+
+    await clickSuggestion("MONEY");
+
+    await waitFor(() => {
+      expect(textarea.value).toBe("*,#score>#getCity(1).getRevenue()[MONEY]");
     });
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("option", { name: "MONEY" }));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-
-    expect(textarea.value).toBe("*,#score>#getCity(1).getRevenue()[MONEY]");
     expect(setOutputValue).toHaveBeenLastCalledWith("value", "*,#score>#getCity(1).getRevenue()[MONEY]");
   });
 });

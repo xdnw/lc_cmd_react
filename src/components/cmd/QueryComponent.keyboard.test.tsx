@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const useQueriesMock = vi.fn();
@@ -64,7 +64,7 @@ describe("QueryComponent keyboard wrapper", () => {
     expect(setOutputValue).toHaveBeenCalledWith("target", "189573");
   });
 
-  it("inherits launcher-style active-descendant paging from ListComponent", () => {
+  it("inherits launcher-style active-descendant paging from ListComponent", async () => {
     const setOutputValue = vi.fn();
     useQueriesMock.mockReturnValue([
       {
@@ -92,15 +92,21 @@ describe("QueryComponent keyboard wrapper", () => {
     );
 
     const input = screen.getByRole("combobox") as HTMLInputElement;
-    input.focus();
-    fireEvent.keyDown(input, { key: "ArrowDown" });
+    await act(async () => {
+      input.focus();
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+    });
 
     const options = screen.getAllByRole("option");
-    fireEvent.keyDown(input, { key: "PageDown" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "PageDown" });
+    });
     expect(document.activeElement).toBe(input);
     expect(input.getAttribute("aria-activedescendant")).toBe(options[8]?.getAttribute("id") ?? "");
 
-    fireEvent.keyDown(input, { key: "Home" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Home" });
+    });
     expect(input.getAttribute("aria-activedescendant")).toBe(options[0]?.getAttribute("id") ?? "");
   });
 });

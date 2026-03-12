@@ -13,8 +13,8 @@ export function SettingsCategoryHeader({
     const categoryTone = getCategoryTone(category);
 
     return (
-        <div className="px-1 pt-6 pb-2 first:pt-0">
-            <div className="flex items-center gap-3 border-t border-border/75 px-1 pt-3.5">
+        <div className="px-1 pt-5 pb-1.5 first:pt-0">
+            <div className="flex items-center gap-3 border-t-2 border-border/80 px-1 pt-2.5 first:border-t-0">
                 <div className="h-5 w-px rounded-full" style={categoryTone.railStyle} />
                 <div className="min-w-0 flex-1">
                     <div className="text-[15px] font-semibold tracking-tight text-foreground">{category}</div>
@@ -43,10 +43,10 @@ export function SettingsSubgroupHeader({
     const subgroupTone = getSubgroupTone(subgroup);
 
     return (
-        <div className="px-1 pt-2 pb-1.5">
-            <div className="ml-4 flex items-center gap-3 border-t border-border/50 px-3 pt-2.5">
-                <div className="h-4 w-px rounded-full" style={subgroupTone.railStyle} />
-                <div className="min-w-0 flex-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/95">
+        <div className="px-1 pt-1.5 pb-1">
+            <div className="ml-3 flex items-center gap-2 border-t border-border/45 px-1.5 pt-1.5">
+                <div className="h-3.5 w-px rounded-full" style={subgroupTone.railStyle} />
+                <div className="min-w-0 flex-1 text-[11px] font-medium text-muted-foreground/95">
                     <span className="truncate align-middle">{subgroup}</span>
                 </div>
                 <div className="shrink-0 text-[11px] text-muted-foreground">
@@ -75,9 +75,9 @@ export default function SettingsCategorySection({
     const subgroupTone = subgroupVisible ? getSubgroupTone(row.metadata.subgroup) : null;
 
     return (
-        <div className="px-1 pb-1">
+        <div className="px-1">
             <div
-                className={subgroupVisible ? "pl-4" : "pl-1"}
+                className={subgroupVisible ? "pl-6" : "pl-3"}
                 style={{
                     borderLeft: subgroupVisible ? `1px solid ${subgroupTone?.borderColor ?? categoryTone.borderColor}` : undefined,
                 }}

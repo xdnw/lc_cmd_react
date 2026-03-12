@@ -1,8 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
-import Badge from "@/components/ui/badge";
 import SearchBar from "@/components/cmd/SearchBar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type {
     SettingsBrowserCounts,
     SettingsBrowserState,
@@ -28,21 +26,24 @@ export default function SettingsTopBar({
         onBrowserStateChange((currentState) => updater(currentState));
     };
 
-    const showUnavailable = browserState.availability === "all";
+    const showAllAvailability = browserState.availability === "all";
     const onlySet = browserState.hasValue === "only";
     const showInvalid = browserState.invalid === "only";
     const showChannels = browserState.channelType === "only";
+    const showUnsupported = browserState.unsupported === "only";
+    const hasWarnings = schemaErrorCount > 0 || rowParseErrorCount > 0 || unsupportedIssues.length > 0;
 
     return (
-        <Card className="border-border/70 bg-background/95 shadow-sm backdrop-blur supports-backdrop-filter:bg-background/88">
-            <CardHeader className="gap-1 px-1.5 py-1.5">
-                <div className="flex flex-wrap items-center gap-1">
-                    <CardTitle>Guild settings</CardTitle>
+        <section className="border border-border/70 bg-background/95">
+            <div className="px-2 py-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                    <h1 className="text-[15px] font-semibold tracking-tight text-foreground">Guild settings</h1>
                     <span className="text-xs text-muted-foreground">
-                        {counts.visibleRows} shown / {counts.totalRows} total
+                        {counts.visibleRows} shown of {counts.totalRows}
                     </span>
                 </div>
-                <div className="grid gap-1 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+
+                <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(18rem,32rem)_minmax(0,1fr)] lg:items-center">
                     <SearchBar
                         value={browserState.query}
                         onChange={(event) => {
@@ -61,23 +62,24 @@ export default function SettingsTopBar({
                             }));
                         }}
                         placeholder="Search settings"
-                        className="h-6 px-1.5 pr-7 text-xs"
+                        className="h-7 border-border/70 bg-background px-2 pr-8 text-sm"
                     />
+
                     <div className="overflow-x-auto pb-0.5">
-                        <div className="flex w-max min-w-full flex-nowrap items-center gap-1">
+                        <div className="flex w-max min-w-full flex-nowrap items-center gap-1 lg:justify-start">
                             <Button
                                 type="button"
-                                variant={showUnavailable ? "default" : "outline"}
+                                variant={showAllAvailability ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => updateState((currentState) => ({
                                     ...currentState,
                                     availability: currentState.availability === "all" ? "available" : "all",
                                 }))}
                             >
-                                {showUnavailable
+                                {showAllAvailability
                                     ? "Show available"
                                     : counts.unavailableRows > 0
-                                        ? `Show all (${counts.unavailableRows} unavailable)`
+                                        ? `Show all (${counts.unavailableRows})`
                                         : "Show all"}
                             </Button>
                             <Button
@@ -89,7 +91,7 @@ export default function SettingsTopBar({
                                     hasValue: currentState.hasValue === "only" ? "all" : "only",
                                 }))}
                             >
-                                {onlySet ? "Showing only set" : `Show only set (${counts.hasValueRows})`}
+                                {onlySet ? "Showing set" : `Show set (${counts.hasValueRows})`}
                             </Button>
                             {counts.invalidRows > 0 && (
                                 <Button
@@ -101,7 +103,20 @@ export default function SettingsTopBar({
                                         invalid: currentState.invalid === "only" ? "all" : "only",
                                     }))}
                                 >
-                                    {showInvalid ? `Showing invalid (${counts.invalidRows})` : `Show invalid (${counts.invalidRows})`}
+                                    {showInvalid ? `Showing invalid (${counts.invalidRows})` : `Invalid (${counts.invalidRows})`}
+                                </Button>
+                            )}
+                            {counts.unsupportedRows > 0 && (
+                                <Button
+                                    type="button"
+                                    variant={showUnsupported ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => updateState((currentState) => ({
+                                        ...currentState,
+                                        unsupported: currentState.unsupported === "only" ? "all" : "only",
+                                    }))}
+                                >
+                                    {showUnsupported ? `Showing unsupported (${counts.unsupportedRows})` : `Unsupported (${counts.unsupportedRows})`}
                                 </Button>
                             )}
                             {counts.channelTypeRows > 0 && (
@@ -114,35 +129,28 @@ export default function SettingsTopBar({
                                         channelType: currentState.channelType === "only" ? "all" : "only",
                                     }))}
                                 >
-                                    {showChannels ? `Showing channels (${counts.channelTypeRows})` : `Show channels (${counts.channelTypeRows})`}
+                                    {showChannels ? `Showing channels (${counts.channelTypeRows})` : `Channels (${counts.channelTypeRows})`}
                                 </Button>
                             )}
                         </div>
                     </div>
                 </div>
-            </CardHeader>
-            <CardContent className="space-y-1 px-1.5 pb-1.5 pt-0">
-                <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                    {counts.unsupportedRows > 0 && <Badge variant="destructive">{counts.unsupportedRows} unsupported</Badge>}
+            </div>
+
+            {hasWarnings && (
+                <div className="border-t border-border/60 px-2 py-1.5 text-[11px] text-muted-foreground">
+                    {counts.unsupportedRows > 0 && <span>{counts.unsupportedRows} unsupported</span>}
                     {(schemaErrorCount > 0 || rowParseErrorCount > 0) && (
-                        <Badge variant="destructive">{schemaErrorCount + rowParseErrorCount} data warnings</Badge>
+                        <span>{counts.unsupportedRows > 0 ? " | " : ""}{schemaErrorCount + rowParseErrorCount} data warnings</span>
+                    )}
+                    {unsupportedIssues.length > 0 && (
+                        <div className="mt-1 truncate">
+                            {unsupportedIssues.slice(0, 4).map((issue) => issue.settingKey).join(", ")}
+                            {unsupportedIssues.length > 4 && `, +${unsupportedIssues.length - 4} more`}
+                        </div>
                     )}
                 </div>
-
-                {unsupportedIssues.length > 0 && (
-                    <div className="rounded border border-destructive/40 bg-destructive/10 p-1 text-xs">
-                        <div className="mb-0.5 font-medium text-destructive">Unsupported web inputs need follow-up fixes</div>
-                        <ul className="space-y-0.5 text-muted-foreground">
-                            {unsupportedIssues.slice(0, 8).map((issue) => (
-                                <li key={issue.settingKey}>
-                                    {issue.settingKey}: {issue.reason}
-                                </li>
-                            ))}
-                            {unsupportedIssues.length > 8 && <li>...and {unsupportedIssues.length - 8} more</li>}
-                        </ul>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+            )}
+        </section>
     );
 }

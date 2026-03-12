@@ -173,7 +173,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="space-y-2 pb-6">
+        <div className="mx-auto max-w-6xl space-y-2 px-3 pb-6 sm:px-4">
             <div className="sticky top-2 z-20">
                 <SettingsTopBar
                     browserState={browserState}

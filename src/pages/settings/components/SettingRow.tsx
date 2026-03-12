@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useCallback } from "react";
 import { hasVisibleSettingsSubgroup, type SettingRow } from "../settingsDomain";
 import SettingClearAction from "./SettingClearAction";
-import { getSettingRowStateClasses, getSettingTypeToneStyle, getSubgroupTone } from "./settingsVisuals";
+import { getSettingTypeToneStyle } from "./settingsVisuals";
 
 function summarizeValue(valueText: string, hasValue: boolean): string {
     const normalized = valueText.trim();
@@ -40,74 +40,69 @@ export default function SettingRow({
     );
     const handleShowHelp = useCallback(() => onShowHelp(row), [onShowHelp, row]);
 
-    const subgroupTone = getSubgroupTone(row.metadata.subgroup);
-    const stateTone = getSettingRowStateClasses({
-        invalid: row.flags.invalid,
-        unavailable: !row.flags.isAllowed,
-        unset: !row.value.hasValue,
-        unsupported: isUnsupported,
-    });
     const typeToneStyle = getSettingTypeToneStyle(row.metadata.argType);
-    const rowSpacingClass = subgroupPosition === "last" || subgroupPosition === "only" ? "mb-0" : "mb-1.5";
+    const rowSpacingClass = subgroupPosition === "last" || subgroupPosition === "only" ? "mb-0" : "mb-1";
+    const detailNotes = [
+        subgroupVisible ? row.metadata.subgroup : null,
+        row.rowParseErrors.length > 0 ? row.rowParseErrors.join("; ") : null,
+        isUnsupported ? row.editor.inputSupport.reason ?? "Unsupported web input" : null,
+        unavailableReason,
+    ].filter(Boolean);
 
     return (
         <div
-            className={`${rowSpacingClass} rounded-sm border border-border/70 px-2.5 py-2 ${stateTone.background}`}
+            className={`${rowSpacingClass} rounded-sm border border-border/65 bg-background px-2 py-1.5`}
         >
-            <div className="grid gap-x-3 gap-y-2 lg:grid-cols-[minmax(0,1.55fr)_minmax(12rem,0.9fr)_auto] lg:items-start">
-                <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="min-w-0 text-sm font-semibold tracking-tight wrap-break-word">{row.settingKey}</div>
+            <div className="grid gap-x-3 gap-y-1.5 lg:grid-cols-[minmax(0,1.55fr)_minmax(12rem,0.95fr)_auto] lg:items-start">
+                <div className="min-w-0 space-y-0.75">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <div className="min-w-0 text-[13px] font-semibold tracking-tight wrap-break-word text-foreground">{row.settingKey}</div>
                         <span
-                            className="rounded border px-1.5 py-0.5 text-[10px] font-medium leading-none"
+                            className="rounded-sm border px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground"
                             style={typeToneStyle}
                         >
                             {row.metadata.argType}
                         </span>
                         {row.flags.invalid && <Badge variant="destructive">Invalid</Badge>}
-                        {!row.flags.isAllowed && <Badge variant="secondary">Unavailable</Badge>}
-                        {!row.value.hasValue && <Badge variant="secondary">Unset</Badge>}
-                        {isUnsupported && <Badge variant="destructive">Unsupported</Badge>}
+                        {!row.flags.isAllowed && <Badge variant="outline">Unavailable</Badge>}
+                        {!row.value.hasValue && <Badge variant="outline">Unset</Badge>}
+                        {isUnsupported && <Badge variant="outline">Unsupported</Badge>}
                     </div>
 
-                    <div className="flex items-start gap-2 text-[11px] leading-4.5 text-muted-foreground">
-                        {subgroupVisible && (
-                            <div className="mt-0.5 h-4 w-0.5 shrink-0 rounded-full" style={subgroupTone.railStyle} />
-                        )}
-                        <div className="min-w-0 flex-1 space-y-1">
-                            <div className="wrap-break-word whitespace-pre-wrap">
-                                {row.metadata.helpShort}
-                                {hasMoreHelp && (
-                                    <>
-                                        {" "}
-                                        <button
-                                            type="button"
-                                            className="font-medium text-foreground underline decoration-border underline-offset-2"
-                                            onClick={handleShowHelp}
-                                        >
-                                            Show more
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                            {row.rowParseErrors.length > 0 && (
-                                <div className="mt-1 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
-                                    {row.rowParseErrors.join("; ")}
-                                </div>
+                    <div className="space-y-0.5">
+                        <div className="line-clamp-2 text-[11px] leading-4.5 text-muted-foreground">
+                            {row.metadata.helpShort}
+                            {hasMoreHelp && (
+                                <>
+                                    {" "}
+                                    <button
+                                        type="button"
+                                        className="font-medium text-foreground underline decoration-border underline-offset-2"
+                                        onClick={handleShowHelp}
+                                    >
+                                        Show more
+                                    </button>
+                                </>
                             )}
                         </div>
+                        {detailNotes.length > 0 && (
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
+                                {detailNotes.map((note) => (
+                                    <span key={note}>{note}</span>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 <div className="min-w-0 text-left">
-                    <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Current value</div>
                     {row.value.hasValue ? (
-                        <div className={`w-full rounded-sm border border-border/60 bg-background px-2 py-1.5 text-left text-[13px] leading-5 wrap-break-word ${stateTone.value}`}>
+                        <div className="w-full rounded-sm border border-border/60 bg-muted/15 px-2 py-1.5 text-left text-[12px] leading-5 text-foreground wrap-break-word line-clamp-3">
                             {valueSummary}
                         </div>
                     ) : (
-                        <div className="w-full rounded-sm border border-amber-500/30 bg-amber-500/8 px-2 py-1.5 text-left text-[11px] font-medium text-amber-800 dark:text-amber-200">
-                            No value set
+                        <div className="w-full rounded-sm border border-border/60 bg-muted/10 px-2 py-1.5 text-left text-[12px] leading-5 text-muted-foreground">
+                            Unset
                         </div>
                     )}
                 </div>
@@ -131,11 +126,6 @@ export default function SettingRow({
                     )}
                 </div>
             </div>
-
-            {isUnsupported && (
-                <div className="mt-1 text-xs text-destructive">{row.editor.inputSupport.reason}</div>
-            )}
-            {unavailableReason && <div className="mt-1 text-xs text-destructive">{unavailableReason}</div>}
         </div>
     );
 }

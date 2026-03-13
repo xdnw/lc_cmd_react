@@ -1,6 +1,6 @@
 # Deposits
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/economy/deposits`
 - Legacy aliases: none; current related work is split across command output, `/balance`, and `/records`
 - Nav group: Economy
@@ -11,6 +11,7 @@
 
 - Deposits, offshore balances, escrow, expiry, and note-category behavior are one connected investigation workflow.
 - `Holdings` and `Ledger` are necessary, but neither page should have to carry the full burden of parked-balance logic.
+- Near-term this should be an investigation shell over `deposits *`, `escrow *`, `offshore *`, and the current balance and records pages, not a fake native bookkeeping suite.
 
 ## Workflows
 
@@ -44,9 +45,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: `BALANCE`, `RECORDS`, and generic command execution support may cover part of the workflow.
-- Existing table / graph / placeholder substrate: current placeholders are not sufficient to make this page comfortable without extra read support.
-- New endpoints likely needed: likely deposit-investigation, escrow-summary, offshore-account, and note-health JSON endpoints if this page is meant to be first-class.
+- Existing endpoints: `BALANCE`, `RECORDS`, `TABLE`, `COMMAND`, `INPUT_OPTIONS`.
+- Existing table / graph / placeholder substrate: `TaxDeposit`, `Transaction2`, and `DBNation` workbenches can assist with analysis, but they do not provide a comfortable deposit, escrow, or offshore investigation model by themselves.
+- New endpoints likely needed: `deposit_investigation`, `deposit_note_flows`, `escrow_summary`, `expiring_balance_summary`, `offshore_account_summary`, and `deposit_correction_preview` are needed for a first-class deposits page.
 
 ## Command Bindings
 
@@ -70,3 +71,4 @@
 - This page must not turn into a duplicate of `Holdings` or `Ledger`.
 - Raw note codes and bookkeeping terms need translation into operator language.
 - Multi-alliance offshore views need careful labeling so users always know which account they are touching.
+- The page should not imply that current placeholders already provide a comfortable deposit-investigation read model when they do not.

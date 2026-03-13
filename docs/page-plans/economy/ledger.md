@@ -11,6 +11,7 @@
 
 - The current records page is a paginated dump, not an investigation workspace.
 - Economy users need filters, note-flow context, and mutation tools that are grounded in what they are reviewing.
+- The current records page is a real route foundation, but it is still only a plain table dump.
 
 ## Workflows
 
@@ -42,9 +43,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: `RECORDS`.
-- Existing table / graph / placeholder substrate: `TABLE` is not enough today; `Transaction2` placeholder coverage looks too thin to power a serious ledger explorer.
-- New endpoints likely needed: a dedicated `ledger_records` read endpoint, plus supporting summary / note-flow endpoints, are very likely required if this page is meant to replace command-and-sheet investigation.
+- Existing endpoints: `RECORDS`, `COMMAND`, `TABLE`.
+- Existing table / graph / placeholder substrate: `Transaction2` exists as a placeholder type, but its current web-facing coverage is too thin to power a serious ledger explorer.
+- New endpoints likely needed: `ledger_records`, `ledger_summary`, `ledger_note_flow`, and `ledger_correction_preview` are needed if `/records` is going to evolve into a true ledger workspace.
 
 ## Command Bindings
 
@@ -68,3 +69,4 @@
 - Note-category language must be translated into user-facing explanations.
 - Need to decide whether tax records live here, under Tax, or in both with shared filters.
 - The page should not become a second `Deposits` screen with duplicate health summaries.
+- Until records are structured, filters and drawers will remain a thin wrapper over generic tables.

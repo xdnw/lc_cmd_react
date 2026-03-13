@@ -5,12 +5,13 @@
 - Legacy aliases: `/balance`, `/balance/:category`
 - Nav group: Economy
 - Primary users: members checking their own funds, econ staff checking alliance or guild accounts, staff preparing withdrawals or grants
-- Current references: `src/pages/balance/index.tsx`, `src/pages/guild_member/index.tsx`
+- Current references: `src/pages/balance/index.tsx`, `src/pages/records/index.tsx`, `src/pages/guild_member/index.tsx`
 
 ## Why It Exists
 
 - The current balance page proves the core flow works, but it feels like a single-account utility rather than a real holdings screen.
 - Economy work regularly crosses nation, alliance, guild, and tax accounts, especially in multi-alliance guilds.
+- The current balance page is a real endpoint-native foundation, but it is still mostly a single-account utility.
 
 ## Workflows
 
@@ -44,9 +45,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: `BALANCE`, `BANK_ACCESS`, `WITHDRAW`.
-- Existing table / graph / placeholder substrate: none required for MVP.
-- New endpoints likely needed: extend `BALANCE` or add a dedicated `holdings_summary` endpoint so the page can query alliance, guild, and tax-account contexts without abusing nation-only balance reads.
+- Existing endpoints: `BALANCE`, `BANK_ACCESS`, `WITHDRAW`, `COMMAND`.
+- Existing table / graph / placeholder substrate: the current balance read and withdraw submit flow are already web-native, but the read model is too narrow for multi-account alliance, guild, tax, and offshore work.
+- New endpoints likely needed: `accessible_bank_accounts` and `account_holdings` or an expanded `BALANCE` are needed if the page is expected to switch cleanly between nation, alliance, guild, tax, and offshore contexts.
 
 ## Command Bindings
 
@@ -70,3 +71,4 @@
 - Tax-account and offshore handling need clearer language than raw note codes.
 - Do not overload this page with correction tools that belong in `Deposits` or `Ledger`.
 - If the backend keeps nation-only reads, this page will stay more limited than the workflow requires.
+- If the backend stays nation-centric, the page should be honest about that limitation instead of pretending to cover every account type equally.

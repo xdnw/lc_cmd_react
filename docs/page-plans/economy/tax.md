@@ -1,16 +1,17 @@
 # Tax
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/economy/tax`
 - Legacy aliases: none; current related work is split across commands and settings
 - Nav group: Economy
 - Primary users: econ staff, gov, and occasionally members checking their own tax setup
-- Current references: command metadata for `tax *` and `settings_tax *`, settings page pattern in `src/pages/settings/index.tsx`
+- Current references: `src/pages/settings/index.tsx`, `src/pages/custom_table/TablePage.tsx`, `src/pages/command/index.tsx`, command metadata for `tax *` and `settings_tax *`
 
 ## Why It Exists
 
 - Tax work spans policy, member assignment, records, and automation; it is too broad to live only in settings or slash commands.
 - Users need one place to see both what the policy is and who it affects.
+- This is a mixed page: settings-backed policy, table and endpoint-backed analysis, and command-wrapped automation. The first version should reflect that boundary.
 
 ## Workflows
 
@@ -41,9 +42,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: `TAX_EXPENSE`, `TABLE`, `INPUT_OPTIONS`.
-- Existing table / graph / placeholder substrate: `DBNation` and `TaxDeposit` placeholder types may cover part of the member and records view, but command outputs like `tax records` and `tax deposits` are still sheet-oriented.
-- New endpoints likely needed: likely a dedicated `tax_member_status` read endpoint and possibly richer tax-record JSON if `TABLE` + `TaxDeposit` does not expose enough filtering or joins.
+- Existing endpoints: `TAX_EXPENSE`, `TABLE`, `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`.
+- Existing table / graph / placeholder substrate: `TaxDeposit`, `TaxBracket`, and `DBNation` placeholder tables can cover some records and member views, and `settings_tax` remains the policy source of truth.
+- New endpoints likely needed: `tax_member_status`, `tax_records_json`, `tax_bracket_assignments`, and `tax_automation_preview` are needed if the page is to be more than settings links plus sheet and command wrappers.
 
 ## Command Bindings
 
@@ -66,3 +67,4 @@
 - Need to decide how much tax record history lives here versus a shared ledger surface.
 - Settings and operations must stay connected; this page should not fork the meaning of `settings_tax`.
 - If `TaxDeposit` placeholder coverage is not rich enough, dedicated endpoints will become mandatory quickly.
+- The page should not fork tax policy away from `settings_tax` just because the automation and records views need richer read models.

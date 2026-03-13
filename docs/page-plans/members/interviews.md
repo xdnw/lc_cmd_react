@@ -1,16 +1,17 @@
 # Interviews
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/members/interviews`
 - Legacy aliases: none; related work is currently command and settings driven
 - Nav group: Members
 - Primary users: IA staff, mentors, recruiters, and gov reviewing member onboarding
-- Current references: command metadata for `interview *`, settings page pattern, DBNation IA presets in `src/lib/layouts/tabs/dbNation.ts`
+- Current references: `src/pages/command/index.tsx`, `src/pages/settings/index.tsx`, `src/pages/custom_table/TablePage.tsx`, `src/pages/custom_table/PlaceholderTabs.tsx`, command metadata for `interview *` and `settings_interview *`, DBNation IA presets in `src/lib/layouts/tabs/dbNation.ts`
 
 ## Why It Exists
 
 - Interview work spans channel state, mentoring, audit quality, and guild presence.
 - The current command surface is rich, but there is no unified place to see the onboarding queue and intervene quickly.
+- The first version should be a queue-oriented shell over command reads, settings, and table-backed member context rather than pretend a native interview service already exists.
 
 ## Workflows
 
@@ -42,9 +43,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: none dedicated to interview queue reads.
-- Existing table / graph / placeholder substrate: `TABLE` plus DBNation presets can support some roster-style analysis, but not the live interview-channel workflow.
-- New endpoints likely needed: interview queue, interview detail, mentor assignment summary, and interview-channel state endpoints are likely required for a strong page.
+- Existing endpoints: `TABLE`, `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`.
+- Existing table / graph / placeholder substrate: `DBNation` tables can cover applicant and member context, and `settings_interview *` remains the configuration source of truth, but there is no structured interview-queue or channel-state endpoint today.
+- New endpoints likely needed: `interview_queue`, `interview_detail`, `mentor_load_summary`, and `interview_channel_state` are needed if this page is to become a first-class IA desk instead of a wrapper around `interview iachannels`, `interview listmentors`, and `interview sheet`.
 
 ## Command Bindings
 
@@ -67,3 +68,4 @@
 - This page needs live-ish queue data; command-only reads will feel too brittle.
 - Mentor and referrer workflows must not get buried under interview-channel mechanics.
 - Need to decide how academy progression lives here versus in a later dedicated page.
+- The first version should not fake live queue state by over-parsing command output that the backend does not expose structurally.

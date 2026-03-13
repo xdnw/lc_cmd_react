@@ -1,16 +1,17 @@
 # Grant Requests
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/economy/grant-requests`
 - Legacy aliases: none; currently command-only
 - Nav group: Economy
 - Primary users: members requesting grants, econ staff reviewing and approving them
-- Current references: command metadata for `grant request *`, existing command and dialog infrastructure in `src/pages/command/index.tsx`
+- Current references: `src/pages/command/index.tsx`, `src/pages/settings/index.tsx`, command metadata for `grant request *` and `settings_bank_grants *`
 
 ## Why It Exists
 
 - Grant requests are a queue and review workflow, not a one-off command.
 - Approval quality depends on surrounding context: balances, eligibility, recent grants, and the requested action itself.
+- The first version should wrap request creation and review around command execution and banking settings rather than pretend a native queue already exists.
 
 ## Workflows
 
@@ -41,9 +42,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: none found for grant-request queue reads.
-- Existing table / graph / placeholder substrate: no obvious current placeholder or endpoint surface covers request queues.
-- New endpoints likely needed: `grant_requests`, `grant_request_detail`, and a small context endpoint for balances / recent grants / template eligibility are likely required for a credible page.
+- Existing endpoints: `COMMAND`, `TABLE`, `INPUT_OPTIONS`, `PERMISSION`.
+- Existing table / graph / placeholder substrate: `settings_bank_grants *` already defines request-channel behavior and defaults, but there is no request queue or review read model.
+- New endpoints likely needed: `grant_requests`, `grant_request_detail`, and `grant_request_context` are needed for a first-class review queue.
 
 ## Command Bindings
 
@@ -66,3 +67,4 @@
 - Without new read endpoints this page becomes a command wrapper, which is not enough.
 - Need to decide whether request creation is a separate simple view on mobile.
 - The page should explain why a request is risky, not just whether it can be approved.
+- Until queue data exists, the page should be explicit that it is a review shell over commands and settings rather than a native workflow service.

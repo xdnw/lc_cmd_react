@@ -1,16 +1,17 @@
 # Grant Templates
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/economy/grant-templates`
 - Legacy aliases: none; command fallback remains `/commands` or `/command/:command`
 - Nav group: Economy
 - Primary users: econ staff and gov maintaining recurring grant policy
-- Current references: command metadata for `grant_template *`, plus generic command/page infrastructure
+- Current references: `src/pages/command/index.tsx`, command metadata for `grant_template *`, and generic command/page infrastructure
 
 ## Why It Exists
 
 - Grant templates act like a small policy engine, not just saved forms.
 - Users need to understand eligibility, limits, and defaults without reading a raw command path every time.
+- The first version should wrap `grant_template list`, `grant_template info`, and `grant_template send` rather than assume a native policy library already exists.
 
 ## Workflows
 
@@ -41,9 +42,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: none found for template list or detail reads.
-- Existing table / graph / placeholder substrate: none obvious for template policy objects.
-- New endpoints likely needed: `grant_templates`, `grant_template_detail`, and `grant_template_evaluation` are likely necessary for a strong browser-native page.
+- Existing endpoints: `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`.
+- Existing table / graph / placeholder substrate: `AGrantTemplate` query support exists for inputs, but there is no template list or detail JSON surface.
+- New endpoints likely needed: `grant_templates`, `grant_template_detail`, and `grant_template_evaluation` are needed for a strong library and builder page.
 
 ## Command Bindings
 
@@ -66,3 +67,4 @@
 - Without read endpoints the library becomes slow and awkward.
 - Template subtype differences are real; do not force them into a lowest-common-denominator UI.
 - Need a clear story for editing existing templates if the backend only exposes create / enable / disable / delete commands today.
+- The page should not pretend existing command outputs are already a comfortable template library.

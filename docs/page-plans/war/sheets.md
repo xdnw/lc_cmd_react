@@ -1,16 +1,17 @@
 # War Sheets
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/war/sheets`
 - Legacy aliases: none; current flow is command and spreadsheet driven
 - Nav group: War
 - Primary users: milcom and staff building blitzes, validating assignments, and reviewing war costs
-- Current references: command metadata for `war sheet *`, current graph endpoints for war-cost and tier context
+- Current references: `src/pages/command/index.tsx`, `src/pages/custom_table/TablePage.tsx`, command metadata for `war sheet *`, and current graph endpoints for war-cost and tier context
 
 ## Why It Exists
 
 - Sheets are still valuable, but the browser should be the planning board that generates and validates them.
 - Users should not have to memorize half a dozen export-style commands to move from targeting to execution.
+- Today this is mostly a command-and-export workflow with strong supporting graphs; the browser page should wrap that honestly until structured previews exist.
 
 ## Workflows
 
@@ -41,9 +42,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: supporting graph endpoints like `WARSCOSTRANKINGBYDAY`, `WARCOSTSBYDAY`, `WARATTACKSBYDAY`, `STRENGTHTIERGRAPH`, `CITYTIERGRAPH`.
-- Existing table / graph / placeholder substrate: strong supporting context exists, but web-native JSON for sheet generation and validation does not.
-- New endpoints likely needed: read endpoints for blitz preview, validation results, warsheet preview, and cost outputs would make this page genuinely useful.
+- Existing endpoints: supporting graph endpoints like `WARSCOSTRANKINGBYDAY`, `WARCOSTSBYDAY`, `WARATTACKSBYDAY`, `STRENGTHTIERGRAPH`, `CITYTIERGRAPH`, plus `COMMAND`.
+- Existing table / graph / placeholder substrate: strong supporting context exists, but sheet preview, validation, and cost outputs are still command-generated rather than exposed as structured JSON.
+- New endpoints likely needed: `war_sheet_blitz_preview`, `war_sheet_validation`, `war_sheet_raid_preview`, `war_sheet_active_wars`, `war_sheet_costsheet`, `war_sheet_cost_by_resource`, `war_sheet_reimburse_by_nation`, and shared `job_status` are needed for a first-class page.
 
 ## Command Bindings
 
@@ -66,3 +67,4 @@
 - The page cannot just become a list of "generate sheet" buttons.
 - Need clear handling for long-running sheet generation jobs and external spreadsheet links.
 - Validation output needs to be understandable by humans, not just echo backend errors.
+- Until preview and validation data is structured, this route should be explicit about wrapping exports rather than pretending to own the sheet engine.

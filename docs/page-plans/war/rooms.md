@@ -1,16 +1,17 @@
 # War Rooms
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/war/rooms`
 - Legacy aliases: none; current flow is command-only
 - Nav group: War
 - Primary users: milcom and staff creating, sorting, and cleaning up war rooms
-- Current references: command metadata for `war room *`, bulk-action patterns in `src/pages/a2/conflict/conflicts.tsx`
+- Current references: `src/pages/command/index.tsx`, `src/pages/settings/index.tsx`, command metadata for `war room *`, `settings_war_room *`, and bulk-action patterns in `src/pages/a2/conflict/conflicts.tsx`
 
 ## Why It Exists
 
 - War rooms are one of the clearest places where the browser can outperform raw commands.
 - The work is a mix of planning, previewing, creating, sorting, and cleanup, all around Discord state.
+- Near-term this is a guided command console plus readiness links, not a full Discord room inventory page.
 
 ## Workflows
 
@@ -42,9 +43,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: none dedicated to room lists or room state.
-- Existing table / graph / placeholder substrate: no current web-native surface for Discord room inventory.
-- New endpoints likely needed: room list, room detail, category inventory, and background job status endpoints are likely required if this page is meant to be more than a command wrapper.
+- Existing endpoints: `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`, and `TABLE` for related readiness settings.
+- Existing table / graph / placeholder substrate: `settings_war_room *` and channel-linked settings can expose readiness, but there is no web-native room list or category inventory.
+- New endpoints likely needed: `war_room_list`, `war_room_detail`, `war_room_create_preview`, `war_room_batch_preview`, `discord_category_inventory`, and a shared `job_status` endpoint are needed for a true room-management board.
 
 ## Command Bindings
 
@@ -67,3 +68,4 @@
 - This page is hard to do well without read endpoints for Discord room state.
 - Need to decide whether room detail lives inline, in a drawer, or in Discord-only links.
 - Batch-create UX has to make long-running operations and partial failures obvious.
+- The page should not imply that the app already has a native Discord room inventory when it currently does not.

@@ -1,6 +1,6 @@
 # Counters
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/war/counters`
 - Legacy aliases: none; current flow is command-only
 - Nav group: War
@@ -11,6 +11,7 @@
 
 - Countering is a coordination workflow with selection, comparison, and communication steps.
 - Users need to see candidate attackers, not just receive a raw command output.
+- The first version should be a comparative planner wrapped around the existing `war counter *` commands rather than a fake native engine.
 
 ## Workflows
 
@@ -44,9 +45,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: none dedicated to counter planning results.
-- Existing table / graph / placeholder substrate: `TABLE` and strength graphs can support context, but not the actual counter candidate computation.
-- New endpoints likely needed: dedicated read endpoints for `war counter nation`, `war counter url`, `war counter auto`, and maybe sheet preview are likely needed for a first-class page.
+- Existing endpoints: `COMMAND`, `TABLE`, `PERMISSION`, and supporting graphs like `STRENGTHTIERGRAPH` and `CITYTIERGRAPH`.
+- Existing table / graph / placeholder substrate: graphs and table workbenches can provide context, but not candidate generation, readiness scoring, or counter-specific selection state.
+- New endpoints likely needed: `war_counter_nation`, `war_counter_url`, `war_counter_auto`, and `war_counter_sheet_preview` are needed if this page is to stop rendering command-backed result blobs.
 
 ## Command Bindings
 
@@ -69,3 +70,4 @@
 - Without JSON endpoints this page will be stuck rendering command output rather than a usable planner.
 - Need to avoid over-trusting automated recommendations when member responsiveness matters.
 - A counter page should make policy and uncertainty visible, not hide them behind a single button.
+- Until those endpoints exist, the page should stay honest about being a planner shell around command-backed searches.

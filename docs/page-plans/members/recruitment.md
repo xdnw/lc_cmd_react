@@ -1,16 +1,17 @@
 # Recruitment
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/members/recruitment`
 - Legacy aliases: none; related work is currently split across settings and commands
 - Nav group: Members
 - Primary users: IA, recruiters, and staff managing applicant or new-member messaging
-- Current references: command metadata for `settings_recruit *` and recruitment-related `interview *` commands
+- Current references: `src/pages/settings/index.tsx`, `src/pages/command/index.tsx`, command metadata for `settings_recruit *` and recruitment-related `interview *` commands
 
 ## Why It Exists
 
 - Recruitment is a message and pipeline workflow, not just a bag of settings.
 - Staff need to manage mail templates, timed messages, and referral context in one place.
+- Most of the current source of truth lives in guild settings and command flows, so the first page should wrap that substrate instead of inventing a separate recruitment model.
 
 ## Workflows
 
@@ -41,9 +42,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: none dedicated to recruitment pipeline or timed-message reads.
-- Existing table / graph / placeholder substrate: `TABLE` on `GuildSetting` can expose some configuration, but not the full builder experience.
-- New endpoints likely needed: recruitment settings summary and timed-message list endpoints are likely needed for a good browser-native page.
+- Existing endpoints: `TABLE`, `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`.
+- Existing table / graph / placeholder substrate: `GuildSetting` covers applicant mail and recruit-message settings, but timed-message rows, referral context, and rankings do not have structured read models.
+- New endpoints likely needed: `recruitment_settings_summary`, `recruitment_timed_messages`, and `recruitment_referral_summary` are needed for a first-class page; until then this route is mainly a settings-backed and command-wrapped workflow.
 
 ## Command Bindings
 
@@ -66,3 +67,4 @@
 - If timed-message state is only visible through settings commands, the page will feel incomplete.
 - Need to avoid duplicating the announcements composer; shared message-building primitives should be reused.
 - Recruitment and interview work overlap heavily, so cross-links need to be intentional.
+- Do not fake a campaign-style builder without real timed-message and referral reads.

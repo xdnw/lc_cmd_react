@@ -106,6 +106,7 @@ Do not hard-break the existing route surface while this work lands. New primary 
 ### Core
 
 - `docs/page-plans/core/app-shell.md`
+- `docs/page-plans/core/backend-endpoint-gaps.md`
 - `docs/page-plans/core/context-and-scoping.md`
 - `docs/page-plans/core/guild-select.md`
 - `docs/page-plans/core/workflow-map.md`

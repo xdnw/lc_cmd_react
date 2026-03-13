@@ -1,6 +1,6 @@
 # Grant Send Wizard
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/economy/grant-send`
 - Legacy aliases: none; command fallback remains `/command/:command`
 - Nav group: Economy
@@ -11,6 +11,7 @@
 
 - The grant family already exposes the right power, but raw argument names are too dense for common grant work.
 - This is one of the strongest browser-native opportunities because grant sending is multi-step, review-heavy, and policy-sensitive.
+- This route should be a policy-aware shell over the existing `grant *` commands and metadata, not a forked grant engine.
 
 ## Workflows
 
@@ -43,9 +44,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: `BANK_ACCESS`, `BALANCE`, `INPUT_OPTIONS`, generic command execution support.
-- Existing table / graph / placeholder substrate: command metadata is the authoritative argument source and should drive the low-level form sections.
-- New endpoints likely needed: none required for an MVP submit flow; optional `grant_preview` or `grant_eligibility` read endpoints would improve warnings and cost summaries later.
+- Existing endpoints: `BANK_ACCESS`, `BALANCE`, `INPUT_OPTIONS`, `COMMAND`, `PERMISSION`.
+- Existing table / graph / placeholder substrate: command metadata is the authoritative argument source and should continue to drive the low-level form sections.
+- New endpoints likely needed: none for an MVP submit flow. `grant_preview` or `grant_eligibility` would improve warnings later, but this page does not need a bespoke submit API to exist.
 
 ## Command Bindings
 

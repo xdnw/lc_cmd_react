@@ -11,6 +11,7 @@
 
 - Trade work is partly live market intelligence and partly personal / alliance workflow.
 - Existing graph endpoints are already strong, but there is no obvious single place to turn them into an everyday market desk.
+- Charts are already endpoint-native, but rankings, profit views, and alert management are still a mixed command and table substrate.
 
 ## Workflows
 
@@ -38,9 +39,9 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: `TRADEPRICEBYDAY`, `TRADEPRICEBYDAYJSON`, `TRADEMARGINBYDAY`, `TRADEVOLUMEBYDAY`, `TRADETOTALBYDAY`, `COMPARESTOCKPILEVALUEBYDAY`.
-- Existing table / graph / placeholder substrate: graph pages can already render the chart-heavy parts; `DBTrade` may help later if the table workbench is extended into this page.
-- New endpoints likely needed: live ranking / profit / subscription list views likely need dedicated read endpoints unless command-backed table responses are added.
+- Existing endpoints: `TRADEPRICEBYDAY`, `TRADEPRICEBYDAYJSON`, `TRADEMARGINBYDAY`, `TRADEVOLUMEBYDAY`, `TRADETOTALBYDAY`, `COMPARESTOCKPILEVALUEBYDAY`, `TABLE`, `COMMAND`, `INPUT_OPTIONS`.
+- Existing table / graph / placeholder substrate: graph pages can already render the chart-heavy parts, and `DBTrade` placeholder support can back future table work, but live market snapshot, rankings, profit summaries, and alert subscriptions are not exposed as page-ready JSON.
+- New endpoints likely needed: `trade_market_snapshot`, `trade_rankings`, `trade_profit_summary`, and `trade_alert_subscriptions` are needed if this page is going to feel like a real market desk instead of a graph launcher with command links.
 
 ## Command Bindings
 
@@ -63,3 +64,4 @@
 - Need to decide whether trade belongs under Economy or Reports in the visible nav; Economy is clearer for user intent.
 - Ranking and subscription management may stall without better JSON endpoints.
 - The live price strip should not require over-fetching every chart endpoint on page load.
+- The page should be explicit that `Market` can be more native sooner than `Rankings` and `Alerts` if backend support lands unevenly.

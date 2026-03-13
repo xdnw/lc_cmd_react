@@ -11,6 +11,7 @@
 
 - Raid finding already exists, but members and milcom do not think in separate "raid page" and "war commands" mental models.
 - This page should unify raid, war-target, and spy-target discovery without erasing the public raid tool.
+- Raid is already endpoint-native, but the broader target desk is a mixed substrate: some tabs can evolve current endpoints and others still need structured JSON reads.
 
 ## Workflows
 
@@ -45,13 +46,13 @@
 
 ## Data and Endpoints
 
-- Existing endpoints: `RAID`, `UNPROTECTED`, `TABLE`, optional support graphs like `STRENGTHTIERGRAPH` and `SPYTIERGRAPH`.
-- Existing table / graph / placeholder substrate: DBNation placeholders and saved presets already cover a lot of targeting context.
-- New endpoints likely needed: JSON read endpoints for `war find enemy`, `war find damage`, `war find treasure`, `war find unblockade`, `spy find`, and `spy counter` would make this page much stronger.
+- Existing endpoints: `RAID`, `UNPROTECTED`, `TABLE`, `COMMAND`, and supporting graphs like `STRENGTHTIERGRAPH` and `SPYTIERGRAPH`.
+- Existing table / graph / placeholder substrate: the current public raid search is already native; DBNation or DBWar workbenches and saved presets cover supporting context, but most `war find *` and `spy *` reads still come from commands.
+- New endpoints likely needed: `war_find_enemy`, `war_find_damage`, `war_find_treasure`, `war_find_bounty`, `war_find_unblockade`, `spy_find_target`, `spy_find_intel`, and `spy_counter` are needed if the non-raid tabs are going to feel equal to the current raid tool.
 
 ## Command Bindings
 
-- Existing commands: `war find raid`, `war find enemy`, `war find damage`, `war find treasure`, `war find unprotected`, `war find unblockade`, `war dnr`, `spy find`, `spy counter`.
+- Existing commands: `war find raid`, `war find enemy`, `war find damage`, `war find treasure`, `war find bounty`, `war find unprotected`, `war find unblockade`, `war dnr`, `spy find intel`, `spy find target`, `spy counter`.
 - Commands likely needing changes: none required immediately.
 - Command preview / confirmation rules: targeting itself is read-only; quick actions that escalate into a war room or counter plan should show the command and selected attackers before submit.
 
@@ -71,3 +72,4 @@
 - Some target-finding modes may begin as command-backed results until JSON endpoints exist.
 - The page should explain DNR, beige, and blockade constraints in plain language.
 - Do not let `Spy Targets` become a disconnected side tool; it belongs in the same target-acquisition workflow.
+- The page is mixed by design: `Raid` can mature first without pretending `War Targets` and `Spy Targets` already have equal backend support.

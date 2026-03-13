@@ -1,7 +1,7 @@
 # Grant Templates
 
 - Status: `New`
-- Primary route: `/economy/grants/templates`
+- Primary route: `/economy/grant-templates`
 - Legacy aliases: none; command fallback remains `/commands` or `/command/:command`
 - Nav group: Economy
 - Primary users: econ staff and gov maintaining recurring grant policy
@@ -17,6 +17,8 @@
 - Primary: browse template library, inspect template rules, create or edit templates, send via template.
 - Secondary: explain to reviewers or members why a receiver is or is not eligible.
 - Why users arrive here: grant-program maintenance, onboarding / growth policy, wartime template use.
+- Upstream entry points: `Grant Send`, `Grant Requests`, overview shortcuts, command fallback.
+- Downstream hand-offs: `Grant Send`, `Holdings`, and request review when template policy answers the question.
 
 ## Layout and Look
 

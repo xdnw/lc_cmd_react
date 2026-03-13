@@ -17,6 +17,8 @@
 - Primary: check announcements, audits, holdings, current wars, and raid opportunities in one stop.
 - Secondary: jump into grant requests, member issues, or war rooms based on permissions.
 - Why users arrive here: daily routine, post-login landing, "what needs attention right now?" checks.
+- Upstream entry points: guild selection, login return flow, Home landing, recent-work link.
+- Downstream hand-offs: `Announcements`, `Holdings`, `Deposits`, `Targets`, `Grant Requests`, `Interviews`, and command fallback.
 
 ## Layout and Look
 
@@ -31,6 +33,8 @@
 - Group audit failures by severity and keep descriptions collapsible.
 - Show bank access and key balances with fast links to holdings and ledger.
 - Show current wars and their urgency, with links into target and room views.
+- Keep member self-service visible: withdrawals, alert management, opt-outs, and tax visibility should feel like part of the daily loop.
+- Use role-aware cards so econ sees grant queue and deposit blockers, IA sees interview or recruitment issues, and milcom sees war or target urgency.
 - Keep raid quick-start controls visible for members whose daily work starts there.
 
 ## Components
@@ -52,7 +56,7 @@
 
 ## Navigation
 
-- Links to: `/announcements`, `/economy/holdings`, `/economy/ledger`, `/war/targets`, `/war/rooms`, `/economy/grant-requests`, `/commands`.
+- Links to: `/announcements`, `/economy/holdings`, `/economy/deposits`, `/economy/ledger`, `/war/targets`, `/war/rooms`, `/economy/grant-requests`, `/members/interviews`, `/commands`.
 - Linked from: `/guild_select`, app shell Home item, login return flow.
 
 ## Permissions and Context

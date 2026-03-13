@@ -17,6 +17,8 @@
 - Primary: manage role aliases, run auto-assign flows, manage self roles, and perform mass role actions.
 - Secondary: inspect opt-out state and guild role coverage.
 - Why users arrive here: setup, staff onboarding, war / IA role maintenance, permission troubleshooting.
+- Upstream entry points: `Server Setup`, `Interviews`, `Recruitment`, command fallback.
+- Downstream hand-offs: `Server Settings`, `Channels`, and any workflow that depends on the alias map being correct.
 
 ## Layout and Look
 

@@ -17,6 +17,8 @@
 - Primary: select active Discord guild, confirm the current selection, move into that guild's work.
 - Secondary: invite the bot, register alliance ids, register API keys, jump to server settings.
 - Why users arrive here: login flow, switching servers, first-time setup, "why is this page missing data?" troubleshooting.
+- Upstream entry points: login flow, shell guild switcher, protected-page setup warnings.
+- Downstream hand-offs: `Member Overview` when the guild is ready, `Server Setup` when readiness is incomplete.
 
 ## Layout and Look
 
@@ -30,8 +32,8 @@
 - Show current selected guild if one is set.
 - Let users pick a guild from `SET_GUILD` inputs and confirm immediately.
 - Show "invite bot" and "initial setup" help when the desired server is missing.
-- Surface whether the selected guild already has registered alliances, API keys, and key settings wired.
-- Offer a direct jump into overview, server settings, or setup actions after selection.
+- Surface whether the selected guild already has registered alliances, API keys, role aliases, and key settings wired.
+- Offer a direct jump into `Member Overview`, `Server Setup`, or `Server Settings` after selection.
 
 ## Components
 
@@ -52,7 +54,7 @@
 
 ## Navigation
 
-- Links to: `/overview`, `/server/settings`, `/commands`, bot invite URL, setup wiki.
+- Links to: `/overview`, `/server/setup`, `/server/settings`, `/commands`, bot invite URL, setup wiki.
 - Linked from: login flow, app shell guild switcher, setup notices on guild-scoped pages.
 
 ## Permissions and Context
@@ -65,4 +67,4 @@
 
 - Setup should feel like progress, not like a dead-end dropdown.
 - Multi-alliance guild setup needs to be first-class, not buried behind one "alliance id" field.
-- Need to decide whether alliance registration lives directly here or just links into `Server > Settings`.
+- Keep this page focused on choosing and assessing the guild; detailed configuration still belongs in `Server Setup` and `Server Settings`.

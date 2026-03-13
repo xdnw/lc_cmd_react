@@ -17,6 +17,8 @@
 - Primary: create interview channels, assign mentors, review pending interviews, send interview messages, archive or reopen channels.
 - Secondary: inspect referrer and incentive context, monitor inactivity, and jump into member detail.
 - Why users arrive here: applicant onboarding, academy handoff, stalled interviews, mentor load balancing.
+- Upstream entry points: `Recruitment`, `Member Overview`, setup shortcuts, command fallback.
+- Downstream hand-offs: `Roles`, `Channels`, training or academy flows, archive actions, and member detail or audit follow-up.
 
 ## Layout and Look
 
@@ -30,6 +32,8 @@
 - Show interview channel state, applicant status, alliance / guild presence, audit issues, mentor assignment, and referrer info.
 - Actions: create interview, assign or unassign mentor, send interview message, archive or reopen channel, open member drawer.
 - Support saved filters for active applicants, inactive members, not verified, not in guild, not in milcom guild, and low-tier non-raiders.
+- Keep the lifecycle visible: applicant -> interview -> mentor/training -> graduation or archive.
+- Surface category and role prerequisites such as interview categories, interviewer roles, applicant roles, and archive targets in context.
 
 ## Components
 
@@ -50,7 +54,7 @@
 
 ## Navigation
 
-- Links to: `/members/recruitment`, `/server/settings`, `/reports/tables`, member report pages.
+- Links to: `/members/recruitment`, `/server/settings`, `/server/roles`, `/server/channels`, `/reports/tables`, member report pages.
 - Linked from: member overview action cards, command launcher, IA workflow shortcuts.
 
 ## Permissions and Context

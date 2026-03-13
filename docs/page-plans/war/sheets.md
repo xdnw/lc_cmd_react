@@ -17,6 +17,8 @@
 - Primary: generate blitz sheets, validate sheets, create raid sheets, review active war sheets, review cost / reimbursement outputs.
 - Secondary: launch batch war-room creation from a prepared sheet.
 - Why users arrive here: blitz prep, ongoing war review, post-war reimbursements, export workflows.
+- Upstream entry points: `Targets`, `Counters`, command fallback.
+- Downstream hand-offs: `War Rooms`, `Reports`, and economy reimbursement or ledger follow-up.
 
 ## Layout and Look
 
@@ -30,6 +32,7 @@
 - Validate: input sheet, validate structure and assignments, show warnings and failed rows.
 - Active Wars: generate and inspect current war-state sheets for selected sides.
 - Costs: cost by war type, resource, nation, and reimbursement mode with summary cards.
+- The page should make it obvious when a sheet is a planning artifact versus a live operational export.
 
 ## Components
 

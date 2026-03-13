@@ -17,6 +17,8 @@
 - Primary: create menus, edit title and description, add or remove buttons, rename buttons, reorder buttons, preview the result.
 - Secondary: inspect existing menus and open them in Discord.
 - Why users arrive here: server setup, onboarding, self-service command builders, war or econ action panels.
+- Upstream entry points: `Server Setup`, `Embeds`, command fallback.
+- Downstream hand-offs: `Command Runner`, `Embeds`, and server rollout work.
 
 ## Layout and Look
 

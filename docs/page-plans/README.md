@@ -2,6 +2,8 @@
 
 This folder turns the frontend direction into page-by-page implementation briefs.
 
+`docs/page-plans/*` is the source of truth for frontend planning. `docs/frontend_plan.md` is obsolete and should only be kept as a tombstone for old links.
+
 ## User-Facing Navigation
 
 Use labels that match what users already recognize in alliance life:
@@ -19,6 +21,31 @@ Why these labels:
 - They map to jobs users already talk about in Discord and guides.
 - They avoid abstract buckets like "Operations" or "Automation" that force users to guess.
 - They separate personal/member workflows, staff workflows, and analyst workflows without hiding the command system.
+
+Canonical rule:
+
+- Use these labels in visible navigation, page titles, and route discussions.
+- Internal implementation groupings can exist in code, but they should not leak into the user-facing information architecture.
+
+## Workflow Map
+
+These briefs should optimize for the actual jobs people are doing, not just backend command families:
+
+- `Enter Workspace`: login, choose guild, confirm readiness, then land in `Home` or `Server` setup.
+- `Member Daily Loop`: open `Home`, check announcements, audits, holdings, raids, wars, and personal alert or tax issues.
+- `Economy Operations`: move between `Holdings`, `Deposits`, `Ledger`, `Grant Requests`, `Grant Send`, `Grant Templates`, and `Tax` as one connected workflow.
+- `War Operations`: move from `Targets` to `Counters`, `Sheets`, and `Rooms`, then back into economy or reporting surfaces for costs and reimbursements.
+- `Member Lifecycle`: move from `Recruitment` to `Interviews`, then into roles, channels, training, audits, and archive or graduation actions.
+- `Server Setup`: move from guild selection into a setup checklist, then into `Settings`, `Roles`, `Channels`, `Menus`, and `Embeds`.
+- `Reports And Commands`: use `Reports` for recurring analysis and saved workbenches; use `Commands` for long-tail, advanced, or fallback flows.
+
+## Context Model
+
+- `Guild` is the global workspace boundary.
+- `Alliance` scope is often task-specific and can be one, many, or all alliances registered to the guild.
+- `Current nation` is the default personal scope for member tasks and a shortcut elsewhere.
+
+See `docs/page-plans/core/context-and-scoping.md` for the full rule set.
 
 ## Status Legend
 
@@ -66,7 +93,9 @@ Do not hard-break the existing route surface while this work lands. New primary 
 ### Core
 
 - `docs/page-plans/core/app-shell.md`
+- `docs/page-plans/core/context-and-scoping.md`
 - `docs/page-plans/core/guild-select.md`
+- `docs/page-plans/core/workflow-map.md`
 
 ### Home
 
@@ -76,6 +105,7 @@ Do not hard-break the existing route surface while this work lands. New primary 
 
 ### Economy
 
+- `docs/page-plans/economy/deposits.md`
 - `docs/page-plans/economy/holdings.md`
 - `docs/page-plans/economy/ledger.md`
 - `docs/page-plans/economy/grant-requests.md`
@@ -98,6 +128,7 @@ Do not hard-break the existing route surface while this work lands. New primary 
 
 ### Server
 
+- `docs/page-plans/server/setup.md`
 - `docs/page-plans/server/settings.md`
 - `docs/page-plans/server/roles.md`
 - `docs/page-plans/server/channels.md`
@@ -121,13 +152,17 @@ Do not hard-break the existing route surface while this work lands. New primary 
 ## Suggested Delivery Order
 
 1. `core/app-shell.md`
-2. `core/guild-select.md`
-3. `home/member-overview.md`
-4. `economy/grant-requests.md`
-5. `economy/grant-send.md`
-6. `war/targets.md`
-7. `war/counters.md`
-8. `economy/ledger.md`
-9. `members/interviews.md`
-10. `server/menus.md`
-11. `reports/tables.md`
+2. `core/context-and-scoping.md`
+3. `core/workflow-map.md`
+4. `core/guild-select.md`
+5. `server/setup.md`
+6. `home/member-overview.md`
+7. `economy/holdings.md`
+8. `economy/deposits.md`
+9. `economy/grant-requests.md`
+10. `economy/grant-send.md`
+11. `war/targets.md`
+12. `war/counters.md`
+13. `members/interviews.md`
+14. `server/menus.md`
+15. `reports/tables.md`

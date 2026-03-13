@@ -17,6 +17,8 @@
 - Primary: create channels, change permissions, move or sort channels, open or close workflow channels.
 - Secondary: bulk rename or clean up channel structures.
 - Why users arrive here: server setup, war-room maintenance, interview cleanup, Discord reorganization.
+- Upstream entry points: `Server Setup`, `War Rooms`, `Interviews`, command fallback.
+- Downstream hand-offs: `War Rooms`, `Interviews`, `Server Settings` when channel-linked settings need repair.
 
 ## Layout and Look
 
@@ -32,6 +34,7 @@
 - Support sort-rule editing with a visible before / after model.
 - Make open / close flows for interview or war-room channels obvious and safe.
 - Keep bulk rename and sort operations in guarded, preview-heavy sections.
+- This page owns visual channel structure and permission changes; it should not try to replace the room or interview workflow pages that happen to act on channels.
 
 ## Components
 

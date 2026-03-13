@@ -17,6 +17,8 @@
 - Primary: find raid targets, war targets, unblockade targets, treasure or bounty hits, and spy opportunities.
 - Secondary: jump from a target into counters, war rooms, blitz planning, or the raw command form.
 - Why users arrive here: daily raiding, active conflict work, helping allies, checking beige or blockade opportunities.
+- Upstream entry points: `Member Overview`, Home landing, public raid links, alliance profile, command fallback.
+- Downstream hand-offs: `Counters`, `War Sheets`, `War Rooms`, or back into economy pages for warchest and reimbursement follow-up.
 
 ## Layout and Look
 
@@ -30,6 +32,9 @@
 - `Raid`: expose score, activity, beige, VM, DNR, weak-ground, and bank-loot filters.
 - `War Targets`: expose enemy, damage, treasure, unprotected, and unblockade modes with attacker-aware filtering.
 - `Spy Targets`: show intel freshness, spy-cap context, and likely counter-op fits.
+- Saved presets should include practical modes like `Daily raids`, `Beige snipes`, `Unblockade help`, `Treasure watch`, and `Conflict targets`.
+- DNR, beige, blockade, and opt-out constraints should appear as first-class status or reason chips, not hidden footnotes.
+- This page can explain DNR and beige policy outcomes, but policy editing itself still belongs in server configuration and coalition workflows.
 - Drawer: nation summary, range fit, activity, war slots, beige / VM state, spy info, quick actions.
 - Quick actions: open counter planner, create war room, add to blitz planning, open command fallback.
 
@@ -65,3 +70,4 @@
 - Mode boundaries must stay obvious; raid heuristics and counter heuristics are not the same.
 - Some target-finding modes may begin as command-backed results until JSON endpoints exist.
 - The page should explain DNR, beige, and blockade constraints in plain language.
+- Do not let `Spy Targets` become a disconnected side tool; it belongs in the same target-acquisition workflow.

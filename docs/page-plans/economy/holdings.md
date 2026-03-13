@@ -17,6 +17,8 @@
 - Primary: inspect holdings, understand breakdowns, and prepare a withdrawal.
 - Secondary: compare accounts, jump into ledger investigation, and route into grant work.
 - Why users arrive here: personal safekeeping checks, grant prep, offshore review, routine econ tasks.
+- Upstream entry points: `Member Overview`, `Grant Requests`, `Grant Send`, command fallback.
+- Downstream hand-offs: `Deposits` for parked-balance issues, `Ledger` for transaction history, and grant flows for outbound spending.
 
 ## Layout and Look
 
@@ -31,7 +33,9 @@
 - Show resource totals and breakdown by note/category.
 - Allow withdrawal amount entry with live command preview and validation.
 - Link directly into ledger view for the current account and note filters.
-- Surface whether escrow, ignored notes, or expiry rules are affecting the visible balance.
+- Surface whether escrow, ignored notes, expiry rules, or offshore accounting are affecting the visible balance.
+- Make the page's ownership clear: `Holdings` answers what is available now, not every reason why it became that way.
+- When special bookkeeping rules matter, point users into `Deposits` rather than stuffing all investigation detail onto this page.
 
 ## Components
 
@@ -52,7 +56,7 @@
 
 ## Navigation
 
-- Links to: `/economy/ledger`, `/economy/grant-requests`, `/economy/grant-send`, `/overview`.
+- Links to: `/economy/deposits`, `/economy/ledger`, `/economy/grant-requests`, `/economy/grant-send`, `/overview`.
 - Linked from: overview bank card, grant workflows, command launcher.
 
 ## Permissions and Context
@@ -64,4 +68,5 @@
 
 - Balance context must not assume one guild equals one alliance.
 - Tax-account and offshore handling need clearer language than raw note codes.
+- Do not overload this page with correction tools that belong in `Deposits` or `Ledger`.
 - If the backend keeps nation-only reads, this page will stay more limited than the workflow requires.

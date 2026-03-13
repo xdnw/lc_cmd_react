@@ -31,6 +31,8 @@
 
 - Show active guild, registered alliances, current nation, and permission summary where relevant.
 - Expose section-local secondary navigation on dense sections like Economy, War, and Server.
+- Treat `Home`, `Economy`, `War`, `Members`, `Server`, `Reports`, and `Commands` as the only visible top-level labels.
+- Give dense sections intentional landing points such as `Member Overview` for Home and `Server Setup` for Server.
 - Preserve recent-page caching and scroll position for command browser, settings, and report-heavy pages.
 - Keep the command launcher reachable from `/`, keyboard shortcut, navbar search, and page-level action bars.
 
@@ -53,7 +55,7 @@
 
 ## Navigation
 
-- Links to: all section entry pages, `/commands`, guild select, current user overview.
+- Links to: all section entry pages, `/commands`, `/guild_select`, `/overview`, `/server/setup`.
 - Linked from: `/home`, login flow, guild select, every deep route.
 
 ## Permissions and Context

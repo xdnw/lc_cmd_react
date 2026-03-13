@@ -6,7 +6,7 @@ Priority order: correctness > local comprehensibility > architecture/root-cause 
 Tests: Never shape structure solely for test compatibility. Treat as guardrails/spec when behavior or boundaries are unclear; update/add after the change. Keep the tree green.
 Afterwards, confirm the intended simplification happened (cleaner boundaries/data flow, less coupling) and update docs/comments as needed.
 ---
-Using react 19, ts, tailwind, shadcn/ui
+Using react 19, ts, tailwind
 EndpointWrapper | @/components/api/bulkwrapper | PUBLIC | Default export: EndpointWrapper<T,A,B> - props: endpoint, args, handle_error?, batch_wait_ms?, isPostOverride?, children({data,reload,isRefetching})
 useDeepMemo | @/components/api/bulkwrapper | PUBLIC | useDeepMemo(value) - deep-compare memo for deps
 BulkQueryClient / fetchBulk / fetchSingle / QueryResult | @/lib/BulkQuery.ts | PUBLIC | Batched API client + types — `fetchBulk` = deduped/batched requests with optional caching; `fetchSingle` = direct POST; exports `bulkQueryClient` singleton and `QueryResult<T>` (endpoint, query, update_ms, cache, data, error).

@@ -17,6 +17,8 @@
 - Primary: read, search, filter, and manage incoming announcements.
 - Secondary: compose outbound announcements, invitation messages, and document-backed messages.
 - Why users arrive here: unread notice from overview, staff broadcast work, reviewing old alliance notices.
+- Upstream entry points: unread badge from `Member Overview`, direct route links, command fallback.
+- Downstream hand-offs: return to `Member Overview`, open member or nation context, or branch into related command or staff workflows.
 
 ## Layout and Look
 
@@ -31,6 +33,7 @@
 - Detail: title, body, delivery context, related audience, and navigation to next/previous items.
 - Composer: recipient selection, subject, body, replacement set editing, DM/mail/channel toggles, variation preview, and send confirmation.
 - Staff users should see the generated command string before final send.
+- Staff flows should surface OPSEC-sensitive delivery choices clearly so users understand whether they are broadcasting publicly, mailing in game, or sending direct messages.
 
 ## Components
 

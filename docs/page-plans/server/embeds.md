@@ -17,6 +17,8 @@
 - Primary: create embeds, edit title or description, add command / modal / raw buttons, rename or remove buttons, preview and update embeds.
 - Secondary: inspect template-driven embed outputs or command-card patterns.
 - Why users arrive here: server onboarding, war / intel panels, recruitment prompts, self-service Discord tooling.
+- Upstream entry points: `Server Setup`, `Menus`, `Announcements`, command fallback.
+- Downstream hand-offs: `Command Runner`, rollout inside Discord, or related server builder pages.
 
 ## Layout and Look
 

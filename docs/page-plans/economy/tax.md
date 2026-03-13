@@ -17,6 +17,8 @@
 - Primary: review tax rules, inspect member tax status, audit records, and run bracket automation.
 - Secondary: explain member-facing self-set behavior and bracket restrictions.
 - Why users arrive here: tax bracket maintenance, compliance checks, growth-circle or tax-base debugging.
+- Upstream entry points: `Member Overview`, `Holdings`, `Deposits`, `Server Settings`, command fallback.
+- Downstream hand-offs: `Ledger` for account history, `Holdings` or `Deposits` when tax accounts affect balances, `Reports` for deeper roster views.
 
 ## Layout and Look
 
@@ -30,6 +32,7 @@
 - Members: taxable member roster, bracket assignment, internal rate, self-service eligibility, exception flags.
 - Records: tax deposits / records with filters and summary totals.
 - Automation: run bracket automation, inspect filter-to-bracket rules, deep-link into relevant server settings.
+- Keep the connection to banking explicit: tax accounts are part of the same economy model, not a separate world.
 
 ## Components
 

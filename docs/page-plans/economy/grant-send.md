@@ -1,7 +1,7 @@
 # Grant Send Wizard
 
 - Status: `New`
-- Primary route: `/economy/grants/send`
+- Primary route: `/economy/grant-send`
 - Legacy aliases: none; command fallback remains `/command/:command`
 - Nav group: Economy
 - Primary users: econ staff, gov, and any role trusted to send grants
@@ -17,6 +17,8 @@
 - Primary: send cities, infra, land, project, unit, research, warchest, build, or mmr grants.
 - Secondary: start from a pending request, re-run a previous grant shape, or send from a template.
 - Why users arrive here: daily econ operations, wartime rebuilds, growth programs, special-case approvals.
+- Upstream entry points: `Grant Requests`, `Grant Templates`, `Holdings`, `Deposits`, command fallback.
+- Downstream hand-offs: `Ledger` after submit, `Deposits` when funding state needs inspection, and template flow for recurring policy.
 
 ## Layout and Look
 
@@ -32,6 +34,7 @@
 - Step 4: choose funding, accounting, escrow, expiry, and comms settings.
 - Step 5: review warnings, generated command, and expected cost.
 - Step 6: submit and show result / follow-up actions.
+- Keep funding, note, expiry, tax-account, and escrow choices visible in the same visual area as the preview so users do not lose track of the accounting impact.
 
 ## Components
 

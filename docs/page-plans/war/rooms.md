@@ -17,6 +17,8 @@
 - Primary: create war rooms for selected enemies and attackers.
 - Secondary: batch-create from sheets, list active rooms, sort categories, pin updates, cleanup stale rooms.
 - Why users arrive here: active wars, counter planning, blitz execution, housekeeping after conflict shifts.
+- Upstream entry points: `Counters`, `War Sheets`, target drawer actions, command fallback.
+- Downstream hand-offs: Discord room follow-up, `Channels` for category structure issues, and back into `Targets` or `Counters` when plans change.
 
 ## Layout and Look
 
@@ -31,6 +33,7 @@
 - Batch Create: upload or select blitz sheet, choose allowed nations, preview per-room outcomes.
 - Active Rooms: list existing rooms, participants, enemy, category, stale status, and actions like pin or recategorize.
 - Cleanup: delete planning rooms, delete by enemy, purge with strong warnings.
+- If category setup is missing or invalid, route the user into `Server > Channels` or `Server > Setup` instead of just failing the flow.
 
 ## Components
 
@@ -52,7 +55,7 @@
 ## Navigation
 
 - Links to: `/war/counters`, `/war/sheets`, `/war/targets`, relevant room detail or enemy detail views.
-- Linked from: counter planner, target quick actions, command launcher.
+- Linked from: counter planner, target quick actions, command launcher, server setup links for war-room readiness.
 
 ## Permissions and Context
 

@@ -1,7 +1,7 @@
 # Grant Requests
 
 - Status: `New`
-- Primary route: `/economy/grants/requests`
+- Primary route: `/economy/grant-requests`
 - Legacy aliases: none; currently command-only
 - Nav group: Economy
 - Primary users: members requesting grants, econ staff reviewing and approving them
@@ -17,6 +17,8 @@
 - Primary: create a request, review open requests, approve or cancel with context.
 - Secondary: escalate a request into the full send wizard when approval needs edits.
 - Why users arrive here: members needing funds, econ staff processing the daily queue, grant reviewers triaging issues.
+- Upstream entry points: `Member Overview`, `Holdings`, template library, command fallback.
+- Downstream hand-offs: `Grant Send`, `Holdings`, `Deposits`, `Ledger`.
 
 ## Layout and Look
 
@@ -30,6 +32,7 @@
 - Detail view: requester, receiver, reason, source command, estimate, current balances, recent grants, template matches, warnings.
 - Actions: approve, cancel, open in send wizard, copy command, mark for follow-up.
 - Request creation should be available in-page for members with a simplified form.
+- Approval review should make it obvious whether the blocker is missing funds, template policy, deposit state, escrow behavior, or missing permissions.
 
 ## Components
 

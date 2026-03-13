@@ -17,6 +17,8 @@
 - Primary: plan counters for one enemy nation or war.
 - Secondary: auto-generate candidate sets, sheet-based review, and flow directly into war-room creation.
 - Why users arrive here: defensive war response, counter training, planned retaliation work.
+- Upstream entry points: `Targets`, conflict workflows, command fallback.
+- Downstream hand-offs: `War Rooms`, `War Sheets`, and economy follow-up for warchests or reimbursements.
 
 ## Layout and Look
 
@@ -32,6 +34,8 @@
 - Comparison columns: cities, score, activity, offensive slots, strength proxies, Discord status, fit score.
 - Selection: pick attackers manually, accept auto picks, or open batch generation.
 - Finalization: hand selected attackers into war-room creation or mail / ping actions.
+- Keep member responsiveness and uncertainty visible. A candidate should not look "good" only because the math says so.
+- Show nearby warchest or funding shortcuts when counter execution is blocked by missing resources.
 
 ## Components
 

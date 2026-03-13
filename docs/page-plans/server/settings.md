@@ -52,7 +52,7 @@
 ## Navigation
 
 - Links to: `/server/roles`, `/server/channels`, `/server/menus`, `/server/embeds`, `/economy/tax`, `/members/interviews`, `/members/recruitment`.
-- Linked from: workflow-specific settings pills, app shell Server nav, command launcher.
+- Linked from: `/server/setup`, workflow-specific settings pills, app shell Server nav, command launcher.
 
 ## Permissions and Context
 

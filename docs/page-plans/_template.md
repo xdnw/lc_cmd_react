@@ -16,6 +16,8 @@
 - Primary:
 - Secondary:
 - Why users arrive here:
+- Upstream entry points:
+- Downstream hand-offs:
 
 ## Layout and Look
 
@@ -49,7 +51,9 @@
 
 ## Permissions and Context
 
--
+- Required scope:
+- Relevant settings or role gates:
+- Recovery path when setup is incomplete:
 
 ## Risks and Open Questions
 

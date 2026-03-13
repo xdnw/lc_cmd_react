@@ -17,6 +17,8 @@
 - Primary: configure applicant and recruit messages, timed follow-ups, and output channels.
 - Secondary: review referral or incentive context and recruitment rankings.
 - Why users arrive here: tuning onboarding messaging, debugging applicant flow, maintaining recruit automation.
+- Upstream entry points: `Server Setup`, `Interviews`, command fallback.
+- Downstream hand-offs: `Interviews`, `Announcements`, and server pages for role, channel, or settings prerequisites.
 
 ## Layout and Look
 
@@ -30,6 +32,7 @@
 - Recruit messages: subject, content, delay, output channel, and send preview.
 - Timed messages: trigger, delay, message content, reorder / remove actions, test preview.
 - Referral and incentive section: current referrer commands, rankings, reward context, and links into interview work.
+- Keep the member-lifecycle framing obvious: this page handles recruitment and initial messaging, while `Interviews` owns the live onboarding queue.
 
 ## Components
 
@@ -51,7 +54,7 @@
 ## Navigation
 
 - Links to: `/members/interviews`, `/server/settings`, `/home/announcements` for related outbound message work.
-- Linked from: IA workflow shortcuts, settings deep links, command launcher.
+- Linked from: IA workflow shortcuts, server setup, settings deep links, command launcher.
 
 ## Permissions and Context
 

@@ -30,6 +30,7 @@
 - Show featured destinations for both public and logged-in users.
 - Add "continue where you left off" when recent-page cache has a meaningful target.
 - Surface unread announcement count and active guild shortcut when logged in.
+- When the selected guild is not fully configured, promote `Server Setup` instead of pretending the workspace is ready.
 - Keep public links like conflicts, tables, graphs, status, commands, and multi visible.
 
 ## Components
@@ -51,7 +52,7 @@
 
 ## Navigation
 
-- Links to: `/overview`, `/economy/holdings`, `/war/targets`, `/reports/conflicts`, `/reports/tables`, `/reports/graphs`, `/commands`, `/guild_select`, `/status`, `/multi_v2/:nation?`.
+- Links to: `/overview`, `/server/setup`, `/economy/holdings`, `/war/targets`, `/reports/conflicts`, `/reports/tables`, `/reports/graphs`, `/commands`, `/guild_select`, `/status`, `/multi_v2/:nation?`.
 - Linked from: splash, logout, navbar home breadcrumb.
 
 ## Permissions and Context

@@ -3,12 +3,13 @@
 - Status: `Cross-cutting`
 - Scope: `Members`, `War`, and `Economy` page plans
 - Related briefs: `docs/page-plans/members/*.md`, `docs/page-plans/war/*.md`, `docs/page-plans/economy/*.md`
-- Current references: `src/lib/endpoints.ts`, `src/pages/raid/index.tsx`, `src/pages/balance/index.tsx`, `src/pages/records/index.tsx`, `src/pages/guild_member/index.tsx`, `src/pages/command/index.tsx`, `src/pages/settings/index.tsx`
+- Current references: `src/lib/endpoints.ts`, `src/lib/commands.ts`, `src/pages/a2/conflict/conflicts.tsx`, `src/pages/raid/index.tsx`, `src/pages/balance/index.tsx`, `src/pages/records/index.tsx`, `src/pages/guild_member/index.tsx`, `src/pages/command/index.tsx`, `src/pages/settings/index.tsx`
 
 ## Why It Exists
 
 - The remaining page plans use a mixed substrate: some flows already have real read endpoints, some are settings-backed, and many are still command-wrapped.
-- This document lists every missing backend endpoint required if those pages are to become first-class browser pages instead of wrappers around commands, generic tables, or export-style outputs.
+- This document only lists backend work that still remains after accounting for current command-backed browser flows, settings-backed pages, and existing route foundations.
+- If a workflow can already ship cleanly through the command UI, settings UI, `TABLE`, or current page endpoints, it is not listed here as a backend gap.
 
 ## Existing Foundations
 
@@ -16,93 +17,60 @@
 - `War`: `RAID` and `UNPROTECTED` already power the raid tool; the rest of the war workflow is command-backed plus graph support.
 - `Economy`: `BALANCE`, `RECORDS`, `WITHDRAW`, `BANK_ACCESS`, `TAX_EXPENSE`, and trade graph endpoints exist, but most multi-account, queue, and investigation workflows still depend on commands.
 
-## Full Missing Endpoint List
+## Gap Legend
+
+- `Current`: worth adding for the planned page shape now.
+- `Later`: not required for the wrapper-first version, but needed if the page is later promoted into a dense native desk.
+- `Extend`: prefer expanding an existing endpoint or read surface instead of creating a brand-new endpoint.
+- `Preview`: prefer dry-run or structured JSON output on an existing command instead of a separate resource endpoint.
+
+## Gaps
 
 ### Members
 
-| Endpoint | Used by | Purpose | Current fallback |
-| --- | --- | --- | --- |
-| `interview_queue` | `docs/page-plans/members/interviews.md` | Structured queue of interview channels and onboarding state | `interview iachannels` |
-| `interview_detail` | `docs/page-plans/members/interviews.md` | Detail view for one interview target with guild, audit, mentor, and referrer context | ad hoc command output and member lookups |
-| `mentor_load_summary` | `docs/page-plans/members/interviews.md` | Mentor-to-mentee load and idle or stale assignment summary | `interview listmentors`, `interview mymentees` |
-| `interview_channel_state` | `docs/page-plans/members/interviews.md` | Structured status for interview channel lifecycle, category, staleness, and reopen or archive eligibility | channel commands and `interview iachannels` |
-| `recruitment_settings_summary` | `docs/page-plans/members/recruitment.md` | Browser-ready summary of applicant mail and recruit-message settings | `TABLE` over `GuildSetting` |
-| `recruitment_timed_messages` | `docs/page-plans/members/recruitment.md` | Read model for timed follow-up messages with trigger, delay, and content | `settings_recruit add_timed_message`, `settings_recruit remove_timed_message` |
-| `recruitment_referral_summary` | `docs/page-plans/members/recruitment.md` | Referral and incentive summary for recruitment tuning and IA review | `interview recruitmentrankings`, `interview setreferrer*` |
+| Gap | Timing | Best shape | Used by | Current fallback | Why |
+| --- | --- | --- | --- | --- | --- |
+| `interview desk read model` | `Later` | new read model | `docs/page-plans/members/interviews.md` | `interview iachannels`, `interview listmentors`, `interview mymentees`, `DBNation` tables, `audit *` | If `Interviews` is promoted from command shell to native IA desk, it will need one response family that covers queue rows, selected-detail context, mentor load, and channel state together. |
+| `recruitment_timed_messages` | `Current` | new read or recruitment-summary extension | `docs/page-plans/members/recruitment.md` | `settings_recruit add_timed_message`, `settings_recruit remove_timed_message` | The recruitment page wants an actual timed-message builder, and current commands only mutate existing state. |
 
 ### War
 
-| Endpoint | Used by | Purpose | Current fallback |
-| --- | --- | --- | --- |
-| `war_find_enemy` | `docs/page-plans/war/targets.md` | Structured enemy-target search results | `war find enemy` |
-| `war_find_damage` | `docs/page-plans/war/targets.md` | Structured high-damage target search results | `war find damage` |
-| `war_find_treasure` | `docs/page-plans/war/targets.md` | Structured treasure-target search results | `war find treasure` |
-| `war_find_bounty` | `docs/page-plans/war/targets.md` | Structured bounty-target search results | `war find bounty` |
-| `war_find_unblockade` | `docs/page-plans/war/targets.md` | Structured unblockade-target search results | `war find unblockade` |
-| `spy_find_target` | `docs/page-plans/war/targets.md` | Structured spy-target search results | `spy find target` |
-| `spy_find_intel` | `docs/page-plans/war/targets.md` | Structured stale-intel or intel-opportunity results | `spy find intel` |
-| `spy_counter` | `docs/page-plans/war/targets.md` | Structured spy-counter candidate results | `spy counter` |
-| `war_counter_nation` | `docs/page-plans/war/counters.md` | Candidate attackers and fit scores for one enemy nation | `war counter nation` |
-| `war_counter_url` | `docs/page-plans/war/counters.md` | Candidate attackers for a specific war URL | `war counter url` |
-| `war_counter_auto` | `docs/page-plans/war/counters.md` | Auto-generated counter recommendations with member-selection detail | `war counter auto` |
-| `war_counter_sheet_preview` | `docs/page-plans/war/counters.md` | Preview data for counter sheet or batch-planning flows | `war counter sheet` |
-| `war_room_list` | `docs/page-plans/war/rooms.md` | Structured inventory of existing war rooms | `war room list` |
-| `war_room_detail` | `docs/page-plans/war/rooms.md` | Detail for one room including enemy, members, category, and status | ad hoc command output and Discord links |
-| `war_room_create_preview` | `docs/page-plans/war/rooms.md` | Preview of room creation effects before submit | `war room create` |
-| `war_room_batch_preview` | `docs/page-plans/war/rooms.md` | Preview of room creation from a blitz sheet | `war room from_sheet` |
-| `war_sheet_blitz_preview` | `docs/page-plans/war/sheets.md` | Preview rows and assumptions for blitz sheet generation | `war sheet blitzsheet` |
-| `war_sheet_validation` | `docs/page-plans/war/sheets.md` | Structured validation results for a blitz sheet | `war sheet validate` |
-| `war_sheet_raid_preview` | `docs/page-plans/war/sheets.md` | Structured preview for raid-sheet generation | `war sheet raid` |
-| `war_sheet_active_wars` | `docs/page-plans/war/sheets.md` | Structured active-war sheet preview or results | `war sheet warsheet` |
-| `war_sheet_costsheet` | `docs/page-plans/war/sheets.md` | Structured per-nation or per-war cost output | `war sheet costsheet` |
-| `war_sheet_cost_by_resource` | `docs/page-plans/war/sheets.md` | Structured war-cost output broken down by resource | `war sheet costbyresource` |
-| `war_sheet_reimburse_by_nation` | `docs/page-plans/war/sheets.md` | Structured reimbursement output by nation | `war sheet reimbursebynation` |
+| Gap | Timing | Best shape | Used by | Current fallback | Why |
+| --- | --- | --- | --- | --- | --- |
+| `war target read models` | `Later` | new read models | `docs/page-plans/war/targets.md` | `war find *`, `spy find *`, `RAID`, `UNPROTECTED` | `Raid` and `Unprotected` already have native foundations. Additional war and spy tabs only need structured rows if they later need parity with the existing endpoint-native target experience. |
+| `war counter planner read model` | `Later` | new read model | `docs/page-plans/war/counters.md` | `war counter nation`, `war counter url`, `war counter auto` | A true counter planner needs structured candidate rows, fit scores, and selection context. The wrapper-first version can stay command-backed. |
+| `war counter sheet preview` | `Current` | `Preview` | `docs/page-plans/war/counters.md` | `war counter sheet` | This is preflight data for batch planning, so a dry-run or structured JSON mode is a better fit than a separate endpoint. |
+| `war room board read model` | `Later` | new read model | `docs/page-plans/war/rooms.md` | `war room list`, `settings_war_room *`, Discord links | The rooms page can start as a guided command console, but a real active-room board later needs structured room inventory and detail state. |
+| `war_room_create_preview` | `Current` | `Preview` | `docs/page-plans/war/rooms.md` | `war room create` | The page wants to preview affected enemies, members, and categories before channel creation. |
+| `war_room_batch_preview` | `Current` | `Preview` | `docs/page-plans/war/rooms.md` | `war room from_sheet` | Batch room creation needs structured preview rows before the command runs. |
+| `war sheet preview and validation JSON` | `Current` | `Preview` | `docs/page-plans/war/sheets.md` | `war sheet *`, graph endpoints | The browser page mainly needs preview rows, validation output, and export assumptions from existing sheet commands rather than a separate endpoint family. |
 
 ### Economy
 
-| Endpoint | Used by | Purpose | Current fallback |
-| --- | --- | --- | --- |
-| `accessible_bank_accounts` | `docs/page-plans/economy/holdings.md`, `docs/page-plans/economy/deposits.md` | List nation, alliance, guild, tax, and offshore account scopes visible to the user | inferred from session and `BANK_ACCESS` |
-| `account_holdings` | `docs/page-plans/economy/holdings.md` | Holdings summary for a selected bank account scope | `BALANCE` |
-| `deposit_investigation` | `docs/page-plans/economy/deposits.md` | Unified view of parked balances, notes, ignored amounts, and availability | `deposits check` and `BALANCE` |
-| `deposit_note_flows` | `docs/page-plans/economy/deposits.md`, `docs/page-plans/economy/ledger.md` | Structured note-flow and bookkeeping movement summary | `deposits flows`, `deposits shiftflow` |
-| `escrow_summary` | `docs/page-plans/economy/deposits.md` | Escrow balances and escrow-related constraints by nation or account | `escrow view_sheet` |
-| `expiring_balance_summary` | `docs/page-plans/economy/deposits.md` | Summary of expiring and decaying balances | `deposits check`, `deposits sheet` |
-| `offshore_account_summary` | `docs/page-plans/economy/deposits.md` | Structured offshore-account balances and routing context | `offshore accountsheet`, `offshore add` |
-| `deposit_correction_preview` | `docs/page-plans/economy/deposits.md` | Preview the effect of shift, reset, convert, or escrow corrections before submit | `deposits shift`, `deposits shiftflow`, `deposits convert`, `deposits reset`, `escrow *` |
-| `ledger_records` | `docs/page-plans/economy/ledger.md` | Filterable transaction record stream with typed fields | `RECORDS` and `bank records` |
-| `ledger_summary` | `docs/page-plans/economy/ledger.md` | Summary totals for the current ledger filter set | client-side summary over `RECORDS` or sheets |
-| `ledger_note_flow` | `docs/page-plans/economy/ledger.md` | Note-flow and category lineage for a selected record or note | `deposits flows` |
-| `ledger_correction_preview` | `docs/page-plans/economy/ledger.md` | Preview of balance impact before correction commands run | correction commands only |
-| `grant_requests` | `docs/page-plans/economy/grant-requests.md` | Queue of grant requests with scope and status filters | `grant request *` |
-| `grant_request_detail` | `docs/page-plans/economy/grant-requests.md` | Full detail for one grant request | command output only |
-| `grant_request_context` | `docs/page-plans/economy/grant-requests.md` | Eligibility, balance, recent-grant, and template context for review | ad hoc command combinations |
-| `grant_templates` | `docs/page-plans/economy/grant-templates.md` | Template library list with status and filters | `grant_template list` |
-| `grant_template_detail` | `docs/page-plans/economy/grant-templates.md` | Full structured template detail | `grant_template info` |
-| `grant_template_evaluation` | `docs/page-plans/economy/grant-templates.md` | Eligibility and send preview for a receiver and template | `grant_template info`, `grant_template send` |
-| `tax_member_status` | `docs/page-plans/economy/tax.md` | Member-level tax status, bracket assignment, and exception flags | `TABLE` over `DBNation` and tax commands |
-| `tax_records_json` | `docs/page-plans/economy/tax.md` | Structured tax deposit and tax record history | `tax records`, `tax deposits`, `TaxDeposit` workbench |
-| `tax_bracket_assignments` | `docs/page-plans/economy/tax.md` | Current assigned brackets, internal rates, and self-service eligibility | `tax bracketsheet`, `tax listbracketauto` |
-| `tax_automation_preview` | `docs/page-plans/economy/tax.md` | Preview of bracket automation or sheet-driven changes before submit | `tax setnationbracketauto`, `tax set_from_sheet` |
-| `trade_market_snapshot` | `docs/page-plans/economy/trade.md` | Fast current-price, spread, and volume snapshot for the market desk | multiple graph and command calls |
-| `trade_rankings` | `docs/page-plans/economy/trade.md` | Rankings for traders, producers, and resource movers | `trade ranking`, `trade findproducer`, `trade findtrader` |
-| `trade_profit_summary` | `docs/page-plans/economy/trade.md` | Profit summary by nation or alliance with drill-in support | `trade profit` |
-| `trade_alert_subscriptions` | `docs/page-plans/economy/trade.md` | Structured list of the current user's trade alerts | `alerts trade list` |
+| Gap | Timing | Best shape | Used by | Current fallback | Why |
+| --- | --- | --- | --- | --- | --- |
+| `accessible_bank_accounts` | `Current` | `Extend` | `docs/page-plans/economy/holdings.md`, `docs/page-plans/economy/deposits.md` | inferred from session and `BANK_ACCESS` | Multi-account holdings and deposits flows need an actual list of visible nation, alliance, guild, tax, and offshore scopes. |
+| `account_holdings` | `Current` | `Extend` | `docs/page-plans/economy/holdings.md` | `BALANCE` | The holdings page needs a scoped balance read for the selected account, which is best modeled as a broader `BALANCE` response. |
+| `deposit investigation read model` | `Later` | new read model | `docs/page-plans/economy/deposits.md` | `deposits check`, `BALANCE`, `RECORDS`, `escrow view_sheet`, `offshore accountSheet` | If `Deposits` later becomes a native investigation workspace, it needs one read model that covers parked balances, escrow, expiry, offshore context, and note-state summaries together. |
+| `deposit_correction_preview` | `Current` | `Preview` | `docs/page-plans/economy/deposits.md` | `deposits shift`, `deposits shiftFlow`, `deposits convert`, `deposits reset`, `escrow *` | Correction actions need safe balance-impact previews before submit. |
+| `ledger expansion` | `Current` | `Extend` | `docs/page-plans/economy/ledger.md` | `RECORDS`, `bank records`, `Transaction2` placeholder coverage | `/records` already exists; the gap is richer filters, typed fields, and filtered totals on the existing ledger foundation. |
+| `ledger_correction_preview` | `Current` | `Preview` | `docs/page-plans/economy/ledger.md` | correction commands | Ledger correction actions need the same dry-run balance-impact support as deposit corrections. |
+| `grant request queue read model` | `Current` | new read model | `docs/page-plans/economy/grant-requests.md` | `grant request create`, `grant request approve`, `grant request cancel`, `GrantRequest` query support | This is the clearest true queue gap: the browser can act on known request ids, but it cannot yet load a page-ready request queue with review context. |
+| `grant template library read model` | `Later` | new read model | `docs/page-plans/economy/grant-templates.md` | `grant_template list`, `grant_template info`, `AGrantTemplate` query support | The wrapper-first page can stay command-backed, but a dense library with filters, status chips, and fast side panes later needs structured list data. |
+| `tax derived read surfaces` | `Later` | `Extend` | `docs/page-plans/economy/tax.md` | `TABLE` over `DBNation`, `tax records`, `tax deposits`, `tax bracketsheet`, `tax listBracketAuto`, `TaxDeposit` coverage | Tax can start as settings plus tables, but member-status, record, and bracket-assignment views may later need richer derived data than current table coverage exposes. |
+| `tax_automation_preview` | `Current` | `Preview` | `docs/page-plans/economy/tax.md` | `tax setNationBracketAuto`, `tax set_from_sheet` | Bulk tax automation needs sample affected nations and resulting bracket changes before submit. |
+| `trade market and ranking read surfaces` | `Later` | `Extend` | `docs/page-plans/economy/trade.md` | trade graph endpoints, `trade ranking`, `trade findProducer`, `trade findTrader`, `DBTrade` coverage | The trade page can launch from graphs and commands now. Native snapshot and ranking surfaces only become necessary if the page later needs denser market-desk behavior. |
 
 ### Shared and Reusable
 
-| Endpoint | Used by | Purpose | Current fallback |
-| --- | --- | --- | --- |
-| `job_status` | `docs/page-plans/war/rooms.md`, `docs/page-plans/war/sheets.md` | Track long-running batch jobs, partial failures, and completion state | command output only |
-| `discord_category_inventory` | `docs/page-plans/war/rooms.md` | Structured Discord category inventory for room placement and readiness validation | `INPUT_OPTIONS` and channel commands |
-
-## Pages That Can Ship Without New Endpoints
-
-- `docs/page-plans/economy/grant-send.md`: can ship as a command-metadata-driven wizard over `BANK_ACCESS`, `BALANCE`, `INPUT_OPTIONS`, `COMMAND`, and `PERMISSION`.
-- `docs/page-plans/war/targets.md`: `Raid` and `Unprotected` modes already have endpoint-native foundations via `RAID` and `UNPROTECTED`; only the non-raid tabs need new reads.
-- `docs/page-plans/economy/holdings.md`: can evolve now around `BALANCE` and `WITHDRAW`, but full multi-account scope still needs `accessible_bank_accounts` and `account_holdings`.
+| Gap | Timing | Best shape | Used by | Current fallback | Why |
+| --- | --- | --- | --- | --- | --- |
+| `job_status` | `Later` | new read model | `docs/page-plans/war/rooms.md`, `docs/page-plans/war/sheets.md` | command output only | Only needed if long-running room or sheet workflows become reconnectable background jobs instead of request-response command runs. |
 
 ## Naming Rule
 
-- Endpoint names above are planning names, not locked API contracts.
-- When implementation starts, prefer endpoint names that describe the stable read model rather than the exact command they were born from.
+- The planning names above are not locked API contracts.
+- When implementation starts, prefer the smallest backend shape that matches the real page need:
+  - extend an existing endpoint when the page is growing out of an existing route foundation
+  - add preview or JSON output to a command when the need is preflight data rather than a durable resource
+  - add a new endpoint only when the page truly needs a stable list, detail, or summary model that command execution cannot represent cleanly

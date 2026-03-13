@@ -34,6 +34,15 @@ export const CMD_TRI_FILTER_DEFS: Array<{ key: CmdTriFilterKey; label: string }>
     { key: "role", label: "Role annotation" },
 ];
 
+export const CMD_BROWSER_SEARCH_PARAM_KEYS = Object.freeze([
+    "q",
+    "filters",
+    "hasArgs",
+    "roles",
+    "requiredArgs",
+    ...CMD_TRI_FILTER_DEFS.map(({ key }) => `tri_${key}`),
+]) as readonly string[];
+
 const TRI_STATE_VALUES = new Set<TriStateValue>(["-1", "0", "1"]);
 
 export function createDefaultCmdBrowserState(overrides?: Partial<CmdBrowserState>): CmdBrowserState {

@@ -4,6 +4,10 @@ import { Input, type InputProps } from "@/components/ui/input";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type DataAttributes = {
+    [key: `data-${string}`]: string | number | boolean | undefined;
+};
+
 type Props = {
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -11,7 +15,7 @@ type Props = {
     onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
     placeholder?: string;
     className?: string;
-    inputProps?: Omit<InputProps, "value" | "onChange" | "onKeyDown" | "placeholder" | "className">;
+    inputProps?: Omit<InputProps, "value" | "onChange" | "onKeyDown" | "placeholder" | "className"> & DataAttributes;
 };
 
 const SearchBar = React.forwardRef<HTMLInputElement, Props>(

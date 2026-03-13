@@ -6,6 +6,7 @@ import ReactGA from "react-ga4";
 import AutoRoutePrefetcher from "./components/AutoRoutePrefetcher";
 import Loading from "@/components/ui/loading";
 import { getRecoveryDetail, getRecoveryResetHref, getRecoverySummary, getRecoveryTitle, isLikelyRecoverableAssetError } from "@/lib/deployRecovery";
+import { CMD_BROWSER_SEARCH_PARAM_KEYS } from "@/components/cmd/cmdBrowserState";
 
 function handleCopyStackClick(e: React.MouseEvent<HTMLButtonElement>) {
   const text = e.currentTarget.dataset.stack;
@@ -41,6 +42,10 @@ export type RecentPageCachePolicy = {
 const RECENT_PAGE_CACHE_POLICY: RecentPageCachePolicy = {
   mode: "recent",
 };
+const COMMAND_BROWSER_PAGE_CACHE_POLICY: RecentPageCachePolicy = {
+  mode: "recent",
+  ignoredSearchParams: CMD_BROWSER_SEARCH_PARAM_KEYS,
+};
 const routeConfigs: AppRouteConfig[] = [
   /*
   protected = logged in
@@ -63,8 +68,8 @@ const routeConfigs: AppRouteConfig[] = [
   { key: "announcement", path: "/announcement", element: () => import("@/pages/announcements"), protected: true },
 
   // Commands (accessible to anyone)
-  { key: "commands", path: "/commands", element: () => import("./pages/commands"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-  { key: "command", path: "/command", element: () => import("./pages/commands"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
+  { key: "commands", path: "/commands", element: () => import("./pages/commands"), protected: false, cachePolicy: COMMAND_BROWSER_PAGE_CACHE_POLICY },
+  { key: "command", path: "/command", element: () => import("./pages/commands"), protected: false, cachePolicy: COMMAND_BROWSER_PAGE_CACHE_POLICY },
   { key: "command_detail", path: "/command/:command", element: () => import("./pages/command"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
   // Display command result (anyone - but only select commands support)
   { key: "view_command", path: "/view_command/:command", element: () => import("./pages/command/view_command"), protected: false },

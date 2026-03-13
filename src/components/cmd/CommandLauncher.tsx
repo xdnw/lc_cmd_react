@@ -1,6 +1,6 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import CmdList from "@/components/cmd/CmdList";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
@@ -42,7 +42,42 @@ function buildExpandButton(onClick: () => void, title: string) {
     );
 }
 
+const COMMAND_BROWSER_PAGE_SEARCH_SELECTOR = '[data-command-browser-search="page"]';
+
+function focusSearchInput(input: HTMLInputElement | null | undefined): boolean {
+    if (!input || input.disabled) {
+        return false;
+    }
+
+    input.focus();
+    input.select();
+    return document.activeElement === input;
+}
+
+function isCommandBrowserPagePath(pathname: string): boolean {
+    return pathname === "/commands" || pathname === "/command";
+}
+
+function getActiveCommandBrowserPageSearchInput(): HTMLInputElement | null {
+    const pageSearchInputs = Array.from(document.querySelectorAll<HTMLInputElement>(COMMAND_BROWSER_PAGE_SEARCH_SELECTOR));
+
+    for (const input of pageSearchInputs) {
+        if (input.disabled) {
+            continue;
+        }
+
+        if (input.matches("[hidden], [aria-hidden='true']") || input.closest("[hidden], [aria-hidden='true'], [inert]")) {
+            continue;
+        }
+
+        return input;
+    }
+
+    return null;
+}
+
 export default function CommandLauncher() {
+    const location = useLocation();
     const navigate = useNavigate();
     const allCommands = useMemo(() => CM.getCommands(), []);
     const browserDialogRef = useRef<HTMLDivElement | null>(null);
@@ -92,13 +127,16 @@ export default function CommandLauncher() {
             event.preventDefault();
 
             if (browserOpen) {
-                const searchInput = browserDialogRef.current?.querySelector<HTMLInputElement>("input");
-                searchInput?.focus();
-                searchInput?.select();
+                focusSearchInput(browserDialogRef.current?.querySelector<HTMLInputElement>("input"));
                 return;
             }
 
             if (commandModalState !== null) {
+                return;
+            }
+
+            if (isCommandBrowserPagePath(location.pathname)) {
+                focusSearchInput(getActiveCommandBrowserPageSearchInput());
                 return;
             }
 
@@ -135,7 +173,7 @@ export default function CommandLauncher() {
             window.removeEventListener("keydown", handleKeyDown, true);
             window.removeEventListener("paste", handlePaste, true);
         };
-    }, [browserOpen, commandModalState, openBrowser, openCommand, resolveCommandForLaunch]);
+    }, [browserOpen, commandModalState, location.pathname, openBrowser, openCommand, resolveCommandForLaunch]);
 
     const activeCommand = useMemo(() => {
         if (!commandModalState) {
@@ -180,9 +218,7 @@ export default function CommandLauncher() {
 
     const handleBrowserOpenAutoFocus = useCallback((event: Event) => {
         event.preventDefault();
-        const searchInput = browserDialogRef.current?.querySelector<HTMLInputElement>('input');
-        searchInput?.focus();
-        searchInput?.select();
+        focusSearchInput(browserDialogRef.current?.querySelector<HTMLInputElement>("input"));
     }, []);
 
     const handleCommandOpenAutoFocus = useCallback((event: Event) => {

@@ -8,18 +8,22 @@ export type ActionWithDetailSpec = ActionWithDetailRole & {
     };
 };
 
-export function withActionPrefillArgs<Context, BuildArgs, Action extends {
-    prefillArgs?: (context: Context) => BuildArgs;
-    buildArgs: (...args: unknown[]) => BuildArgs;
-}>(
-    action: Action,
-    context: Context,
-): Action {
-    if (!action.prefillArgs) return action;
+type PrefillableAction<PrefillContext, BuildContext, BuildArgs> = {
+    prefillArgs?: (context: PrefillContext) => BuildArgs;
+    buildArgs: (context: BuildContext) => BuildArgs;
+};
+
+export function withActionPrefillArgs<PrefillContext, BuildContext, BuildArgs, Extra extends object>(
+    action: Extra & PrefillableAction<PrefillContext, BuildContext, BuildArgs>,
+    context: PrefillContext,
+): Extra & PrefillableAction<PrefillContext, BuildContext, BuildArgs> {
+    const { prefillArgs } = action;
+
+    if (!prefillArgs) return action;
 
     return {
         ...action,
-        buildArgs: (() => action.prefillArgs!(context)) as Action["buildArgs"],
+        buildArgs: (_buildContext: BuildContext) => prefillArgs(context),
     };
 }
 

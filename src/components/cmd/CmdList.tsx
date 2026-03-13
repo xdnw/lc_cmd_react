@@ -630,11 +630,13 @@ export default function CmdList({
                             placeholder={`Search ${prefix}commands`}
                             inputProps={{
                                 role: "combobox",
+                                "aria-label": modalMode ? "Command launcher search" : "Command list search",
                                 "aria-autocomplete": "list",
                                 "aria-expanded": filteredCommands.length > 0,
                                 "aria-haspopup": "listbox",
                                 "aria-controls": listboxId,
                                 "aria-activedescendant": activeDescendantId,
+                                "data-command-browser-search": modalMode ? "modal" : "page",
                             }}
                             className={cn(
                                 "rounded-md border-input/80 bg-background/90 text-sm shadow-none",

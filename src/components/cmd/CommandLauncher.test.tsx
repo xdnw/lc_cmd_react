@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigateMock = vi.fn();
+const useLocationMock = vi.fn(() => ({ pathname: "/command/test" }));
 const mockCommand = {
   name: "alpha",
   getPathString: () => "alpha",
@@ -11,7 +12,7 @@ const mockCommand = {
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
-  useLocation: () => ({ pathname: "/command/test" }),
+  useLocation: () => useLocationMock(),
   Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => <a href={to} className={className}>{children}</a>,
 }));
 
@@ -129,6 +130,7 @@ function renderLauncher(children: ReactNode = <CommandLauncher />) {
 describe("CommandLauncher", () => {
   beforeEach(() => {
     navigateMock.mockReset();
+    useLocationMock.mockReturnValue({ pathname: "/command/test" });
   });
 
   afterEach(() => {
@@ -158,6 +160,27 @@ describe("CommandLauncher", () => {
 
     fireEvent.keyDown(window, { key: "/" });
     expect(screen.getByTestId("browser-query").textContent).toBe("alpha");
+  });
+
+  it("focuses the existing command list page search instead of opening the modal", () => {
+    useLocationMock.mockReturnValue({ pathname: "/commands" });
+
+    renderLauncher(
+      <>
+        <div hidden aria-hidden="true">
+          <input data-command-browser-search="page" aria-label="Stale command list search" />
+        </div>
+        <input data-command-browser-search="page" aria-label="Command list search" />
+        <CommandLauncher />
+      </>,
+    );
+
+    const pageSearch = screen.getByRole("textbox", { name: /command list search/i });
+
+    fireEvent.keyDown(window, { key: "/" });
+
+    expect(document.activeElement).toBe(pageSearch);
+    expect(screen.queryByTestId("dialog-root")).toBeNull();
   });
 
   it("restores the browser snapshot when the command shell requests back", () => {

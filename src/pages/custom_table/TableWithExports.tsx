@@ -10,7 +10,7 @@ import { JSONValue } from "@/lib/internaltypes";
 import { ConfigColumns } from "./DataTable";
 import { useCallback, useMemo } from "react";
 
-const SHEET_CUSTOM_IMPORT_JSON_COMMAND = ["sheet_custom", "import_json"] as const;
+const SHEET_CUSTOM_IMPORT_JSON_COMMAND: ["sheet_custom", "import_json"] = ["sheet_custom", "import_json"];
 
 export function GoogleSheets({ type, selection, columns }: {
     readonly type: string

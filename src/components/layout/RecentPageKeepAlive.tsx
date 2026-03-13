@@ -45,7 +45,7 @@ type CacheEntry = {
   scrollY: number;
 };
 
-function normalizeSearchParams(search: string, policy?: RecentPageCachePolicy): string {
+export function normalizeRecentPageSearchParams(search: string, policy?: RecentPageCachePolicy): string {
   if (!search) {
     return "";
   }
@@ -91,8 +91,8 @@ function resolveRouteConfig(routeConfigs: readonly AppRouteConfig[], pathname: s
   return bestMatch?.config ?? null;
 }
 
-function buildCacheKey(pathname: string, search: string, policy?: RecentPageCachePolicy): string {
-  return `${pathname}${normalizeSearchParams(search, policy)}`;
+export function buildRecentPageCacheKey(pathname: string, search: string, policy?: RecentPageCachePolicy): string {
+  return `${pathname}${normalizeRecentPageSearchParams(search, policy)}`;
 }
 
 function evictLeastRecentEntries(entries: CacheEntry[], activeKey: string): CacheEntry[] {
@@ -177,7 +177,7 @@ export default function RecentPageKeepAlive({
       return null;
     }
 
-    return buildCacheKey(location.pathname, location.search, cachePolicy);
+    return buildRecentPageCacheKey(location.pathname, location.search, cachePolicy);
   }, [cachePolicy, isCacheableRoute, location.pathname, location.search]);
   const snapshot = useMemo<CachedRouteSnapshot>(() => ({
     dataRouter: dataRouterContext,

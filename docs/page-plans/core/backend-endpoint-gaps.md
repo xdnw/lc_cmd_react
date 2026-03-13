@@ -2,7 +2,7 @@
 
 - Status: `Cross-cutting`
 - Scope: `Members`, `War`, and `Economy` page plans
-- Related briefs: `docs/page-plans/members/*.md`, `docs/page-plans/war/*.md`, `docs/page-plans/economy/*.md`
+- Related briefs: `docs/page-plans/core/backend-endpoint-shapes.md`, `docs/page-plans/members/*.md`, `docs/page-plans/war/*.md`, `docs/page-plans/economy/*.md`
 - Current references: `src/lib/endpoints.ts`, `src/lib/commands.ts`, `src/pages/a2/conflict/conflicts.tsx`, `src/pages/raid/index.tsx`, `src/pages/balance/index.tsx`, `src/pages/records/index.tsx`, `src/pages/guild_member/index.tsx`, `src/pages/command/index.tsx`, `src/pages/settings/index.tsx`
 
 ## Why It Exists

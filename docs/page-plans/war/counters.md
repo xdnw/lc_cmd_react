@@ -46,8 +46,9 @@
 ## Data and Endpoints
 
 - Existing endpoints: `COMMAND`, `TABLE`, `PERMISSION`, and supporting graphs like `STRENGTHTIERGRAPH` and `CITYTIERGRAPH`.
-- Existing table / graph / placeholder substrate: graphs and table workbenches can provide context, but not candidate generation, readiness scoring, or counter-specific selection state.
-- New endpoints likely needed: `war_counter_nation`, `war_counter_url`, `war_counter_auto`, and `war_counter_sheet_preview` are needed if this page is to stop rendering command-backed result blobs.
+- Existing table / graph / placeholder substrate: graphs and table workbenches can provide context, but not batch counter preview rows.
+- Current backend gap: `war counter sheet` needs structured preview rows with enemy, suggested attackers, fit score or warnings, and blocked rows.
+- Not current: separate native reads for `war counter nation`, `war counter url`, and `war counter auto`.
 
 ## Command Bindings
 
@@ -67,7 +68,9 @@
 
 ## Risks and Open Questions
 
-- Without JSON endpoints this page will be stuck rendering command output rather than a usable planner.
+- Without `war counter sheet` JSON, sheet mode will stay raw command output; single-target modes can still start command-backed.
 - Need to avoid over-trusting automated recommendations when member responsiveness matters.
 - A counter page should make policy and uncertainty visible, not hide them behind a single button.
-- Until those endpoints exist, the page should stay honest about being a planner shell around command-backed searches.
+- Until then, the page should stay honest about single-target planning being command-backed.
+
+

@@ -47,7 +47,8 @@
 
 - Existing endpoints: `BALANCE`, `BANK_ACCESS`, `WITHDRAW`, `COMMAND`.
 - Existing table / graph / placeholder substrate: the current balance read and withdraw submit flow are already web-native, but the read model is too narrow for multi-account alliance, guild, tax, and offshore work.
-- New endpoints likely needed: `accessible_bank_accounts` and `account_holdings` or an expanded `BALANCE` are needed if the page is expected to switch cleanly between nation, alliance, guild, tax, and offshore contexts.
+- Current backend gap: `BANK_ACCESS` needs explicit `accounts[]` rows with stable ids, labels, default, and withdraw flags for each accessible account scope.
+- Current backend gap: `BALANCE` needs an account selector beyond `nation`, plus selected-account identity and `available`, `escrow`, `expired`, and `ignored` buckets.
 
 ## Command Bindings
 

@@ -44,7 +44,8 @@
 
 - Existing endpoints: `COMMAND`, `TABLE`, `INPUT_OPTIONS`, `PERMISSION`.
 - Existing table / graph / placeholder substrate: `settings_bank_grants *` already defines request-channel behavior and defaults, but there is no request queue or review read model.
-- New endpoints likely needed: `grant_requests`, `grant_request_detail`, and `grant_request_context` are needed for a first-class review queue.
+- Current backend gap: one `grant_requests` queue read with request id, requester, receiver, status, reason preview, estimated amounts, and blocking flags.
+- Not current: separate detail or context endpoints until the queue row proves insufficient.
 
 ## Command Bindings
 

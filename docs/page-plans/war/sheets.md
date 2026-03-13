@@ -43,8 +43,11 @@
 ## Data and Endpoints
 
 - Existing endpoints: supporting graph endpoints like `WARSCOSTRANKINGBYDAY`, `WARCOSTSBYDAY`, `WARATTACKSBYDAY`, `STRENGTHTIERGRAPH`, `CITYTIERGRAPH`, plus `COMMAND`.
-- Existing table / graph / placeholder substrate: strong supporting context exists, but sheet preview, validation, and cost outputs are still command-generated rather than exposed as structured JSON.
-- New endpoints likely needed: `war_sheet_blitz_preview`, `war_sheet_validation`, `war_sheet_raid_preview`, `war_sheet_active_wars`, `war_sheet_costsheet`, `war_sheet_cost_by_resource`, `war_sheet_reimburse_by_nation`, and shared `job_status` are needed for a first-class page.
+- Existing table / graph / placeholder substrate: strong supporting context exists, but sheet preview, validation, and cost outputs are still command-generated rather than exposed as structured rows.
+- Current backend gap: `war sheet validate` needs row-level validation JSON with row number, status, and messages.
+- Current backend gap: `war sheet blitzsheet` and `war sheet raid` need assignment-preview rows and warnings if those tabs render native tables.
+- Current backend gap: `war sheet costsheet`, `war sheet costbyresource`, and `war sheet reimbursebynation` need typed rows only for the cost tabs the page actually renders.
+- Not current: a separate `war sheet` endpoint family; the missing work is structured output on the existing commands.
 
 ## Command Bindings
 

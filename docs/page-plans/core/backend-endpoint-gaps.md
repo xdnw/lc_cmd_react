@@ -3,74 +3,48 @@
 - Status: `Cross-cutting`
 - Scope: `Members`, `War`, and `Economy` page plans
 - Related briefs: `docs/page-plans/core/backend-endpoint-shapes.md`, `docs/page-plans/members/*.md`, `docs/page-plans/war/*.md`, `docs/page-plans/economy/*.md`
-- Current references: `src/lib/endpoints.ts`, `src/lib/commands.ts`, `src/pages/a2/conflict/conflicts.tsx`, `src/pages/raid/index.tsx`, `src/pages/balance/index.tsx`, `src/pages/records/index.tsx`, `src/pages/guild_member/index.tsx`, `src/pages/command/index.tsx`, `src/pages/settings/index.tsx`
+- Current references: `src/lib/endpoints.ts`, `src/lib/apitypes.d.ts`, `src/lib/commands.ts`, `src/pages/raid/index.tsx`, `src/pages/balance/index.tsx`, `src/pages/records/index.tsx`, `src/pages/settings/index.tsx`, `scripts/list-placeholders.cjs`
 
-## Why It Exists
+## Existing Web-Native Surfaces
 
-- The remaining page plans use a mixed substrate: some flows already have real read endpoints, some are settings-backed, and many are still command-wrapped.
-- This document only lists backend work that still remains after accounting for current command-backed browser flows, settings-backed pages, and existing route foundations.
-- If a workflow can already ship cleanly through the command UI, settings UI, `TABLE`, or current page endpoints, it is not listed here as a backend gap.
+- `BALANCE` currently accepts only `nation` and returns `WebBalance { id, is_aa, total, include_grants, access, breakdown, no_access_msg? }`.
+- `BANK_ACCESS` currently returns only `WebBankAccess { access }`.
+- `RECORDS` already exists, but it is a `WebTable` route rather than typed transaction JSON.
+- `RAID` and `UNPROTECTED` are the only current native target-finding reads.
+- `TAX_EXPENSE` exists for expense reporting, but Tax member and record views otherwise lean on `TABLE` and commands.
 
-## Existing Foundations
+## Current Backend Gaps
 
-- `Members`: no dedicated onboarding or recruitment endpoints exist today; current substrate is `TABLE`, `COMMAND`, `settings_interview *`, `settings_recruit *`, and `interview *`.
-- `War`: `RAID` and `UNPROTECTED` already power the raid tool; the rest of the war workflow is command-backed plus graph support.
-- `Economy`: `BALANCE`, `RECORDS`, `WITHDRAW`, `BANK_ACCESS`, `TAX_EXPENSE`, and trade graph endpoints exist, but most multi-account, queue, and investigation workflows still depend on commands.
+| Area | Exact gap | Needed now | Existing substrate | Why it is current |
+| --- | --- | --- | --- | --- |
+| `Recruitment` | `recruitment_timed_messages` | Read existing timed-message rows with stable id, trigger, delay, subject or body preview, output target, and validity. | `GuildSetting`, `settings_recruit add_timed_message`, `settings_recruit remove_timed_message` | `GuildSetting` covers settings values, but not the timed-message list the page needs to render and edit. |
+| `Holdings`, `Deposits` | explicit bank account list | Add explicit selectable account rows for nation, alliance, guild, tax, and offshore scopes. | `BANK_ACCESS.access` | The current access map does not tell the UI which accounts exist or how to label them. |
+| `Holdings` | account-scoped balance read | Query by selected account, not only nation, and return selected account identity plus available, escrow, expired, and ignored buckets. | `BALANCE` | The current route is nation-shaped and does not separate blocked balances. |
+| `Ledger` | typed records JSON | Add account-aware filters and typed transaction rows with transaction id, sender and receiver identity, note/category, market value, and expiry or escrow flags. | `RECORDS`, `Transaction2` | The current `WebTable` output and placeholder coverage are too thin for ledger filters and drawers. |
+| `Deposits`, `Ledger` | correction preview | Add JSON or dry-run output for `deposits shift`, `deposits shiftflow`, `deposits convert`, `deposits reset`, and similar correction actions. | command output only | These actions are risky enough that the page needs authoritative before or after preview data. |
+| `Grant Requests` | request queue read | One queue read with request id, requester, receiver, status, reason preview, estimated amounts, and blocking flags. | `grant request *`, `settings_bank_grants *`, query support for `GrantRequest` only | The browser can act on known request ids, but it cannot load a queue to review. |
+| `Counters` | `war counter sheet` JSON output | Structured rows for enemy targets, suggested attackers, fit or warnings, and blocked rows. | `war counter sheet` command output | Sheet mode needs a real table, not a command blob. |
+| `War Rooms` | room-create preview | Structured preview for `war room create` and `war room from_sheet` showing room name, enemy, attackers, category, and warnings. | `war room create`, `war room from_sheet` | Safe room creation depends on previewing the Discord side effects first. |
+| `War Sheets` | structured sheet outputs | JSON output on the existing `war sheet` commands used by the page, especially `validate`, `blitzsheet`, `raid`, and any rendered cost or reimbursement tabs. | `war sheet *` command output | The page needs row-level validation, preview, and cost tables rather than export text. |
+| `Tax` | automation preview | Preview output for `tax setnationbracketauto` and `tax set_from_sheet` showing affected nations, current bracket, target bracket, and warnings. | `tax setnationbracketauto`, `tax set_from_sheet` | Bulk bracket changes need a review step before submit. |
 
-## Gap Legend
+## Not Current
 
-- `Current`: worth adding for the planned page shape now.
-- `Later`: not required for the wrapper-first version, but needed if the page is later promoted into a dense native desk.
-- `Extend`: prefer expanding an existing endpoint or read surface instead of creating a brand-new endpoint.
-- `Preview`: prefer dry-run or structured JSON output on an existing command instead of a separate resource endpoint.
+| Area | Deferred gap | Why it is not current |
+| --- | --- | --- |
+| `Interviews` | unified interview queue or channel-state read | The first page can wrap `interview iachannels`, `interview listmentors`, `interview sheet`, `audit *`, and `DBNation` tables. |
+| `Targets` | native `war find *` and `spy *` read family | `RAID` and `UNPROTECTED` already cover the native target experience; war and spy tabs can start command-backed. |
+| `Counters` | native reads for `war counter nation`, `war counter url`, or `war counter auto` | Single-target counter planning can stay command-backed until it proves it needs parity with sheet mode. |
+| `War Rooms` | room inventory, room detail, category inventory, or `job_status` | The first page can focus on safe creation and cleanup instead of a live room board. |
+| `Deposits` | dedicated investigation read family | The wrapper version can rely on `BALANCE`, `RECORDS`, `TABLE`, and command flows for now. |
+| `Grant Templates` | template library or evaluation read family | The first page can wrap `grant_template list`, `grant_template info`, and `grant_template send`. |
+| `Tax` | dedicated member-status or record endpoints | Member and record tabs can start from `TABLE`, `TAX_EXPENSE`, and `settings_tax`. |
+| `Trade` | market snapshot, ranking, profit, or alert endpoints | Graphs and existing trade or alert commands are enough for the first page. |
 
-## Gaps
+## Not Backend Gaps
 
-### Members
-
-| Gap | Timing | Best shape | Used by | Current fallback | Why |
-| --- | --- | --- | --- | --- | --- |
-| `interview desk read model` | `Later` | new read model | `docs/page-plans/members/interviews.md` | `interview iachannels`, `interview listmentors`, `interview mymentees`, `DBNation` tables, `audit *` | If `Interviews` is promoted from command shell to native IA desk, it will need one response family that covers queue rows, selected-detail context, mentor load, and channel state together. |
-| `recruitment_timed_messages` | `Current` | new read or recruitment-summary extension | `docs/page-plans/members/recruitment.md` | `settings_recruit add_timed_message`, `settings_recruit remove_timed_message` | The recruitment page wants an actual timed-message builder, and current commands only mutate existing state. |
-
-### War
-
-| Gap | Timing | Best shape | Used by | Current fallback | Why |
-| --- | --- | --- | --- | --- | --- |
-| `war target read models` | `Later` | new read models | `docs/page-plans/war/targets.md` | `war find *`, `spy find *`, `RAID`, `UNPROTECTED` | `Raid` and `Unprotected` already have native foundations. Additional war and spy tabs only need structured rows if they later need parity with the existing endpoint-native target experience. |
-| `war counter planner read model` | `Later` | new read model | `docs/page-plans/war/counters.md` | `war counter nation`, `war counter url`, `war counter auto` | A true counter planner needs structured candidate rows, fit scores, and selection context. The wrapper-first version can stay command-backed. |
-| `war counter sheet preview` | `Current` | `Preview` | `docs/page-plans/war/counters.md` | `war counter sheet` | This is preflight data for batch planning, so a dry-run or structured JSON mode is a better fit than a separate endpoint. |
-| `war room board read model` | `Later` | new read model | `docs/page-plans/war/rooms.md` | `war room list`, `settings_war_room *`, Discord links | The rooms page can start as a guided command console, but a real active-room board later needs structured room inventory and detail state. |
-| `war_room_create_preview` | `Current` | `Preview` | `docs/page-plans/war/rooms.md` | `war room create` | The page wants to preview affected enemies, members, and categories before channel creation. |
-| `war_room_batch_preview` | `Current` | `Preview` | `docs/page-plans/war/rooms.md` | `war room from_sheet` | Batch room creation needs structured preview rows before the command runs. |
-| `war sheet preview and validation JSON` | `Current` | `Preview` | `docs/page-plans/war/sheets.md` | `war sheet *`, graph endpoints | The browser page mainly needs preview rows, validation output, and export assumptions from existing sheet commands rather than a separate endpoint family. |
-
-### Economy
-
-| Gap | Timing | Best shape | Used by | Current fallback | Why |
-| --- | --- | --- | --- | --- | --- |
-| `accessible_bank_accounts` | `Current` | `Extend` | `docs/page-plans/economy/holdings.md`, `docs/page-plans/economy/deposits.md` | inferred from session and `BANK_ACCESS` | Multi-account holdings and deposits flows need an actual list of visible nation, alliance, guild, tax, and offshore scopes. |
-| `account_holdings` | `Current` | `Extend` | `docs/page-plans/economy/holdings.md` | `BALANCE` | The holdings page needs a scoped balance read for the selected account, which is best modeled as a broader `BALANCE` response. |
-| `deposit investigation read model` | `Later` | new read model | `docs/page-plans/economy/deposits.md` | `deposits check`, `BALANCE`, `RECORDS`, `escrow view_sheet`, `offshore accountSheet` | If `Deposits` later becomes a native investigation workspace, it needs one read model that covers parked balances, escrow, expiry, offshore context, and note-state summaries together. |
-| `deposit_correction_preview` | `Current` | `Preview` | `docs/page-plans/economy/deposits.md` | `deposits shift`, `deposits shiftFlow`, `deposits convert`, `deposits reset`, `escrow *` | Correction actions need safe balance-impact previews before submit. |
-| `ledger expansion` | `Current` | `Extend` | `docs/page-plans/economy/ledger.md` | `RECORDS`, `bank records`, `Transaction2` placeholder coverage | `/records` already exists; the gap is richer filters, typed fields, and filtered totals on the existing ledger foundation. |
-| `ledger_correction_preview` | `Current` | `Preview` | `docs/page-plans/economy/ledger.md` | correction commands | Ledger correction actions need the same dry-run balance-impact support as deposit corrections. |
-| `grant request queue read model` | `Current` | new read model | `docs/page-plans/economy/grant-requests.md` | `grant request create`, `grant request approve`, `grant request cancel`, `GrantRequest` query support | This is the clearest true queue gap: the browser can act on known request ids, but it cannot yet load a page-ready request queue with review context. |
-| `grant template library read model` | `Later` | new read model | `docs/page-plans/economy/grant-templates.md` | `grant_template list`, `grant_template info`, `AGrantTemplate` query support | The wrapper-first page can stay command-backed, but a dense library with filters, status chips, and fast side panes later needs structured list data. |
-| `tax derived read surfaces` | `Later` | `Extend` | `docs/page-plans/economy/tax.md` | `TABLE` over `DBNation`, `tax records`, `tax deposits`, `tax bracketsheet`, `tax listBracketAuto`, `TaxDeposit` coverage | Tax can start as settings plus tables, but member-status, record, and bracket-assignment views may later need richer derived data than current table coverage exposes. |
-| `tax_automation_preview` | `Current` | `Preview` | `docs/page-plans/economy/tax.md` | `tax setNationBracketAuto`, `tax set_from_sheet` | Bulk tax automation needs sample affected nations and resulting bracket changes before submit. |
-| `trade market and ranking read surfaces` | `Later` | `Extend` | `docs/page-plans/economy/trade.md` | trade graph endpoints, `trade ranking`, `trade findProducer`, `trade findTrader`, `DBTrade` coverage | The trade page can launch from graphs and commands now. Native snapshot and ranking surfaces only become necessary if the page later needs denser market-desk behavior. |
-
-### Shared and Reusable
-
-| Gap | Timing | Best shape | Used by | Current fallback | Why |
-| --- | --- | --- | --- | --- | --- |
-| `job_status` | `Later` | new read model | `docs/page-plans/war/rooms.md`, `docs/page-plans/war/sheets.md` | command output only | Only needed if long-running room or sheet workflows become reconnectable background jobs instead of request-response command runs. |
-
-## Naming Rule
-
-- The planning names above are not locked API contracts.
-- When implementation starts, prefer the smallest backend shape that matches the real page need:
-  - extend an existing endpoint when the page is growing out of an existing route foundation
-  - add preview or JSON output to a command when the need is preflight data rather than a durable resource
-  - add a new endpoint only when the page truly needs a stable list, detail, or summary model that command execution cannot represent cleanly
+- `Recruitment` does not need a `recruitment_settings_summary` endpoint. `GuildSetting` already covers applicant and recruit message settings.
+- `Tax` does not need a tax policy summary endpoint. `settings_tax` remains the source of truth.
+- `Grant Requests` does not need separate detail or context endpoints until a single queue response proves insufficient.
+- `Grant Send` does not need a new submit endpoint for the first version.
+- `GrantRequest` and `AGrantTemplate` are not current `TABLE` placeholder types, so pages should not assume `TABLE` can read them today.

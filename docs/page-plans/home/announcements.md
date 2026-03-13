@@ -44,7 +44,9 @@
 
 - Existing endpoints: `ANNOUNCEMENT_TITLES`, `VIEW_ANNOUNCEMENT`, `READ_ANNOUNCEMENT`, `UNREAD_ANNOUNCEMENT`, `MARK_ALL_READ`, `UNREAD_COUNT`.
 - Existing table / graph / placeholder substrate: not required for inbox MVP.
-- New endpoints likely needed: none for inbox MVP; optional `announcement_search` or `announcement_preview` endpoints could help later, but outbound send can start command-backed.
+- Current backend gaps: none for inbox MVP.
+- Existing announcement endpoints already cover list, detail, and read state.
+- Later only if composer variation preview cannot be derived from current command output: search or preview output for outbound announcement commands.
 
 ## Command Bindings
 

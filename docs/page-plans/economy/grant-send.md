@@ -46,7 +46,9 @@
 
 - Existing endpoints: `BANK_ACCESS`, `BALANCE`, `INPUT_OPTIONS`, `COMMAND`, `PERMISSION`.
 - Existing table / graph / placeholder substrate: command metadata is the authoritative argument source and should continue to drive the low-level form sections.
-- New endpoints likely needed: none for an MVP submit flow. `grant_preview` or `grant_eligibility` would improve warnings later, but this page does not need a bespoke submit API to exist.
+- Current backend gaps: none for the first submit flow.
+- Existing `BANK_ACCESS`, `BALANCE`, `INPUT_OPTIONS`, command metadata, and command preview are enough to build the wizard.
+- Later only if warning quality is still weak: grant preflight or eligibility output, not a new submit API.
 
 ## Command Bindings
 

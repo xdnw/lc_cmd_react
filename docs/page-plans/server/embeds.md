@@ -47,7 +47,9 @@
 - Existing endpoints: `COMMAND`, `PERMISSION`.
 - Existing table / graph / placeholder substrate: none obvious for current embed inventory.
 - Existing command substrate: `embed info`, `embed template *`, and the command runner already cover the essential inspect and mutate flows for a wrapped builder.
-- New endpoints likely needed: embed library, embed detail, and preview-state endpoints would be useful for a truly native builder later.
+- Current backend gaps: none for the first wrapped builder.
+- Existing `embed info`, `embed template *`, and mutate commands are enough to ship the page.
+- Later only if browse/edit loops become a real blocker: embed library, detail, and preview-state reads.
 
 ## Command Bindings
 

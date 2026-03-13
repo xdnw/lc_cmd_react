@@ -44,7 +44,8 @@
 
 - Existing endpoints: `TAX_EXPENSE`, `TABLE`, `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`.
 - Existing table / graph / placeholder substrate: `TaxDeposit`, `TaxBracket`, and `DBNation` placeholder tables can cover some records and member views, and `settings_tax` remains the policy source of truth.
-- New endpoints likely needed: `tax_member_status`, `tax_records_json`, `tax_bracket_assignments`, and `tax_automation_preview` are needed if the page is to be more than settings links plus sheet and command wrappers.
+- Current backend gap: bulk automation preview for `tax setnationbracketauto` and `tax set_from_sheet`, showing affected nations, current bracket, target bracket, and warnings.
+- Not current: dedicated member-status, record, or bracket-assignment endpoints; first version can use `TABLE`, `TAX_EXPENSE`, and `settings_tax`.
 
 ## Command Bindings
 

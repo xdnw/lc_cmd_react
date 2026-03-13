@@ -44,7 +44,9 @@
 
 - Existing endpoints: `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`.
 - Existing table / graph / placeholder substrate: `AGrantTemplate` query support exists for inputs, but there is no template list or detail JSON surface.
-- New endpoints likely needed: `grant_templates`, `grant_template_detail`, and `grant_template_evaluation` are needed for a strong library and builder page.
+- Current backend gaps: none for the first wrapped page.
+- Existing `grant_template list`, `grant_template info`, and `grant_template send` are enough to ship a command-backed library.
+- Later only if browsing becomes a workflow blocker: template list, detail, and evaluation reads.
 
 ## Command Bindings
 

@@ -47,7 +47,9 @@
 
 - Existing endpoints: `BALANCE`, `RECORDS`, `TABLE`, `COMMAND`, `INPUT_OPTIONS`.
 - Existing table / graph / placeholder substrate: `TaxDeposit`, `Transaction2`, and `DBNation` workbenches can assist with analysis, but they do not provide a comfortable deposit, escrow, or offshore investigation model by themselves.
-- New endpoints likely needed: `deposit_investigation`, `deposit_note_flows`, `escrow_summary`, `expiring_balance_summary`, `offshore_account_summary`, and `deposit_correction_preview` are needed for a first-class deposits page.
+- Current backend gap: this page depends on the holdings-side `BANK_ACCESS` and `BALANCE` expansion so it can inspect the correct nation, alliance, guild, tax, or offshore account.
+- Current backend gap: correction actions need preview JSON for `deposits shift`, `deposits shiftflow`, `deposits convert`, `deposits reset`, and related `escrow` actions.
+- Not current: a dedicated deposit investigation read family.
 
 ## Command Bindings
 

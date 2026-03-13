@@ -45,7 +45,8 @@
 
 - Existing endpoints: `RECORDS`, `COMMAND`, `TABLE`.
 - Existing table / graph / placeholder substrate: `Transaction2` exists as a placeholder type, but its current web-facing coverage is too thin to power a serious ledger explorer.
-- New endpoints likely needed: `ledger_records`, `ledger_summary`, `ledger_note_flow`, and `ledger_correction_preview` are needed if `/records` is going to evolve into a true ledger workspace.
+- Current backend gap: `RECORDS` needs account-aware filters and typed transaction rows with transaction id, sender and receiver identity, note/category, market value, and expiry, ignored, or escrow flags.
+- Current backend gap: correction actions need the same preview JSON used by `Deposits`.
 
 ## Command Bindings
 

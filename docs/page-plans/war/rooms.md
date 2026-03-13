@@ -44,8 +44,10 @@
 ## Data and Endpoints
 
 - Existing endpoints: `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`, and `TABLE` for related readiness settings.
-- Existing table / graph / placeholder substrate: `settings_war_room *` and channel-linked settings can expose readiness, but there is no web-native room list or category inventory.
-- New endpoints likely needed: `war_room_list`, `war_room_detail`, `war_room_create_preview`, `war_room_batch_preview`, `discord_category_inventory`, and a shared `job_status` endpoint are needed for a true room-management board.
+- Existing table / graph / placeholder substrate: `settings_war_room *` and channel-linked settings can expose readiness.
+- Current backend gap: `war room create` needs preview rows showing room name, enemy, attackers, chosen category, and warnings before channel creation.
+- Current backend gap: `war room from_sheet` needs the same preview plus source-row information for batch flows.
+- Not current: room list/detail, category inventory, and `job_status`; those are only needed if this page becomes a live room board.
 
 ## Command Bindings
 
@@ -65,7 +67,8 @@
 
 ## Risks and Open Questions
 
-- This page is hard to do well without read endpoints for Discord room state.
+- This page can ship create and cleanup flows now, but a live room board would still need room-state reads later.
 - Need to decide whether room detail lives inline, in a drawer, or in Discord-only links.
 - Batch-create UX has to make long-running operations and partial failures obvious.
 - The page should not imply that the app already has a native Discord room inventory when it currently does not.
+

@@ -47,7 +47,9 @@
 - Existing endpoints: `COMMAND`, `PERMISSION`.
 - Existing table / graph / placeholder substrate: none obvious for menu library data.
 - Existing command substrate: `menu list`, `menu info`, `menu open`, and `menu edit` already provide enough inspection and mutation coverage for a wrapped builder.
-- New endpoints likely needed: menu library and menu detail endpoints would improve a future native page, but the first page can be command-wrapped.
+- Current backend gaps: none for the first wrapped builder.
+- Existing `menu list`, `menu info`, `menu open`, and `menu edit` already cover the real workflow.
+- Later only if the page is promoted beyond the command wrapper: menu library and detail reads.
 
 ## Command Bindings
 

@@ -44,8 +44,10 @@
 ## Data and Endpoints
 
 - Existing endpoints: `TABLE`, `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`.
-- Existing table / graph / placeholder substrate: `DBNation` tables can cover applicant and member context, and `settings_interview *` remains the configuration source of truth, but there is no structured interview-queue or channel-state endpoint today.
-- New endpoints likely needed: `interview_queue`, `interview_detail`, `mentor_load_summary`, and `interview_channel_state` are needed if this page is to become a first-class IA desk instead of a wrapper around `interview iachannels`, `interview listmentors`, and `interview sheet`.
+- Existing table / graph / placeholder substrate: `DBNation` tables can cover applicant and member context, and `settings_interview *` remains the configuration source of truth.
+- Current backend gaps: none for the first wrapped page.
+- Existing wrapped reads should come from `interview iachannels`, `interview listmentors`, `interview sheet`, `audit *`, and `DBNation` tables.
+- Later only if this page becomes a true IA desk: unified queue rows plus channel-state reads.
 
 ## Command Bindings
 

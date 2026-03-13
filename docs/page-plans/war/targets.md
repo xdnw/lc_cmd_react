@@ -47,8 +47,10 @@
 ## Data and Endpoints
 
 - Existing endpoints: `RAID`, `UNPROTECTED`, `TABLE`, `COMMAND`, and supporting graphs like `STRENGTHTIERGRAPH` and `SPYTIERGRAPH`.
-- Existing table / graph / placeholder substrate: the current public raid search is already native; DBNation or DBWar workbenches and saved presets cover supporting context, but most `war find *` and `spy *` reads still come from commands.
-- New endpoints likely needed: `war_find_enemy`, `war_find_damage`, `war_find_treasure`, `war_find_bounty`, `war_find_unblockade`, `spy_find_target`, `spy_find_intel`, and `spy_counter` are needed if the non-raid tabs are going to feel equal to the current raid tool.
+- Existing table / graph / placeholder substrate: the current public raid search is already native; DBNation or DBWar workbenches and saved presets cover supporting context, while most `war find *` and `spy *` reads can start from existing commands.
+- Current backend gaps: none for the first target desk.
+- Existing native reads are `RAID` and `UNPROTECTED`; war and spy modes can begin command-backed.
+- Later only if war and spy tabs need parity with `Raid`: attacker-aware target rows from `war find *` and `spy *`.
 
 ## Command Bindings
 
@@ -69,7 +71,8 @@
 ## Risks and Open Questions
 
 - Mode boundaries must stay obvious; raid heuristics and counter heuristics are not the same.
-- Some target-finding modes may begin as command-backed results until JSON endpoints exist.
+- War and spy tabs may stay command-backed until they prove they need raid-like rows.
 - The page should explain DNR, beige, and blockade constraints in plain language.
 - Do not let `Spy Targets` become a disconnected side tool; it belongs in the same target-acquisition workflow.
 - The page is mixed by design: `Raid` can mature first without pretending `War Targets` and `Spy Targets` already have equal backend support.
+

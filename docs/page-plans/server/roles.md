@@ -47,7 +47,9 @@
 - Existing endpoints: `INPUT_OPTIONS`, `TABLE`, `PERMISSION`, `COMMAND`.
 - Existing table / graph / placeholder substrate: `GuildSetting` rows cover automation policy, but there is no dedicated guild role inventory or role-member summary endpoint.
 - Existing command substrate: role actions already exist and are appropriate for a wrapped operator page.
-- New endpoints likely needed: a guild role list, alias summary, self-role config summary, and role-member counts would make a future native page much stronger, but they are not required for the first wrapped version.
+- Current backend gaps: none for the first wrapped page.
+- Existing role and self-role commands plus settings reads cover the current workflow.
+- Later only if this page becomes a native admin desk: role inventory, alias summary, self-role summary, and role-member counts.
 
 ## Command Bindings
 

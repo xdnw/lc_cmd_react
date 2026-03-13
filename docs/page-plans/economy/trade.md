@@ -40,8 +40,10 @@
 ## Data and Endpoints
 
 - Existing endpoints: `TRADEPRICEBYDAY`, `TRADEPRICEBYDAYJSON`, `TRADEMARGINBYDAY`, `TRADEVOLUMEBYDAY`, `TRADETOTALBYDAY`, `COMPARESTOCKPILEVALUEBYDAY`, `TABLE`, `COMMAND`, `INPUT_OPTIONS`.
-- Existing table / graph / placeholder substrate: graph pages can already render the chart-heavy parts, and `DBTrade` placeholder support can back future table work, but live market snapshot, rankings, profit summaries, and alert subscriptions are not exposed as page-ready JSON.
-- New endpoints likely needed: `trade_market_snapshot`, `trade_rankings`, `trade_profit_summary`, and `trade_alert_subscriptions` are needed if this page is going to feel like a real market desk instead of a graph launcher with command links.
+- Existing table / graph / placeholder substrate: graph pages can already render the chart-heavy parts, and `DBTrade` placeholder support can back future table work.
+- Current backend gaps: none for the first page.
+- Existing graph endpoints plus `trade ranking`, `trade findproducer`, `trade findtrader`, `trade profit`, and `alerts trade *` are enough to start.
+- Later only if the live market strip or alert manager becomes a real bottleneck: market snapshot or alert-subscription reads.
 
 ## Command Bindings
 
@@ -62,6 +64,7 @@
 ## Risks and Open Questions
 
 - Need to decide whether trade belongs under Economy or Reports in the visible nav; Economy is clearer for user intent.
-- Ranking and subscription management may stall without better JSON endpoints.
+- Ranking and subscription management may stay thinner until there is a clear reason to add native reads.
 - The live price strip should not require over-fetching every chart endpoint on page load.
 - The page should be explicit that `Market` can be more native sooner than `Rankings` and `Alerts` if backend support lands unevenly.
+

@@ -47,7 +47,9 @@
 - Existing endpoints: `INPUT_OPTIONS`, `TABLE`, `COMMAND`, `PERMISSION`.
 - Existing table / graph / placeholder substrate: settings reads already cover many channel-linked policies, but there is no current web-native channel tree or permission-state endpoint surface.
 - Existing command substrate: channel actions already cover the operational tasks this page needs to wrap.
-- New endpoints likely needed: a current guild channel tree, channel detail, permission preview, and sort-rule preview endpoints would be needed for a truly native page.
+- Current backend gaps: none for the first wrapped page.
+- Existing channel commands and settings reads are enough to ship the operator workflow.
+- Later only if this page is promoted into a native manager: channel tree, permission preview, and sort preview reads.
 
 ## Command Bindings
 

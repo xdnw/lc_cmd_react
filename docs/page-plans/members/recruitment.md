@@ -43,8 +43,10 @@
 ## Data and Endpoints
 
 - Existing endpoints: `TABLE`, `COMMAND`, `INPUT_OPTIONS`, `PERMISSION`.
-- Existing table / graph / placeholder substrate: `GuildSetting` covers applicant mail and recruit-message settings, but timed-message rows, referral context, and rankings do not have structured read models.
-- New endpoints likely needed: `recruitment_settings_summary`, `recruitment_timed_messages`, and `recruitment_referral_summary` are needed for a first-class page; until then this route is mainly a settings-backed and command-wrapped workflow.
+- Existing table / graph / placeholder substrate: `GuildSetting` already covers applicant mail and recruit-message settings.
+- Current backend gap: `recruitment_timed_messages` must return existing timed-message rows with stable id, trigger, delay, subject or body preview, output target, and validity.
+- Not current: a settings-summary endpoint is unnecessary because `GuildSetting` already exposes the relevant settings.
+- Not current: referral context and rankings can stay command-backed until the page proves they need dedicated reads.
 
 ## Command Bindings
 
@@ -67,4 +69,5 @@
 - If timed-message state is only visible through settings commands, the page will feel incomplete.
 - Need to avoid duplicating the announcements composer; shared message-building primitives should be reused.
 - Recruitment and interview work overlap heavily, so cross-links need to be intentional.
-- Do not fake a campaign-style builder without real timed-message and referral reads.
+- Do not fake a campaign-style builder without a real timed-message read; referral and ranking views can stay command-backed longer.
+

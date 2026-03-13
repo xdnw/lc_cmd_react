@@ -5,7 +5,7 @@
 - Legacy aliases: n/a
 - Nav group: cross-cutting
 - Primary users: product and implementation work touching `Home`, `Economy`, `War`, `Members`, `Server`, `Reports`, or `Commands`
-- Current references: `docs/page-plans/README.md`, `src/pages/guild_member/index.tsx`, `src/pages/settings/index.tsx`, `src/pages/raid/index.tsx`, `src/pages/custom_table/TablePage.tsx`, `src/pages/a2/conflict/conflicts.tsx`
+- Current references: `docs/page-plans/README.md`, `src/pages/guild_member/index.tsx`, `src/pages/settings/index.tsx`, `src/pages/commands/index.tsx`, `src/pages/command/index.tsx`, `src/pages/raid/index.tsx`, `src/pages/custom_table/TablePage.tsx`, `src/pages/a2/conflict/conflicts.tsx`
 
 ## Why It Exists
 
@@ -27,14 +27,15 @@
 
 ## Information and Interactions
 
-- `Enter Workspace`: login -> `Guild Select` -> `Server Setup` if readiness is missing -> `Member Overview`.
+- `Enter Workspace`: login -> `Guild Select` -> `Server Setup` or `Server Settings` if readiness or misconfiguration is blocking progress -> `Member Overview`.
 - `Member Daily Loop`: `Member Overview` -> `Announcements`, `Holdings`, `Targets`, alert or self-service commands -> back to `Member Overview`.
 - `Economy Operations`: `Holdings` -> `Deposits` -> `Ledger` -> `Grant Requests` -> `Grant Send` -> `Grant Templates` -> `Tax`.
 - `War Operations`: `Targets` -> `Counters` -> `War Sheets` -> `War Rooms` -> back to economy pages for reimbursements, warchests, or ledger review.
 - `Member Lifecycle`: `Recruitment` -> `Interviews` -> `Roles` and `Channels` support -> audits, graduation, or archive actions.
-- `Server Setup`: `Guild Select` -> `Server Setup` -> `Settings`, `Roles`, `Channels`, `Menus`, and `Embeds`.
+- `Server Setup And Repair`: `Guild Select` -> `Server Setup` -> `Server Settings` for exact configuration -> command-wrapped `Roles`, `Channels`, `Menus`, and `Embeds` tools -> back into `War`, `Members`, or `Economy` workflows.
 - `Reports And Research`: `Reports` pages remain standing workbenches for alliance analysis, conflict review, graphs, tables, and investigations.
 - `Commands`: the browser and runner remain the universal fallback and advanced-entry surface for work that is not yet wrapped.
+- When a workflow lands on a partially wrapped page, the user should still have an obvious hand-off into `Commands` with current guild and task scope preserved.
 
 ## Components
 
@@ -51,7 +52,7 @@
 
 - Existing commands: every page can fall back to `Commands`, but the user journey should not start there for common work.
 - Commands likely needing changes: none required at the map level.
-- Command preview / confirmation rules: page hand-offs into commands should preserve context and explain why the fallback is being used.
+- Command preview / confirmation rules: page hand-offs into commands should preserve context, explain why the fallback is being used, and distinguish between settings-backed reads and command-backed mutations.
 
 ## Navigation
 
@@ -69,3 +70,4 @@
 - Pages that look correct in isolation can still fail if the hand-offs are unclear.
 - Repeatedly re-explaining the same workflow in different briefs is a maintenance hazard; this doc should carry the shared story.
 - The command runner should stay powerful, but it should not be the assumed starting point for recurring operational work.
+- Treating every future server page as if it already has native list and detail endpoints would overpromise what the current product can actually support.

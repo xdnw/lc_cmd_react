@@ -1,21 +1,22 @@
 # Menus
 
-- Status: `New`
+- Status: `Wrap`
 - Primary route: `/server/menus`
 - Legacy aliases: none; current flow is command-only
 - Nav group: Server
 - Primary users: admins and staff building Discord menus for guided actions
-- Current references: command metadata for `menu *`
+- Current references: command metadata for `menu *`, `src/pages/commands/index.tsx`, `src/pages/command/index.tsx`
 
 ## Why It Exists
 
 - Menus are inherently visual and ordered; they are poor candidates for staying slash-command-only.
 - A browser-native builder can make menu state, button order, and command targets much easier to reason about.
+- The first version should wrap the existing menu commands and current command browser, not depend on a new menu library endpoint that does not exist yet.
 
 ## Workflows
 
-- Primary: create menus, edit title and description, add or remove buttons, rename buttons, reorder buttons, preview the result.
-- Secondary: inspect existing menus and open them in Discord.
+- Primary: create menus, inspect an existing menu, edit title and description, add or remove buttons, rename buttons, reorder buttons, and preview the result.
+- Secondary: open or edit menus in a command-backed flow and hand off to embed or command pages for complex targets.
 - Why users arrive here: server setup, onboarding, self-service command builders, war or econ action panels.
 - Upstream entry points: `Server Setup`, `Embeds`, command fallback.
 - Downstream hand-offs: `Command Runner`, `Embeds`, and server rollout work.
@@ -26,30 +27,33 @@
 - Center: selected menu editor with title, description, and ordered button list.
 - Right: live menu preview and target-command inspector.
 - The page should feel like a builder studio, not a list of admin forms.
+- If the library is command-backed rather than endpoint-native, say so in the UI and keep the inspect or refresh flow explicit.
 
 ## Information and Interactions
 
-- Menu library with search, status, and quick duplicate / delete actions if supported later.
-- Button list with drag or move controls, label edits, command target preview, and validation.
+- Menu library with search and quick inspect actions backed by `menu list` and `menu info` style reads.
+- Button list with move controls, label edits, command target preview, and validation.
 - Preview of how the menu will look in Discord and what each button does.
 - Ability to deep-link from a button into the underlying command page.
+- Make the temporary menu editing context visible instead of hiding it; `menu context`, `menu edit`, and `menu cancel` are part of the real workflow.
 
 ## Components
 
-- Existing shared: command preview helpers, dialog helpers, button and card primitives.
-- New shared or page-specific: `MenuLibrary`, `MenuEditorPanel`, `MenuButtonList`, `MenuPreview`, `MenuCommandInspector`.
+- Existing shared: command preview helpers, dialog helpers, button and card primitives, command runner links.
+- New shared or page-specific: `MenuLibrary`, `MenuEditorPanel`, `MenuButtonList`, `MenuPreview`, `MenuCommandInspector`, `MenuContextNotice`.
 
 ## Data and Endpoints
 
-- Existing endpoints: none found for menu list or detail reads.
-- Existing table / graph / placeholder substrate: none obvious.
-- New endpoints likely needed: menu library and menu detail endpoints are very likely required if this page is to be more than a command launcher wrapper.
+- Existing endpoints: `COMMAND`, `PERMISSION`.
+- Existing table / graph / placeholder substrate: none obvious for menu library data.
+- Existing command substrate: `menu list`, `menu info`, `menu open`, and `menu edit` already provide enough inspection and mutation coverage for a wrapped builder.
+- New endpoints likely needed: menu library and menu detail endpoints would improve a future native page, but the first page can be command-wrapped.
 
 ## Command Bindings
 
 - Existing commands: `menu list`, `menu create`, `menu title`, `menu description`, `menu edit`, `menu info`, `menu open`, `menu delete`, `menu button add`, `menu button remove`, `menu button rename`, `menu button swap`, `menu context`, `menu cancel`.
 - Commands likely needing changes: none required immediately.
-- Command preview / confirmation rules: destructive changes and button target changes should show the resulting menu definition before submit.
+- Command preview / confirmation rules: destructive changes and button target changes should show the current menu info and the resulting menu definition before submit.
 
 ## Navigation
 
@@ -63,6 +67,6 @@
 
 ## Risks and Open Questions
 
-- Without menu read endpoints the builder will feel fake.
+- Do not fake an endpoint-native menu library if the page is really using command-backed reads.
 - Need to decide whether menu preview is static HTML only or can show richer behavioral hints.
 - Button ordering needs a mobile-safe interaction model if drag-and-drop is avoided.

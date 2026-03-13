@@ -36,7 +36,7 @@ These briefs should optimize for the actual jobs people are doing, not just back
 - `Economy Operations`: move between `Holdings`, `Deposits`, `Ledger`, `Grant Requests`, `Grant Send`, `Grant Templates`, and `Tax` as one connected workflow.
 - `War Operations`: move from `Targets` to `Counters`, `Sheets`, and `Rooms`, then back into economy or reporting surfaces for costs and reimbursements.
 - `Member Lifecycle`: move from `Recruitment` to `Interviews`, then into roles, channels, training, audits, and archive or graduation actions.
-- `Server Setup`: move from guild selection into a setup checklist, then into `Settings`, `Roles`, `Channels`, `Menus`, and `Embeds`.
+- `Server Setup`: move from guild selection into a readiness checklist, then into `Settings` and command-wrapped `Roles`, `Channels`, `Menus`, and `Embeds` flows as needed.
 - `Reports And Commands`: use `Reports` for recurring analysis and saved workbenches; use `Commands` for long-tail, advanced, or fallback flows.
 
 ## Context Model
@@ -47,11 +47,24 @@ These briefs should optimize for the actual jobs people are doing, not just back
 
 See `docs/page-plans/core/context-and-scoping.md` for the full rule set.
 
+## Implementation Modes
+
+These briefs should state which substrate a page is really built on today:
+
+- `Endpoint-native`: use dedicated endpoints when the app already has a stable page-level read model.
+- `Settings-backed`: use `TABLE` plus `GuildSetting` placeholders when the workflow is mostly browsing or editing guild settings. `Server Settings` is the anchor example.
+- `Command-wrapped`: use the command browser or runner plus the `COMMAND` endpoint when the workflow mostly mutates Discord or bot state and does not yet have dedicated read endpoints.
+
+Planning rule:
+
+- Do not invent a fake local CRUD model when `GuildSetting` rows or guided command execution already cover the workflow.
+- Do propose new endpoints when a page truly needs a stable list, detail, diff, or preview model that command output cannot support cleanly.
+
 ## Status Legend
 
 - `Evolve`: keep the current route/page, but reshape it significantly.
 - `New`: add a new primary route and page.
-- `Wrap`: keep the existing power-user surface and add shell, presets, or saved-state affordances around it.
+- `Wrap`: keep the existing power-user surface and add shell, presets, previews, or saved-state affordances around it. This is the default for command-heavy pages that do not yet have dedicated read endpoints.
 - `Cross-cutting`: affects multiple pages rather than one route.
 
 ## Brief Structure
@@ -156,13 +169,14 @@ Do not hard-break the existing route surface while this work lands. New primary 
 3. `core/workflow-map.md`
 4. `core/guild-select.md`
 5. `server/setup.md`
-6. `home/member-overview.md`
-7. `economy/holdings.md`
-8. `economy/deposits.md`
-9. `economy/grant-requests.md`
-10. `economy/grant-send.md`
-11. `war/targets.md`
-12. `war/counters.md`
-13. `members/interviews.md`
-14. `server/menus.md`
-15. `reports/tables.md`
+6. `server/settings.md`
+7. `home/member-overview.md`
+8. `economy/holdings.md`
+9. `economy/deposits.md`
+10. `economy/grant-requests.md`
+11. `economy/grant-send.md`
+12. `war/targets.md`
+13. `war/counters.md`
+14. `members/interviews.md`
+15. `server/menus.md`
+16. `reports/tables.md`

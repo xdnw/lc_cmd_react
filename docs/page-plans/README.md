@@ -109,6 +109,7 @@ Do not hard-break the existing route surface while this work lands. New primary 
 - `docs/page-plans/core/backend-endpoint-gaps.md`
 - `docs/page-plans/core/context-and-scoping.md`
 - `docs/page-plans/core/guild-select.md`
+- `docs/page-plans/core/shared-layouts-and-components.md`
 - `docs/page-plans/core/workflow-map.md`
 
 ### Home

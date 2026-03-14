@@ -9,26 +9,12 @@ import { LOCUTUS_TASK, LOCUTUS_TASKS } from "@/lib/endpoints";
 import LazyIcon from "@/components/ui/LazyIcon";
 import { InstatusStatusCard } from "./instatus";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { getTaskStatus, type TaskHealth, type TaskHistoryState, type TaskStatusInfo, TaskOutcome as Outcome } from "./taskStatus";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import {
     WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN,
     WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT,
 } from "@/components/ui/virtuosoTuning";
-
-const Outcome = {
-    EMPTY: 0,
-    SUCCESS: 1,
-    ERROR: 2,
-    INTERRUPTED: 3,
-} as const;
-
-type Health = "OK" | "ERROR" | "INTERRUPTED" | "STALE" | "STUCK" | "NEVER";
-
-type HealthInfo = {
-    health: Health;
-    sev: number; // smaller => worse (for sorting)
-    reason?: string;
-};
 
 const EMPTY_ARGS = Object.freeze({}) as Record<string, never>;
 const EMPTY_TASKS: TaskSummary[] = [];
@@ -39,7 +25,7 @@ const HISTORY_LIST = 25;
 const DASH_REFRESH_MS = 10_000;
 const TASK_DEFAULT_ROW_HEIGHT = 88;
 
-const HEALTH_ORDER: Health[] = ["ERROR", "STUCK", "INTERRUPTED", "STALE", "NEVER", "OK"];
+const HEALTH_ORDER: TaskHealth[] = ["ERROR", "STUCK", "INTERRUPTED", "STALE", "NEVER", "OK"];
 
 function fmtMs(ms?: number) {
     if (ms === undefined || ms < 0) return "—";
@@ -97,35 +83,7 @@ function outcomeBarClass(code: number) {
     }
 }
 
-function healthOf(t: TaskSummary, now?: number): HealthInfo {
-    if (t.totalRuns <= 0 || t.lastOutcome === Outcome.EMPTY) return { health: "NEVER", sev: 4 };
-
-    const interval = Math.max(1, t.intervalMs);
-
-    // Time-based checks require a real "now"
-    if (now && t.running && t.currentRunStartMs > 0) {
-        const runningFor = now - t.currentRunStartMs;
-        const stuckMs = Math.max(interval * 5, 60_000);
-        if (runningFor > stuckMs) {
-            return { health: "STUCK", reason: `running for ${fmtMs(runningFor)}`, sev: 0 };
-        }
-    }
-
-    if (t.lastOutcome === Outcome.ERROR) return { health: "ERROR", reason: t.lastErrorMessage ?? undefined, sev: 1 };
-    if (t.lastOutcome === Outcome.INTERRUPTED) return { health: "INTERRUPTED", reason: "interrupted", sev: 2 };
-
-    if (now && t.lastRunEndMs > 0) {
-        const sinceEnd = now - t.lastRunEndMs;
-        const staleMs = Math.max(interval * 3, 60_000);
-        if (sinceEnd > staleMs) {
-            return { health: "STALE", reason: `last end ${fmtMs(sinceEnd)} ago`, sev: 3 };
-        }
-    }
-
-    return { health: "OK", sev: 10 };
-}
-
-function healthBadgeClass(h: Health) {
+function healthBadgeClass(h: TaskHealth) {
     switch (h) {
         case "OK":
             return "bg-green-500/10 text-green-700 dark:text-green-300 ring-1 ring-green-500/20";
@@ -143,7 +101,7 @@ function healthBadgeClass(h: Health) {
     }
 }
 
-function healthRowClass(h: Health) {
+function healthRowClass(h: TaskHealth) {
     switch (h) {
         case "ERROR":
             return "border-l-red-500/60 bg-red-500/5 hover:bg-red-500/10";
@@ -159,6 +117,69 @@ function healthRowClass(h: Health) {
         default:
             return "border-l-transparent hover:bg-muted/30";
     }
+}
+
+function historyBadgeClass(state: TaskHistoryState) {
+    switch (state) {
+        case "ACTIVE":
+            return "bg-red-500/10 text-red-700 dark:text-red-300 ring-1 ring-red-500/20";
+        case "RECOVERED":
+            return "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/20";
+        case "CLEAN":
+        default:
+            return "bg-muted text-muted-foreground ring-1 ring-border";
+    }
+}
+
+function taskRowClass(status: TaskStatusInfo) {
+    if (status.history.state === "ACTIVE" && status.health.health === "OK") {
+        return "border-l-red-500/60 bg-red-500/5 hover:bg-red-500/10";
+    }
+
+    if (status.history.state === "RECOVERED" && status.health.health === "OK") {
+        return "border-l-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10";
+    }
+
+    return healthRowClass(status.health.health);
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatFailureTotals(status: TaskStatusInfo) {
+    const parts: string[] = [];
+
+    if (status.history.totalErrors > 0) {
+        parts.push(pluralize(status.history.totalErrors, "error"));
+    }
+
+    if (status.history.totalInterrupts > 0) {
+        parts.push(pluralize(status.history.totalInterrupts, "interrupt"));
+    }
+
+    if (parts.length === 0 && status.history.totalFailures > 0) {
+        parts.push(pluralize(status.history.totalFailures, "failure"));
+    }
+
+    return parts.join(" • ");
+}
+
+function formatFailureHistorySummary(status: TaskStatusInfo, now: number | undefined) {
+    if (status.history.state === "CLEAN") return undefined;
+
+    const parts: string[] = [];
+
+    if (status.history.lastFailureAtMs > 0) {
+        parts.push(`last failure ${age(now, status.history.lastFailureAtMs)}`);
+    }
+
+    const totals = formatFailureTotals(status);
+    if (totals) {
+        parts.push(totals);
+    }
+
+    return parts.join(" • ");
 }
 
 /**
@@ -257,7 +278,7 @@ const OutcomeBadge = memo(function OutcomeBadge({ code }: { code: number }) {
     );
 });
 
-const HealthCountChip = memo(function HealthCountChip({ health, count }: { health: Health; count: number }) {
+const HealthCountChip = memo(function HealthCountChip({ health, count }: { health: TaskHealth; count: number }) {
     return (
         <span
             className={cn(
@@ -267,6 +288,21 @@ const HealthCountChip = memo(function HealthCountChip({ health, count }: { healt
             title={`${health}: ${count}`}
         >
             {health}
+            <span className="text-[11px] font-medium opacity-80">{count}</span>
+        </span>
+    );
+});
+
+const RecoveredCountChip = memo(function RecoveredCountChip({ count }: { count: number }) {
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none tabular-nums",
+                historyBadgeClass("RECOVERED")
+            )}
+            title={`Recovered after recorded failures: ${count}`}
+        >
+            RECOVERED
             <span className="text-[11px] font-medium opacity-80">{count}</span>
         </span>
     );
@@ -591,13 +627,13 @@ const TaskDetailsInline = memo(function TaskDetailsInline({ id, now }: TaskDetai
 
 type TaskRowProps = {
     task: TaskSummary;
-    health: HealthInfo;
+    status: TaskStatusInfo;
     now: number | undefined;
     open: boolean;
     onToggleOpen: (taskId: number) => void;
 };
 
-const TaskRow = memo(function TaskRow({ task, health, now, open, onToggleOpen }: TaskRowProps) {
+const TaskRow = memo(function TaskRow({ task, status, now, open, onToggleOpen }: TaskRowProps) {
     const panelId = `task-details-${task.id}`;
     const rowDomId = `task-row-${task.id}`;
 
@@ -608,20 +644,27 @@ const TaskRow = memo(function TaskRow({ task, health, now, open, onToggleOpen }:
     const showLastError =
         (task.lastOutcome === Outcome.ERROR || task.lastOutcome === Outcome.INTERRUPTED) &&
         Boolean(task.lastErrorClass || task.lastErrorMessage);
+    const failureSummary = formatFailureHistorySummary(status, now);
+    const historyLabel =
+        status.history.state === "RECOVERED"
+            ? "RECOVERED"
+            : status.history.state === "ACTIVE" && status.health.health === "OK"
+                ? "FAILURES"
+                : undefined;
 
     const runningFor =
         task.running && now && task.currentRunStartMs > 0 ? fmtMs(Math.max(0, now - task.currentRunStartMs)) : undefined;
 
     const secondaryLine = showLastError
         ? `${task.lastErrorClass}${task.lastErrorMessage ? `: ${task.lastErrorMessage}` : ""}`
-        : health.reason;
+        : status.health.reason ?? failureSummary;
 
     return (
         <div
             id={rowDomId}
             className={cn(
                 "border-l-4 transition-colors",
-                healthRowClass(health.health),
+                taskRowClass(status),
                 open && "ring-1 ring-inset ring-border"
             )}
         >
@@ -647,11 +690,23 @@ const TaskRow = memo(function TaskRow({ task, health, now, open, onToggleOpen }:
                         <span
                             className={cn(
                                 "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none tabular-nums",
-                                healthBadgeClass(health.health)
+                                healthBadgeClass(status.health.health)
                             )}
                         >
-                            {health.health}
+                            {status.health.health}
                         </span>
+
+                        {historyLabel ? (
+                            <span
+                                className={cn(
+                                    "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none tabular-nums",
+                                    historyBadgeClass(status.history.state)
+                                )}
+                                title={failureSummary}
+                            >
+                                {historyLabel}
+                            </span>
+                        ) : null}
 
                         <div className="min-w-0 truncate text-sm font-semibold" title={task.name}>
                             {task.name}
@@ -762,16 +817,20 @@ const TasksDashboardView = memo(function TasksDashboardView({
         setTick(Date.now());
     }, [reload]);
 
-    // Sort/compute health independent of the filter so toggling doesn't redo the sort.
+    // Sort/compute task status independent of the filter so toggling doesn't redo the sort.
     const sorted = useMemo(() => {
         const sortClock = tick; // only changes when you reload
-        const withHealth = tasks.map((task) => ({ task, health: healthOf(task, sortClock) }));
-        withHealth.sort((a, b) => a.health.sev - b.health.sev || a.task.name.localeCompare(b.task.name));
-        return withHealth;
+        const withStatus = tasks.map((task) => ({ task, status: getTaskStatus(task, sortClock) }));
+        withStatus.sort((a, b) =>
+            a.status.sortSeverity - b.status.sortSeverity ||
+            b.status.history.lastFailureAtMs - a.status.history.lastFailureAtMs ||
+            a.task.name.localeCompare(b.task.name)
+        );
+        return withStatus;
     }, [tasks, tick]);
 
     const healthCounts = useMemo(() => {
-        const counts: Record<Health, number> = {
+        const counts: Record<TaskHealth, number> = {
             OK: 0,
             ERROR: 0,
             INTERRUPTED: 0,
@@ -779,24 +838,36 @@ const TasksDashboardView = memo(function TasksDashboardView({
             STUCK: 0,
             NEVER: 0,
         };
-        for (const x of sorted) counts[x.health.health] += 1;
+        for (const x of sorted) counts[x.status.health.health] += 1;
         return counts;
     }, [sorted]);
+
+    const recoveredCount = useMemo(
+        () => sorted.filter((x) => x.status.history.state === "RECOVERED").length,
+        [sorted]
+    );
 
     const rows = useMemo(() => {
         const q = deferredQuery.trim().toLowerCase();
 
         let r = sorted;
 
-        if (onlyUnhealthy) r = r.filter((x) => x.health.health !== "OK");
+        if (onlyUnhealthy) r = r.filter((x) => x.status.health.health !== "OK");
         if (runningOnly) r = r.filter((x) => x.task.running);
 
         if (q) {
             r = r.filter((x) => {
                 const idMatch = String(x.task.id).includes(q) || `#${x.task.id}`.includes(q);
                 const nameMatch = x.task.name.toLowerCase().includes(q);
-                const healthMatch = x.health.health.toLowerCase().includes(q);
-                return idMatch || nameMatch || healthMatch;
+                const healthMatch = x.status.health.health.toLowerCase().includes(q);
+                const historyMatch = [
+                    x.status.history.state,
+                    x.status.history.totalErrors > 0 ? "error errors" : "",
+                    x.status.history.totalInterrupts > 0 ? "interrupt interrupted interrupts" : "",
+                    x.task.lastErrorClass,
+                    x.task.lastErrorMessage,
+                ].join(" ").toLowerCase().includes(q);
+                return idMatch || nameMatch || healthMatch || historyMatch;
             });
         }
 
@@ -902,7 +973,7 @@ const TasksDashboardView = memo(function TasksDashboardView({
     const renderTaskRow = useCallback((_: number, row: (typeof rows)[number]) => (
         <TaskRow
             task={row.task}
-            health={row.health}
+            status={row.status}
             now={now}
             open={expanded.has(row.task.id)}
             onToggleOpen={onToggleOpen}
@@ -921,6 +992,7 @@ const TasksDashboardView = memo(function TasksDashboardView({
                             {HEALTH_ORDER.map((h) => (
                                 <HealthCountChip key={h} health={h} count={healthCounts[h]} />
                             ))}
+                            <RecoveredCountChip count={recoveredCount} />
                         </div>
                     </div>
 

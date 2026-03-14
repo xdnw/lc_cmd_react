@@ -1,75 +1,108 @@
 # Settings
 
+- Classification: `route`
 - Status: `Evolve`
-- Primary route: `/server/settings`
-- Legacy aliases: `/settings`
-- Nav group: Server
-- Primary users: guild owners, admins, department leads, and staff who need to inspect or edit server config
-- Current references: `src/pages/settings/index.tsx`, `src/pages/settings/settingsDomain.ts`, `src/pages/settings/components/SettingEditDialog.tsx`, `src/pages/settings/components/SettingClearAction.tsx`, `src/pages/command/index.tsx`
+- Primary route or owner: `/server/settings`
+- Nav group: `Server`
+- Primary actor: `admin`
+- Scope: `guild`
+- Current code:
+	- `src/pages/settings/index.tsx`
+	- `src/pages/settings/settingsDomain.ts`
+	- `src/pages/settings/components/SettingEditDialog.tsx`
+	- `src/pages/settings/components/SettingClearAction.tsx`
+- Read substrate:
+	- Endpoints: `TABLE`, `PERMISSION`
+	- Response types: `WebTable`, `WebPermission`
+	- Table / graph / placeholder types: `GuildSetting` with placeholder columns from `src/pages/settings/settingsDomain.ts`
+	- Required columns / filters: `name`, `getwebtype`, `getcategory`, `getsubgroup`, `help`, local `getvaluestring`, local `getvalueraw`, `hasinvalidvalue`, `ischanneltype`, `allowed`
+- Write substrate:
+	- Endpoints / command families: `COMMAND`, `settings info`, `settings delete`
+	- Existing form / action components: `SettingEditDialog`, `SettingClearAction`
+	- Reload / invalidation targets: the `GuildSetting` `TABLE` query plus per-setting refresh in `src/pages/settings/index.tsx`
 
 ## Why It Exists
 
-- The current settings page is already one of the strongest surfaces in the app.
-- It should become the anchor for server configuration, not be replaced by a flatter and weaker builder.
-- It is the main settings-backed admin page in the product. Other server pages should wrap or deep-link into it when the underlying source of truth is really a guild setting.
+- Owns: browsing, filtering, editing, clearing, and diagnosing guild settings.
+- Does not own: bespoke workflow UIs for roles, banking, interviews, menus, or embeds when those pages need their own operator shell.
+- Current gap: the page is already strong, but the planning doc needed to describe the real substrate, explicit shortcut groups, and the delegated-state/audit work that is still missing.
 
 ## Workflows
 
-- Primary: browse, search, filter, and edit guild settings.
-- Secondary: deep-link into a category from a workflow page, check permission support, inspect invalid or inherited values, clear settings, and use the page as the fallback read model for setup repair.
-- Why users arrive here: setup work, policy changes, troubleshooting, command permission debugging.
+1. Browse and edit settings
+	 - Entry: `/server/settings`
+	 - Preconditions: selected guild
+	 - Reads: `TABLE` over `GuildSetting` rows and row-level permission state
+	 - UI path: search, filter, select a row, edit or clear it from the same page
+	 - Mutations: `settings info`, `settings delete`
+	 - Handoff / exit: stay on the page with the same filters and refreshed data
+2. Jump in from setup or a wrapped admin page
+	 - Entry: `/server/setup`, `/server/roles`, `/members/interviews`, `/economy/tax`
+	 - Preconditions: user followed a deep link for a specific setting family
+	 - Reads: same `GuildSetting` table query plus highlighted key/category context
+	 - UI path: page opens with the relevant category, subgroup, or setting key in focus
+	 - Mutations: same edit and clear actions
+	 - Handoff / exit: back to the owning workflow page once the blocker is fixed
+3. Diagnose delegated or invalid configuration
+	 - Entry: a setting row marked unset, invalid, unsupported, or inherited
+	 - Preconditions: selected guild and row visible in the browser
+	 - Reads: local-value columns now, plus future `setting_inheritance_trace` and `audit_setting`
+	 - UI path: inspect why the value is unavailable, inherited, or broken before changing it
+	 - Mutations: edit, clear, or audit a single setting
+	 - Handoff / exit: into setup repair, roles repair, or another wrapped admin page
 
-## Layout and Look
+## Layout Structure
 
-- Keep the hierarchical sidebar, virtualized list, and per-setting status language.
-- Add a stronger landing strip at the top with shortcut chips like `Alliance Setup`, `War Alerts`, `Interviews`, `Tax`, `Roles`, `Banking`, and `Delegation`.
-- Preserve the dense editor feel; this page should look like a serious admin console.
-- User-facing shortcuts can group multiple backend categories, but the page should still expose the real category, subgroup, and setting key names.
-(note: The above `landing strips` needs to not be vague. Alliance could be an array of essential settings (ALLIANCE_ID, API_KEY), and then a page view that goes through them until the user has them set. Roles is next most important. That's the `/role setalias` it probably needs an endpoint to list the current bindings. Banking is next most important https://github.com/xdnw/locutus/wiki/banking then war alerts https://github.com/xdnw/locutus/wiki/war_alerts then https://github.com/xdnw/locutus/wiki/tax_automation then https://github.com/xdnw/locutus/wiki/interviews)
+- Top-level regions: merged page sidebar, `SettingsTopBar`, workflow shortcut strip, virtualized settings list, edit and help dialogs.
+- Tabs / panels / drawers: no tab split; use a single dense browser with dialog surfaces for help, editing, inheritance trace, and per-setting audit.
+- URL state: search, filters, and highlighted setting should be deep-linkable when another page routes here.
+- Empty / loading / error states: keep the dense admin-console feel, but surface schema problems, unsupported editor inputs, and permission failures explicitly.
 
-## Information and Interactions
-- Search settings by key, help text, or category.
-- Filter by set / unset / invalid / unsupported / editable.
-- Edit with typed inputs and inline help dialogs.
-- Refresh individual settings and show why a setting is unavailable, invalid, or unsupported in the web editor.
-- Clear existing values from the same surface.
-- Make delegated or inherited behavior visible when a guild is using `settings_default delegate_server`.
-- Accept deep links from other pages into the relevant filtered or highlighted setting.
-- Act as the readback and repair surface for setup modules that do not need a dedicated page-level read model.
+## Information Model
+
+- Primary objects shown: `GuildSetting` rows with key, category, subgroup, help, local value, editor support, allowed state, and invalid state.
+- Filters / grouping: search by key/help/category, filter by set/unset/invalid/unsupported/editable, group by category and subgroup.
+- Row or card actions: edit value, clear value, show help, refresh one setting, open inheritance trace, run one-setting audit.
+- Detail / modal surfaces: edit dialog, help dialog, future inheritance trace dialog, future one-setting audit dialog.
 
 ## Components
 
-- Existing shared: `HierarchySidebarNav`, `SettingsTopBar`, `SettingsCategorySection`, `SettingEditDialog`, `SettingClearAction`, `TABLE`, query cache helpers.
-- New shared or page-specific: `SettingsLandingShortcuts`, `SettingsBreadcrumbPills`, `WorkflowOriginBadge`, `DelegatedSettingBadge`.
-(note: HierarchySidebarNav was removed and merged with the other sidebar)
-## Data and Endpoints
+- Reuse: `SettingsTopBar`, `SettingsCategorySection`, `SettingEditDialog`, `SettingClearAction`, `SidebarNav`, query cache helpers.
+- Add: `SettingsWorkflowShortcuts`, `SettingInheritanceDialog`, `SettingAuditDialog`, `RoleBindingsSummaryCard`.
+- Extend: `settingsDomain.ts` so the browser can show both local and effective value state once the backend supports it cleanly.
+- Merge: keep settings browsing, repair, and deep-link handling in this page instead of scattering the same logic across every admin page.
 
-- Existing endpoints: `TABLE`, `PERMISSION`, `COMMAND`.
-- Existing table / graph / placeholder substrate: the current page already uses `TABLE` with `GuildSetting` rows plus `GuildSetting` placeholder helpers and is a good reference implementation.
-- Existing command substrate: edit and clear flows already map cleanly onto `settings info` and `settings delete` style command execution.
-- New endpoints likely needed: none for MVP; optional setting-history, inheritance-trace, or bulk-audit endpoints may help later.
-(note:Yes, inheritance-trace should be added, the placeholders for GuildSetting support getting the local value, or getting the value (including delegate) - and the session info has the delegate server in it, if that's needed at all)
-(note: bulk-audit should probably (because auditing them all might be slow, use an `audit_setting` endpoint that will then validate it and return either a WebSuccess or an WebError or some such and the frontend should run an audit on one at a time (and show loading and results in some modal as it progresses?))
-## Command Bindings
+## Implementation Delta
 
-- Existing commands: `settings info`, `settings delete`, and the full set of `settings_default *`, `settings_foreign_affairs *`, `settings_war_alerts *`, `settings_beige_alerts *`, `settings_orbis_alerts *`, `settings_war_room *`, `settings_bank_access *`, `settings_bank_conversion *`, `settings_bank_offshore *`, `settings_bank_grants *`, `settings_bank_info *`, `settings_tax *`, `settings_audit *`, `settings_auto_role *`, `settings_self_role *`, `settings_reward *`, `settings_recruit *`, `settings_interview *`, `settings_bounty *`, and `settings_trade *` families.
-- Commands likely needing changes: none required.
-- Command preview / confirmation rules: the edit dialog should continue to make the underlying setting or command path visible for power users, especially when a wrapper page deep-links into this surface.
-(note: The full set is not needed. The info/delete is sufficient. The individual commands are really only needed for discord users, not web. Your `command preview` doesn't really make much sense.  Remove that.)
+- Route changes: plan around `/server/settings` as the primary route; current `/settings` is implementation detail, not a long-term planning requirement.
+- Read model changes: add delegated-source and one-setting audit support instead of treating inheritance as an invisible side effect.
+- Mutation changes: keep web editing on `settings info` and `settings delete`; do not mirror every Discord-only `settings_*` subcommand in the brief.
+- Cache / reload changes: preserve current per-setting refresh behavior and invalidate the main `GuildSetting` table after edits or clears.
+- Avoid: vague shortcut chips, a second admin builder, or a docs plan that pretends the page owns every server workflow directly.
 
-## Navigation
+## Route And Navigation
 
-- Links to: `/server/roles`, `/server/channels`, `/server/menus`, `/server/embeds`, `/economy/tax`, `/members/interviews`, `/members/recruitment`, `/commands`.
-- Linked from: `/server/setup`, workflow-specific settings pills, app shell Server nav, command launcher, and wrapped server builder pages.
+- Linked from: `/server/setup`, `/server/roles`, `/server/channels`, `/server/menus`, `/server/embeds`, `/economy/tax`, `/members/interviews`, `/members/recruitment`.
+- Links to: the wrapped admin pages above, plus `/commands` for raw fallback.
+- Header / nav actions: shortcut groups should be explicit: `Alliance/Auth`, `Roles`, `Banking`, `War Alerts`, `Tax`, `Interviews`, and `Delegation`.
+- Preserved context: selected guild, current filters, highlighted setting, and owning workflow context.
 
-## Permissions and Context
+## Permissions And Context
 
-- Requires login, selected guild, and edit permissions per setting.
-- The page must clearly show when a user can view a setting but cannot modify it.
+- Auth and scope requirements: login plus selected guild.
+- Role gates: viewing and editing remain row-specific; users may be able to inspect a setting without being allowed to change it.
+- Setup dependency / recovery: this is the default repair surface when setup pages or wrapped admin pages hit a `GuildSetting` blocker.
+- Delegation / inherited context: use `WebSession.delegates_to` plus future `setting_inheritance_trace` so inherited values are explicit instead of implied.
 
-## Risks and Open Questions
+## Commands And Mutations
 
-- Do not hollow this page out in favor of thin wrappers elsewhere; it is the durable fallback surface.
-- Shortcut categories should use user language, but the actual setting list still needs precise key names.
-- Bulk edits or audit views may eventually deserve a dedicated sibling page, not more density here.
-- If the wrapped server pages hide their dependency on `GuildSetting`, users will lose the clearest repair path the app already has.
+- Existing commands: `settings info`, `settings delete`.
+- Preview / confirm: edit and clear flows should confirm the setting key and resulting value, but do not need a raw command-preview section for every row.
+- Permission checks: row-level `allowed` state plus `PERMISSION` checks where needed.
+- Side effects / cache refresh: refresh the edited row and invalidate the main `GuildSetting` table cache.
+
+## Open Questions And Backend Gaps
+
+- Add `setting_inheritance_trace` so the page can explain local vs. delegated values cleanly.
+- Add `audit_setting` so the page can audit one setting at a time instead of pretending a giant bulk validator belongs in the main list.
+- Add `role_bindings` so the `Roles` and `Server Setup` shortcuts can show real alias coverage instead of only linking to commands.

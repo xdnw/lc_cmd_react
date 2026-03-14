@@ -43,13 +43,13 @@
 ## Components
 
 - Existing shared: `SessionProvider`, `useSession`, current guild-picker flow, command browser route state, existing query-backed route state.
-- New shared or page-specific: `GuildContextBar`, `ScopeAwareSelectionBar`, `AllianceScopeChips`, `CurrentNationBadge`, `SetupRecoveryNotice`, `DelegatedScopeNotice`, `WorkflowCommandFallbackLink`.
+- New shared or page-specific: merged shell session summary support, `ScopeAwareSelectionBar`, `AllianceScopeChips`, `CurrentNationBadge`, `SetupRecoveryNotice`, `DelegatedScopeNotice`, `WorkflowCommandFallbackLink`.
 
 ## Data and Endpoints
 
 - Existing endpoints: `SESSION`, `SET_GUILD`, `UNSET_GUILD`, `INPUT_OPTIONS`, `TABLE`, `COMMAND`.
 - Existing table / graph / placeholder substrate: `GuildSetting` rows, `%guild_alliances%`, `DBNation`, and `DBAlliance` already cover most current context and readiness reads.
-- New endpoints likely needed: optional `guild_context_summary` can help later, but the current context model is already present and command fallbacks already exist.
+- New endpoints likely needed: none for the current shell model; if more shared context is required later, extend `WebSession` rather than adding a separate `guild_context_summary` endpoint.
 
 ## Command Bindings
 

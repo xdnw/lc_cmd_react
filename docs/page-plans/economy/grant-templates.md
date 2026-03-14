@@ -56,7 +56,7 @@
 
 ## Navigation
 
-- Links to: `/economy/grant-send`, `/economy/grant-requests`, `/economy/holdings`.
+- Links to: `/economy/grant-send`, `/economy/grant-requests`, `/economy/manage-balance`.
 - Linked from: grant send wizard, overview shortcuts, command launcher.
 
 ## Permissions and Context

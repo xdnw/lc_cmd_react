@@ -1,69 +1,107 @@
 # App Shell
 
+- Classification: `cross-cutting`
 - Status: `Cross-cutting`
-- Primary route: all authenticated pages and major report pages
-- Legacy aliases: n/a
-- Nav group: cross-cutting
-- Primary users: all users after landing, especially logged-in guild members
-- Current references: `src/components/layout/page-view.tsx`, `src/components/layout/navbar.tsx`, `src/components/cmd/CommandLauncher.tsx`, `src/components/layout/RecentPageKeepAlive.tsx`
+- Primary route or owner: `src/components/layout/page-view.tsx`
+- Nav group: `cross-cutting`
+- Primary actor: `everyone`
+- Scope: `none`
+- Current code:
+	- `src/components/layout/page-view.tsx`
+	- `src/components/layout/navbar.tsx`
+	- `src/components/layout/SidebarNav.tsx`
+	- `src/components/layout/RecentPageKeepAlive.tsx`
+	- `src/appRoutes.ts`
+- Read substrate:
+	- Endpoints: `SESSION`, `SET_GUILD`, `UNSET_GUILD`, `INPUT_OPTIONS`
+	- Response types: `WebSession`, `WebSuccess`, `SetGuild`, `WebOptions`
+	- Table / graph / placeholder types: none
+	- Required columns / filters: n/a
+- Write substrate:
+	- Endpoints / command families: `SET_GUILD`, `UNSET_GUILD`
+	- Existing form / action components: `Navbar`, command launcher entry points, guild switch affordances in the shared shell
+	- Reload / invalidation targets: session context and route-level shell state
 
 ## Why It Exists
 
-- Make guild context visible everywhere it matters.
-- Replace abstract discovery with section labels users already recognize.
-- Keep command search global without forcing users into the command browser first.
+- Owns: global navigation, current session and guild context, command-launch access, and recent-page continuity.
+- Does not own: page-specific filters, setup checklists, or per-route workflow logic.
+- Current gap: the shell docs were still describing a separate context bar and rail model after the navbar, sidebar, and session display were merged.
 
 ## Workflows
 
-- Primary: enter the app after login, switch sections, keep context while moving between economy, war, member, and report work.
-- Secondary: jump into commands from any page, return to a recent page with state preserved.
-- Why users arrive here: every serious workflow passes through the shell, so it has to reduce orientation cost.
+1. Enter and orient
+	 - Entry: login return, `/home`, or `/guild_select`
+	 - Preconditions: none
+	 - Reads: `SESSION`
+	 - UI path: merged navbar shows user, guild, alliance, nation, and section navigation in one shared shell
+	 - Mutations: `SET_GUILD`, `UNSET_GUILD`
+	 - Handoff / exit: into a section landing page such as `Home`, `Server Setup`, or `Commands`
+2. Switch sections without losing context
+	 - Entry: any routed page using `PageView`
+	 - Preconditions: route has shell chrome enabled
+	 - Reads: route metadata from `src/appRoutes.ts`, recent-page cache state, `WebSession`
+	 - UI path: expandable sidebar groups and page header actions keep the current guild and section visible
+	 - Mutations: none beyond route changes
+	 - Handoff / exit: next page keeps current search params or recent-page state where configured
+3. Reach utility routes quickly
+	 - Entry: navbar or shell actions
+	 - Preconditions: none
+	 - Reads: route metadata for `/commands`, `/guild_select`, and `/status`
+	 - UI path: utility links stay in global chrome instead of being buried inside a report section
+	 - Mutations: none
+	 - Handoff / exit: into command fallback, guild switching, or task health inspection
 
-## Layout and Look
+## Layout Structure
 
-- Keep the existing thin navbar and global search affordance. (note: don't. I merged them all into a single navbar. that's how it should be)
-- Add a compact guild context bar directly under the navbar. (note: no, don't)
-- Add a left rail with clear labels: `Home`, `Economy`, `War`, `Members`, `Server`, `Reports`, `Commands`. (note: No, these groupings dont make much sense. Refer to readme. Also the left rail I changed already to be unified with the sidebar)
-- Use dense page headers with visible primary actions instead of oversized dashboard chrome. (note: You made oversized chrome with nonsense descriptions. This is wrong. Dense doesn't mean dense with useless info, which is what you did.) (note: Also, the sidebar should probably be categories which are expandable to list all its sub pages)
-- Mobile: collapse the left rail into a sheet, keep the context bar sticky, and avoid wasting vertical space. (note: Collapse into a button in the navbar that opens a modal, is probably the best approach. Avoid keeping legacy code)
+- Top-level regions: merged navbar, shared sidebar navigation, route header, page content, recent-page keep-alive layer, command launcher.
+- Tabs / panels / drawers: section groups in the sidebar should expand to show their subpages; mobile should open navigation from a navbar button into a modal or sheet rather than keeping a separate legacy rail.
+- URL state: route path and page-local search params; shell itself should not invent a second context URL layer.
+- Empty / loading / error states: when no guild is selected, guild-scoped pages should surface that clearly inside the existing shell instead of swapping to a different chrome model.
 
-## Information and Interactions
-- Show active guild, registered alliances, current nation, and permission summary where relevant.
-- Expose section-local secondary navigation on dense sections like Economy, War, and Server.
-- Treat `Home`, `Economy`, `War`, `Members`, `Server`, `Reports`, and `Commands` as the only visible top-level labels.
-- Give dense sections intentional landing points such as `Member Overview` for Home and `Server Setup` for Server.
-- Preserve recent-page caching and scroll position for command browser, settings, and report-heavy pages.
-- Keep the command launcher reachable from `/`, keyboard shortcut, navbar search, and page-level action bars.
+## Information Model
+
+- Primary objects shown: current user, current guild, registered alliances, current nation, top-level sections, current route header actions, and the `/status` utility entry.
+- Filters / grouping: top-level sections grouped by visible app navigation; sidebar children grouped by subpages within a section.
+- Row or card actions: navigate, open command launcher, switch guild, open `/status`, and follow page header actions.
+- Detail / modal surfaces: command launcher modal and mobile navigation modal.
 
 ## Components
 
-- Existing shared: `Navbar`, `PageView`, `CommandLauncher`, `CommandLauncherProvider`, `SessionProvider`, `DialogProvider`, `RecentPageKeepAlive`.
-- New shared or page-specific: `GuildContextBar`, `PrimaryNavRail`, `SectionHeader`, `MobileSectionSheet`, `PermissionSummaryChip`, `ContextPreservingLink`.
-(note: The above is outdated. GuildContextBar was merged with sessioninfo. The above needs to be updated as it's outdated.)
-## Data and Endpoints
+- Reuse: `Navbar`, `PageView`, `SidebarNav`, `RecentPageKeepAlive`, `CommandLauncher`, `SessionProvider`, `DialogProvider`.
+- Add: `StatusNavLink`, grouped sidebar section metadata, and a mobile nav modal triggered from the navbar.
+- Extend: the merged navbar/session summary should remain the only shared context surface; if more context is needed later, extend `WebSession` rather than reintroducing a separate context bar endpoint.
+- Merge: keep navigation, session summary, and utility links in the existing shared shell instead of splitting them into new parallel chrome components.
 
-- Existing endpoints: `SESSION`, `SET_GUILD`, `UNSET_GUILD`, `INPUT_OPTIONS`.
-- Existing table / graph / placeholder substrate: current session context already exposes guild, nation, and registration state.
-- New endpoints likely needed: none for shell MVP; an optional `guild_context_summary` endpoint could reduce fan-out if the context bar later needs counts or role summaries.
-(note: There should not be a guild_context_summary, it should be added to the WebSession if needed. But I already updated webSession. Tell me if it's missing anything)
-## Command Bindings
+## Implementation Delta
 
-- Existing commands: none as the shell's primary action surface; it should deep-link into pages and the command launcher.
-- Commands likely needing changes: none.
-- Command preview / confirmation rules: do not run commands from the shell itself; the shell should route users into the correct page or command form.
+- Route changes: keep visible navigation aligned with `Home`, `Economy`, `War`, `Members`, `Server`, `Reports`, and `Commands`; treat `/status` as a global utility link instead of a report landing page.
+- Read model changes: none required if `WebSession` already contains guild, alliance, nation, and delegated-server context.
+- Mutation changes: none beyond guild switching.
+- Cache / reload changes: preserve recent-page caching on the routes that already declare it in `src/appRoutes.ts`.
+- Avoid: reintroducing a separate `GuildContextBar`, `PrimaryNavRail`, or `guild_context_summary` endpoint.
 
-## Navigation
+## Route And Navigation
 
-- Links to: all section entry pages, `/commands`, `/guild_select`, `/overview`, `/server/setup`.
-- Linked from: `/home`, login flow, guild select, every deep route.
+- Linked from: login flow, `/home`, `/guild_select`, every routed page using `PageView`.
+- Links to: section entry routes from `src/appRoutes.ts`, `/commands`, `/guild_select`, `/status`.
+- Header / nav actions: route headers should stay dense and action-oriented; shell chrome should not duplicate page-local filters.
+- Preserved context: selected guild, recent-page state, route-specific search params where the route config says to preserve them.
 
-## Permissions and Context
+## Permissions And Context
 
-- Guild-scoped pages require a selected guild and should surface that fact clearly.
-- Public report pages can reuse the shell, but the guild context bar should degrade cleanly when no guild is selected.
+- Auth and scope requirements: public-safe routes can still use the shell, but guild-scoped routes should make missing guild state obvious.
+- Role gates: route-level permissions remain owned by the route, not by the shell.
+- Setup dependency / recovery: setup warnings can link into `/server/setup` or `/server/settings`, but the shell should not become a second setup page.
+- Delegation / inherited context: delegated-server information should come from `WebSession.delegates_to` and related session fields.
 
-## Risks and Open Questions
+## Commands And Mutations
 
-- Do not replace familiar route names with architecture jargon in the visible nav.
-- Keep the shell lightweight; avoid loading every summary count globally.
-- Mobile nav needs a clear pattern that does not hide the command launcher or the guild switcher.
+- Existing commands: none directly owned by the shell.
+- Preview / confirm: the shell should route into command pages instead of executing commands itself.
+- Permission checks: handled by the destination page or command surface.
+- Side effects / cache refresh: session refresh after guild switching.
+
+## Open Questions And Backend Gaps
+
+- If the shell later needs more guild summary detail, extend `WebSession` instead of adding a shell-only summary endpoint.

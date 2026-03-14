@@ -261,6 +261,161 @@ Example:
 }
 ```
 
+### `setting_inheritance_trace`
+
+Needed request data:
+
+- `setting_key`
+
+Needed response fields:
+
+- `setting_key`
+- `local_has_value`
+- `local_value_raw`
+- `local_value_display`
+- `effective_has_value`
+- `effective_value_raw`
+- `effective_value_display`
+- `source_guild_id`
+- `source_guild_name`
+- `delegates_to`
+- `invalid_local`
+- `invalid_effective`
+- `help`
+
+Example:
+
+```json
+{
+  "setting_key": "ALLIANCE_ID",
+  "local_has_value": false,
+  "local_value_raw": "",
+  "local_value_display": "Unset",
+  "effective_has_value": true,
+  "effective_value_raw": "9",
+  "effective_value_display": "Cataclysm",
+  "source_guild_id": "1234567890",
+  "source_guild_name": "Main Server",
+  "delegates_to": "1234567890",
+  "invalid_local": false,
+  "invalid_effective": false,
+  "help": "The primary alliance registered to this guild"
+}
+```
+
+### `audit_setting`
+
+Needed request data:
+
+- `setting_key`
+
+Needed response fields:
+
+- `setting_key`
+- `status`
+- `message`
+- `warnings[]`
+- `errors[]`
+- `related_commands[]`
+
+Example:
+
+```json
+{
+  "setting_key": "INTERVIEW_PENDING_ALERTS",
+  "status": "warning",
+  "message": "Configured channel is missing or inaccessible",
+  "warnings": [
+    {
+      "code": "CHANNEL_NOT_FOUND",
+      "message": "Configured channel 98123 is no longer visible to the bot"
+    }
+  ],
+  "errors": [],
+  "related_commands": [
+    "settings info key=INTERVIEW_PENDING_ALERTS",
+    "channel delete inaccessible"
+  ]
+}
+```
+
+### `role_bindings`
+
+Needed response fields:
+
+- `rows[]`
+- `locutus_role`
+- `discord_role_id`
+- `discord_role_name`
+- `alliance_id`
+- `alliance_name`
+- `is_missing`
+
+Example:
+
+```json
+{
+  "rows": [
+    {
+      "locutus_role": "REGISTERED",
+      "discord_role_id": "98123",
+      "discord_role_name": "Registered",
+      "alliance_id": null,
+      "alliance_name": null,
+      "is_missing": false
+    }
+  ]
+}
+```
+
+### `command_history`
+
+Needed request filters:
+
+- `command`
+- `guild_id`
+- `channel_id`
+- `user_id`
+- `status`
+- `cursor`
+
+Needed response fields:
+
+- `rows[]`
+- `run_id`
+- `command_path`
+- `argument_preview`
+- `guild_id`
+- `guild_name`
+- `channel_id`
+- `channel_name`
+- `user_id`
+- `user_name`
+- `status`
+- `ran_at`
+
+Example:
+
+```json
+{
+  "rows": [
+    {
+      "run_id": "cmd_551923",
+      "command_path": "grant request approve",
+      "argument_preview": "request=381",
+      "guild_id": "1234567890",
+      "guild_name": "Main Server",
+      "channel_id": "4567890123",
+      "channel_name": "econ-ops",
+      "user_id": "99887766",
+      "user_name": "EconLead",
+      "status": "success",
+      "ran_at": 1741776000000
+    }
+  ]
+}
+```
+
 ### `grant_requests`
 
 Needed request support:

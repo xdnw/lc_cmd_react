@@ -58,7 +58,7 @@
 
 ## Navigation
 
-- Links to: `/economy/grant-requests`, `/economy/grant-templates`, `/economy/holdings`, `/economy/ledger`.
+- Links to: `/economy/grant-requests`, `/economy/grant-templates`, `/economy/manage-balance`, `/economy/ledger`.
 - Linked from: grant request review, grant templates, command launcher, overview role-based shortcuts.
 
 ## Permissions and Context

@@ -56,7 +56,7 @@
 
 ## Navigation
 
-- Links to: `/announcements`, `/economy/holdings`, `/economy/deposits`, `/economy/ledger`, `/war/targets`, `/war/rooms`, `/economy/grant-requests`, `/members/interviews`, `/commands`.
+- Links to: `/announcements`, `/members/deposits`, `/members/escrow`, `/economy/ledger`, `/war/targets`, `/war/rooms`, `/economy/grant-requests`, `/members/interviews`, `/commands`.
 - Linked from: `/guild_select`, app shell Home item, login return flow.
 
 ## Permissions and Context

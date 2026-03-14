@@ -37,7 +37,7 @@
 
 ## Components
 
-- Existing shared: `HierarchySidebarNav`, `TABLE`-backed table patterns, graph components, settings deep-link patterns.
+- Existing shared: `SidebarNav`, `TABLE`-backed table patterns, graph components, settings deep-link patterns.
 - New shared or page-specific: `TaxPolicySummary`, `TaxMemberTable`, `TaxRecordsPanel`, `TaxAutomationPanel`, `SettingsLinkPill`.
 
 ## Data and Endpoints

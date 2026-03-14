@@ -53,7 +53,7 @@
 
 ## Navigation
 
-- Links to: `/reports/graphs`, `/reports/tables`, `/economy/holdings`, relevant alliance profile pages.
+- Links to: `/reports/graphs`, `/reports/tables`, `/members/deposits`, relevant alliance detail surfaces.
 - Linked from: home landing cards, economy section nav, command launcher.
 
 ## Permissions and Context

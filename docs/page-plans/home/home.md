@@ -51,7 +51,7 @@
 
 ## Navigation
 
-- Links to: `/overview`, `/server/setup`, `/economy/holdings`, `/war/targets`, `/reports/conflicts`, `/reports/tables`, `/reports/graphs`, `/commands`, `/guild_select`, `/status`, `/multi_v2/:nation?`.
+- Links to: `/overview`, `/server/setup`, `/members/deposits`, `/war/targets`, `/reports/conflicts`, `/reports/tables`, `/reports/graphs`, `/commands`, `/guild_select`, `/status`, `/multi_v2/:nation?`.
 - Linked from: splash, logout, navbar home breadcrumb.
 
 ## Permissions and Context

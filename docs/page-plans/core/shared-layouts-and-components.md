@@ -5,7 +5,7 @@
 - Legacy aliases: n/a
 - Nav group: cross-cutting
 - Primary users: frontend planning and implementation work across `Home`, `Economy`, `War`, `Members`, `Server`, `Reports`, and `Commands`
-- Current references: `docs/page-plans/core/app-shell.md`, `docs/page-plans/core/context-and-scoping.md`, `docs/page-plans/core/workflow-map.md`, `src/components/layout/page-view.tsx`, `src/components/layout/navbar.tsx`, `src/components/layout/DialogContext.tsx`, `src/components/layout/HierarchySidebarNav.tsx`, `src/pages/settings/index.tsx`, `src/pages/custom_table/StaticTable.tsx`, `src/pages/custom_table/actions/BulkActionsToolbar.tsx`, `src/pages/a2/conflict/conflicts.tsx`
+- Current references: `docs/page-plans/core/app-shell.md`, `docs/page-plans/core/context-and-scoping.md`, `docs/page-plans/core/workflow-map.md`, `src/components/layout/page-view.tsx`, `src/components/layout/navbar.tsx`, `src/components/layout/DialogContext.tsx`, `src/components/layout/SidebarNav.tsx`, `src/pages/settings/index.tsx`, `src/pages/custom_table/StaticTable.tsx`, `src/pages/custom_table/actions/BulkActionsToolbar.tsx`, `src/pages/a2/conflict/conflicts.tsx`
 
 ## Why It Exists
 
@@ -50,11 +50,11 @@ Existing pieces to reuse:
 - `src/components/api/SessionContext.tsx`
 
 Specific additions or tweaks:
-- Add `GuildContextBar` under the existing navbar. It should show the selected guild, registered alliances, current nation, delegated-state hints, and direct repair links when setup is incomplete.
-- Add `PrimaryNavRail` for the user-facing section labels from `docs/page-plans/README.md`. This belongs in shared layout, not in each page.
+- Extend the merged navbar or session summary area instead of introducing a separate `GuildContextBar`.
+- Extend the grouped sidebar navigation instead of introducing a separate `PrimaryNavRail`.
 - Add `SectionHeader` so pages stop inventing their own title, summary, action-chip, and secondary-nav arrangement.
-- Add `ContextPreservingLink` so hand-offs to `Holdings`, `Targets`, `Commands`, or `Server Settings` can preserve meaningful guild and local workflow scope without copying every transient filter.
-- `PageView` should gain explicit slots for navbar, context bar, nav rail, and page content. Right now it only owns navbar, main content, footer, and launcher.
+- Add `ContextPreservingLink` so hand-offs to `Deposits`, `Targets`, `Commands`, or `Server Settings` can preserve meaningful guild and local workflow scope without copying every transient filter.
+- `PageView` should expose explicit slots for the unified shell, grouped sidebar navigation, page header, and page content.
 
 Sanity check:
 - Public report pages can reuse the shell chrome, but they must degrade cleanly when there is no selected guild.
@@ -65,13 +65,13 @@ Sanity check:
 Use this for dense workflows where the user keeps scope, filters, totals, results, and detail context visible while they investigate or act.
 
 Used by:
-- `docs/page-plans/economy/holdings.md`
+- `docs/page-plans/economy/manage_balance.md`
+- `docs/page-plans/economy/manage_escrow.md`
 - `docs/page-plans/economy/ledger.md`
 - `docs/page-plans/war/targets.md`
 - `docs/page-plans/war/counters.md`
 - `docs/page-plans/reports/conflicts.md`
 - `docs/page-plans/members/interviews.md`
-- parts of `docs/page-plans/reports/status.md`
 
 Why this layout exists:
 - These pages are not wizard flows. Users compare many rows, keep multiple filters in play, and need detail context without constant route churn.
@@ -202,7 +202,7 @@ Used by:
 - `docs/page-plans/core/guild-select.md`
 - `docs/page-plans/server/setup.md`
 - setup and recovery affordances implied by `docs/page-plans/core/context-and-scoping.md`
-- setup warnings referenced by `docs/page-plans/home/home.md`, `docs/page-plans/economy/deposits.md`, and `docs/page-plans/war/rooms.md`
+- setup warnings referenced by `docs/page-plans/home/home.md`, `docs/page-plans/members/deposits.md`, and `docs/page-plans/war/rooms.md`
 
 Why this layout exists:
 - Setup is not a flat setting list. Users think in terms of readiness, blockers, and next actions by module.
@@ -246,8 +246,8 @@ Existing pieces to reuse:
 - `src/components/cmd/CommandComponent.tsx`
 
 Specific additions or tweaks:
-- Add `RelatedWorkflowLinks` so the command runner can point back to owning guided pages like `Holdings`, `Targets`, or `Roles`.
-- Add `RecentCommandPresetBar` for command runner recents or presets without burying the form.
+- Add `RelatedWorkflowLinks` so the command runner can point back to owning guided pages like `Manage Balance`, `Targets`, or `Roles`.
+- Add a saved-command dropdown and shared history-button affordance instead of a `RecentCommandPresetBar`.
 - Add `CommandContextBadge` when a command was opened from a specific guided workflow.
 
 Sanity check:
@@ -257,10 +257,10 @@ Sanity check:
 
 ### Tier 1: Build These First
 
-#### `GuildContextBar`
+#### `SessionSummaryBlock`
 
 What it is for:
-- Show selected guild, registered alliances, current nation, delegated-state hints, and direct recovery actions.
+- Show selected guild, registered alliances, current nation, delegated-state hints, and direct recovery actions inside the merged shell.
 
 Needed by:
 - `docs/page-plans/core/app-shell.md`
@@ -280,7 +280,7 @@ What it is for:
 - Standardize dense page headers with title, one-sentence purpose, primary actions, and optional secondary nav or scope chips.
 
 Needed by:
-- `Member Overview`, `Holdings`, `Targets`, `Settings`, `Tables`, `Graphs`, `Trade`, `Command Runner`
+- `Member Overview`, `Manage Balance`, `Targets`, `Settings`, `Tables`, `Graphs`, `Trade`, `Command Runner`
 
 Start from:
 - page-local header patterns only; there is no existing reusable header component worth preserving as-is
@@ -294,7 +294,7 @@ What it is for:
 - Carry meaningful guild and workflow scope across route changes without blindly serializing every filter.
 
 Needed by:
-- `Holdings` -> `Ledger`
+- `Deposits` -> `Ledger`
 - `Targets` -> `Counters` or `War Rooms`
 - setup recovery links
 - guided page -> command runner hand-offs
@@ -311,7 +311,7 @@ What it is for:
 - Keep totals, urgency counts, or health summaries visible while the user scrolls a dense result area.
 
 Needed by:
-- `Holdings`, `Ledger`, `Conflicts`, `Interviews`, `Status`, `Trade`
+- `Manage Balance`, `Manage Escrow`, `Ledger`, `Conflicts`, `Interviews`, `Trade`
 
 Start from:
 - new component; there is no current reusable summary strip
@@ -325,7 +325,7 @@ What it is for:
 - Reusable search plus filter-chip strip for pages with multiple combinable filters.
 
 Needed by:
-- `Ledger`, `Targets`, `Counters`, `Conflicts`, `Grant Requests`, `Announcements`, `Status`
+- `Ledger`, `Targets`, `Counters`, `Conflicts`, `Grant Requests`, `Announcements`
 
 Start from:
 - `src/components/cmd/SearchBar.tsx`
@@ -480,8 +480,8 @@ Do not abstract these yet:
 ## Initial Build Order
 
 1. Shell and context primitives
-- `GuildContextBar`
-- `PrimaryNavRail`
+- `SessionSummaryBlock`
+- grouped sidebar section navigation
 - `SectionHeader`
 - `ContextPreservingLink`
 
@@ -508,6 +508,6 @@ Do not abstract these yet:
 - `Command Runner` stays the durable fallback for unsupported or advanced workflows. Guided pages should not invent a second command-preview language.
 - `Tax`, `Recruitment`, `War Rooms`, `Interviews`, `Grant Requests`, and `Trade` are mixed-substrate pages by design. Shared components should clarify those boundaries, not hide them.
 - The repeated drawer request is real, but route-backed detail still matters for shareable resources like `announcement/:id`.
-- `HierarchySidebarNav` is a strong existing component. Reuse it where the user is navigating a hierarchy, not where the user is applying multi-facet filters.
+- `SidebarNav` and the settings-specific hierarchical nav patterns are strong existing components. Reuse them where the user is navigating a hierarchy, not where the user is applying multi-facet filters.
 - `Tables` and `Graphs` can share discovery and preset affordances without becoming the same page.
 - `Home`, `Server Setup`, and `Alliance Profile` should stay visually distinct from the operations-desk pages even if they reuse some summary and link primitives.

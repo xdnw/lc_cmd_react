@@ -1,74 +1,107 @@
 # Roles
 
+- Classification: `route`
 - Status: `Wrap`
-- Primary route: `/server/roles`
-- Legacy aliases: none; current related work is command and settings driven
-- Nav group: Server
-- Primary users: guild admins, IA, milcom, and staff managing role automation or self roles
-- Current references: command metadata for `role *`, `self *`, `settings_auto_role *`, `settings_self_role *`, `src/pages/settings/index.tsx`, `src/pages/commands/index.tsx`, `src/pages/command/index.tsx`
+- Primary route or owner: `/server/roles`
+- Nav group: `Server`
+- Primary actor: `admin`
+- Scope: `guild`
+- Current code:
+	- `src/pages/settings/index.tsx`
+	- `src/pages/commands/index.tsx`
+	- `src/pages/command/index.tsx`
+	- command metadata for `role *`, `self *`, `settings_auto_role *`, and `settings_self_role *`
+- Read substrate:
+	- Endpoints: `INPUT_OPTIONS`, `TABLE`, `PERMISSION`
+	- Response types: `WebOptions`, `WebTable`, `WebPermission`
+	- Table / graph / placeholder types: `GuildSetting` rows for auto-role and self-role policy; future `role_bindings` rows for alias inventory
+	- Required columns / filters: auto-role and self-role categories from `GuildSetting`, plus future alias rows keyed by Locutus role
+- Write substrate:
+	- Endpoints / command families: `COMMAND`, `role *`, `self *`
+	- Existing form / action components: command runner fallback plus settings deep links
+	- Reload / invalidation targets: role alias inventory, self-role policy settings, related setup shortcuts
 
 ## Why It Exists
 
-- Role work is a mix of policy and Discord state, which is awkward when split across raw commands.
-- Users think in terms like aliases, auto roles, self roles, and mass updates, not in terms of command trees.
-- This should be a guided command wrapper plus settings deep links, not a pretend standalone role database.
+- Owns: role alias coverage, auto-role policy, self-role policy, and mass role actions that operators actually use.
+- Does not own: Discord's full role inventory or a general-purpose member directory.
+- Current gap: the workflow exists in commands and settings already, but the docs need a real wrapped page model and a concrete alias read gap.
 
 ## Workflows
 
-- Primary: manage role aliases, run auto-assign flows, manage self roles, and perform mass role actions.
-- Secondary: inspect role readiness for key workflows, repair missing aliases, and jump into the exact settings or command flow needed for automation changes.
-- Why users arrive here: setup, staff onboarding, war / IA role maintenance, permission troubleshooting.
-- Upstream entry points: `Server Setup`, `Interviews`, `Recruitment`, command fallback.
-- Downstream hand-offs: `Server Settings`, `Channels`, and any workflow that depends on the alias map being correct.
+1. Repair setup-critical aliases
+	 - Entry: `/server/setup` or `/server/settings`
+	 - Preconditions: selected guild
+	 - Reads: current alias coverage, related `GuildSetting` policy, and future `role_bindings`
+	 - UI path: inspect missing aliases for `REGISTERED`, `MEMBER`, `ADMIN`, department roles, and opt-out roles
+	 - Mutations: `role setalias`, `role unregister`
+	 - Handoff / exit: back into setup or the workflow page that depends on the alias
+2. Manage auto roles and self roles
+	 - Entry: `/server/roles`
+	 - Preconditions: selected guild and role-management permission
+	 - Reads: `GuildSetting` auto-role and self-role policy plus current self-role relationships from commands
+	 - UI path: alias section, auto-role section, self-role section
+	 - Mutations: `role autoassign`, `role autorole`, `self create`, `self add`, `self remove`, `role removeassignablerole`
+	 - Handoff / exit: into interviews, recruitment, or member support pages
+3. Run operator actions safely
+	 - Entry: `/server/roles`
+	 - Preconditions: action targets known
+	 - Reads: current command args and any available previews
+	 - UI path: mass action panels with strong confirmation language
+	 - Mutations: `role mask`, `role mask_sheet`, `role clearallianceroles`, `role clearnicks`, `role optout`
+	 - Handoff / exit: stay in the page with updated alias or policy state
 
-## Layout and Look
+## Layout Structure
 
-- Sections: `Aliases`, `Auto Roles`, `Self Roles`, `Mass Actions`, `Opt-outs`.
-- Reuse the settings page's clarity, but add workflow-oriented checklists and command previews.
-- Keep the page practical and operator-friendly, not overly decorative.
-- Treat the page as a control room for role actions, not as a replacement for Discord's own role list UI.
+- Top-level regions: `Aliases`, `Auto Roles`, `Self Roles`, `Mass Actions`, `Opt-outs`.
+- Tabs / panels / drawers: no need for many tabs; sections should stay visible and workflow-oriented.
+- URL state: optional deep links into a specific section or missing alias.
+- Empty / loading / error states: if the alias inventory endpoint does not exist yet, say that the page is wrapping commands and settings rather than pretending to own a live Discord role model.
 
-## Information and Interactions
+## Information Model
 
-- Alias mapping: core access roles first, then department roles, then alert and opt-out roles.
-- Auto roles: show the related `AUTO_ROLE` and `SELF_ROLE` settings alongside actions such as `autoassign`, `autorole`, `clearallianceroles`, and `clearnicks`.
-- Self roles: create required-role to assignable-role relationships and show the exact command path used for changes.
-- Mass actions: support `mask` and `mask_sheet` with clear affected-role previews and strong confirmation language.
-- Opt-outs: expose `role optout` clearly as a member-level or operator repair action, not as general setup.
-- Setup readiness: show missing aliases that block banking, recruitment, war alerts, interviews, or self-service flows.
+- Primary objects shown: Locutus role aliases, auto-role policy, self-role relationships, mass role actions, and missing-role blockers.
+- Filters / grouping: group aliases by setup-critical, department, alert, and member-self roles.
+- Row or card actions: set alias, clear alias, run auto-assign, edit self-role mapping, open command fallback.
+- Detail / modal surfaces: alias edit dialog, mass-action confirmation, and future missing-role diagnostic panel.
 
 ## Components
 
-- Existing shared: settings-style sectioning, `ArgInput`, dialog helpers, command preview helpers, command runner links.
-- New shared or page-specific: `RoleAliasChecklist`, `AutoRolePanel`, `SelfRoleManager`, `MassRoleActionPanel`, `RoleWorkflowCoverageCard`.
+- Reuse: settings deep-link patterns, `ArgInput`, command preview helpers, command runner links.
+- Add: `RoleBindingsTable`, `RoleAliasChecklist`, `AutoRolePanel`, `SelfRoleManager`, `MassRoleActionPanel`.
+- Extend: `Server Setup` and `Server Settings` shortcut cards so they can deep-link into missing aliases.
+- Merge: keep alias coverage and related role policy in one page instead of splitting alias repair into a command-only path.
 
-## Data and Endpoints
+## Implementation Delta
 
-- Existing endpoints: `INPUT_OPTIONS`, `TABLE`, `PERMISSION`, `COMMAND`.
-- Existing table / graph / placeholder substrate: `GuildSetting` rows cover automation policy, but there is no dedicated guild role inventory or role-member summary endpoint.
-- Existing command substrate: role actions already exist and are appropriate for a wrapped operator page.
-- Current backend gaps: none for the first wrapped page.
-- Existing role and self-role commands plus settings reads cover the current workflow.
-- Later only if this page becomes a native admin desk: role inventory, alias summary, self-role summary, and role-member counts.
+- Route changes: treat `/server/roles` as the owner even while current code still lives in commands and settings.
+- Read model changes: add `role_bindings` so the page can show actual alias state without screen-scraping command output.
+- Mutation changes: keep actual writes command-backed.
+- Cache / reload changes: refresh alias and policy reads after any command-backed mutation.
+- Avoid: pretending the page owns full Discord role inventory before there is a web-native read model.
 
-## Command Bindings
+## Route And Navigation
 
-- Existing commands: `role setalias`, `role autoassign`, `role autorole`, `role clearallianceroles`, `role clearnicks`, `role mask`, `role mask_sheet`, `role optout`, `role removeassignablerole`, `self create`, `self list`, `self add`, `self remove`.
-- Commands likely needing changes: none required immediately.
-- Command preview / confirmation rules: any mass action must show affected roles and intended mutation clearly before submit.
+- Linked from: `/server/setup`, `/server/settings`, `/members/interviews`, `/members/recruitment`.
+- Links to: `/server/settings`, `/members/interviews`, `/commands`.
+- Header / nav actions: focus on missing aliases, auto-role repair, and self-role repair.
+- Preserved context: selected guild, owning workflow, and current section.
 
-## Navigation
+## Permissions And Context
 
-- Links to: `/server/settings`, `/members/interviews`, `/war/rooms`, `/commands` where aliases or automation matter.
-- Linked from: settings shortcut cards, command launcher, setup flow.
+- Auth and scope requirements: login, selected guild, and role-management permission.
+- Role gates: mass actions and alias changes should stay admin-gated.
+- Setup dependency / recovery: this is a setup repair surface as much as a steady-state admin page.
+- Delegation / inherited context: inherited guild settings matter for auto-role policy, but aliases themselves still need a guild-scoped read model.
 
-## Permissions and Context
+## Commands And Mutations
 
-- Requires login, selected guild, and role-management permissions.
-- Actions that touch many members must be clearly permission-gated.
+- Existing commands: `role setalias`, `role unregister`, `role autoassign`, `role autorole`, `role clearallianceroles`, `role clearnicks`, `role mask`, `role mask_sheet`, `role optout`, `role removeassignablerole`, `self create`, `self list`, `self add`, `self remove`.
+- Preview / confirm: mass actions must show affected role and target context before submit.
+- Permission checks: command permission plus guild role-management context.
+- Side effects / cache refresh: refresh alias coverage, role policy reads, and setup shortcut status.
 
-## Risks and Open Questions
+## Open Questions And Backend Gaps
 
-- This page will feel thin if it pretends to own Discord role inventory that the web API does not currently expose.
-- Role alias editing must stay aligned with the same source of truth used in command permissions.
-- Self-role UX should not accidentally expose gov-only roles as normal member options.
+- Add `role_bindings` so the page can load current aliases without routing every operator through raw commands.
+- Keep any future role inventory endpoint separate from the alias inventory so the page does not over-assume ownership.

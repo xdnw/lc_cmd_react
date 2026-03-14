@@ -1,66 +1,107 @@
 # Command Runner
 
+- Classification: `route`
 - Status: `Evolve`
-- Primary route: `/command/:command`
-- Legacy aliases: `/view_command/:command` for result-first rendering, related support route `/placeholders/:placeholder`
-- Nav group: Commands
-- Primary users: power users, admins, and anyone using the universal fallback instead of a guided page
-- Current references: `src/pages/command/index.tsx`, `src/pages/command/view_command.tsx`, `src/components/cmd/useCommandExecution.ts`
+- Primary route or owner: `/command/:command`
+- Nav group: `Commands`
+- Primary actor: `everyone`
+- Scope: `none`
+- Current code:
+	- `src/pages/command/index.tsx`
+	- `src/pages/command/view_command.tsx`
+	- `src/components/cmd/useCommandExecution.ts`
+	- `src/components/cmd/CommandComponent.tsx`
+- Read substrate:
+	- Endpoints: command metadata locally, viewable route support where available, future `command_history`
+	- Response types: metadata-defined argument shapes, `WebViewCommand`, and view-specific endpoint types
+	- Table / graph / placeholder types: command metadata remains the authoritative input contract
+	- Required columns / filters: current command path, URL-backed initial values, future command-history filter by current command
+- Write substrate:
+	- Endpoints / command families: generic command execution through the existing runner infrastructure
+	- Existing form / action components: `CommandComponent`, `CommandStringPreview`, `useCommandExecution`
+	- Reload / invalidation targets: current output panel plus any route-specific follow-up pages the command links into
 
 ## Why It Exists
 
-- This route is the universal fallback for any capability not yet wrapped in a specialized page.
-- It already has strong keyboard support, command preview, and execution behavior; that should be preserved.
+- Owns: argument entry, command preview, execution, and output inspection for any command path.
+- Does not own: page-specific read models that deserve a dedicated workflow surface.
+- Current gap: the doc needed to replace vague preset-strip language with a concrete saved-command and history model.
 
 ## Workflows
 
-- Primary: fill arguments, preview the command string, run the command, inspect output.
-- Secondary: switch between compact and focus-pane modes, jump between args, share or reopen command URLs with prefilled args.
-- Why users arrive here: long-tail workflows, admin actions, deep links from menus / embeds / guided pages, troubleshooting.
+1. Run a command from raw metadata
+	 - Entry: `/command/:command`
+	 - Preconditions: command exists in metadata
+	 - Reads: command definition, URL-backed initial values
+	 - UI path: fill args, inspect generated string, run, inspect result
+	 - Mutations: command execution through the existing runner
+	 - Handoff / exit: stay on the page or follow a related workflow link
+2. Reopen or share a prefilled command
+	 - Entry: command URL with query params
+	 - Preconditions: command path resolves
+	 - Reads: query params into initial form state
+	 - UI path: page loads with values prefilled and preview updated
+	 - Mutations: rerun or adjust and rerun
+	 - Handoff / exit: share the URL or branch into `/view_command/:command` when result-first rendering makes sense
+3. Reuse saved commands or inspect history
+	 - Entry: saved-command dropdown or command-scoped history button
+	 - Preconditions: local saved commands exist or the history endpoint exists
+	 - Reads: local saved-command entries plus future `command_history` filtered to the current command path
+	 - UI path: choose a saved variant from one dropdown, or open history modal scoped to this command
+	 - Mutations: save or remove a local command variant
+	 - Handoff / exit: form repopulates and runs from the same runner page
 
-## Layout and Look
+## Layout Structure
 
-- Keep the current command shell and make it feel like an expert tool.
-- Preserve card and focus-pane modes.
-- Add context links back to the owning guided page when one exists, but do not hide the raw form.
+- Top-level regions: mode toggle, command form, command string preview, output panel, lightweight related-links area.
+- Tabs / panels / drawers: keep card and focus-pane modes; use a modal for history instead of a persistent strip.
+- URL state: command args remain shareable through query params.
+- Empty / loading / error states: missing command path should fail plainly; permission and execution failures should render in the output area.
 
-## Information and Interactions
+## Information Model
 
-- Show the argument form, generated command string, keyboard hints, and result area together.
-- Preserve URL-backed initial values so command links are shareable.
-- Support viewable result routes and inline rendered output where available.
-- Surface related pages, saved presets, and recent runs without getting in the way of the form.
+- Primary objects shown: argument form, generated command string, keyboard hints, execution result, saved-command options, command-scoped history.
+- Filters / grouping: saved commands grouped by current command path; history filtered to the current command path first.
+- Row or card actions: run, clear, switch display mode, save current values, remove saved entry, open command history.
+- Detail / modal surfaces: command-history modal and result-first `view_command` route when appropriate.
 
 ## Components
 
-- Existing shared: `CommandComponent`, `CommandStringPreview`, `useCommandExecution`, argument-jump and keyboard helpers, `ViewCommand`.
-- New shared or page-specific: `RelatedWorkflowLinks`, `RecentCommandPresetBar`, `CommandContextBadge`.
-(note: RecentCommandPresetBar drop it. its nonsense. There should be saved commands, done through a single dropdown, with add/remove (routed via favoriteCmdUtil.ts), and a history button (reuse history button from the cmd list page (see browser.md), but have it scoped to the command))
+- Reuse: `CommandComponent`, `CommandStringPreview`, `useCommandExecution`, keyboard helpers, `ViewCommand`.
+- Add: `SavedCommandSelect`, `CommandHistoryButton`, `CommandHistoryDialog`, shared saved-command helpers built on `favoriteCmdUtil.ts` or a sibling util.
+- Extend: the command page shell so saved commands and history stay lightweight and command-scoped.
+- Merge: use the same history button contract as the browser page instead of inventing a second history UI.
 
-## Data and Endpoints
+## Implementation Delta
 
-- Existing endpoints: generic command execution support plus whatever underlying web endpoints are already exposed for viewable routes.
-- Existing table / graph / placeholder substrate: command metadata remains the authoritative input definition.
-- New endpoints likely needed: none required for MVP; saved presets or command-run history would need persistence later.
+- Route changes: `/command/:command` remains the owner; `/view_command/:command` stays a related result-first route rather than replacing the runner.
+- Read model changes: add command-scoped history and lightweight saved-command state without changing how metadata drives the form.
+- Mutation changes: command execution stays generic; saved-command add/remove can stay local-first.
+- Cache / reload changes: no new global cache layer; keep output and saved-command state local to the route.
+- Avoid: a recent-preset bar, heavy chrome that competes with the form, or a second execution surface that drifts from this page.
 
-## Command Bindings
+## Route And Navigation
 
-- Existing commands: effectively all commands exposed in metadata.
-- Commands likely needing changes: none required; the point of this page is to stay generic.
-- Command preview / confirmation rules: always keep the generated command string visible before run, especially for destructive or multi-entity commands.
+- Linked from: `/commands`, launcher, menus, embeds, and wrapped workflow pages that provide an advanced fallback.
+- Links to: `/commands`, `/view_command/:command`, related workflow routes when they exist.
+- Header / nav actions: keep them secondary to the form itself.
+- Preserved context: command path, query-param-backed initial values, display mode, and saved-command selection.
 
-## Navigation
+## Permissions And Context
 
-- Links to: `/commands`, owning guided pages like Economy or War views when available, `/view_command/:command` when a result-first route is appropriate.
-- Linked from: command browser, global launcher, menus, embeds, guided workflow "advanced" actions.
+- Auth and scope requirements: depend on the selected command.
+- Role gates: the page should surface permission failures rather than silently hiding commands or outputs.
+- Setup dependency / recovery: this is the universal fallback when a specialized page is missing or incomplete.
+- Delegation / inherited context: not owned by this page.
 
-## Permissions and Context
+## Commands And Mutations
 
-- Public or guild-scoped depending on the specific command.
-- The page should clearly surface permission failures instead of silently hiding them.
+- Existing commands: effectively all commands in metadata.
+- Preview / confirm: always show the generated command string before execution.
+- Permission checks: enforced by the command substrate and surfaced in the output area.
+- Side effects / cache refresh: owned by the executed command and any destination pages it links into.
 
-## Risks and Open Questions
+## Open Questions And Backend Gaps
 
-- Do not let guided pages and the command runner drift into inconsistent argument naming or preview behavior.
-- Recent presets need to stay lightweight and not clutter the expert workflow.
-- `view_command` and `placeholders` should stay obviously related without being collapsed into the same route.
+- Add `command_history` so the history button can filter server-backed runs by the current command path.
+- Keep saved commands lightweight and local-first unless a shared backend persistence requirement emerges later.

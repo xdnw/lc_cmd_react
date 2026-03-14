@@ -1,70 +1,106 @@
 # Grant Requests
 
+- Classification: `route`
 - Status: `Wrap`
-- Primary route: `/economy/grant-requests`
-- Legacy aliases: none; currently command-only
-- Nav group: Economy
-- Primary users: members requesting grants, econ staff reviewing and approving them
-- Current references: `src/pages/command/index.tsx`, `src/pages/settings/index.tsx`, command metadata for `grant request *` and `settings_bank_grants *`
+- Primary route or owner: `/economy/grant-requests`
+- Nav group: `Economy`
+- Primary actor: `everyone`
+- Scope: `guild + alliance`
+- Current code:
+	- `src/pages/command/index.tsx`
+	- `src/pages/settings/index.tsx`
+	- command metadata for `grant request *`, `grant *`, and `grant_template info`
+- Read substrate:
+	- Endpoints: `INPUT_OPTIONS`, `PERMISSION`, future `grant_requests`
+	- Response types: `WebOptions`, `WebPermission`, future queue rows
+	- Table / graph / placeholder types: grant settings through `settings_bank_grants *`; no current queue placeholder type
+	- Required columns / filters: request id, requester, receiver, status, reason preview, estimated amounts, blocking flags
+- Write substrate:
+	- Endpoints / command families: `COMMAND`, `grant request *`, `grant *`, `grant_template info`
+	- Existing form / action components: command-backed request form, dialogs, drawer patterns
+	- Reload / invalidation targets: request queue read, related grant-send and balance views
 
 ## Why It Exists
 
-- Grant requests are a queue and review workflow, not a one-off command.
-- Approval quality depends on surrounding context: balances, eligibility, recent grants, and the requested action itself.
-- The first version should wrap request creation and review around command execution and banking settings rather than pretend a native queue already exists.
+- Owns: request creation, request review, request approval or cancellation, and handoff into send workflows when a reviewer needs to edit the underlying grant.
+- Does not own: the grant-template library or the full grant-send wizard.
+- Current gap: the workflow is real, but it still lacks the queue read that would let the page behave like a proper review surface.
 
 ## Workflows
 
-- Primary: create a request, review open requests, approve or cancel with context.
-- Secondary: escalate a request into the full send wizard when approval needs edits.
-- Why users arrive here: members needing funds, econ staff processing the daily queue, grant reviewers triaging issues.
-- Upstream entry points: `Member Overview`, `Holdings`, template library, command fallback.
-- Downstream hand-offs: `Grant Send`, `Holdings`, `Deposits`, `Ledger`.
+1. Create a grant request
+	 - Entry: `/economy/grant-requests` or a shortcut from member-self balance pages
+	 - Preconditions: user can request grants in the current guild
+	 - Reads: command metadata, request-channel policy from settings, optional template info lookup
+	 - UI path: simplified request form in the page shell
+	 - Mutations: `grant request create`
+	 - Handoff / exit: request lands in the queue and the member can monitor its status
+2. Review the queue
+	 - Entry: `/economy/grant-requests`
+	 - Preconditions: reviewer has econ or gov visibility
+	 - Reads: future `grant_requests` queue, `grant_template info`, and related balance context when linked
+	 - UI path: queue list on one side, selected request drawer or detail pane on the other
+	 - Mutations: `grant request approve`, `grant request cancel`
+	 - Handoff / exit: into `Grant Send`, `Manage Balance`, or `Ledger` if the reviewer needs deeper context
+3. Escalate to a full send workflow
+	 - Entry: selected request row
+	 - Preconditions: request needs edits or manual approval context
+	 - Reads: selected request details plus any matched template context
+	 - UI path: open the send wizard or raw command fallback with the request context prefilled
+	 - Mutations: approval or a separate `grant *` send flow
+	 - Handoff / exit: into `/economy/grant-send`
 
-## Layout and Look
+## Layout Structure
 
-- Split view: request queue on the left, selected request drawer or detail pane on the right.
-- Keep the surface transactional and triage-friendly, more like a support queue than a dashboard.
-- Status chips and amount estimates should stand out immediately.
+- Top-level regions: request queue, selected request detail, inline request-create form for members, and action preview area.
+- Tabs / panels / drawers: queue plus detail pane on desktop; request list plus modal or stacked detail on mobile.
+- URL state: selected request id, queue filters, and optionally whether the user is on create vs. review mode.
+- Empty / loading / error states: if the queue endpoint is missing, the page should say it is still command-wrapped instead of pretending there are no requests.
 
-## Information and Interactions
+## Information Model
 
-- Queue filters: alliance scope, request status, grant type, requester, age, estimated amount.
-- Detail view: requester, receiver, reason, source command, estimate, current balances, recent grants, template matches, warnings.
-- Actions: approve, cancel, open in send wizard, copy command, mark for follow-up.
-- Request creation should be available in-page for members with a simplified form.
-- Approval review should make it obvious whether the blocker is missing funds, template policy, deposit state, escrow behavior, or missing permissions.
+- Primary objects shown: request rows, requester, receiver, status, reason preview, estimated amounts, template context, balance context, blocking flags.
+- Filters / grouping: status, requester, receiver, grant type, age, and alliance scope.
+- Row or card actions: approve, cancel, open in `Grant Send`, copy or inspect the generated command, reopen member balance context.
+- Detail / modal surfaces: request detail drawer and action-confirmation dialog.
 
 ## Components
 
-- Existing shared: `CommandComponent`, `ApiFormInputs`, `DialogProvider`, table and drawer patterns from conflicts/settings.
-- New shared or page-specific: `GrantRequestQueue`, `GrantRequestDrawer`, `EligibilityPanel`, `GrantRequestFilters`, `GrantActionPreview`.
-(note: eligability panel not sure that makes sense at all. There is no such thing as eligability. Grant templates have eligability, requests don't. Unless by eligability panel you just mean display the info so the person can decide if they are eligable or not.)
-## Data and Endpoints
-- Existing endpoints: `COMMAND`, `TABLE`, `INPUT_OPTIONS`, `PERMISSION`.
-- Existing table / graph / placeholder substrate: `settings_bank_grants *` already defines request-channel behavior and defaults, but there is no request queue or review read model.
-- Current backend gap: one `grant_requests` queue read with request id, requester, receiver, status, reason preview, estimated amounts, and blocking flags.
-- Not current: separate detail or context endpoints until the queue row proves insufficient.
+- Reuse: `CommandComponent`, `ApiFormInputs`, `DialogProvider`, drawer and list patterns already used in settings or conflicts.
+- Add: `GrantRequestQueue`, `GrantRequestDrawer`, `GrantRequestFilters`, `GrantRequestContextPanel`, `GrantActionPreview`.
+- Extend: links into `Grant Send`, `Manage Balance`, and `Ledger` so request review can branch into broader econ work.
+- Merge: keep member request creation and staff queue review in one route with role-aware sections rather than splitting them into unrelated pages too early.
 
-## Command Bindings
+## Implementation Delta
 
-- Existing commands: `grant request create`, `grant request approve`, `grant request cancel`, plus hand-off into `grant *` and `grant_template info`.
-- Commands likely needing changes: none required immediately, though a richer approval preview command could help later.
-- Command preview / confirmation rules: approvals must always show the underlying command and the funding/accounting assumptions before final submit.
+- Route changes: `/economy/grant-requests` becomes the owner even though the current capability is command-only.
+- Read model changes: add one `grant_requests` queue read before inventing any richer detail API family.
+- Mutation changes: keep create, approve, and cancel command-backed.
+- Cache / reload changes: refresh queue rows and any visible balance context after request actions.
+- Avoid: an `EligibilityPanel` abstraction that implies requests have a formal eligibility model separate from the reviewer context and grant-template rules.
 
-## Navigation
+## Route And Navigation
 
-- Links to: `/economy/grant-send`, `/economy/holdings`, `/economy/ledger`, `/overview`.
-- Linked from: overview action cards, grant templates, holdings, command launcher.
+- Linked from: `/home/member-overview`, `/members/deposits`, `/economy/manage-balance`, `/economy/grant-templates`, `/commands`.
+- Links to: `/economy/grant-send`, `/economy/manage-balance`, `/economy/ledger`.
+- Header / nav actions: emphasize `Create Request` for members and `Queue Filters` for reviewers.
+- Preserved context: requester scope, queue filters, and selected request id.
 
-## Permissions and Context
+## Permissions And Context
 
-- Members may create and view their own requests.
-- Econ or gov users should get queue-wide visibility and approval actions.
+- Auth and scope requirements: selected guild, with role-aware visibility for member vs. reviewer flows.
+- Role gates: members can create and inspect their own requests; econ or gov staff get queue-wide actions.
+- Setup dependency / recovery: grant-request settings and request-channel config still live in server settings.
+- Delegation / inherited context: if request policy is inherited, the page should still surface that through settings links.
 
-## Risks and Open Questions
+## Commands And Mutations
 
-- Without new read endpoints this page becomes a command wrapper, which is not enough.
-- Need to decide whether request creation is a separate simple view on mobile.
-- The page should explain why a request is risky, not just whether it can be approved.
-- Until queue data exists, the page should be explicit that it is a review shell over commands and settings rather than a native workflow service.
+- Existing commands: `grant request create`, `grant request approve`, `grant request cancel`, plus handoff into `grant *` and `grant_template info`.
+- Preview / confirm: approvals should show the resulting command and current balance assumptions before submit.
+- Permission checks: command permission plus queue visibility rules.
+- Side effects / cache refresh: refresh queue rows and any linked balance panels after request actions.
+
+## Open Questions And Backend Gaps
+
+- Add one `grant_requests` queue endpoint before adding any broader request-detail family.
+- Keep grant-template context lightweight; the reviewer needs context, not a fake separate eligibility model.

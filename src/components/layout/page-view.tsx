@@ -1,19 +1,27 @@
 import { ReactElement, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 
-import { APP_PRIMARY_NAV_ITEMS, resolveAppRouteConfig, type AppNavSection, type AppRouteConfig, type AppRouteShellConfig } from "@/appRoutes";
+import {
+    APP_PRIMARY_NAV_ITEMS,
+    buildSectionHeaderTabs,
+    resolveAppRouteConfig,
+    type AppNavSection,
+    type AppRouteConfig,
+    type AppRouteShellConfig,
+} from "@/appRoutes";
 import { useSession, SessionProvider } from "@/components/api/SessionContext";
 import CommandLauncher from "@/components/cmd/CommandLauncher";
 import { CommandLauncherProvider } from "@/components/cmd/CommandLauncherContext";
 import Footer from "@/components/layout/footer.tsx";
+import { PageHeaderProvider, useActivePageHeader } from "@/components/layout/PageHeaderContext";
 import { PageSidebarProvider, useActivePageSidebar } from "@/components/layout/PageSidebarContext";
-import SectionHeader from "@/components/layout/SectionHeader";
 import SidebarNav, { type SidebarNavConfig } from "@/components/layout/SidebarNav";
 import Badge from "@/components/ui/badge";
 import { ThemeProvider } from "../ui/theme-provider";
 import Navbar from "@/components/layout/navbar.tsx";
 import { DialogProvider } from "./DialogContext";
 import RecentPageKeepAlive from "./RecentPageKeepAlive";
+import SectionHeader from "./SectionHeader";
 
 function buildSectionSidebarConfig({
     activeSection,
@@ -52,14 +60,13 @@ function buildSectionSidebarConfig({
 
 function PageScaffold({
     routeConfigs,
-    section,
-    sectionHeader,
+    sectionTabs,
 }: {
     routeConfigs: readonly AppRouteConfig[];
-    section: AppNavSection | undefined;
-    sectionHeader: AppRouteShellConfig["header"];
+    sectionTabs: ReturnType<typeof buildSectionHeaderTabs>;
 }) {
     const activeSidebar = useActivePageSidebar();
+    const activeHeader = useActivePageHeader();
 
     return (
         <div className="flex min-h-0 grow">
@@ -74,16 +81,15 @@ function PageScaffold({
             <main className="min-w-0 grow">
                 <div className="space-y-3 px-2 py-2 md:px-3 md:py-3">
                     {activeSidebar ? <SidebarNav mode="mobile" config={activeSidebar} /> : null}
-                    {sectionHeader ? (
-                        <SectionHeader
-                            eyebrow={section}
-                            title={sectionHeader.title}
-                            summary={sectionHeader.summary}
-                            badge={sectionHeader.badge}
-                            primaryActions={sectionHeader.primaryActions}
-                            secondaryActions={sectionHeader.secondaryActions}
-                        />
-                    ) : null}
+                    <SectionHeader
+                        tabs={sectionTabs}
+                        sticky={activeHeader?.sticky}
+                        title={activeHeader?.title}
+                        summary={activeHeader?.summary}
+                        actions={activeHeader?.actions}
+                        content={activeHeader?.content}
+                        className={activeHeader?.className}
+                    />
                     <RecentPageKeepAlive routeConfigs={routeConfigs} />
                 </div>
             </main>
@@ -95,13 +101,14 @@ function PageShellContent({
     routeConfigs,
     shell,
     showPrimaryNav,
+    sectionTabs,
 }: {
     routeConfigs: readonly AppRouteConfig[];
     shell: AppRouteShellConfig | undefined;
     showPrimaryNav: boolean;
+    sectionTabs: ReturnType<typeof buildSectionHeaderTabs>;
 }) {
     const { session } = useSession();
-    const sectionHeader = shell?.header;
     const defaultSidebar = useMemo(() => {
         if (!showPrimaryNav) {
             return null;
@@ -115,7 +122,9 @@ function PageShellContent({
 
     return (
         <PageSidebarProvider defaultSidebar={defaultSidebar}>
-            <PageScaffold routeConfigs={routeConfigs} section={shell?.section} sectionHeader={sectionHeader} />
+            <PageHeaderProvider>
+                <PageScaffold routeConfigs={routeConfigs} sectionTabs={sectionTabs} />
+            </PageHeaderProvider>
         </PageSidebarProvider>
     );
 }
@@ -124,6 +133,10 @@ export default function PageView({ routeConfigs }: { routeConfigs: readonly AppR
     const location = useLocation();
     const matchedRoute = useMemo(
         () => resolveAppRouteConfig(routeConfigs, location.pathname),
+        [location.pathname, routeConfigs],
+    );
+    const sectionTabs = useMemo(
+        () => buildSectionHeaderTabs(routeConfigs, location.pathname),
         [location.pathname, routeConfigs],
     );
     const shell = matchedRoute?.shell;
@@ -137,7 +150,12 @@ export default function PageView({ routeConfigs }: { routeConfigs: readonly AppR
                     <CommandLauncherProvider>
                         <div className="min-h-screen bg-background text-foreground flex flex-col">
                             <Navbar routeConfigs={routeConfigs} showContextBar={showContextBar} />
-                            <PageShellContent routeConfigs={routeConfigs} shell={shell} showPrimaryNav={showPrimaryNav} />
+                            <PageShellContent
+                                routeConfigs={routeConfigs}
+                                shell={shell}
+                                showPrimaryNav={showPrimaryNav}
+                                sectionTabs={sectionTabs}
+                            />
                             <Footer />
                             <CommandLauncher />
                         </div>

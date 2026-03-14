@@ -1,106 +1,102 @@
 import type { ReactNode } from "react";
 
-import type { AppRouteHeaderAction, AppRouteHeaderBadge } from "@/appRoutes";
+import type { AppSectionHeaderTab } from "@/appRoutes";
 import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
-import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import LazyIcon from "@/components/ui/LazyIcon";
 import { cn } from "@/lib/utils";
 
-function HeaderActionButton({
-  action,
-  fallbackVariant,
-}: {
-  action: AppRouteHeaderAction;
-  fallbackVariant: AppRouteHeaderAction["variant"];
-}) {
+function HeaderTabButton({ tab }: { tab: AppSectionHeaderTab }) {
   return (
-    <Button asChild size="sm" variant={action.variant ?? fallbackVariant ?? "outline"}>
+    <Button asChild size="sm" variant={tab.active ? "default" : "ghost"}>
       <ContextPreservingLink
-        to={action.to}
-        preserveSearchParams={action.preserveSearchParams}
-        additionalSearchParams={action.additionalSearchParams}
-        requireGuild={action.requireGuild}
+        to={tab.to}
+        requireGuild={tab.requireGuild}
+        preserveSearchParams={tab.preserveSearchParams}
+        additionalSearchParams={tab.additionalSearchParams}
+        aria-current={tab.active ? "page" : undefined}
       >
-        {action.iconName ? <LazyIcon name={action.iconName} size={14} /> : null}
-        {action.label}
+        {tab.label}
       </ContextPreservingLink>
     </Button>
   );
 }
 
-function HeaderBadge({ badge }: { badge: AppRouteHeaderBadge }) {
-  return (
-    <Badge variant={badge.variant ?? "outline"} className="h-5 px-2 text-[10px] uppercase tracking-[0.12em]">
-      {badge.label}
-    </Badge>
-  );
+function renderTitle(title: ReactNode): ReactNode {
+  if (typeof title === "string") {
+    return <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{title}</h1>;
+  }
+
+  return title;
+}
+
+function renderSummary(summary: ReactNode): ReactNode {
+  if (typeof summary === "string") {
+    return <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{summary}</p>;
+  }
+
+  return summary;
 }
 
 export interface SectionHeaderProps {
-  eyebrow?: string;
-  title: string;
+  tabs?: readonly AppSectionHeaderTab[];
+  sticky?: boolean;
+  title?: ReactNode;
   summary?: ReactNode;
-  badge?: AppRouteHeaderBadge;
-  primaryActions?: readonly AppRouteHeaderAction[];
-  secondaryActions?: readonly AppRouteHeaderAction[];
-  children?: ReactNode;
+  actions?: ReactNode;
+  content?: ReactNode;
   className?: string;
 }
 
 export default function SectionHeader({
-  eyebrow,
+  tabs = [],
+  sticky = false,
   title,
   summary,
-  badge,
-  primaryActions = [],
-  secondaryActions = [],
-  children,
+  actions,
+  content,
   className,
 }: SectionHeaderProps) {
-  const hasActions = primaryActions.length > 0 || secondaryActions.length > 0;
+  const visibleTabs = tabs.length > 1 ? tabs : [];
+  const hasSummaryBlock = Boolean(title || summary || actions);
+  const hasContent = Boolean(content);
+
+  if (!visibleTabs.length && !hasSummaryBlock && !hasContent) {
+    return null;
+  }
 
   return (
     <header
       className={cn(
-        "rounded-xl border border-border/70 bg-card/85 px-3 py-3 shadow-sm backdrop-blur supports-backdrop-filter:bg-card/70",
+        "rounded-xl border border-border/70 bg-card/90 px-3 py-3 shadow-sm backdrop-blur supports-backdrop-filter:bg-card/75",
+        sticky ? "sticky top-2 z-20" : undefined,
         className,
       )}
     >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 space-y-2">
-          {(eyebrow || badge) && (
-            <div className="flex flex-wrap items-center gap-2">
-              {eyebrow ? (
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  {eyebrow}
-                </span>
-              ) : null}
-              {badge ? <HeaderBadge badge={badge} /> : null}
-            </div>
-          )}
-
-          <div className="min-w-0 space-y-1">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{title}</h1>
-            {summary ? (
-              <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{summary}</p>
-            ) : null}
-          </div>
-
-          {children ? <div className="pt-1">{children}</div> : null}
+      {visibleTabs.length ? (
+        <div className="overflow-x-auto pb-1">
+          <nav aria-label="Section routes" className="flex w-max min-w-full flex-nowrap items-center gap-1">
+            {visibleTabs.map((tab) => (
+              <HeaderTabButton key={tab.key} tab={tab} />
+            ))}
+          </nav>
         </div>
+      ) : null}
 
-        {hasActions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 lg:max-w-[45%] lg:justify-end">
-            {secondaryActions.map((action) => (
-              <HeaderActionButton key={`${action.label}-${action.to}`} action={action} fallbackVariant="ghost" />
-            ))}
-            {primaryActions.map((action) => (
-              <HeaderActionButton key={`${action.label}-${action.to}`} action={action} fallbackVariant="outline" />
-            ))}
-          </div>
-        ) : null}
-      </div>
+      {hasSummaryBlock || hasContent ? (
+        <div className={cn("space-y-3", visibleTabs.length ? "pt-3" : undefined)}>
+          {hasSummaryBlock ? (
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 space-y-1">
+                {title ? renderTitle(title) : null}
+                {summary ? renderSummary(summary) : null}
+              </div>
+              {actions ? <div className="min-w-0 shrink-0 lg:max-w-[55%]">{actions}</div> : null}
+            </div>
+          ) : null}
+
+          {hasContent ? <div className="min-w-0">{content}</div> : null}
+        </div>
+      ) : null}
     </header>
   );
 }

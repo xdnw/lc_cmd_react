@@ -3,8 +3,6 @@ import { matchPath } from "react-router-dom";
 
 import { CMD_BROWSER_SEARCH_PARAM_KEYS } from "@/components/cmd/cmdBrowserState";
 
-export type AppButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-
 export const APP_NAV_SECTIONS = [
   "Home",
   "Economy",
@@ -17,34 +15,18 @@ export const APP_NAV_SECTIONS = [
 
 export type AppNavSection = (typeof APP_NAV_SECTIONS)[number];
 
-export interface AppRouteHeaderBadge {
-  label: string;
-  variant?: AppButtonVariant;
-}
-
-export interface AppRouteHeaderAction {
+export interface AppRouteSectionTab {
   label: string;
   to: string;
-  variant?: AppButtonVariant;
-  iconName?: string;
   requireGuild?: boolean;
   preserveSearchParams?: readonly string[];
   additionalSearchParams?: Record<string, string | readonly string[] | null | undefined>;
-}
-
-export interface AppRouteHeaderConfig {
-  title: string;
-  summary?: string;
-  badge?: AppRouteHeaderBadge;
-  primaryActions?: readonly AppRouteHeaderAction[];
-  secondaryActions?: readonly AppRouteHeaderAction[];
 }
 
 export interface AppRouteShellConfig {
   section?: AppNavSection;
   showContextBar?: boolean;
   showPrimaryNav?: boolean;
-  header?: AppRouteHeaderConfig | null;
 }
 
 export interface AppPrimaryNavItem {
@@ -67,6 +49,8 @@ export interface AppRouteConfig {
   element: () => Promise<{ default: ComponentType }>;
   protected: boolean;
   cachePolicy?: RecentPageCachePolicy;
+  label?: string;
+  sectionTab?: AppRouteSectionTab | null;
   shell?: AppRouteShellConfig;
 }
 
@@ -79,49 +63,91 @@ const COMMAND_BROWSER_PAGE_CACHE_POLICY: RecentPageCachePolicy = {
   ignoredSearchParams: CMD_BROWSER_SEARCH_PARAM_KEYS,
 };
 
-const ENDPOINT_BADGE: AppRouteHeaderBadge = {
-  label: "Endpoint-native",
-  variant: "outline",
+export interface AppSectionHeaderTab extends AppRouteSectionTab {
+  key: string;
+  active: boolean;
+}
+
+const HOME_SECTION_TAB: AppRouteSectionTab = {
+  label: "Home",
+  to: "/home",
 };
 
-const SETTINGS_BADGE: AppRouteHeaderBadge = {
-  label: "Settings-backed",
-  variant: "secondary",
+const GUILD_SELECT_SECTION_TAB: AppRouteSectionTab = {
+  label: "Guild Select",
+  to: "/guild_select",
+  requireGuild: true,
 };
 
-const COMMAND_BADGE: AppRouteHeaderBadge = {
-  label: "Command fallback",
-  variant: "secondary",
+const ANNOUNCEMENTS_SECTION_TAB: AppRouteSectionTab = {
+  label: "Announcements",
+  to: "/announcements",
+  requireGuild: true,
 };
 
-const LANDING_BADGE: AppRouteHeaderBadge = {
-  label: "Landing",
-  variant: "outline",
+const MEMBER_OVERVIEW_SECTION_TAB: AppRouteSectionTab = {
+  label: "Member Overview",
+  to: "/guild_member",
+  requireGuild: true,
 };
 
-const READINESS_BADGE: AppRouteHeaderBadge = {
-  label: "Readiness",
-  variant: "outline",
+const COMMAND_BROWSER_SECTION_TAB: AppRouteSectionTab = {
+  label: "Command Browser",
+  to: "/commands",
 };
 
-const PROTOTYPE_BADGE: AppRouteHeaderBadge = {
-  label: "Prototype",
-  variant: "outline",
+const HOLDINGS_SECTION_TAB: AppRouteSectionTab = {
+  label: "Holdings",
+  to: "/balance",
+  requireGuild: true,
+};
+
+const LEDGER_SECTION_TAB: AppRouteSectionTab = {
+  label: "Ledger",
+  to: "/records",
+  requireGuild: true,
+};
+
+const RAID_FINDER_SECTION_TAB: AppRouteSectionTab = {
+  label: "Raid Finder",
+  to: "/raid",
+};
+
+const TABLES_SECTION_TAB: AppRouteSectionTab = {
+  label: "Tables",
+  to: "/custom_table",
+};
+
+const CONFLICTS_SECTION_TAB: AppRouteSectionTab = {
+  label: "Conflicts",
+  to: "/conflicts",
+};
+
+const STATUS_SECTION_TAB: AppRouteSectionTab = {
+  label: "Status",
+  to: "/status",
+};
+
+const SERVER_SETTINGS_SECTION_TAB: AppRouteSectionTab = {
+  label: "Server Settings",
+  to: "/settings",
+  requireGuild: true,
 };
 
 function createPrototypeRoute({
   key,
   path,
+  label,
   title,
-  summary,
   section,
   showPrimaryNav = true,
   element,
 }: {
   key: string;
   path: string;
-  title: string;
-  summary: string;
+  label?: string;
+  title?: string;
+  summary?: string;
   section?: AppNavSection;
   showPrimaryNav?: boolean;
   element: () => Promise<{ default: ComponentType }>;
@@ -129,17 +155,13 @@ function createPrototypeRoute({
   return {
     key,
     path,
+    label: label ?? title,
     element,
     protected: false,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
     shell: {
       section,
       showPrimaryNav,
-      header: {
-        title,
-        summary,
-        badge: PROTOTYPE_BADGE,
-      },
     },
   };
 }
@@ -203,20 +225,13 @@ export const routeConfigs: AppRouteConfig[] = [
   { 
     key: "home", 
     path: "/home", 
+    label: "Home",
+    sectionTab: HOME_SECTION_TAB,
     element: () => import("./pages/home"), 
     protected: false,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
     shell: {
       section: "Home",
-      header: {
-        title: "Home",
-        summary: "Use the landing page for discovery, featured tools, and quick entry into guild work.",
-        badge: LANDING_BADGE,
-        primaryActions: [
-          { label: "Guild Select", to: "/guild_select", variant: "outline", iconName: "Users" },
-          { label: "Commands", to: "/commands", variant: "secondary", iconName: "Search" },
-        ],
-      },
     },
   },
   createPrototypeRoute({
@@ -556,66 +571,46 @@ export const routeConfigs: AppRouteConfig[] = [
     shell: {
       showContextBar: true,
       showPrimaryNav: false,
-      header: null,
     },
   },
   {
     key: "guild_select",
     path: "/guild_select",
+    label: "Guild Select",
+    sectionTab: GUILD_SELECT_SECTION_TAB,
     element: () => import("@/pages/guild_picker"),
     protected: true,
     shell: {
       section: "Home",
-      header: {
-        title: "Guild Select",
-        summary: "Choose the active Discord guild and confirm whether it is ready for alliance work.",
-        badge: READINESS_BADGE,
-        primaryActions: [
-          { label: "Home", to: "/home", variant: "outline", iconName: "House" },
-          { label: "Commands", to: "/commands", variant: "secondary", iconName: "Search" },
-        ],
-      },
     },
   },
   {
     key: "guild_member",
     path: "/guild_member",
+    label: "Member Overview",
+    sectionTab: MEMBER_OVERVIEW_SECTION_TAB,
     element: () => import("@/pages/guild_member"),
     protected: true,
     shell: {
       section: "Members",
-      header: {
-        title: "Member Overview",
-        summary: "Keep announcements, audits, wars, bank access, and raid tools in one daily workspace.",
-        badge: ENDPOINT_BADGE,
-        primaryActions: [
-          { label: "Announcements", to: "/announcements", variant: "secondary", iconName: "MessageCircle", requireGuild: true },
-          { label: "Holdings", to: "/balance", variant: "outline", iconName: "Sheet", requireGuild: true },
-          { label: "Server Settings", to: "/settings", variant: "outline", iconName: "Settings", requireGuild: true },
-        ],
-      },
     },
   },
   {
     key: "announcements",
     path: "/announcements",
+    label: "Announcements",
+    sectionTab: ANNOUNCEMENTS_SECTION_TAB,
     element: () => import("@/pages/announcements"),
     protected: true,
     shell: {
       section: "Home",
-      header: {
-        title: "Announcements",
-        summary: "Review guild announcements and jump into shareable detail views when needed.",
-        badge: ENDPOINT_BADGE,
-        primaryActions: [
-          { label: "Member Overview", to: "/guild_member", variant: "outline", iconName: "Users", requireGuild: true },
-        ],
-      },
     },
   },
   {
     key: "announcement_id",
     path: "/announcement/:id",
+    label: "Announcement",
+    sectionTab: ANNOUNCEMENTS_SECTION_TAB,
     element: () => import("@/pages/announcement"),
     protected: true,
     shell: {
@@ -625,53 +620,43 @@ export const routeConfigs: AppRouteConfig[] = [
   {
     key: "announcement",
     path: "/announcement",
+    label: "Announcements",
+    sectionTab: ANNOUNCEMENTS_SECTION_TAB,
     element: () => import("@/pages/announcements"),
     protected: true,
     shell: {
       section: "Home",
-      header: {
-        title: "Announcements",
-        summary: "Review guild announcements and jump into shareable detail views when needed.",
-        badge: ENDPOINT_BADGE,
-      },
     },
   },
   {
     key: "commands",
     path: "/commands",
+    label: "Command Browser",
+    sectionTab: COMMAND_BROWSER_SECTION_TAB,
     element: () => import("./pages/commands"),
     protected: false,
     cachePolicy: COMMAND_BROWSER_PAGE_CACHE_POLICY,
     shell: {
       section: "Commands",
-      header: {
-        title: "Command Browser",
-        summary: "Search the raw command catalog, apply filters, and open advanced fallback flows without leaving the shell.",
-        badge: COMMAND_BADGE,
-        primaryActions: [
-          { label: "Guild Select", to: "/guild_select", variant: "outline", iconName: "Users" },
-        ],
-      },
     },
   },
   {
     key: "command",
     path: "/command",
+    label: "Command Browser",
+    sectionTab: COMMAND_BROWSER_SECTION_TAB,
     element: () => import("./pages/commands"),
     protected: false,
     cachePolicy: COMMAND_BROWSER_PAGE_CACHE_POLICY,
     shell: {
       section: "Commands",
-      header: {
-        title: "Command Browser",
-        summary: "Search the raw command catalog, apply filters, and open advanced fallback flows without leaving the shell.",
-        badge: COMMAND_BADGE,
-      },
     },
   },
   {
     key: "command_detail",
     path: "/command/:command",
+    label: "Command",
+    sectionTab: COMMAND_BROWSER_SECTION_TAB,
     element: () => import("./pages/command"),
     protected: false,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
@@ -682,6 +667,8 @@ export const routeConfigs: AppRouteConfig[] = [
   {
     key: "view_command",
     path: "/view_command/:command",
+    label: "Command Preview",
+    sectionTab: COMMAND_BROWSER_SECTION_TAB,
     element: () => import("./pages/command/view_command"),
     protected: false,
     shell: {
@@ -691,6 +678,8 @@ export const routeConfigs: AppRouteConfig[] = [
   {
     key: "placeholders",
     path: "/placeholders/:placeholder",
+    label: "Placeholders",
+    sectionTab: COMMAND_BROWSER_SECTION_TAB,
     element: () => import("@/pages/ph_list"),
     protected: false,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
@@ -701,90 +690,61 @@ export const routeConfigs: AppRouteConfig[] = [
   {
     key: "balance",
     path: "/balance",
+    label: "Holdings",
+    sectionTab: HOLDINGS_SECTION_TAB,
     element: () => import("@/pages/balance"),
     protected: true,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
     shell: {
       section: "Economy",
-      header: {
-        title: "Holdings",
-        summary: "Review the active balance, breakdowns, and withdrawal-ready totals for the current guild context.",
-        badge: ENDPOINT_BADGE,
-        primaryActions: [
-          { label: "Ledger", to: "/records", variant: "secondary", iconName: "BookOpenText", requireGuild: true },
-          { label: "Member Overview", to: "/guild_member", variant: "outline", iconName: "Users", requireGuild: true },
-        ],
-      },
     },
   },
   {
     key: "balance_category",
     path: "/balance/:category",
+    label: "Holdings",
+    sectionTab: HOLDINGS_SECTION_TAB,
     element: () => import("@/pages/balance"),
     protected: true,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
     shell: {
       section: "Economy",
-      header: {
-        title: "Holdings",
-        summary: "Review the active balance, breakdowns, and withdrawal-ready totals for the current guild context.",
-        badge: ENDPOINT_BADGE,
-        primaryActions: [
-          { label: "Ledger", to: "/records", variant: "secondary", iconName: "BookOpenText", requireGuild: true },
-        ],
-      },
     },
   },
   {
     key: "records",
     path: "/records",
+    label: "Ledger",
+    sectionTab: LEDGER_SECTION_TAB,
     element: () => import("./pages/records"),
     protected: true,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
     shell: {
       section: "Economy",
-      header: {
-        title: "Ledger",
-        summary: "Inspect transaction history and keep the balance workflow within the same economy context.",
-        badge: ENDPOINT_BADGE,
-        primaryActions: [
-          { label: "Holdings", to: "/balance", variant: "secondary", iconName: "Sheet", requireGuild: true },
-        ],
-      },
     },
   },
   {
     key: "raid_nation",
     path: "/raid/:nation",
+    label: "Raid Finder",
+    sectionTab: RAID_FINDER_SECTION_TAB,
     element: () => import("./pages/raid"),
     protected: false,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
     shell: {
       section: "War",
-      header: {
-        title: "Raid Finder",
-        summary: "Search for targets in range while keeping your current nation and guild context visible.",
-        badge: ENDPOINT_BADGE,
-        primaryActions: [
-          { label: "Commands", to: "/commands", variant: "outline", iconName: "Search" },
-          { label: "Conflicts", to: "/conflicts", variant: "outline", iconName: "Shield" },
-        ],
-      },
     },
   },
   {
     key: "raid",
     path: "/raid",
+    label: "Raid Finder",
+    sectionTab: RAID_FINDER_SECTION_TAB,
     element: () => import("./pages/raid"),
     protected: false,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
     shell: {
       section: "War",
-      header: {
-        title: "Raid Finder",
-        summary: "Search for targets in range while keeping your current nation and guild context visible.",
-        badge: ENDPOINT_BADGE,
-      },
     },
   },
   {
@@ -795,7 +755,6 @@ export const routeConfigs: AppRouteConfig[] = [
     shell: {
       showContextBar: true,
       showPrimaryNav: false,
-      header: null,
     },
   },
   {
@@ -806,7 +765,6 @@ export const routeConfigs: AppRouteConfig[] = [
     shell: {
       showContextBar: false,
       showPrimaryNav: false,
-      header: null,
     },
   },
   {
@@ -817,7 +775,6 @@ export const routeConfigs: AppRouteConfig[] = [
     shell: {
       showContextBar: false,
       showPrimaryNav: false,
-      header: null,
     },
   },
   {
@@ -828,7 +785,6 @@ export const routeConfigs: AppRouteConfig[] = [
     shell: {
       showContextBar: false,
       showPrimaryNav: false,
-      header: null,
     },
   },
   {
@@ -839,7 +795,6 @@ export const routeConfigs: AppRouteConfig[] = [
     shell: {
       showContextBar: false,
       showPrimaryNav: false,
-      header: null,
     },
   },
   {
@@ -850,12 +805,13 @@ export const routeConfigs: AppRouteConfig[] = [
     shell: {
       showContextBar: true,
       showPrimaryNav: false,
-      header: null,
     },
   },
   {
     key: "custom_table",
     path: "/custom_table",
+    label: "Tables",
+    sectionTab: TABLES_SECTION_TAB,
     element: () => import("./pages/custom_table/TablePage"),
     protected: false,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
@@ -866,6 +822,8 @@ export const routeConfigs: AppRouteConfig[] = [
   {
     key: "view_table",
     path: "/view_table",
+    label: "Table View",
+    sectionTab: TABLES_SECTION_TAB,
     element: () => import("@/pages/view_table"),
     protected: false,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
@@ -876,19 +834,12 @@ export const routeConfigs: AppRouteConfig[] = [
   {
     key: "settings",
     path: "/settings",
+    label: "Server Settings",
+    sectionTab: SERVER_SETTINGS_SECTION_TAB,
     element: () => import("@/pages/settings"),
     protected: true,
     shell: {
       section: "Server",
-      header: {
-        title: "Server Settings",
-        summary: "Browse guild settings with category context, delegated-state visibility, and direct repair paths.",
-        badge: SETTINGS_BADGE,
-        primaryActions: [
-          { label: "Guild Select", to: "/guild_select", variant: "outline", iconName: "Users" },
-          { label: "Commands", to: "/commands", variant: "secondary", iconName: "Search" },
-        ],
-      },
     },
   },
   {
@@ -975,6 +926,8 @@ export const routeConfigs: AppRouteConfig[] = [
   {
     key: "conflicts",
     path: "/conflicts",
+    label: "Conflicts",
+    sectionTab: CONFLICTS_SECTION_TAB,
     element: () => import("@/pages/a2/conflict/conflicts"),
     protected: false,
     shell: {
@@ -984,6 +937,8 @@ export const routeConfigs: AppRouteConfig[] = [
   {
     key: "temporary_conflicts",
     path: "/temporary-conflicts",
+    label: "Temporary Conflicts",
+    sectionTab: CONFLICTS_SECTION_TAB,
     element: () => import("@/pages/a2/conflict/temporaryConflicts"),
     protected: false,
     shell: {
@@ -993,6 +948,8 @@ export const routeConfigs: AppRouteConfig[] = [
   {
     key: "status",
     path: "/status",
+    label: "Status",
+    sectionTab: STATUS_SECTION_TAB,
     element: () => import("./pages/a2/admin/status"),
     protected: false,
     shell: {
@@ -1017,4 +974,46 @@ export function resolveAppRouteConfig(routeList: readonly AppRouteConfig[], path
   }
 
   return bestMatch?.config ?? null;
+}
+
+export function getAppRouteLabel(routeConfig: AppRouteConfig | null): string | null {
+  const label = routeConfig?.label?.trim();
+  if (label) {
+    return label;
+  }
+
+  const sectionTabLabel = routeConfig?.sectionTab?.label?.trim();
+  return sectionTabLabel || null;
+}
+
+export function buildSectionHeaderTabs(
+  routeList: readonly AppRouteConfig[],
+  pathname: string,
+): AppSectionHeaderTab[] {
+  const matchedRoute = resolveAppRouteConfig(routeList, pathname);
+  const section = matchedRoute?.shell?.section;
+  const activeTo = matchedRoute?.sectionTab?.to ?? null;
+
+  if (!section) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+
+  return routeList.flatMap((config) => {
+    if (config.shell?.section !== section || !config.sectionTab) {
+      return [];
+    }
+
+    if (seen.has(config.sectionTab.to)) {
+      return [];
+    }
+
+    seen.add(config.sectionTab.to);
+    return [{
+      key: `${section}-${config.sectionTab.to}`,
+      ...config.sectionTab,
+      active: activeTo === config.sectionTab.to,
+    } satisfies AppSectionHeaderTab];
+  });
 }

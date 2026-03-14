@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useLocation } from "react-router-dom";
 
-import { APP_PRIMARY_NAV_ITEMS, resolveAppRouteConfig, type AppRouteConfig } from "@/appRoutes";
+import { APP_PRIMARY_NAV_ITEMS, getAppRouteLabel, resolveAppRouteConfig, type AppRouteConfig } from "@/appRoutes";
 import { useSession } from "@/components/api/SessionContext";
 import { useCommandLauncher } from "@/components/cmd/CommandLauncherContext";
 import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
@@ -33,9 +33,9 @@ function humanizeSegment(segment: string): string {
 }
 
 function getCurrentBreadcrumbLabel(routeConfig: AppRouteConfig | null, pathname: string): string | null {
-  const headerTitle = routeConfig?.shell?.header?.title?.trim();
-  if (headerTitle) {
-    return headerTitle;
+  const routeLabel = getAppRouteLabel(routeConfig);
+  if (routeLabel) {
+    return routeLabel;
   }
 
   const routeSegments = (routeConfig?.path ?? pathname).split("/").filter(Boolean);

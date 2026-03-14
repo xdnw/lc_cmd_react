@@ -7,6 +7,8 @@ import React, { createContext, useContext, useState, ReactNode, useCallback } fr
 interface SessionContextProps {
     session: WebSession | null;
     error: string | null;
+    isLoading: boolean;
+    isFetching: boolean;
     setSession: (session: WebSession | null) => void;
     setError: (error: string | null) => void;
     refetchSession: () => void;
@@ -23,6 +25,8 @@ const useSessionDisplay = () => {
     const {
         data: queryResult,
         error: queryError,
+        isLoading,
+        isFetching,
         refetch
     } = useQuery(bulkQueryOptions(SESSION.endpoint, {}));
 
@@ -47,7 +51,7 @@ const useSessionDisplay = () => {
         refetch();
     }, [queryClient, refetch]);
 
-    return { session, error, setSession, setError, refetchSession };
+    return { session, error, isLoading, isFetching, setSession, setError, refetchSession };
 };
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {

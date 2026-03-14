@@ -1,5 +1,5 @@
 import { BALANCE, WITHDRAW } from "@/lib/endpoints";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { COMMANDS } from "@/lib/commands.ts";
 import React, { ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { commafy } from "@/utils/StringUtil.ts";
@@ -13,8 +13,6 @@ import { ApiFormInputs } from "@/components/api/apiform";
 import LazyIcon from "@/components/ui/LazyIcon";
 
 export default function BalancePage() {
-    const { category } = useParams(); // TODO
-
     return <EndpointWrapper endpoint={BALANCE} args={{}}>
         {({ data }) => {
             return <RenderBalance balance={data} />;
@@ -34,17 +32,6 @@ function toResourceString(arr: number[]) {
 function isEmpty(arr: number[]) {
     return arr.every((value) => value === 0);
 }
-
-const PageHeader = () => (
-    <>
-        <Button variant="outline" size="sm" asChild>
-            <Link to={`${process.env.BASE_PATH}guild_member`}>
-                <LazyIcon name="ChevronLeft" className="h-4 w-4" />Back
-            </Link>
-        </Button>
-        <h1 className="text-2xl font-bold">Balance</h1>
-    </>
-);
 
 const ResourceTable = ({
     balance,
@@ -188,7 +175,6 @@ function RenderBalance({ balance }: { balance: WebBalance }) {
     return (
         <>
             <div className="mb-1">
-                <PageHeader />
                 <div className="inline-block">
                     <div className="flex">
                         <ResourceTable

@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import {
-  matchPath,
   UNSAFE_DataRouterContext,
   UNSAFE_DataRouterStateContext,
   UNSAFE_LocationContext,
@@ -18,7 +17,7 @@ import {
   useOutlet,
 } from "react-router";
 
-import type { AppRouteConfig, RecentPageCachePolicy } from "@/App";
+import { resolveAppRouteConfig, type AppRouteConfig, type RecentPageCachePolicy } from "@/appRoutes";
 
 const RECENT_PAGE_CACHE_LIMIT = 3;
 const GLOBAL_IGNORED_SEARCH_PARAMS = new Set([
@@ -71,24 +70,6 @@ export function normalizeRecentPageSearchParams(search: string, policy?: RecentP
   entries.forEach(([key, value]) => normalized.append(key, value));
   const serialized = normalized.toString();
   return serialized ? `?${serialized}` : "";
-}
-
-function resolveRouteConfig(routeConfigs: readonly AppRouteConfig[], pathname: string): AppRouteConfig | null {
-  let bestMatch: { config: AppRouteConfig; score: number } | null = null;
-
-  for (const config of routeConfigs) {
-    const match = matchPath({ path: config.path, end: true }, pathname);
-    if (!match) {
-      continue;
-    }
-
-    const score = match.pathname.length;
-    if (!bestMatch || score > bestMatch.score) {
-      bestMatch = { config, score };
-    }
-  }
-
-  return bestMatch?.config ?? null;
 }
 
 export function buildRecentPageCacheKey(pathname: string, search: string, policy?: RecentPageCachePolicy): string {
@@ -169,7 +150,7 @@ export default function RecentPageKeepAlive({
   const lastActiveCacheKeyRef = useRef<string | null>(null);
   const lastRestoredLocationKeyRef = useRef<string | null>(null);
 
-  const matchedRouteConfig = useMemo(() => resolveRouteConfig(routeConfigs, location.pathname), [location.pathname, routeConfigs]);
+  const matchedRouteConfig = useMemo(() => resolveAppRouteConfig(routeConfigs, location.pathname), [location.pathname, routeConfigs]);
   const cachePolicy = matchedRouteConfig?.cachePolicy;
   const isCacheableRoute = Boolean(cachePolicy?.mode === "recent");
   const activeCacheKey = useMemo(() => {

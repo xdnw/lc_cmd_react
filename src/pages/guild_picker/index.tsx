@@ -1,5 +1,5 @@
 import { useCallback, memo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button.tsx";
 import { SET_GUILD } from "@/lib/endpoints";
 import { useDialog } from "../../components/layout/DialogContext";
@@ -7,29 +7,32 @@ import { SetGuild } from "../../lib/apitypes";
 import { UNSET_GUILD } from "../../lib/endpoints";
 import { useSession } from "@/components/api/SessionContext";
 import { ApiFormInputs } from "@/components/api/apiform";
-import LazyIcon from "@/components/ui/LazyIcon";
+import { getSafeReturnTo } from "@/components/layout/contextPreservingNavigation";
 
 
 const GuildPicker = () => {
-    const { session, error, setSession, refetchSession } = useSession();
+    const { session, refetchSession } = useSession();
     const { showDialog } = useDialog();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = getSafeReturnTo(searchParams.get("returnTo"));
 
     const handleResponse = useCallback((data: SetGuild) => {
         refetchSession();
+
+        if (returnTo) {
+            navigate(returnTo, { replace: true });
+            return;
+        }
 
         showDialog("Guild Set", <div className="flex items-center">
             <img src={data.icon} alt="Guild Icon" className="w-8 h-8 mr-2" />
             <span>Selected guild with id {data.id} and name {data.name}</span>
         </div>, false);
-    }, [refetchSession, showDialog]);
+    }, [navigate, refetchSession, returnTo, showDialog]);
 
     return (
         <>
-            <Button variant="outline" size="sm" asChild>
-                <Link to={`${process.env.BASE_PATH}home`}>
-                    <LazyIcon name="ChevronLeft" className="h-4 w-4" />Home
-                </Link>
-            </Button>
             <div className="bg-light/10 border border-light/10 p-2 m-0 mt-2">
                 {session?.guild && <SelectedGuildInfo id={session.guild} name={session.guild_name} icon={session.guild_icon} />}
                 <div className="bg-accent p-2 rounded relative">

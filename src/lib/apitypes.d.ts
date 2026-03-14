@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-08 03:29:51.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-14 11:08:27.
 
 export interface WebError {
     error: string;
@@ -185,6 +185,14 @@ export interface WebSession {
     guild_icon?: string;
     registered?: boolean;
     registered_nation?: number;
+    guild_alliances?: number[];
+    guild_alliances_names?: string[];
+    delegates_to: number;
+    delegate_server_name?: string;
+    fa_server: number;
+    fa_server_name?: string;
+    ma_server: number;
+    ma_server_name?: string;
 }
 
 export interface WebSuccess {

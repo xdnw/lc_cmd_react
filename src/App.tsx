@@ -1,18 +1,22 @@
 import "./App.css";
 import { createHashRouter, isRouteErrorResponse, Outlet, RouterProvider, ScrollRestoration, useRouteError } from "react-router-dom";
-import { Suspense, ReactNode, lazy, ComponentType, useEffect, useState } from "react";
+import { Suspense, ReactNode, lazy, useEffect, useState } from "react";
 import { hasToken } from "@/utils/Auth.ts";
 import ReactGA from "react-ga4";
 import AutoRoutePrefetcher from "./components/AutoRoutePrefetcher";
 import Loading from "@/components/ui/loading";
 import { getRecoveryDetail, getRecoveryResetHref, getRecoverySummary, getRecoveryTitle, isLikelyRecoverableAssetError } from "@/lib/deployRecovery";
-import { CMD_BROWSER_SEARCH_PARAM_KEYS } from "@/components/cmd/cmdBrowserState";
+import { routeConfigs } from "@/appRoutes";
 
 function handleCopyStackClick(e: React.MouseEvent<HTMLButtonElement>) {
   const text = e.currentTarget.dataset.stack;
   if (!text) return;
   void navigator.clipboard?.writeText(text);
   alert("Copied to clipboard.");
+}
+
+function handleReloadAppClick() {
+  window.location.reload();
 }
 
 // Initialize Google Analytics
@@ -24,102 +28,6 @@ const LoginPicker = lazy(() => import("@/pages/login_picker"));
 const LoggedInRoute = ({ children }: { children: ReactNode }) => {
   return hasToken() ? <>{children}</> : <LoginPicker />;
 };
-
-export interface AppRouteConfig {
-  key: string;
-  path: string;
-  // Store the importer function directly
-  element: () => Promise<{ default: ComponentType }>;
-  protected: boolean;
-  cachePolicy?: RecentPageCachePolicy;
-}
-
-export type RecentPageCachePolicy = {
-  mode: "none" | "recent";
-  ignoredSearchParams?: readonly string[];
-};
-
-const RECENT_PAGE_CACHE_POLICY: RecentPageCachePolicy = {
-  mode: "recent",
-};
-const COMMAND_BROWSER_PAGE_CACHE_POLICY: RecentPageCachePolicy = {
-  mode: "recent",
-  ignoredSearchParams: CMD_BROWSER_SEARCH_PARAM_KEYS,
-};
-const routeConfigs: AppRouteConfig[] = [
-  /*
-  protected = logged in
-  Guild is selected = logged in and having selected a guild
-  
-  */
-
-  // Homepage
-  { key: "home", path: "/home", element: () => import("./pages/home"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-  // Unlink game nation
-  { key: "unregister", path: "/unregister", element: () => import("@/pages/unregister"), protected: true },
-  { key: "guild_select", path: "/guild_select", element: () => import("@/pages/guild_picker"), protected: true },
-
-  // Requires guild selected
-  { key: "guild_member", path: "/guild_member", element: () => import("@/pages/guild_member"), protected: true },
-
-  // Announcements (only when a guild is selected)
-  { key: "announcements", path: "/announcements", element: () => import("@/pages/announcements"), protected: true },
-  { key: "announcement_id", path: "/announcement/:id", element: () => import("@/pages/announcement"), protected: true },
-  { key: "announcement", path: "/announcement", element: () => import("@/pages/announcements"), protected: true },
-
-  // Commands (accessible to anyone)
-  { key: "commands", path: "/commands", element: () => import("./pages/commands"), protected: false, cachePolicy: COMMAND_BROWSER_PAGE_CACHE_POLICY },
-  { key: "command", path: "/command", element: () => import("./pages/commands"), protected: false, cachePolicy: COMMAND_BROWSER_PAGE_CACHE_POLICY },
-  { key: "command_detail", path: "/command/:command", element: () => import("./pages/command"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-  // Display command result (anyone - but only select commands support)
-  { key: "view_command", path: "/view_command/:command", element: () => import("./pages/command/view_command"), protected: false },
-  // List of placeholders for a type
-  { key: "placeholders", path: "/placeholders/:placeholder", element: () => import("@/pages/ph_list"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-
-  // Balance and records (only when a guild is selected)
-  { key: "balance", path: "/balance", element: () => import("@/pages/balance"), protected: true, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-  { key: "balance_category", path: "/balance/:category", element: () => import("@/pages/balance"), protected: true, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-  { key: "records", path: "/records", element: () => import("@/pages/records"), protected: true, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-
-  // Raid Finder (anyone)
-  { key: "raid_nation", path: "/raid/:nation", element: () => import("./pages/raid"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-  { key: "raid", path: "/raid", element: () => import("./pages/raid"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-
-  // Authentication
-  { key: "login", path: "/login", element: () => import("@/pages/login_picker"), protected: false },
-  { key: "login_token", path: "/login/:token", element: () => import("./pages/login"), protected: false },
-  { key: "oauth2", path: "/oauth2", element: () => import("./pages/oauth2"), protected: false },
-  { key: "logout", path: "/logout", element: () => import("./pages/logout"), protected: false },
-  { key: "nation_picker", path: "/nation_picker", element: () => import("@/pages/nation_picker"), protected: false },
-  { key: "register", path: "/register", element: () => import("@/pages/unregister"), protected: false },
-
-  // Tables (anyone)
-  { key: "custom_table", path: "/custom_table", element: () => import("./pages/custom_table/TablePage"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-  { key: "view_table", path: "/view_table", element: () => import("@/pages/view_table"), protected: false, cachePolicy: RECENT_PAGE_CACHE_POLICY },
-  { key: "settings", path: "/settings", element: () => import("@/pages/settings"), protected: true },
-
-  // Graphs (anyone)
-  { key: "col_mil_graph", path: "/col_mil_graph", element: () => import("./pages/graphs/col_mil_graph"), protected: false },
-  { key: "col_tier_graph", path: "/col_tier_graph", element: () => import("./pages/graphs/col_tier_graph"), protected: false },
-  { key: "edit_graph_type", path: "/edit_graph/:type", element: () => import("./pages/graphs/edit_graph"), protected: false },
-  { key: "edit_graph", path: "/edit_graph", element: () => import("./pages/graphs/edit_graph"), protected: false },
-  { key: "view_graph_type", path: "/view_graph/:type", element: () => import("./pages/graphs/view_graph"), protected: false },
-  { key: "view_graph", path: "/view_graph", element: () => import("./pages/graphs/edit_graph"), protected: false },
-
-  // WIP pages (maybe display more if logged in (not implemented yet))
-  { key: "alliance", path: "/alliance/:alliance", element: () => import("./pages/a2/alliance/alliance"), protected: false },
-
-  // Nation multi-boxing (anyone)
-  { key: "multi", path: "/multi/:nation", element: () => import("./pages/a2/nation/multi"), protected: false },
-  { key: "multi_v2", path: "/multi_v2/:nation?", element: () => import("./pages/a2/nation/multi_2"), protected: false },
-
-  // game conflict viewer (anyone)
-  { key: "conflicts", path: "/conflicts", element: () => import("@/pages/a2/conflict/conflicts"), protected: false },
-  { key: "temporary_conflicts", path: "/temporary-conflicts", element: () => import("@/pages/a2/conflict/temporaryConflicts"), protected: false },
-
-  // tasks (anyone - though view is limited if not an admin)
-  { key: "status", path: "/status", element: () => import("./pages/a2/admin/status"), protected: false },
-];
 
 const PageView = lazy(() => import("./components/layout/page-view"));
 const Splash = lazy(() => import("./pages/splash"));
@@ -217,7 +125,7 @@ function RouteErrorFallback() {
             </a>
             <button
               type="button"
-              onClick={() => window.location.reload()}
+              onClick={handleReloadAppClick}
               className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-600 bg-slate-800 px-4 text-sm font-semibold text-slate-100 hover:border-slate-500"
             >
               Reload app

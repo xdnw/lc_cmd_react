@@ -1,10 +1,8 @@
 import { memo, useRef, useState, useEffect, ReactNode, useMemo, useCallback } from "react";
 import { RECORDS } from "@/lib/endpoints";
 import { PaginatedList } from "@/components/ui/pagination.tsx";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button.tsx";
+import { useLocation, useNavigate } from "react-router-dom";
 import EndpointWrapper from "@/components/api/bulkwrapper";
-import LazyIcon from "@/components/ui/LazyIcon";
 
 const Records = () => {
     const location = useLocation();
@@ -51,11 +49,6 @@ const Records = () => {
 
     return (
         <>
-            <Button variant="outline" size="sm" asChild>
-                <Link to={`${process.env.BASE_PATH}balance`}>
-                    <LazyIcon name="ChevronLeft" className="h-4 w-4" />Back
-                </Link>
-            </Button>
             <EndpointWrapper endpoint={RECORDS} args={{}}>
                 {({data: table}) => {
                     if (entries.current === null) {

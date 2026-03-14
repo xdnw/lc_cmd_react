@@ -6,14 +6,12 @@ import {
 } from "@/lib/endpoints";
 import { PaginatedList } from "@/components/ui/pagination.tsx";
 import { useCallback, useRef, useState } from "react";
-import { Button } from "@/components/ui/button.tsx";
 import { useDialog } from "../../components/layout/DialogContext";
 import { WebAnnouncement, WebAnnouncements, WebSuccess } from "../../lib/apitypes";
 import EndpointWrapper from "@/components/api/bulkwrapper";
 import { ApiFormInputs } from "@/components/api/apiform";
 import { QueryResult } from "@/lib/BulkQuery";
 import { useQueryClient } from "@tanstack/react-query";
-import LazyIcon from "@/components/ui/LazyIcon";
 
 export default function Announcements() {
     const [currentPage, setCurrentPage] = useState<number>(1);
@@ -49,7 +47,6 @@ export default function Announcements() {
 
     return (
         <>
-            <Button variant="outline" size="sm" asChild><Link to={`${process.env.BASE_PATH}guild_member`}><LazyIcon name="ChevronLeft" className="h-4 w-4" />Back</Link></Button>
             <EndpointWrapper endpoint={ANNOUNCEMENT_TITLES} args={{ read: "true" }}>
                 {({ data }) => {
                     if (entries.current === null) {

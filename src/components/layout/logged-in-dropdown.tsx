@@ -5,40 +5,40 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import { Link } from "react-router-dom";
-import { SESSION } from "@/lib/endpoints";
-import { WebSession } from "@/lib/apitypes";
+import type { WebSession } from "@/lib/apitypes";
+import { useSession } from "@/components/api/SessionContext";
 import LoggedOutDropdown from "./logged-out-dropdown";
-import { bulkQueryOptions } from "@/lib/queries";
-import { useQuery } from "@tanstack/react-query";
 import Loading from "../ui/loading";
 import LazyIcon from "../ui/LazyIcon";
+import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
 
 export default function LoggedInDropdown() {
-    const { data, isFetching } = useQuery(bulkQueryOptions(SESSION.endpoint, {}));
-    if (isFetching || !data) {
+    const { session, isLoading, isFetching } = useSession();
+
+    if (isLoading || isFetching) {
         return <Loading variant="ripple" />;
     }
-    if (!data.data) {
+
+    if (!session) {
         return <LoggedOutDropdown />
     }
-    const session = data.data;
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="iconSm" className="rounded-md [&_svg]:size-3.5 text-muted-foreground hover:text-foreground">
-                    <LazyIcon name="Settings" className="h-[1rem] w-[1rem] rotate-0 scale-100 transition-all" />
+                    <LazyIcon name="Settings" className="h-4 w-4 rotate-0 scale-100 transition-all" />
                     <span className="sr-only">Profile Menu</span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
                 <DropdownMenuItem>
-                    <Link className="w-full" to={`${process.env.BASE_PATH}guild_select`}>{session.guild ?
-                        <SwitchGuild session={session} /> : "Select Guild"}</Link>
+                    <ContextPreservingLink className="w-full" to="/guild_select">{session.guild ?
+                        <SwitchGuild session={session} /> : "Select Guild"}</ContextPreservingLink>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                    <Link to={"/logout"} className="w-full">
-                        Logout</Link>
+                    <ContextPreservingLink to="/logout" className="w-full">
+                        Logout</ContextPreservingLink>
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>);

@@ -31,6 +31,7 @@ const IconComponents: Record<string, React.LazyExoticComponent<React.ComponentTy
   'copy': lazy(() => import('lucide-react/dist/esm/icons/copy.js')),
   'infinity': lazy(() => import('lucide-react/dist/esm/icons/infinity.js')),
   'github': lazy(() => import('lucide-react/dist/esm/icons/github.js')),
+  'house': lazy(() => import('lucide-react/dist/esm/icons/house.js')),
   'messagesquaretext': lazy(() => import('lucide-react/dist/esm/icons/message-square-text.js')),
   'circleuserround': lazy(() => import('lucide-react/dist/esm/icons/circle-user-round.js')),
   'joystick': lazy(() => import('lucide-react/dist/esm/icons/joystick.js')),

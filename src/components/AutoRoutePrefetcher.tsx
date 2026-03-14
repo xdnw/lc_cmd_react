@@ -1,4 +1,4 @@
-import { AppRouteConfig } from '@/App';
+import type { AppRouteConfig } from '@/appRoutes';
 import { useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { scheduleWhenIdle } from './cmd/interactionScheduling';

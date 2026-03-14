@@ -68,9 +68,6 @@ export default function Navbar() {
         [location.pathname]
     );
 
-    // Memoize login status to avoid rechecking on every render
-    const isLoggedIn = useMemo(() => hasToken(), []);
-
     // Memoize breadcrumbs to prevent recreating on every render
     const breadcrumbs = useMemo(() => {
         if (pathnames.length === 0) {
@@ -93,11 +90,7 @@ export default function Navbar() {
         );
     }, [pathnames]);
 
-    // Memoize the user dropdown component
-    const userDropdown = useMemo(() =>
-        isLoggedIn ? <LoggedInDropdown /> : <LoggedOutDropdown />,
-        [isLoggedIn]
-    );
+    const userDropdown = hasToken() ? <LoggedInDropdown /> : <LoggedOutDropdown />;
 
     const modeToggle = useMemo(() => <ModeToggle />, []);
 

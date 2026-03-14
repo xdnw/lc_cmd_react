@@ -35,6 +35,7 @@
 
 - Existing shared: `CommandComponent`, `CommandStringPreview`, `useCommandExecution`, argument-jump and keyboard helpers, `ViewCommand`.
 - New shared or page-specific: `RelatedWorkflowLinks`, `RecentCommandPresetBar`, `CommandContextBadge`.
+(note: RecentCommandPresetBar drop it. its nonsense. There should be saved commands, done through a single dropdown, with add/remove (routed via favoriteCmdUtil.ts), and a history button (reuse history button from the cmd list page (see browser.md), but have it scoped to the command))
 
 ## Data and Endpoints
 

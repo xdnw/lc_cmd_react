@@ -1,60 +1,89 @@
 # Page Title
 
+- Classification: `route | shared component | modal/detail surface | backend gap | cross-cutting | command wrapper`
 - Status: `New | Evolve | Wrap | Cross-cutting`
-- Primary route:
-- Legacy aliases:
+- Primary route or owner:
 - Nav group:
-- Primary users:
-- Current references:
+- Primary actor: `everyone | member-self | staff | admin`
+- Scope: `none | guild | guild + alliance | current nation`
+- Current code:
+  -
+- Read substrate:
+  - Endpoints:
+  - Response types:
+  - Table / graph / placeholder types:
+  - Required columns / filters:
+- Write substrate:
+  - Endpoints / command families:
+  - Existing form / action components:
+  - Reload / invalidation targets:
 
 ## Why It Exists
 
--
+- Owns:
+- Does not own:
+- Current gap:
 
 ## Workflows
 
-- Primary:
-- Secondary:
-- Why users arrive here:
-- Upstream entry points:
-- Downstream hand-offs:
+1. Workflow name
+   - Entry:
+   - Preconditions:
+   - Reads:
+   - UI path:
+   - Mutations:
+   - Handoff / exit:
 
-## Layout and Look
+## Layout Structure
 
--
+- Top-level regions:
+- Tabs / panels / drawers:
+- URL state:
+- Empty / loading / error states:
 
-## Information and Interactions
+## Information Model
 
--
+- Primary objects shown:
+- Filters / grouping:
+- Row or card actions:
+- Detail / modal surfaces:
 
 ## Components
 
-- Existing shared:
-- New shared or page-specific:
+- Reuse:
+- Add:
+- Extend:
+- Merge:
 
-## Data and Endpoints
+## Implementation Delta
 
-- Existing endpoints:
-- Existing table / graph / placeholder substrate:
-- New endpoints likely needed:
+- Route changes:
+- Read model changes:
+- Mutation changes:
+- Cache / reload changes:
+- Avoid:
 
-## Command Bindings
+## Route And Navigation
+
+- Linked from:
+- Links to:
+- Header / nav actions:
+- Preserved context:
+
+## Permissions And Context
+
+- Auth and scope requirements:
+- Role gates:
+- Setup dependency / recovery:
+- Delegation / inherited context:
+
+## Commands And Mutations
 
 - Existing commands:
-- Commands likely needing changes:
-- Command preview / confirmation rules:
+- Preview / confirm:
+- Permission checks:
+- Side effects / cache refresh:
 
-## Navigation
-
-- Links to:
-- Linked from:
-
-## Permissions and Context
-
-- Required scope:
-- Relevant settings or role gates:
-- Recovery path when setup is incomplete:
-
-## Risks and Open Questions
+## Open Questions And Backend Gaps
 
 -

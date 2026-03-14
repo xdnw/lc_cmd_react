@@ -25,9 +25,9 @@
 - Add a stronger landing strip at the top with shortcut chips like `Alliance Setup`, `War Alerts`, `Interviews`, `Tax`, `Roles`, `Banking`, and `Delegation`.
 - Preserve the dense editor feel; this page should look like a serious admin console.
 - User-facing shortcuts can group multiple backend categories, but the page should still expose the real category, subgroup, and setting key names.
+(note: The above `landing strips` needs to not be vague. Alliance could be an array of essential settings (ALLIANCE_ID, API_KEY), and then a page view that goes through them until the user has them set. Roles is next most important. That's the `/role setalias` it probably needs an endpoint to list the current bindings. Banking is next most important https://github.com/xdnw/locutus/wiki/banking then war alerts https://github.com/xdnw/locutus/wiki/war_alerts then https://github.com/xdnw/locutus/wiki/tax_automation then https://github.com/xdnw/locutus/wiki/interviews)
 
 ## Information and Interactions
-
 - Search settings by key, help text, or category.
 - Filter by set / unset / invalid / unsupported / editable.
 - Edit with typed inputs and inline help dialogs.
@@ -41,19 +41,21 @@
 
 - Existing shared: `HierarchySidebarNav`, `SettingsTopBar`, `SettingsCategorySection`, `SettingEditDialog`, `SettingClearAction`, `TABLE`, query cache helpers.
 - New shared or page-specific: `SettingsLandingShortcuts`, `SettingsBreadcrumbPills`, `WorkflowOriginBadge`, `DelegatedSettingBadge`.
-
+(note: HierarchySidebarNav was removed and merged with the other sidebar)
 ## Data and Endpoints
 
 - Existing endpoints: `TABLE`, `PERMISSION`, `COMMAND`.
 - Existing table / graph / placeholder substrate: the current page already uses `TABLE` with `GuildSetting` rows plus `GuildSetting` placeholder helpers and is a good reference implementation.
 - Existing command substrate: edit and clear flows already map cleanly onto `settings info` and `settings delete` style command execution.
 - New endpoints likely needed: none for MVP; optional setting-history, inheritance-trace, or bulk-audit endpoints may help later.
-
+(note:Yes, inheritance-trace should be added, the placeholders for GuildSetting support getting the local value, or getting the value (including delegate) - and the session info has the delegate server in it, if that's needed at all)
+(note: bulk-audit should probably (because auditing them all might be slow, use an `audit_setting` endpoint that will then validate it and return either a WebSuccess or an WebError or some such and the frontend should run an audit on one at a time (and show loading and results in some modal as it progresses?))
 ## Command Bindings
 
 - Existing commands: `settings info`, `settings delete`, and the full set of `settings_default *`, `settings_foreign_affairs *`, `settings_war_alerts *`, `settings_beige_alerts *`, `settings_orbis_alerts *`, `settings_war_room *`, `settings_bank_access *`, `settings_bank_conversion *`, `settings_bank_offshore *`, `settings_bank_grants *`, `settings_bank_info *`, `settings_tax *`, `settings_audit *`, `settings_auto_role *`, `settings_self_role *`, `settings_reward *`, `settings_recruit *`, `settings_interview *`, `settings_bounty *`, and `settings_trade *` families.
 - Commands likely needing changes: none required.
 - Command preview / confirmation rules: the edit dialog should continue to make the underlying setting or command path visible for power users, especially when a wrapper page deep-links into this surface.
+(note: The full set is not needed. The info/delete is sufficient. The individual commands are really only needed for discord users, not web. Your `command preview` doesn't really make much sense.  Remove that.)
 
 ## Navigation
 

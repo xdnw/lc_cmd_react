@@ -2,6 +2,8 @@ import { useCallback, useEffect, type ReactNode } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { routeConfigs } from "@/appRoutes";
+
 const navigateMock = vi.fn();
 const useLocationMock = vi.fn(() => ({ pathname: "/command/test" }));
 const mockCommand = {
@@ -10,11 +12,16 @@ const mockCommand = {
   getDescShort: () => "Alpha command",
 };
 
-vi.mock("react-router-dom", () => ({
-  useNavigate: () => navigateMock,
-  useLocation: () => useLocationMock(),
-  Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => <a href={to} className={className}>{children}</a>,
-}));
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+    useLocation: () => useLocationMock(),
+    Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => <a href={typeof to === "string" ? to : "#"} className={className}>{children}</a>,
+  };
+});
 
 vi.mock("@/components/ui/mode-toggle.tsx", () => ({
   ModeToggle: () => <div>mode-toggle</div>,
@@ -30,6 +37,18 @@ vi.mock("@/components/layout/logged-out-dropdown.tsx", () => ({
 
 vi.mock("@/utils/Auth.ts", () => ({
   hasToken: () => false,
+}));
+
+vi.mock("@/components/api/SessionContext", () => ({
+  useSession: () => ({
+    session: null,
+    error: null,
+    isLoading: false,
+    isFetching: false,
+    setSession: vi.fn(),
+    setError: vi.fn(),
+    refetchSession: vi.fn(),
+  }),
 }));
 
 vi.mock("@/components/ui/dialog", () => ({
@@ -197,13 +216,14 @@ describe("CommandLauncher", () => {
   it("opens the launcher from the navbar trigger", () => {
     renderLauncher(
       <>
-        <Navbar />
+        <Navbar routeConfigs={routeConfigs} showContextBar={false} />
         <CommandLauncher />
       </>,
     );
 
     fireEvent.pointerDown(screen.getAllByLabelText(/open command launcher/i)[0]!);
     expect(screen.getByTestId("dialog-root")).toBeTruthy();
+    expect(screen.getByText(/search commands or pages and open them without leaving the current screen/i)).toBeTruthy();
   });
 
   it("navigates when the browser expand action is used", () => {

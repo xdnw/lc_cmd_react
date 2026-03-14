@@ -39,9 +39,8 @@
 
 - Existing shared: `CommandComponent`, `ApiFormInputs`, `DialogProvider`, table and drawer patterns from conflicts/settings.
 - New shared or page-specific: `GrantRequestQueue`, `GrantRequestDrawer`, `EligibilityPanel`, `GrantRequestFilters`, `GrantActionPreview`.
-
+(note: eligability panel not sure that makes sense at all. There is no such thing as eligability. Grant templates have eligability, requests don't. Unless by eligability panel you just mean display the info so the person can decide if they are eligable or not.)
 ## Data and Endpoints
-
 - Existing endpoints: `COMMAND`, `TABLE`, `INPUT_OPTIONS`, `PERMISSION`.
 - Existing table / graph / placeholder substrate: `settings_bank_grants *` already defines request-channel behavior and defaults, but there is no request queue or review read model.
 - Current backend gap: one `grant_requests` queue read with request id, requester, receiver, status, reason preview, estimated amounts, and blocking flags.

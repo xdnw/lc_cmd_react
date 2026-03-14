@@ -289,6 +289,9 @@ export default function CommandLauncher() {
                     <div ref={browserDialogRef} className="flex max-h-[88vh] min-h-112 flex-col bg-background">
                         <DialogHeader className="border-b border-border/70 px-2 pb-1 pt-1.5 pr-16 text-left">
                             <DialogTitle className="text-sm font-semibold">Commands</DialogTitle>
+                            <DialogDescription className="mt-0.5 line-clamp-2 text-[11px]">
+                                Search commands or pages and open them without leaving the current screen.
+                            </DialogDescription>
                         </DialogHeader>
                         <div className="min-h-0 px-2 py-1.5">
                             <CmdList

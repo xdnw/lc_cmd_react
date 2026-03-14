@@ -21,14 +21,13 @@
 
 ## Layout and Look
 
-- Keep the existing thin navbar and global search affordance.
-- Add a compact guild context bar directly under the navbar.
-- Add a left rail with clear labels: `Home`, `Economy`, `War`, `Members`, `Server`, `Reports`, `Commands`.
-- Use dense page headers with visible primary actions instead of oversized dashboard chrome.
-- Mobile: collapse the left rail into a sheet, keep the context bar sticky, and avoid wasting vertical space.
+- Keep the existing thin navbar and global search affordance. (note: don't. I merged them all into a single navbar. that's how it should be)
+- Add a compact guild context bar directly under the navbar. (note: no, don't)
+- Add a left rail with clear labels: `Home`, `Economy`, `War`, `Members`, `Server`, `Reports`, `Commands`. (note: No, these groupings dont make much sense. Refer to readme. Also the left rail I changed already to be unified with the sidebar)
+- Use dense page headers with visible primary actions instead of oversized dashboard chrome. (note: You made oversized chrome with nonsense descriptions. This is wrong. Dense doesn't mean dense with useless info, which is what you did.) (note: Also, the sidebar should probably be categories which are expandable to list all its sub pages)
+- Mobile: collapse the left rail into a sheet, keep the context bar sticky, and avoid wasting vertical space. (note: Collapse into a button in the navbar that opens a modal, is probably the best approach. Avoid keeping legacy code)
 
 ## Information and Interactions
-
 - Show active guild, registered alliances, current nation, and permission summary where relevant.
 - Expose section-local secondary navigation on dense sections like Economy, War, and Server.
 - Treat `Home`, `Economy`, `War`, `Members`, `Server`, `Reports`, and `Commands` as the only visible top-level labels.
@@ -40,13 +39,13 @@
 
 - Existing shared: `Navbar`, `PageView`, `CommandLauncher`, `CommandLauncherProvider`, `SessionProvider`, `DialogProvider`, `RecentPageKeepAlive`.
 - New shared or page-specific: `GuildContextBar`, `PrimaryNavRail`, `SectionHeader`, `MobileSectionSheet`, `PermissionSummaryChip`, `ContextPreservingLink`.
-
+(note: The above is outdated. GuildContextBar was merged with sessioninfo. The above needs to be updated as it's outdated.)
 ## Data and Endpoints
 
 - Existing endpoints: `SESSION`, `SET_GUILD`, `UNSET_GUILD`, `INPUT_OPTIONS`.
 - Existing table / graph / placeholder substrate: current session context already exposes guild, nation, and registration state.
 - New endpoints likely needed: none for shell MVP; an optional `guild_context_summary` endpoint could reduce fan-out if the context bar later needs counts or role summaries.
-
+(note: There should not be a guild_context_summary, it should be added to the WebSession if needed. But I already updated webSession. Tell me if it's missing anything)
 ## Command Bindings
 
 - Existing commands: none as the shell's primary action surface; it should deep-link into pages and the command launcher.

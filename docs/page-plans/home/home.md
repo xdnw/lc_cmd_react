@@ -8,7 +8,6 @@
 - Current references: `src/pages/home/index.tsx`, `src/pages/splash/index.tsx`
 
 ## Why It Exists
-
 - Give public and logged-in users a clear first impression of the app's strongest workflows.
 - Turn the current featured-card page into a task-oriented launch surface instead of a mostly static gallery.
 

@@ -35,6 +35,7 @@
 
 - Existing shared: `CmdList`, `SearchBar`, `CommandLauncher`, `cmdBrowserState` helpers.
 - New shared or page-specific: `RecentCommandStrip`, `FavoriteCommandsPanel`, `CuratedCommandClusters`.
+(note: Curated, remove it. its nonsense. I do want to add command presets, but that will go within the command itself. Command history should not be a strip, it should be a history button that'll open a modal, and then have options to filter by channel, guild, or command. it should pull from an endpoint, not store locally. Favoriting should be a star icon on the right of the item (a toggle), and should just have those items appear first. Favorite handling can be in a favoriteCmdUtil.ts or some such, which for now can be local, but done in a way that can persist via the backend later)
 
 ## Data and Endpoints
 
@@ -52,14 +53,16 @@
 
 - Links to: `/command/:command`, guided workflow pages, placeholder browser or related reports where helpful.
 - Linked from: navbar search, global launcher, every page that says "open the raw command".
+(note: `guided workflow pages` is vague nonsense and either need to specify concrete components/functions or be removed)
 
 ## Permissions and Context
 
 - Public-safe, but descriptions or visibility should still reflect actual command metadata.
 - When a guild is selected, the page can surface context-aware curated groups.
+(note: The above words are vague nonsense and either need to specify concrete components/functions or be removed)
 
 ## Risks and Open Questions
 
 - Keep the page fast; avoid adding so much chrome that it becomes slower than the launcher.
-- Favorites and recents need a clear storage model.
+- Favorites and recents need a clear storage model. (note: Not super helpful, i asked for concrete plan, e.g. files, functions, components, `clear storage model` is meaningless fluff (like obviously it should be clear, was I going to have a non clear storage model? Come on.))
 - Do not fork the page browser and the modal launcher into two different command-discovery experiences.

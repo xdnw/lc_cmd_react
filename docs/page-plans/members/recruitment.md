@@ -1,5 +1,4 @@
 # Recruitment
-
 - Status: `Wrap`
 - Primary route: `/members/recruitment`
 - Legacy aliases: none; related work is currently split across settings and commands
@@ -12,9 +11,9 @@
 - Recruitment is a message and pipeline workflow, not just a bag of settings.
 - Staff need to manage mail templates, timed messages, and referral context in one place.
 - Most of the current source of truth lives in guild settings and command flows, so the first page should wrap that substrate instead of inventing a separate recruitment model.
+(note: The above is rather meaningless and non specific)
 
 ## Workflows
-
 - Primary: configure applicant and recruit messages, timed follow-ups, and output channels.
 - Secondary: review referral or incentive context and recruitment rankings.
 - Why users arrive here: tuning onboarding messaging, debugging applicant flow, maintaining recruit automation.
@@ -22,13 +21,11 @@
 - Downstream hand-offs: `Interviews`, `Announcements`, and server pages for role, channel, or settings prerequisites.
 
 ## Layout and Look
-
 - Sections: `Applicant Mail`, `Recruit Messages`, `Timed Messages`, `Referral and Incentives`.
 - The page should feel like a campaign builder with operational context, not like a flat key-value settings form.
 - Message editors and preview panels should stay visible beside trigger or output settings.
 
 ## Information and Interactions
-
 - Applicant mail: enabled state, subject, body, and delivery conditions.
 - Recruit messages: subject, content, delay, output channel, and send preview.
 - Timed messages: trigger, delay, message content, reorder / remove actions, test preview.
@@ -60,12 +57,10 @@
 - Linked from: IA workflow shortcuts, server setup, settings deep links, command launcher.
 
 ## Permissions and Context
-
 - Requires login, selected guild, and recruitment or IA permissions.
 - Message output choices depend on current guild channels and roles.
 
 ## Risks and Open Questions
-
 - If timed-message state is only visible through settings commands, the page will feel incomplete.
 - Need to avoid duplicating the announcements composer; shared message-building primitives should be reused.
 - Recruitment and interview work overlap heavily, so cross-links need to be intentional.

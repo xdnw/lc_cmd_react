@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildNavbarIconItems,
   buildAppSidebarSections,
   buildSectionHeaderTabs,
   getAppRouteLabel,
@@ -26,8 +27,21 @@ describe("appRoutes shared header metadata", () => {
   it("reuses canonical tabs for detail routes in the same section", () => {
     const tabs = buildSectionHeaderTabs(routeConfigs, "/temporary-conflicts");
 
-    expect(tabs.map((tab) => tab.label)).toEqual(["Tables", "Conflicts", "Status"]);
+    expect(tabs.map((tab) => tab.label)).toEqual(["Tables", "Conflicts"]);
     expect(tabs.find((tab) => tab.active)?.to).toBe("/conflicts");
+  });
+
+  it("exposes status as a shared navbar utility icon", () => {
+    const items = buildNavbarIconItems(routeConfigs, "/status");
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        label: "Status",
+        to: "/status",
+        iconName: "Activity",
+        active: true,
+      }),
+    ]);
   });
 
   it("keeps hidden flows and detail pages out of the primary sidebar", () => {
@@ -36,6 +50,7 @@ describe("appRoutes shared header metadata", () => {
 
     expect(labels).toEqual([
       "Home",
+      "Status",
       "Member Overview",
       "Announcements",
       "Holdings",
@@ -43,7 +58,6 @@ describe("appRoutes shared header metadata", () => {
       "Raid Finder",
       "Tables",
       "Conflicts",
-      "Status",
       "Server Settings",
       "Command Browser",
     ]);

@@ -3,6 +3,7 @@ import type { LucideProps } from "lucide-react";
 
 // Define icon components with explicit imports - this is statically analyzable by Vite
 const IconComponents: Record<string, React.LazyExoticComponent<React.ComponentType<LucideProps>>> = {
+  'activity': lazy(() => import('lucide-react/dist/esm/icons/activity.js')),
   'arrowrighttoline': lazy(() => import('lucide-react/dist/esm/icons/arrow-right-to-line.js')),
   'check': lazy(() => import('lucide-react/dist/esm/icons/check.js')),
   'checkicon': lazy(() => import('lucide-react/dist/esm/icons/check.js')),

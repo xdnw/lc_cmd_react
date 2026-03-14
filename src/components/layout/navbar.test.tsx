@@ -135,4 +135,12 @@ describe("Navbar", () => {
 
     expect(openBrowserMock).toHaveBeenCalledWith({ query: "" });
   });
+
+  it("renders the shared status shortcut as a navbar icon", () => {
+    mockSessionState({ session: buildSession() });
+
+    renderNavbar({ entry: "/commands" });
+
+    expect((screen.getByRole("link", { name: /status/i }) as HTMLAnchorElement).getAttribute("href")).toBe("/status");
+  });
 });

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useLocation } from "react-router-dom";
 
 import {
+  buildNavbarIconItems,
   getAppRouteLabel,
   getAppRoutePrimaryPath,
   getAppSectionEntry,
@@ -163,6 +164,48 @@ function NavbarBreadcrumbs({ routeConfigs }: { routeConfigs: readonly AppRouteCo
   );
 }
 
+function NavbarUtilityLinks({ routeConfigs }: { routeConfigs: readonly AppRouteConfig[] }) {
+  const location = useLocation();
+  const items = useMemo(
+    () => buildNavbarIconItems(routeConfigs, location.pathname),
+    [location.pathname, routeConfigs],
+  );
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      {items.map((item) => (
+        <Button
+          key={item.key}
+          asChild
+          variant={item.active ? "secondary" : "ghost"}
+          size="iconSm"
+          className={cn(
+            "shrink-0 rounded-md text-muted-foreground hover:text-foreground",
+            item.active ? "text-foreground" : undefined,
+          )}
+        >
+          <ContextPreservingLink
+            to={item.to}
+            requireGuild={item.requireGuild}
+            preserveSearchParams={item.preserveSearchParams}
+            additionalSearchParams={item.additionalSearchParams}
+            aria-label={item.label}
+            aria-current={item.active ? "page" : undefined}
+            title={item.label}
+          >
+            <LazyIcon name={item.iconName} size={14} />
+            <span className="sr-only">{item.label}</span>
+          </ContextPreservingLink>
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 function SearchLauncherTrigger() {
   const { openBrowser } = useCommandLauncher();
 
@@ -279,6 +322,7 @@ export default function Navbar({
         </div>
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+          <NavbarUtilityLinks routeConfigs={routeConfigs} />
           <SearchLauncherTrigger />
           <ModeToggle />
           <NavbarAuthShortcut showContextBar={showContextBar} />

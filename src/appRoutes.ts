@@ -28,6 +28,7 @@ export type RecentPageCachePolicy = {
 export interface AppRouteNavigation extends AppRouteLinkConfig {
   sectionPath?: string;
   sidebarLabel?: string;
+  navbarIconName?: string;
 }
 
 export interface AppRouteConfig {
@@ -62,11 +63,26 @@ export interface AppSidebarSection {
   items: AppSidebarSectionItem[];
 }
 
+export interface AppNavbarIconItem extends AppRouteLinkConfig {
+  key: string;
+  label: string;
+  to: string;
+  iconName: string;
+  active: boolean;
+}
+
 interface VisibleSectionRoute extends AppRouteLinkConfig {
   key: string;
   section: AppNavSection;
   label: string;
   to: string;
+}
+
+interface VisibleNavbarIconRoute extends AppRouteLinkConfig {
+  key: string;
+  label: string;
+  to: string;
+  iconName: string;
 }
 
 const RECENT_PAGE_CACHE_POLICY: RecentPageCachePolicy = {
@@ -167,6 +183,39 @@ function collectVisibleSectionRoutes(routeList: readonly AppRouteConfig[]): Visi
   return visibleRoutes;
 }
 
+function collectVisibleNavbarIconRoutes(routeList: readonly AppRouteConfig[]): VisibleNavbarIconRoute[] {
+  const visibleRoutes: VisibleNavbarIconRoute[] = [];
+  const seen = new Set<string>();
+
+  for (const config of routeList) {
+    const iconName = config.navigation?.navbarIconName?.trim();
+    const label = getAppRouteLabel(config);
+    const to = getAppRouteSectionPath(config) ?? getAppRoutePrimaryPath(config);
+
+    if (!iconName || !label || !to) {
+      continue;
+    }
+
+    const key = `${iconName}:${to}`;
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    visibleRoutes.push({
+      key,
+      label,
+      to,
+      iconName,
+      requireGuild: config.navigation?.requireGuild,
+      preserveSearchParams: config.navigation?.preserveSearchParams,
+      additionalSearchParams: config.navigation?.additionalSearchParams,
+    });
+  }
+
+  return visibleRoutes;
+}
+
 export const routeConfigs: AppRouteConfig[] = [
   defineRoute("/home", {
     label: "Home",
@@ -175,6 +224,17 @@ export const routeConfigs: AppRouteConfig[] = [
     },
     element: () => import("./pages/home"),
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
+    shell: {
+      section: "Home",
+    },
+  }),
+  defineRoute("/status", {
+    label: "Status",
+    navigation: {
+      sidebarLabel: "Status",
+      navbarIconName: "Activity",
+    },
+    element: () => import("./pages/a2/admin/status"),
     shell: {
       section: "Home",
     },
@@ -675,16 +735,6 @@ export const routeConfigs: AppRouteConfig[] = [
       section: "Stats",
     },
   }),
-  defineRoute("/status", {
-    label: "Status",
-    navigation: {
-      sidebarLabel: "Status",
-    },
-    element: () => import("./pages/a2/admin/status"),
-    shell: {
-      section: "Stats",
-    },
-  }),
 
   defineRoute("/settings", {
     label: "Server Settings",
@@ -794,6 +844,16 @@ export function getAppSectionEntry(
     to: sectionRoute.to,
     requireGuild: sectionRoute.requireGuild,
   };
+}
+
+export function buildNavbarIconItems(routeList: readonly AppRouteConfig[], pathname: string): AppNavbarIconItem[] {
+  const matchedRoute = resolveAppRouteConfig(routeList, pathname);
+  const activePath = matchedRoute ? (getAppRouteSectionPath(matchedRoute) ?? getAppRoutePrimaryPath(matchedRoute)) : null;
+
+  return collectVisibleNavbarIconRoutes(routeList).map((route) => ({
+    ...route,
+    active: route.to === activePath,
+  }));
 }
 
 export function buildAppSidebarSections(routeList: readonly AppRouteConfig[], pathname: string): AppSidebarSection[] {

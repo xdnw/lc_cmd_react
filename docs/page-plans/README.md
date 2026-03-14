@@ -120,8 +120,8 @@ Do not hard-break the existing route surface while this work lands. New primary 
 - `/multi_v2/:nation?`
 
 ## File Index
-(note: The below needs fixing, the main thing is mixing member stuff with gov stuff. Members need info/management of themselves. Gov need tools to view broader and manage broader. This just lumps it all together without much sense.)
-(note: On the .md files themselves, lots of them have vague language that is rather meaningless or nonsensical, im not sure what the fix is, since telling you this, you just strip out useful info too, you have no ability to actually tell what of what you wrote is garbage, so i'm not sure how to salvage any of this, if at all.)
+(note: The below needs fixing, the main thing is confusing things for everyone, members, gov and admins. Members need info/management of themselves. Gov need tools to view broader and manage broader. This just lumps it all together without much sense.)
+(note: some of the items in README.md are not pages at all. They are different kinds of work, or they need to be split into multiple pages.)
 
 ### Core
 (note: I made some changes to merge navar and sidebar and session stuff, so these docs might be outdated.)

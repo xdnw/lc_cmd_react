@@ -6,7 +6,6 @@ import { useSession, SessionProvider } from "@/components/api/SessionContext";
 import CommandLauncher from "@/components/cmd/CommandLauncher";
 import { CommandLauncherProvider } from "@/components/cmd/CommandLauncherContext";
 import Footer from "@/components/layout/footer.tsx";
-import GuildContextBar from "@/components/layout/GuildContextBar";
 import { PageSidebarProvider, useActivePageSidebar } from "@/components/layout/PageSidebarContext";
 import SectionHeader from "@/components/layout/SectionHeader";
 import SidebarNav, { type SidebarNavConfig } from "@/components/layout/SidebarNav";
@@ -123,9 +122,6 @@ function PageShellContent({
 
 export default function PageView({ routeConfigs }: { routeConfigs: readonly AppRouteConfig[] }): ReactElement {
     const location = useLocation();
-    const navBar = useMemo(() => {
-        return <Navbar />;
-    }, []);
     const matchedRoute = useMemo(
         () => resolveAppRouteConfig(routeConfigs, location.pathname),
         [location.pathname, routeConfigs],
@@ -140,8 +136,7 @@ export default function PageView({ routeConfigs }: { routeConfigs: readonly AppR
                 <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
                     <CommandLauncherProvider>
                         <div className="min-h-screen bg-background text-foreground flex flex-col">
-                            {navBar}
-                            {showContextBar ? <GuildContextBar /> : null}
+                            <Navbar routeConfigs={routeConfigs} showContextBar={showContextBar} />
                             <PageShellContent routeConfigs={routeConfigs} shell={shell} showPrimaryNav={showPrimaryNav} />
                             <Footer />
                             <CommandLauncher />

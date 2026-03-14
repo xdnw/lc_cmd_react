@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -100,9 +100,9 @@ describe("GuildContextBar", () => {
 
     renderBar();
 
-    expect(screen.getByText("Guild Forty Two")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Guild Forty Two/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /2 alliances/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Test Nation/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Test Nation/i })).toBeNull();
     expect(screen.queryByText("Ready")).toBeNull();
     expect(
       screen.queryByText("Guild context is active and alliance registrations are available to guided pages."),
@@ -110,6 +110,10 @@ describe("GuildContextBar", () => {
     expect(screen.queryByText("Member Overview")).toBeNull();
     expect(screen.queryByText("Server Settings")).toBeNull();
     expect(screen.queryByText("Commands")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Guild Forty Two/i }));
+
+    expect(screen.getByRole("link", { name: /Logout/i })).toBeTruthy();
   });
 
   it("surfaces only meaningful repair actions when setup is incomplete", () => {

@@ -1,11 +1,20 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
-import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
 import { useSession } from "@/components/api/SessionContext";
-import Badge from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import LazyIcon from "@/components/ui/LazyIcon";
+import type { WebSession } from "@/lib/apitypes";
 import { cn } from "@/lib/utils";
+import { hasToken } from "@/utils/Auth";
 
 function buildAllianceLabels(names?: string[], ids?: number[]): string[] {
   const safeIds = ids ?? [];
@@ -28,176 +37,269 @@ function buildAllianceLabels(names?: string[], ids?: number[]): string[] {
   }).filter(Boolean);
 }
 
-function SummaryChip({ className, children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex min-h-6 items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-xs text-muted-foreground",
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
+function getDiscordAction(session: WebSession | null): { label: string; destructive?: boolean } | null {
+  if (!session?.nation || !session?.user) {
+    return null;
+  }
+
+  if (!session.registered) {
+    return { label: "Link Discord" };
+  }
+
+  if (session.registered_nation && session.registered_nation !== session.nation) {
+    return { label: "Repair link", destructive: true };
+  }
+
+  return null;
 }
 
 function ActionLinkButton({
   to,
   label,
-  iconName,
   requireGuild = false,
   variant = "outline",
+  className,
 }: {
   to: string;
   label: string;
-  iconName?: string;
   requireGuild?: boolean;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  className?: string;
 }) {
   return (
-    <Button asChild size="sm" variant={variant}>
+    <Button asChild size="sm" variant={variant} className={className}>
       <ContextPreservingLink to={to} requireGuild={requireGuild}>
-        {iconName ? <LazyIcon name={iconName} size={14} /> : null}
         {label}
       </ContextPreservingLink>
     </Button>
   );
 }
 
+function CompactMenuTriggerContent({ label }: { label: string }) {
+  return (
+    <>
+      <span>{label}</span>
+      <LazyIcon name="ChevronDown" size={12} />
+    </>
+  );
+}
+
+function MenuDetailRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 px-2 py-1 text-xs">
+      <span className="w-16 shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 wrap-break-word text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function MenuLinkItem({
+  to,
+  label,
+  requireGuild = false,
+}: {
+  to: string;
+  label: string;
+  requireGuild?: boolean;
+}) {
+  return (
+    <DropdownMenuItem>
+      <ContextPreservingLink to={to} requireGuild={requireGuild} className="w-full">
+        {label}
+      </ContextPreservingLink>
+    </DropdownMenuItem>
+  );
+}
+
+function AllianceMenu({
+  allianceLabels,
+  delegateServerName,
+  faServerName,
+  maServerName,
+}: {
+  allianceLabels: string[];
+  delegateServerName?: string;
+  faServerName?: string;
+  maServerName?: string;
+}) {
+  const triggerLabel = allianceLabels.length > 0
+    ? `${allianceLabels.length} alliance${allianceLabels.length === 1 ? "" : "s"}`
+    : "Servers";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "shrink-0 text-muted-foreground hover:text-foreground")}>
+        <CompactMenuTriggerContent label={triggerLabel} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72">
+        {allianceLabels.length > 0 ? (
+          <>
+            <DropdownMenuLabel>Registered alliances</DropdownMenuLabel>
+            {allianceLabels.map((label) => (
+              <div key={label} className="px-2 py-1 text-xs text-foreground">
+                {label}
+              </div>
+            ))}
+          </>
+        ) : null}
+
+        {delegateServerName || faServerName || maServerName ? (
+          <>
+            {allianceLabels.length > 0 ? <DropdownMenuSeparator /> : null}
+            <DropdownMenuLabel>Shared servers</DropdownMenuLabel>
+            {delegateServerName ? <MenuDetailRow label="Delegate" value={delegateServerName} /> : null}
+            {faServerName ? <MenuDetailRow label="FA" value={faServerName} /> : null}
+            {maServerName ? <MenuDetailRow label="MA" value={maServerName} /> : null}
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function SessionMenu({ session }: { session: WebSession }) {
+  const userLabel = session.user_name?.trim() || session.user || null;
+  const nationLabel = session.nation_name?.trim() || (session.nation ? `Nation ${session.nation}` : null);
+  const allianceLabel = session.alliance_name?.trim() || (session.alliance ? `Alliance ${session.alliance}` : null);
+  const discordStatus = !session.registered
+    ? "Not linked"
+    : session.registered_nation && session.nation && session.registered_nation !== session.nation
+      ? "Needs repair"
+      : "Linked";
+  const triggerLabel = nationLabel || userLabel || "Account";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "shrink-0 text-muted-foreground hover:text-foreground")}>
+        <CompactMenuTriggerContent label={triggerLabel} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72">
+        <DropdownMenuLabel>Session</DropdownMenuLabel>
+        {userLabel ? <MenuDetailRow label="User" value={userLabel} /> : null}
+        {nationLabel ? <MenuDetailRow label="Nation" value={nationLabel} /> : null}
+        {allianceLabel ? <MenuDetailRow label="Alliance" value={allianceLabel} /> : null}
+        <MenuDetailRow label="Discord" value={discordStatus} />
+        {(session.nation || session.user) ? (
+          <>
+            <DropdownMenuSeparator />
+            <MenuLinkItem to="/unregister" label="Manage linked account" />
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function GuildContextBar() {
-  const { session, isLoading, isFetching } = useSession();
+  const { session, error, isLoading, isFetching, refetchSession } = useSession();
+  const tokenExists = hasToken();
 
   const allianceLabels = useMemo(
     () => buildAllianceLabels(session?.guild_alliances_names, session?.guild_alliances),
     [session?.guild_alliances, session?.guild_alliances_names],
   );
 
+  if (!tokenExists && !session) {
+    return null;
+  }
+
   const hasGuild = Boolean(session?.guild);
   const hasAlliances = allianceLabels.length > 0;
-  const guildName = session?.guild_name?.trim() || (hasGuild ? `Guild ${session?.guild}` : "No guild selected");
-  const guildDescription = !hasGuild
-    ? "Choose a guild to unlock guild-scoped workflows and keep the active workspace visible."
-    : hasAlliances
-      ? "Guild context is active and alliance registrations are available to guided pages."
-      : "Guild context is active, but alliance registrations still need attention.";
+  const isRefreshing = isLoading || isFetching;
+  const isLoadingContext = tokenExists && !session && isRefreshing;
+  const guildName = session?.guild_name?.trim() || (hasGuild ? `Guild ${session?.guild}` : "Select guild");
+  const hasSessionError = Boolean(error) || (!session && !isRefreshing);
+  const discordAction = getDiscordAction(session ?? null);
+  const delegateServerName = session?.delegate_server_name || (session?.delegates_to ? `Guild ${session.delegates_to}` : undefined);
+  const faServerName = session?.fa_server_name || (session?.fa_server ? `Guild ${session.fa_server}` : undefined);
+  const maServerName = session?.ma_server_name || (session?.ma_server ? `Guild ${session.ma_server}` : undefined);
+  const showSessionMenu = Boolean(
+    session?.user ||
+      session?.user_name ||
+      session?.nation ||
+      session?.nation_name ||
+      session?.alliance ||
+      session?.alliance_name ||
+      session?.registered !== undefined,
+  );
 
   return (
     <div className="border-b border-border/70 bg-background/92 backdrop-blur supports-backdrop-filter:bg-background/78">
-      <div className="flex flex-col gap-3 px-2 py-2 md:px-3">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            {session?.guild_icon ? (
-              <img
-                src={session.guild_icon}
-                alt={guildName}
-                className="mt-0.5 h-9 w-9 shrink-0 rounded-md border border-border/60 object-cover"
-              />
-            ) : (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/60">
-                <LazyIcon name="Users" size={18} />
-              </div>
-            )}
-
-            <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="truncate text-sm font-medium text-foreground">{guildName}</span>
-                {!hasGuild ? <Badge variant="outline">Guild required</Badge> : null}
-                {hasGuild && hasAlliances ? <Badge variant="secondary">Ready</Badge> : null}
-                {hasGuild && !hasAlliances ? <Badge variant="destructive">Needs setup</Badge> : null}
-                {session?.delegates_to ? <Badge variant="outline">Delegated</Badge> : null}
-                {session?.guild ? (
-                  <span className="truncate text-xs text-muted-foreground">{session.guild}</span>
-                ) : null}
-                {(isLoading || isFetching) ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <LazyIcon name="RotateCcw" size={12} className="animate-spin" />
-                    Refreshing
-                  </span>
-                ) : null}
-              </div>
-
-              <p className="max-w-4xl text-xs leading-5 text-muted-foreground">{guildDescription}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {hasGuild ? (
-              <>
-                <ActionLinkButton to="/guild_member" label="Member Overview" iconName="Users" requireGuild variant="secondary" />
-                <ActionLinkButton to="/settings" label="Server Settings" iconName="Settings" requireGuild />
-                <ActionLinkButton to="/guild_select" label="Switch Guild" iconName="ChevronRight" />
-              </>
-            ) : (
-              <>
-                <ActionLinkButton to="/guild_select" label="Select Guild" iconName="Users" variant="secondary" />
-                <ActionLinkButton to="/commands" label="Commands" iconName="Search" />
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {session?.nation_name ? (
-            <SummaryChip>
-              <LazyIcon name="User" size={12} />
-              <span className="font-medium text-foreground">Nation</span>
-              <span>{session.nation_name}</span>
-              {session.alliance_name ? <span className="text-muted-foreground">in {session.alliance_name}</span> : null}
-            </SummaryChip>
-          ) : null}
-
-          {hasAlliances ? (
-            <SummaryChip>
-              <LazyIcon name="Shield" size={12} />
-              <span className="font-medium text-foreground">Alliances</span>
-              <span>
-                {allianceLabels.length <= 2
-                  ? allianceLabels.join(", ")
-                  : `${allianceLabels.slice(0, 2).join(", ")} +${allianceLabels.length - 2}`}
+      <div className="overflow-x-auto px-2 py-2 md:px-3">
+        <div className="flex min-w-max items-center gap-2">
+          {isLoadingContext ? (
+            <>
+              <span className="shrink-0 rounded-md border border-border/70 bg-background px-2 py-1 text-xs text-muted-foreground">
+                Loading context
               </span>
-            </SummaryChip>
-          ) : hasGuild ? (
-            <SummaryChip className="border-destructive/35 bg-destructive/5 text-destructive">
-              <LazyIcon name="TriangleAlert" size={12} />
-              <span>No alliances registered yet</span>
-            </SummaryChip>
-          ) : null}
+              <Button type="button" variant="ghost" size="iconSm" disabled aria-label="Refreshing session" className="shrink-0 text-muted-foreground">
+                <LazyIcon name="RotateCcw" size={14} className="animate-spin" />
+              </Button>
+            </>
+          ) : hasSessionError ? (
+            <>
+              <span className="shrink-0 rounded-md border border-destructive/35 bg-destructive/5 px-2 py-1 text-xs text-destructive">
+                Session unavailable
+              </span>
+              <Button type="button" variant="outline" size="sm" onClick={refetchSession}>
+                Retry
+              </Button>
+              <ActionLinkButton to="/logout" label="Logout" variant="outline" />
+            </>
+          ) : (
+            <>
+              <Button asChild size="sm" variant={hasGuild ? "outline" : "secondary"} className="shrink-0">
+                <ContextPreservingLink to="/guild_select">
+                  {session?.guild_icon ? (
+                    <img
+                      src={session.guild_icon}
+                      alt={guildName}
+                      className="h-4 w-4 shrink-0 rounded-sm object-cover"
+                    />
+                  ) : null}
+                  <span className="max-w-52 truncate">{guildName}</span>
+                  <LazyIcon name="ChevronDown" size={12} className="text-muted-foreground" />
+                </ContextPreservingLink>
+              </Button>
 
-          {session?.delegates_to ? (
-            <SummaryChip>
-              <LazyIcon name="ArrowRightToLine" size={12} />
-              <span className="font-medium text-foreground">Delegates to</span>
-              <span>{session.delegate_server_name || `Guild ${session.delegates_to}`}</span>
-            </SummaryChip>
-          ) : null}
+              {(hasAlliances || delegateServerName || faServerName || maServerName) ? (
+                <AllianceMenu
+                  allianceLabels={allianceLabels}
+                  delegateServerName={delegateServerName}
+                  faServerName={faServerName}
+                  maServerName={maServerName}
+                />
+              ) : null}
 
-          {session?.fa_server ? (
-            <SummaryChip>
-              <LazyIcon name="GitPullRequest" size={12} />
-              <span className="font-medium text-foreground">FA server</span>
-              <span>{session.fa_server_name || `Guild ${session.fa_server}`}</span>
-            </SummaryChip>
-          ) : null}
+              {session && showSessionMenu ? <SessionMenu session={session} /> : null}
 
-          {session?.ma_server ? (
-            <SummaryChip>
-              <LazyIcon name="MessageSquareText" size={12} />
-              <span className="font-medium text-foreground">MA server</span>
-              <span>{session.ma_server_name || `Guild ${session.ma_server}`}</span>
-            </SummaryChip>
-          ) : null}
+              {hasGuild && !hasAlliances ? (
+                <ActionLinkButton to="/settings" label="Alliance setup" requireGuild variant="outline" className="shrink-0 text-destructive hover:text-destructive" />
+              ) : null}
+
+              {discordAction ? (
+                <ActionLinkButton
+                  to="/unregister"
+                  label={discordAction.label}
+                  variant="outline"
+                  className={discordAction.destructive ? "shrink-0 text-destructive hover:text-destructive" : "shrink-0"}
+                />
+              ) : null}
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="iconSm"
+                onClick={refetchSession}
+                disabled={isRefreshing}
+                aria-label="Refresh session"
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                <LazyIcon name="RotateCcw" size={14} className={isRefreshing ? "animate-spin" : undefined} />
+              </Button>
+            </>
+          )}
         </div>
-
-        {hasGuild && !hasAlliances ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-2 py-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1 text-destructive">
-              <LazyIcon name="TriangleAlert" size={12} />
-              This guild still needs readiness work before alliance-scoped tools feel trustworthy.
-            </span>
-            <ActionLinkButton to="/settings" label="Open Server Settings" iconName="Settings" requireGuild variant="ghost" />
-            <ActionLinkButton to="/commands" label="Open Commands" iconName="Search" variant="ghost" />
-          </div>
-        ) : null}
       </div>
     </div>
   );

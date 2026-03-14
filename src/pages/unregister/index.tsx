@@ -1,4 +1,3 @@
-import SessionInfo from "@/components/api/session.tsx";
 import { Link } from "react-router-dom";
 import { getDiscordAuthUrl } from "@/utils/Auth.ts";
 import { Button } from "@/components/ui/button.tsx";
@@ -13,16 +12,13 @@ import { useCallback } from "react";
 
 export default function Unregister() {
     return (
-        <>
-            <div className="bg-light/10 border border-light/10 p-2 relative rounded mb-4">
-                <EndpointWrapper endpoint={SESSION} args={{}}>
-                    {({ data: session }) => {
-                        return <UnregisterComponent session={session} />
-                    }}
-                </EndpointWrapper>
-            </div>
-            <SessionInfo />
-        </>);
+        <div className="rounded-lg border border-border/70 bg-card/80 p-4 shadow-sm">
+            <EndpointWrapper endpoint={SESSION} args={{}}>
+                {({ data: session }) => {
+                    return <UnregisterComponent session={session} />
+                }}
+            </EndpointWrapper>
+        </div>);
 }
 
 export function UnregisterComponent({ session }: { session: WebSession }) {

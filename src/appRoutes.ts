@@ -185,7 +185,7 @@ export const routeConfigs: AppRouteConfig[] = [
     element: () => import("@/pages/unregister"),
     protected: true,
     shell: {
-      showContextBar: false,
+      showContextBar: true,
       showPrimaryNav: false,
       header: null,
     },
@@ -424,7 +424,7 @@ export const routeConfigs: AppRouteConfig[] = [
     element: () => import("@/pages/login_picker"),
     protected: false,
     shell: {
-      showContextBar: false,
+      showContextBar: true,
       showPrimaryNav: false,
       header: null,
     },
@@ -479,7 +479,7 @@ export const routeConfigs: AppRouteConfig[] = [
     element: () => import("@/pages/unregister"),
     protected: false,
     shell: {
-      showContextBar: false,
+      showContextBar: true,
       showPrimaryNav: false,
       header: null,
     },

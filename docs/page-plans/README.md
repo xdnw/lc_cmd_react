@@ -1,3 +1,11 @@
+<!--
+WARNING: HALLUCINATORY GARBAGE.
+This file is AI-generated speculation and is not trustworthy.
+Do not use it as source of truth, implementation guidance, planning input,
+architectural guidance, or evidence that any described feature or substrate exists.
+Keep it only as an idea scrap in case a small part is someday worth salvaging.
+-->
+
 # Page Plan Index
 
 This folder is the source of truth for frontend planning. Each brief should describe the intended route or surface, the current substrate that already exists, and the exact backend gaps that still block a browser-native workflow.

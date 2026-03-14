@@ -5,6 +5,7 @@ import type { SidebarNavConfig } from "@/components/layout/SidebarNav";
 
 interface PageSidebarContextValue {
   activeSidebar: SidebarNavConfig | null;
+  defaultSidebar: SidebarNavConfig | null;
   registerSidebar: (routeKey: string, config: SidebarNavConfig | null) => void;
   unregisterSidebar: (routeKey: string) => void;
 }
@@ -64,15 +65,20 @@ export function PageSidebarProvider({
   const activeSidebar = registeredSidebars[activeRouteKey] ?? defaultSidebar;
   const value = useMemo<PageSidebarContextValue>(() => ({
     activeSidebar,
+    defaultSidebar,
     registerSidebar,
     unregisterSidebar,
-  }), [activeSidebar, registerSidebar, unregisterSidebar]);
+  }), [activeSidebar, defaultSidebar, registerSidebar, unregisterSidebar]);
 
   return <PageSidebarContext.Provider value={value}>{children}</PageSidebarContext.Provider>;
 }
 
 export function useActivePageSidebar(): SidebarNavConfig | null {
   return usePageSidebarContext().activeSidebar;
+}
+
+export function useDefaultPageSidebar(): SidebarNavConfig | null {
+  return usePageSidebarContext().defaultSidebar;
 }
 
 export function usePageSidebar(config: SidebarNavConfig | null): void {

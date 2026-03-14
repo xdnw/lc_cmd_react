@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { forwardRef, useMemo } from "react";
 import { Link, useLocation, type LinkProps } from "react-router-dom";
 
 import { useSession } from "@/components/api/SessionContext";
@@ -18,15 +18,18 @@ export interface ContextPreservingLinkProps extends Omit<LinkProps, "to"> {
   returnToParam?: string;
 }
 
-export default function ContextPreservingLink({
-  to,
-  preserveSearchParams,
-  additionalSearchParams,
-  requireGuild = false,
-  guildSelectPath = "/guild_select",
-  returnToParam = RETURN_TO_PARAM,
-  ...props
-}: ContextPreservingLinkProps) {
+const ContextPreservingLink = forwardRef<HTMLAnchorElement, ContextPreservingLinkProps>(function ContextPreservingLink(
+  {
+    to,
+    preserveSearchParams,
+    additionalSearchParams,
+    requireGuild = false,
+    guildSelectPath = "/guild_select",
+    returnToParam = RETURN_TO_PARAM,
+    ...props
+  },
+  ref,
+) {
   const location = useLocation();
   const { session } = useSession();
 
@@ -52,5 +55,7 @@ export default function ContextPreservingLink({
     to,
   ]);
 
-  return <Link {...props} to={resolvedTo} />;
-}
+  return <Link {...props} ref={ref} to={resolvedTo} />;
+});
+
+export default ContextPreservingLink;

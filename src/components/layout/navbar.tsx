@@ -1,7 +1,13 @@
 import React, { useMemo } from "react";
 import { useLocation } from "react-router-dom";
 
-import { APP_PRIMARY_NAV_ITEMS, getAppRouteLabel, resolveAppRouteConfig, type AppRouteConfig } from "@/appRoutes";
+import {
+  getAppRouteLabel,
+  getAppRoutePrimaryPath,
+  getAppSectionEntry,
+  resolveAppRouteConfig,
+  type AppRouteConfig,
+} from "@/appRoutes";
 import { useSession } from "@/components/api/SessionContext";
 import { useCommandLauncher } from "@/components/cmd/CommandLauncherContext";
 import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
@@ -38,7 +44,7 @@ function getCurrentBreadcrumbLabel(routeConfig: AppRouteConfig | null, pathname:
     return routeLabel;
   }
 
-  const routeSegments = (routeConfig?.path ?? pathname).split("/").filter(Boolean);
+  const routeSegments = (routeConfig ? getAppRoutePrimaryPath(routeConfig) : pathname).split("/").filter(Boolean);
   const staticSegments = routeSegments.filter((segment) => !segment.startsWith(":"));
   const lastStaticSegment = staticSegments[staticSegments.length - 1];
   if (lastStaticSegment) {
@@ -61,10 +67,10 @@ export function buildNavbarBreadcrumbItems(routeConfigs: readonly AppRouteConfig
   ];
 
   const section = matchedRoute?.shell?.section;
-  const sectionItem = section ? APP_PRIMARY_NAV_ITEMS.find((item) => item.id === section) ?? null : null;
+  const sectionItem = getAppSectionEntry(routeConfigs, section);
   if (sectionItem && sectionItem.to !== "/home") {
     items.push({
-      key: `section-${sectionItem.id}`,
+      key: `section-${sectionItem.label.toLowerCase()}`,
       label: sectionItem.label,
       to: sectionItem.to,
       requireGuild: sectionItem.requireGuild,

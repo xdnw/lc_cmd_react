@@ -1,4 +1,4 @@
-import type { AppRouteConfig } from '@/appRoutes';
+import { getAppRoutePrimaryPath, type AppRouteConfig } from '@/appRoutes';
 import { useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { scheduleWhenIdle } from './cmd/interactionScheduling';
@@ -29,21 +29,21 @@ type NavigatorConnection = {
 };
 
 const ROUTE_PREFETCH_PRIORITY: Record<string, number> = {
-    home: 200,
-    commands: 180,
-    command: 170,
-    command_detail: 165,
-    login: 160,
-    guild_select: 145,
-    records: 140,
-    balance: 140,
-    custom_table: 135,
+    '/home': 200,
+    '/commands': 180,
+    '/command/:command': 165,
+    '/login': 160,
+    '/guild_select': 145,
+    '/records': 140,
+    '/balance': 140,
+    '/custom_table': 135,
 };
 
 function getRoutePriority(route: AppRouteConfig): number {
-    const explicit = ROUTE_PREFETCH_PRIORITY[route.key] ?? 0;
+    const primaryPath = getAppRoutePrimaryPath(route);
+    const explicit = ROUTE_PREFETCH_PRIORITY[primaryPath] ?? 0;
     const guestWeight = route.protected ? 0 : 20;
-    const viewWeight = route.path.startsWith('/view_') ? 10 : 0;
+    const viewWeight = primaryPath.startsWith('/view_') ? 10 : 0;
     return explicit + guestWeight + viewWeight;
 }
 
@@ -81,7 +81,7 @@ export default function AutoRoutePrefetcher({
     const orderedRouteKeys = useMemo(() => {
         return [...routeConfigs]
             .sort((a, b) => getRoutePriority(b) - getRoutePriority(a))
-            .map((r) => r.key);
+            .map((route) => getAppRoutePrimaryPath(route));
     }, [routeConfigs]);
 
     // ... (rest of the cache logic) ...
@@ -91,7 +91,7 @@ export default function AutoRoutePrefetcher({
 
         let cancelled = false;
 
-        const routeMap = new Map(routeConfigs.map((route) => [route.key, route]));
+        const routeMap = new Map(routeConfigs.map((route) => [getAppRoutePrimaryPath(route), route]));
 
         const processPrefetchQueue = () => {
             if (cancelled) return;

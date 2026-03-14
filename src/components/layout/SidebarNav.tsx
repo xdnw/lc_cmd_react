@@ -50,6 +50,7 @@ export interface SidebarNavConfig {
   title?: string;
   subtitle?: ReactNode;
   headerMeta?: ReactNode;
+  headerContent?: ReactNode;
   items: readonly SidebarNavItem[];
   emptyMessage?: string;
   mobileTriggerLabel?: string;
@@ -176,14 +177,15 @@ function TreeSidebarItem({
 }: {
   item: SidebarNavItem;
   onNavigate?: () => void;
-  registerItemRef: (id: string, node: HTMLButtonElement | null) => void;
+  registerItemRef: (id: string, node: HTMLElement | null) => void;
 }) {
   const isCurrent = Boolean(item.active);
   const isCurrentPath = Boolean(item.inActivePath);
+  const isInteractive = Boolean((item.to && !item.disabled) || item.onSelect);
   const indent = `${(item.level ?? 0) * 10}px`;
 
   const handleRef = useCallback(
-    (node: HTMLButtonElement | null) => {
+    (node: HTMLElement | null) => {
       registerItemRef(item.id, node);
     },
     [item.id, registerItemRef],
@@ -203,6 +205,30 @@ function TreeSidebarItem({
     [item.quickAction, onNavigate],
   );
 
+  const rowClassName = cn(
+    "flex h-6 min-w-0 flex-1 items-center gap-1.5 px-1 text-left transition-colors",
+    getToneClasses(item.tone),
+    isCurrent
+      ? "bg-accent text-foreground"
+      : isCurrentPath
+        ? "bg-muted/35 text-foreground"
+        : isInteractive
+          ? "text-muted-foreground hover:bg-accent/55 hover:text-foreground"
+          : "text-muted-foreground",
+    item.disabled ? "cursor-not-allowed opacity-50" : null,
+  );
+
+  const rowContent = (
+    <>
+      <span
+        aria-hidden="true"
+        className={cn("h-1.5 w-1.5 shrink-0 rounded-full", getStatusClasses(item.status))}
+      />
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {item.meta ? <span className="shrink-0 text-[10px] text-muted-foreground">{item.meta}</span> : null}
+    </>
+  );
+
   return (
     <div
       className={cn(
@@ -211,31 +237,37 @@ function TreeSidebarItem({
       )}
       style={{ paddingLeft: indent }}
     >
-      <button
-        ref={handleRef}
-        type="button"
-        title={item.title ?? item.label}
-        aria-current={isCurrent ? "location" : undefined}
-        disabled={item.disabled}
-        onClick={handleSelect}
-        className={cn(
-          "flex h-6 min-w-0 flex-1 items-center gap-1.5 px-1 text-left transition-colors",
-          getToneClasses(item.tone),
-          isCurrent
-            ? "bg-accent text-foreground"
-            : isCurrentPath
-              ? "bg-muted/35 text-foreground"
-              : "text-muted-foreground hover:bg-accent/55 hover:text-foreground",
-          item.disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
-        )}
-      >
-        <span
-          aria-hidden="true"
-          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", getStatusClasses(item.status))}
-        />
-        <span className="min-w-0 flex-1 truncate">{item.label}</span>
-        {item.meta ? <span className="shrink-0 text-[10px] text-muted-foreground">{item.meta}</span> : null}
-      </button>
+      {item.to && !item.disabled ? (
+        <ContextPreservingLink
+          ref={handleRef}
+          to={item.to}
+          title={item.title ?? item.label}
+          aria-current={isCurrent ? "location" : undefined}
+          requireGuild={item.requireGuild}
+          preserveSearchParams={item.preserveSearchParams}
+          additionalSearchParams={item.additionalSearchParams}
+          onClick={handleSelect}
+          className={cn(rowClassName, "cursor-pointer")}
+        >
+          {rowContent}
+        </ContextPreservingLink>
+      ) : item.onSelect ? (
+        <button
+          ref={handleRef as (node: HTMLButtonElement | null) => void}
+          type="button"
+          title={item.title ?? item.label}
+          aria-current={isCurrent ? "location" : undefined}
+          disabled={item.disabled}
+          onClick={handleSelect}
+          className={cn(rowClassName, item.disabled ? null : "cursor-pointer")}
+        >
+          {rowContent}
+        </button>
+      ) : (
+        <div ref={handleRef} title={item.title ?? item.label} className={rowClassName}>
+          {rowContent}
+        </div>
+      )}
 
       {item.quickAction ? (
         <Button
@@ -266,9 +298,9 @@ function SidebarNavContent({
   onNavigate?: () => void;
 }) {
   const layout = config.layout ?? "cards";
-  const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({});
   const activeItem = useMemo(() => getActiveSidebarItem(config.items), [config.items]);
-  const registerItemRef = useCallback((id: string, node: HTMLButtonElement | null) => {
+  const registerItemRef = useCallback((id: string, node: HTMLElement | null) => {
     itemRefs.current[id] = node;
   }, []);
 
@@ -280,7 +312,8 @@ function SidebarNavContent({
     itemRefs.current[activeItem.id]?.scrollIntoView({ block: "nearest" });
   }, [activeItem?.id, layout]);
 
-  const hasHeader = Boolean(config.eyebrow || config.title || config.subtitle || config.headerMeta);
+  const hasHeader = Boolean(config.eyebrow || config.title || config.subtitle || config.headerMeta || config.headerContent);
+  const hasHeaderSummary = Boolean(config.eyebrow || config.title || config.subtitle || config.headerMeta);
   const navClassName = cn(
     RAIL_SURFACE_CLASSNAME,
     layout === "cards" ? "p-2" : null,
@@ -299,18 +332,23 @@ function SidebarNavContent({
     <nav aria-label={config.ariaLabel ?? config.title ?? "Section navigation"} className={navClassName}>
       {hasHeader ? (
         <div className={cn("border-b border-border/70", layout === "cards" ? "px-1 pb-2" : "px-2 py-1.5")}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              {config.eyebrow ? (
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  {config.eyebrow}
+          {hasHeaderSummary ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  {config.eyebrow ? (
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      {config.eyebrow}
+                    </div>
+                  ) : null}
+                  {config.title ? <div className="pt-1 text-sm font-medium text-foreground">{config.title}</div> : null}
                 </div>
-              ) : null}
-              {config.title ? <div className="pt-1 text-sm font-medium text-foreground">{config.title}</div> : null}
-            </div>
-            {config.headerMeta ? <div className="shrink-0">{config.headerMeta}</div> : null}
-          </div>
-          {config.subtitle ? <div className="pt-1 text-[11px] leading-4 text-muted-foreground">{config.subtitle}</div> : null}
+                {config.headerMeta ? <div className="shrink-0">{config.headerMeta}</div> : null}
+              </div>
+              {config.subtitle ? <div className="pt-1 text-[11px] leading-4 text-muted-foreground">{config.subtitle}</div> : null}
+            </>
+          ) : null}
+          {config.headerContent ? <div className={cn(hasHeaderSummary ? "pt-2" : null)}>{config.headerContent}</div> : null}
         </div>
       ) : null}
 

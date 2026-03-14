@@ -6,7 +6,7 @@ import ReactGA from "react-ga4";
 import AutoRoutePrefetcher from "./components/AutoRoutePrefetcher";
 import Loading from "@/components/ui/loading";
 import { getRecoveryDetail, getRecoveryResetHref, getRecoverySummary, getRecoveryTitle, isLikelyRecoverableAssetError } from "@/lib/deployRecovery";
-import { routeConfigs } from "@/appRoutes";
+import { getAppRoutePaths, routeConfigs } from "@/appRoutes";
 
 function handleCopyStackClick(e: React.MouseEvent<HTMLButtonElement>) {
   const text = e.currentTarget.dataset.stack;
@@ -155,6 +155,19 @@ function RouteErrorFallback() {
   );
 }
 
+function buildRouteElements() {
+  return routeConfigs.flatMap((config) => {
+    const Element = lazy(config.element);
+
+    return getAppRoutePaths(config).map((path) => ({
+      path: path.replace(/^\//, ""),
+      element: config.protected
+        ? <LoggedInRoute><Element /></LoggedInRoute>
+        : <Element />,
+    }));
+  });
+}
+
 // Router is created once at module level
 const router = createHashRouter([
   {
@@ -179,15 +192,7 @@ const router = createHashRouter([
         element: (
           <PageView routeConfigs={routeConfigs} />
         ),
-        children: routeConfigs.map(config => {
-          const Element = lazy(config.element);
-          return {
-            path: config.path.replace(/^\//, ''), // remove leading slash
-            element: config.protected ?
-              <LoggedInRoute><Element /></LoggedInRoute> :
-              <Element />
-          };
-        })
+        children: buildRouteElements(),
       }
     ]
   }

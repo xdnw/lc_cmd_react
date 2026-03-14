@@ -36,7 +36,6 @@ type CachedRouteSnapshot = {
 
 type CacheEntry = {
   key: string;
-  routeKey: string;
   outlet: ReactElement;
   snapshot: CachedRouteSnapshot;
   lastActivatedAt: number;
@@ -197,7 +196,6 @@ export default function RecentPageKeepAlive({
           ...currentEntries,
           {
             key: activeCacheKey,
-            routeKey: matchedRouteConfig.key,
             outlet,
             snapshot,
             lastActivatedAt: now,
@@ -226,7 +224,6 @@ export default function RecentPageKeepAlive({
 
       nextEntries[existingIndex] = {
         ...existingEntry,
-        routeKey: matchedRouteConfig.key,
         outlet,
         snapshot,
         lastActivatedAt: now,

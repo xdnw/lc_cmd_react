@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { SquarePen } from "lucide-react";
@@ -6,7 +6,7 @@ import { useSession } from "@/components/api/SessionContext";
 import SearchBar from "@/components/cmd/SearchBar";
 import { useDialog } from "@/components/layout/DialogContext";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
-import { usePageSidebar } from "@/components/layout/PageSidebarContext";
+import { useDefaultPageSidebar, usePageSidebar } from "@/components/layout/PageSidebarContext";
 import {
     type SidebarNavConfig,
     type SidebarNavItem,
@@ -14,6 +14,7 @@ import {
 } from "@/components/layout/SidebarNav";
 import Loading from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN,
     WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT,
@@ -338,12 +339,95 @@ function buildSettingsSidebarItems({
     });
 }
 
+function getSettingsSidebarTriggerValue(activeItem: FlattenedSettingsItem | null): string {
+    if (!activeItem) {
+        return "Browse settings";
+    }
+
+    if (activeItem.kind === "setting") {
+        return activeItem.row.settingKey;
+    }
+
+    if (activeItem.kind === "category") {
+        return activeItem.category;
+    }
+
+    return activeItem.subgroup;
+}
+
+type SettingsSidebarMode = "settings" | "main";
+
+function SettingsSidebarModeTabs({
+    mode,
+    isRefreshing,
+    onModeChange,
+}: {
+    mode: SettingsSidebarMode;
+    isRefreshing: boolean;
+    onModeChange: (mode: SettingsSidebarMode) => void;
+}) {
+    const handleValueChange = useCallback((nextValue: string) => {
+        if (nextValue === "settings" || nextValue === "main") {
+            onModeChange(nextValue);
+        }
+    }, [onModeChange]);
+
+    return (
+        <div className="space-y-1">
+            <Tabs value={mode} onValueChange={handleValueChange}>
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="settings">Settings</TabsTrigger>
+                    <TabsTrigger value="main">App nav</TabsTrigger>
+                </TabsList>
+            </Tabs>
+            {isRefreshing ? <div className="text-[10px] text-muted-foreground">Refreshing</div> : null}
+        </div>
+    );
+}
+
+function buildSettingsSidebarConfig({
+    activeItem,
+    hasGuild,
+    isLoading,
+    hasError,
+    headerContent,
+    items,
+}: {
+    activeItem: FlattenedSettingsItem | null;
+    hasGuild: boolean;
+    isLoading: boolean;
+    hasError: boolean;
+    headerContent: ReactNode;
+    items: SidebarNavItem[];
+}): SidebarNavConfig {
+    return {
+        ariaLabel: "Settings navigation",
+        layout: "tree",
+        headerContent,
+        items,
+        emptyMessage: !hasGuild
+            ? "Select a guild to browse settings."
+            : isLoading
+                ? "Loading settings navigation..."
+                : hasError
+                    ? "Failed to load settings navigation."
+                    : "No settings available.",
+        mobileTriggerLabel: "Settings",
+        mobileTriggerValue: getSettingsSidebarTriggerValue(activeItem),
+        mobileButtonLabel: "Settings",
+        mobileSheetTitle: "Settings",
+        mobileSheetSubtitle: "Server configuration",
+    };
+}
+
 export default function SettingsPage() {
     const { session } = useSession();
     const { showDialog } = useDialog();
+    const defaultSidebar = useDefaultPageSidebar();
     const queryClient = useQueryClient();
     const virtuosoRef = useRef<VirtuosoHandle | null>(null);
     const [browserState, setBrowserState] = useState(() => createDefaultSettingsBrowserState());
+    const [sidebarMode, setSidebarMode] = useState<SettingsSidebarMode>("settings");
     const [perSettingWarning, setPerSettingWarning] = useState<string | null>(null);
     const [visibleIndex, setVisibleIndex] = useState(0);
     const [highlightedSettingKey, setHighlightedSettingKey] = useState<string | null>(null);
@@ -532,6 +616,10 @@ export default function SettingsPage() {
         );
     }, [showDialog]);
 
+    const handleSidebarModeChange = useCallback((nextMode: SettingsSidebarMode) => {
+        setSidebarMode(nextMode);
+    }, []);
+
     const sidebarItems = useMemo(() => buildSettingsSidebarItems({
         items: browserResult.flattenedItems,
         activeKey: activeItem?.key ?? null,
@@ -542,32 +630,35 @@ export default function SettingsPage() {
         onEdit: openEditDialog,
     }), [activeItem, browserResult.flattenedItems, handleSelectSidebarItem, openEditDialog, visibleContext.category, visibleContext.subgroup]);
 
-    const sidebarConfig = useMemo<SidebarNavConfig>(() => ({
-        ariaLabel: "Settings navigation",
-        layout: "tree",
-        title: "Settings map",
-        subtitle: "Jump between categories, subgroups, and individual setting keys.",
-        headerMeta: listQuery.isFetching ? <span className="text-[10px] text-muted-foreground">Refreshing</span> : null,
+    const sidebarHeaderContent = useMemo(() => (
+        <SettingsSidebarModeTabs
+            mode={sidebarMode}
+            isRefreshing={listQuery.isFetching}
+            onModeChange={handleSidebarModeChange}
+        />
+    ), [handleSidebarModeChange, listQuery.isFetching, sidebarMode]);
+
+    const settingsSidebarConfig = useMemo<SidebarNavConfig>(() => buildSettingsSidebarConfig({
+        activeItem,
+        hasGuild: Boolean(session?.guild),
+        isLoading: listQuery.isLoading,
+        hasError: Boolean(listQuery.error),
+        headerContent: sidebarHeaderContent,
         items: sidebarItems,
-        emptyMessage: !session?.guild
-            ? "Select a guild to browse settings."
-            : listQuery.isLoading
-                ? "Loading settings navigation..."
-                : listQuery.error
-                    ? "Failed to load settings navigation."
-                    : "No settings available.",
-        mobileTriggerLabel: "Settings",
-        mobileTriggerValue: activeItem?.kind === "setting"
-            ? activeItem.row.settingKey
-            : activeItem?.kind === "category"
-                ? activeItem.category
-                : activeItem?.kind === "subgroup"
-                    ? activeItem.subgroup
-                    : "Browse settings",
-        mobileButtonLabel: "Settings",
-        mobileSheetTitle: "Settings",
-        mobileSheetSubtitle: "Server configuration",
-    }), [activeItem, listQuery.error, listQuery.isFetching, listQuery.isLoading, session?.guild, sidebarItems]);
+    }), [activeItem, listQuery.error, listQuery.isLoading, session?.guild, sidebarHeaderContent, sidebarItems]);
+
+    const mainSidebarConfig = useMemo<SidebarNavConfig | null>(() => {
+        if (!defaultSidebar) {
+            return null;
+        }
+
+        return {
+            ...defaultSidebar,
+            headerContent: sidebarHeaderContent,
+        };
+    }, [defaultSidebar, sidebarHeaderContent]);
+
+    const activeSidebarConfig = sidebarMode === "settings" ? settingsSidebarConfig : mainSidebarConfig;
 
     const pageHeaderConfig = useMemo<PageHeaderConfig | null>(() => {
         if (!session?.guild || listQuery.isLoading || listQuery.error) {
@@ -606,7 +697,7 @@ export default function SettingsPage() {
         session?.guild,
     ]);
 
-    usePageSidebar(sidebarConfig);
+    usePageSidebar(activeSidebarConfig);
     usePageHeader(pageHeaderConfig);
 
     const getFlattenedItemKey = useCallback((_: number, item: FlattenedSettingsItem) => item.key, []);

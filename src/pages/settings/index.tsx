@@ -4,7 +4,12 @@ import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { SquarePen } from "lucide-react";
 import { useSession } from "@/components/api/SessionContext";
 import { useDialog } from "@/components/layout/DialogContext";
-import HierarchySidebarNav, { type HierarchySidebarItem, type HierarchySidebarStatus } from "@/components/layout/HierarchySidebarNav";
+import { usePageSidebar } from "@/components/layout/PageSidebarContext";
+import {
+    type SidebarNavConfig,
+    type SidebarNavItem,
+    type SidebarNavStatus,
+} from "@/components/layout/SidebarNav";
 import Loading from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
 import {
@@ -80,7 +85,7 @@ function SettingsListItem({
     );
 }
 
-function getSettingsSidebarStatus(item: FlattenedSettingsItem): HierarchySidebarStatus {
+function getSettingsSidebarStatus(item: FlattenedSettingsItem): SidebarNavStatus {
     if (item.kind !== "setting") {
         return "default";
     }
@@ -116,7 +121,7 @@ function buildSettingsSidebarItems({
     activeSettingKey: string | null;
     onSelect: (index: number) => void;
     onEdit: (row: SettingRow) => void;
-}): HierarchySidebarItem[] {
+}): SidebarNavItem[] {
     return items.map((item, index) => {
         if (item.kind === "category") {
             return {
@@ -129,7 +134,7 @@ function buildSettingsSidebarItems({
                 active: activeKey === item.key,
                 inActivePath: activeCategory === item.category,
                 onSelect: () => onSelect(index),
-            } satisfies HierarchySidebarItem;
+            } satisfies SidebarNavItem;
         }
 
         if (item.kind === "subgroup") {
@@ -143,7 +148,7 @@ function buildSettingsSidebarItems({
                 active: activeKey === item.key,
                 inActivePath: activeCategory === item.category && activeSubgroup === item.subgroup,
                 onSelect: () => onSelect(index),
-            } satisfies HierarchySidebarItem;
+            } satisfies SidebarNavItem;
         }
 
         const canEdit = item.row.flags.isAllowed && item.row.editor.inputSupport.supported;
@@ -165,7 +170,7 @@ function buildSettingsSidebarItems({
                     onClick: () => onEdit(item.row),
                 }
                 : undefined,
-        } satisfies HierarchySidebarItem;
+        } satisfies SidebarNavItem;
     });
 }
 
@@ -373,6 +378,29 @@ export default function SettingsPage() {
         onEdit: openEditDialog,
     }), [activeItem, browserResult.flattenedItems, handleSelectSidebarItem, openEditDialog, visibleContext.category, visibleContext.subgroup]);
 
+    const sidebarConfig = useMemo<SidebarNavConfig>(() => ({
+        ariaLabel: "Settings navigation",
+        layout: "tree",
+        title: "Settings map",
+        subtitle: "Jump between categories, subgroups, and individual setting keys.",
+        headerMeta: listQuery.isFetching ? <span className="text-[10px] text-muted-foreground">Refreshing</span> : null,
+        items: sidebarItems,
+        emptyMessage: !session?.guild
+            ? "Select a guild to browse settings."
+            : listQuery.isLoading
+                ? "Loading settings navigation..."
+                : listQuery.error
+                    ? "Failed to load settings navigation."
+                    : "No settings available.",
+        mobileTriggerLabel: "Settings",
+        mobileTriggerValue: activeItem?.kind === "setting" ? activeItem.row.settingKey : activeItem?.label ?? "Browse settings",
+        mobileButtonLabel: "Settings",
+        mobileSheetTitle: "Settings",
+        mobileSheetSubtitle: "Server configuration",
+    }), [activeItem, listQuery.error, listQuery.isFetching, listQuery.isLoading, session?.guild, sidebarItems]);
+
+    usePageSidebar(sidebarConfig);
+
     const getFlattenedItemKey = useCallback((_: number, item: FlattenedSettingsItem) => item.key, []);
 
     const renderFlattenedItem = useCallback((index: number, item: FlattenedSettingsItem) => (
@@ -409,80 +437,58 @@ export default function SettingsPage() {
     return (
         <div className="pb-6">
             <div className="w-full px-3 sm:px-4">
-                {sidebarItems.length > 0 && (
-                    <aside className="hidden xl:block">
-                        <div
-                            className="fixed bottom-0 left-0 z-0"
-                            style={{
-                                top: "calc(2rem + 1px)",
-                                width: "18.5rem",
-                            }}
-                        >
-                            <HierarchySidebarNav
-                                ariaLabel="Settings navigation"
-                                items={sidebarItems}
-                                showHeader={false}
-                                className="h-full border-l-0"
-                                contentClassName="max-h-full"
-                            />
-                        </div>
-                    </aside>
-                )}
-
-                <div className="min-w-0 xl:pl-80">
-                    <div className="mx-auto max-w-6xl space-y-2">
-                        <div className="sticky top-2 z-20">
-                            <SettingsTopBar
-                                browserState={browserState}
-                                counts={browserResult.counts}
-                                rowParseErrorCount={normalized.rowParseErrors.length}
-                                schemaErrorCount={normalized.schemaErrors.length}
-                                unsupportedIssues={normalized.unsupportedInputRows}
-                                onBrowserStateChange={setBrowserState}
-                            />
-                        </div>
-
-                        {(normalized.schemaErrors.length > 0 || normalized.rowParseErrors.length > 0) && (
-                            <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
-                                {normalized.schemaErrors.map((error) => (
-                                    <div key={`schema-${error}`}>Schema: {error}</div>
-                                ))}
-                                {normalized.rowParseErrors.slice(0, 12).map((error) => (
-                                    <div key={`parse-${error}`}>Parse: {error}</div>
-                                ))}
-                                {normalized.rowParseErrors.length > 12 && <div>…and {normalized.rowParseErrors.length - 12} more parse errors.</div>}
-                            </div>
-                        )}
-
-                        {perSettingWarning && (
-                            <div className="rounded border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs space-y-2">
-                                <div>{perSettingWarning}</div>
-                                <Button size="sm" variant="outline" onClick={onRefreshAll}>
-                                    Refresh all
-                                </Button>
-                            </div>
-                        )}
-
-                        {browserResult.flattenedItems.length > 0 ? (
-                            <Virtuoso
-                                ref={setVirtuosoInstance}
-                                useWindowScroll
-                                data={browserResult.flattenedItems}
-                                overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
-                                increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
-                                defaultItemHeight={SETTINGS_ROW_ITEM_HEIGHT}
-                                computeItemKey={getFlattenedItemKey}
-                                rangeChanged={handleVisibleRangeChanged}
-                                itemContent={renderFlattenedItem}
-                            />
-                        ) : (
-                            <div className="text-sm text-muted-foreground">
-                                {browserResult.counts.totalRows === 0
-                                    ? "No settings available for this guild selection."
-                                    : "No settings match the current search and filters."}
-                            </div>
-                        )}
+                <div className="mx-auto max-w-6xl space-y-2">
+                    <div className="sticky top-2 z-20">
+                        <SettingsTopBar
+                            browserState={browserState}
+                            counts={browserResult.counts}
+                            rowParseErrorCount={normalized.rowParseErrors.length}
+                            schemaErrorCount={normalized.schemaErrors.length}
+                            unsupportedIssues={normalized.unsupportedInputRows}
+                            onBrowserStateChange={setBrowserState}
+                        />
                     </div>
+
+                    {(normalized.schemaErrors.length > 0 || normalized.rowParseErrors.length > 0) && (
+                        <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
+                            {normalized.schemaErrors.map((error) => (
+                                <div key={`schema-${error}`}>Schema: {error}</div>
+                            ))}
+                            {normalized.rowParseErrors.slice(0, 12).map((error) => (
+                                <div key={`parse-${error}`}>Parse: {error}</div>
+                            ))}
+                            {normalized.rowParseErrors.length > 12 && <div>…and {normalized.rowParseErrors.length - 12} more parse errors.</div>}
+                        </div>
+                    )}
+
+                    {perSettingWarning && (
+                        <div className="rounded border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs space-y-2">
+                            <div>{perSettingWarning}</div>
+                            <Button size="sm" variant="outline" onClick={onRefreshAll}>
+                                Refresh all
+                            </Button>
+                        </div>
+                    )}
+
+                    {browserResult.flattenedItems.length > 0 ? (
+                        <Virtuoso
+                            ref={setVirtuosoInstance}
+                            useWindowScroll
+                            data={browserResult.flattenedItems}
+                            overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
+                            increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
+                            defaultItemHeight={SETTINGS_ROW_ITEM_HEIGHT}
+                            computeItemKey={getFlattenedItemKey}
+                            rangeChanged={handleVisibleRangeChanged}
+                            itemContent={renderFlattenedItem}
+                        />
+                    ) : (
+                        <div className="text-sm text-muted-foreground">
+                            {browserResult.counts.totalRows === 0
+                                ? "No settings available for this guild selection."
+                                : "No settings match the current search and filters."}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

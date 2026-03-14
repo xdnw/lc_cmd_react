@@ -5,6 +5,7 @@ Implementation rules: make behavior explicit; keep dependencies intentional and 
 Priority order: correctness > local comprehensibility > architecture/root-cause > performance > speed. Reuse project patterns only when they improve clarity (don’t preserve bad structure for consistency).
 Tests: Never shape structure solely for test compatibility. Treat as guardrails/spec when behavior or boundaries are unclear; update/add after the change. Keep the tree green.
 Afterwards, confirm the intended simplification happened (cleaner boundaries/data flow, less coupling) and update docs/comments as needed.
+When you encounter changed files, inspect them carefully and proceed confidently by default; only pause if there is a concrete risk of overwriting user intent or making an unsafe/destructive change.
 ---
 Using react 19, ts, tailwind
 EndpointWrapper | @/components/api/bulkwrapper | PUBLIC | Default export: EndpointWrapper<T,A,B> - props: endpoint, args, handle_error?, batch_wait_ms?, isPostOverride?, children({data,reload,isRefetching})

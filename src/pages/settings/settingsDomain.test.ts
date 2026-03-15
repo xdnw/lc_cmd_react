@@ -11,8 +11,6 @@ import {
     hasVisibleSettingsSubgroup,
     normalizeGuildSettingRows,
     parseSettingsPageSearchParams,
-    serializeSettingsSnapshotAsCsv,
-    serializeSettingsSnapshotAsJson,
     type SettingRow,
 } from "./settingsDomain";
 
@@ -214,46 +212,6 @@ describe("normalizeGuildSettingRows", () => {
         expect(result.rows).toEqual([]);
         expect(result.schemaErrors).toEqual([]);
         expect(result.rowParseErrors).toEqual([]);
-    });
-});
-
-describe("settings exports", () => {
-    it("serializes a keyed JSON snapshot", () => {
-        const rows: SettingRow[] = [
-            createSettingRow({
-                settingKey: "alerts.channel",
-                category: "Admin",
-                subgroup: "Alerts",
-                displayText: "#ops-room",
-            }),
-        ];
-
-        expect(JSON.parse(serializeSettingsSnapshotAsJson(rows))).toEqual({
-            "alerts.channel": {
-                rawValue: "#ops-room",
-                displayValue: "#ops-room",
-                argType: "text",
-                category: "Admin",
-                subgroup: "Alerts",
-                hasValue: true,
-                invalid: false,
-                isAllowed: true,
-                isSupported: true,
-            },
-        });
-    });
-
-    it("escapes multiline and quoted CSV values", () => {
-        const rows: SettingRow[] = [
-            createSettingRow({
-                settingKey: "welcome.template",
-                category: "Member",
-                subgroup: "General",
-                displayText: 'Line 1\n"quoted", value',
-            }),
-        ];
-
-        expect(serializeSettingsSnapshotAsCsv(rows)).toContain('welcome.template,"Line 1\n""quoted"", value"');
     });
 });
 

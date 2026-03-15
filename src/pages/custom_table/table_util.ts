@@ -11,6 +11,50 @@ import { sortData, toSortColumns } from "./sort";
 import { toSelAndModifierString } from "@/lib/selection";
 
 export type PlaceholderType = Parameters<typeof CM.placeholders>[0];
+export type TableUrlColumnInput = string | readonly [string, string];
+
+type TableUrlColumnsInput = Map<string, string | null> | readonly TableUrlColumnInput[];
+
+type TablePageUrlOptions = {
+    type: string;
+    columns: TableUrlColumnsInput;
+    sort?: OrderIdx | OrderIdx[];
+    sel?: string;
+    selAndModifiers?: { [key: string]: string };
+};
+
+function parseUrlColumn(column: TableUrlColumnInput): [string, string | null] {
+    if (typeof column !== "string") {
+        return [column[0], column[1] || null];
+    }
+
+    const separatorIndex = column.indexOf(";");
+    if (separatorIndex < 0) {
+        return [column, null];
+    }
+
+    const key = column.slice(0, separatorIndex);
+    const value = column.slice(separatorIndex + 1);
+    return [key, value || null];
+}
+
+export function toColumnMap(columns: TableUrlColumnsInput): Map<string, string | null> {
+    if (columns instanceof Map) {
+        return new Map(columns);
+    }
+
+    return new Map(columns.map((column) => parseUrlColumn(column)));
+}
+
+function getTablePageUrl(page: "custom_table" | "view_table", { type, sel, selAndModifiers, columns, sort }: TablePageUrlOptions): string {
+    return `${process.env.BASE_PATH}${page}?${getQueryString({
+        type,
+        sel,
+        selAndModifiers,
+        columns: toColumnMap(columns),
+        sort,
+    })}`;
+}
 
 export function createTableInfo(
     newData: WebTable,
@@ -139,12 +183,22 @@ export function getSortFromUrl(params: URLSearchParams): OrderIdx | OrderIdx[] |
 }
 
 export function getUrl(type: string, selection: string, columns: string[], sort?: OrderIdx | OrderIdx[]): string {
-    return `${process.env.BASE_PATH}custom_table?${getQueryString({
-        type: type,
+    return getTablePageUrl("custom_table", {
+        type,
         sel: selection,
-        columns: new Map(columns.map(col => [col, null])),
-        sort: sort ? sort : { idx: 0, dir: "asc" }
-    })}`;
+        columns,
+        sort: sort ?? { idx: 0, dir: "asc" },
+    });
+}
+
+export function getViewTableUrl({ type, sel, selAndModifiers, columns, sort }: TablePageUrlOptions): string {
+    return getTablePageUrl("view_table", {
+        type,
+        sel,
+        selAndModifiers,
+        columns,
+        sort,
+    });
 }
 
 export function toLegacySelection(type: string, selection: { [key: string]: string }): string {

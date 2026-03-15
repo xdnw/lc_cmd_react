@@ -1,10 +1,11 @@
 import { useMemo, useState, useCallback, useEffect, useRef, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
-import { ChevronDown, Copy, Download, SquarePen } from "lucide-react";
+import { SquarePen } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useSession } from "@/components/api/SessionContext";
 import SearchBar from "@/components/cmd/SearchBar";
+import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
 import { useDialog } from "@/components/layout/DialogContext";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import { useDefaultPageSidebar, usePageSidebar } from "@/components/layout/PageSidebarContext";
@@ -15,12 +16,6 @@ import {
 } from "@/components/layout/SidebarNav";
 import Loading from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN,
@@ -28,12 +23,15 @@ import {
 } from "@/components/ui/virtuosoTuning";
 import { TABLE } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
+import { getViewTableUrl } from "@/pages/custom_table/table_util";
 import type { QueryResult } from "@/lib/BulkQuery";
 import type { WebTable } from "@/lib/apitypes";
 import SettingEditDialog from "./components/SettingEditDialog";
 import SettingsCategorySection, { SettingsCategoryHeader, SettingsSubgroupHeader } from "./components/SettingsCategorySection";
 import {
     GUILD_SETTING_COLUMNS,
+    GUILD_SETTING_TABLE_TYPE,
+    GUILD_SETTING_VIEW_TABLE_COLUMNS,
     SETTINGS_ROW_ITEM_HEIGHT,
     deriveSettingsBrowserRows,
     type FlattenedSettingsItem,
@@ -43,8 +41,6 @@ import {
     parseSettingsPageSearchParams,
     mergeRowIntoTableCache,
     removeRowFromTableCache,
-    serializeSettingsSnapshotAsCsv,
-    serializeSettingsSnapshotAsJson,
     type SettingsBrowserCounts,
     type SettingsBrowserState,
     type SettingRow,
@@ -64,70 +60,13 @@ function getErrorMessage(error: unknown): string {
     return "Unknown error";
 }
 
-function downloadTextFile(content: string, filename: string, mimeType: string): void {
-    const blob = new Blob([content], { type: mimeType });
-    const objectUrl = window.URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-
-    anchor.href = objectUrl;
-    anchor.download = filename;
-    anchor.style.display = "none";
-
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-
-    window.setTimeout(() => {
-        window.URL.revokeObjectURL(objectUrl);
-    }, 0);
-}
-
-function createSettingsExportFilename(extension: "csv" | "json"): string {
-    const dateStamp = new Date().toISOString().slice(0, 10);
-    return `guild-settings-${dateStamp}.${extension}`;
-}
-
-function SettingsExportMenu({
-    disabled,
-    onCopyJson,
-    onExportCsv,
-}: {
-    disabled: boolean;
-    onCopyJson: () => void;
-    onExportCsv: () => void;
-}) {
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button type="button" variant="outline" size="sm" disabled={disabled} className="shrink-0 gap-1.5">
-                    <Download className="h-3.5 w-3.5" />
-                    <span>Export</span>
-                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-44">
-                <DropdownMenuItem className="cursor-pointer gap-2" onClick={onCopyJson}>
-                    <Copy className="h-3.5 w-3.5" />
-                    <span>Copy as JSON</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer gap-2" onClick={onExportCsv}>
-                    <Download className="h-3.5 w-3.5" />
-                    <span>Export as CSV</span>
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
-}
-
 function SettingsHeaderControls({
     browserState,
     counts,
     rowParseErrorCount,
     schemaErrorCount,
     unsupportedIssues,
-    exportDisabled,
-    onCopyJson,
-    onExportCsv,
+    viewTableTo,
     onBrowserStateChange,
 }: {
     browserState: SettingsBrowserState;
@@ -135,9 +74,7 @@ function SettingsHeaderControls({
     rowParseErrorCount: number;
     schemaErrorCount: number;
     unsupportedIssues: UnsupportedInputIssue[];
-    exportDisabled: boolean;
-    onCopyJson: () => void;
-    onExportCsv: () => void;
+    viewTableTo: string;
     onBrowserStateChange: Dispatch<SetStateAction<SettingsBrowserState>>;
 }) {
     const updateState = useCallback((updater: (currentState: SettingsBrowserState) => SettingsBrowserState) => {
@@ -268,11 +205,9 @@ function SettingsHeaderControls({
                         </div>
                     </div>
 
-                    <SettingsExportMenu
-                        disabled={exportDisabled}
-                        onCopyJson={onCopyJson}
-                        onExportCsv={onExportCsv}
-                    />
+                    <Button variant="outline" size="sm" className="shrink-0" asChild>
+                        <ContextPreservingLink to={viewTableTo}>View table</ContextPreservingLink>
+                    </Button>
                 </div>
             </div>
 
@@ -529,11 +464,17 @@ export default function SettingsPage() {
 
     const listQueryArgs = useMemo(() => {
         return {
-            type: "GuildSetting",
+            type: GUILD_SETTING_TABLE_TYPE,
             selection_str: "*",
             columns: GUILD_SETTING_COLUMNS,
         };
     }, []);
+
+    const viewTableTo = useMemo(() => getViewTableUrl({
+        type: listQueryArgs.type,
+        sel: listQueryArgs.selection_str,
+        columns: GUILD_SETTING_VIEW_TABLE_COLUMNS,
+    }), [listQueryArgs.selection_str, listQueryArgs.type]);
 
     const listQuery = useQuery({
         ...bulkQueryOptions(TABLE.endpoint, listQueryArgs),
@@ -688,7 +629,7 @@ export default function SettingsPage() {
         if (!session?.guild || !settingKey) return;
 
         const singleArgs = {
-            type: "GuildSetting",
+            type: GUILD_SETTING_TABLE_TYPE,
             selection_str: settingKey,
             columns: GUILD_SETTING_COLUMNS,
         };
@@ -717,28 +658,6 @@ export default function SettingsPage() {
             setPerSettingWarning(`Failed to refresh ${settingKey}: ${getErrorMessage(error)}`);
         }
     }, [session?.guild, listQueryKey, queryClient]);
-
-    const handleCopySettingsJson = useCallback(async () => {
-        try {
-            await navigator.clipboard.writeText(serializeSettingsSnapshotAsJson(normalized.rows));
-            showDialog("Settings copied", "Copied all settings as JSON to the clipboard.");
-        } catch (error) {
-            showDialog("Copy failed", `Failed to copy settings JSON: ${getErrorMessage(error)}`);
-        }
-    }, [normalized.rows, showDialog]);
-
-    const handleExportSettingsCsv = useCallback(() => {
-        try {
-            downloadTextFile(
-                serializeSettingsSnapshotAsCsv(normalized.rows),
-                createSettingsExportFilename("csv"),
-                "text/csv;charset=utf-8",
-            );
-            showDialog("Export started", "Your settings CSV download should begin shortly.");
-        } catch (error) {
-            showDialog("Export failed", `Failed to export settings CSV: ${getErrorMessage(error)}`);
-        }
-    }, [normalized.rows, showDialog]);
 
     const openEditDialog = useCallback((row: SettingRow) => {
         showDialog(
@@ -847,9 +766,7 @@ export default function SettingsPage() {
                     rowParseErrorCount={normalized.rowParseErrors.length}
                     schemaErrorCount={normalized.schemaErrors.length}
                     unsupportedIssues={normalized.unsupportedInputRows}
-                    exportDisabled={normalized.rows.length === 0}
-                    onCopyJson={handleCopySettingsJson}
-                    onExportCsv={handleExportSettingsCsv}
+                    viewTableTo={viewTableTo}
                     onBrowserStateChange={setBrowserState}
                 />
             ),
@@ -862,10 +779,8 @@ export default function SettingsPage() {
         normalized.rowParseErrors.length,
         normalized.schemaErrors.length,
         normalized.unsupportedInputRows,
-        normalized.rows.length,
         session?.guild,
-        handleCopySettingsJson,
-        handleExportSettingsCsv,
+        viewTableTo,
     ]);
 
     usePageSidebar(activeSidebarConfig);

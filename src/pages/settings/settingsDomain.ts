@@ -33,6 +33,12 @@ function defineSettingColumn<
     return definition;
 }
 
+function getColumnPlaceholder(column: string | readonly [string, string]): string {
+    return typeof column === "string" ? column : column[0];
+}
+
+export const GUILD_SETTING_TABLE_TYPE = "GuildSetting" as const;
+
 const GUILD_SETTING_COLUMN_SCHEMA = [
     defineSettingColumn({ key: "settingKey", placeholder: { cmd: "name" } }),
     defineSettingColumn({ key: "argType", placeholder: { cmd: "getwebtype" } }),
@@ -78,10 +84,11 @@ export const guildSettingColumns = GUILD_SETTING_COLUMN_SCHEMA.reduce(
         toPlaceholderString(column.placeholder.cmd, column.placeholder.args),
         column.key,
     ),
-    CM.placeholders("GuildSetting").aliased(),
+    CM.placeholders(GUILD_SETTING_TABLE_TYPE).aliased(),
 );
 
-export const GUILD_SETTING_COLUMNS = guildSettingColumns.array();
+export const GUILD_SETTING_VIEW_TABLE_COLUMNS = guildSettingColumns.aliasedArray();
+export const GUILD_SETTING_COLUMNS = GUILD_SETTING_VIEW_TABLE_COLUMNS.map((column) => getColumnPlaceholder(column));
 
 function getColumnIndex(key: SettingColumnKey): number {
     return guildSettingColumnEntryByKey[key].index;
@@ -288,18 +295,6 @@ export type SettingsVisibleContext = {
     subgroup: GuildSettingSubgroup | null;
 };
 
-export type SettingSnapshotEntry = {
-    rawValue: string | null;
-    displayValue: string | null;
-    argType: string;
-    category: GuildSettingCategory;
-    subgroup: GuildSettingSubgroup;
-    hasValue: boolean;
-    invalid: boolean;
-    isAllowed: boolean;
-    isSupported: boolean;
-};
-
 export function hasVisibleSettingsSubgroup(subgroup: string | null | undefined): subgroup is GuildSettingSubgroup {
     const normalized = subgroup?.trim() ?? "";
     return normalized.length > 0 && normalized.toUpperCase() !== "NONE";
@@ -459,78 +454,6 @@ export function getSettingSearchableText(row: SettingRow): string {
         .filter(Boolean)
         .join("\n")
         .toLowerCase();
-}
-
-function toSettingSnapshotEntry(row: SettingRow): SettingSnapshotEntry {
-    return {
-        rawValue: row.value.hasValue ? row.value.rawText : null,
-        displayValue: row.value.hasValue ? row.value.displayText : null,
-        argType: row.metadata.argType,
-        category: row.metadata.category,
-        subgroup: row.metadata.subgroup,
-        hasValue: row.value.hasValue,
-        invalid: row.flags.invalid,
-        isAllowed: row.flags.isAllowed,
-        isSupported: row.editor.inputSupport.supported,
-    };
-}
-
-function escapeCsvCell(value: string | boolean | null): string {
-    if (value == null) {
-        return "";
-    }
-
-    const text = String(value);
-    if (!/[",\r\n]/.test(text)) {
-        return text;
-    }
-
-    return `"${text.split('"').join('""')}"`;
-}
-
-export function serializeSettingsSnapshotAsJson(rows: SettingRow[]): string {
-    const sortedRows = [...rows].sort(compareSettingRowsByCategory);
-    const snapshot = Object.fromEntries(
-        sortedRows.map((row) => [row.settingKey, toSettingSnapshotEntry(row)]),
-    );
-
-    return JSON.stringify(snapshot, null, 2);
-}
-
-export function serializeSettingsSnapshotAsCsv(rows: SettingRow[]): string {
-    const headers = [
-        "settingKey",
-        "rawValue",
-        "displayValue",
-        "argType",
-        "category",
-        "subgroup",
-        "hasValue",
-        "invalid",
-        "isAllowed",
-        "isSupported",
-    ] as const;
-
-    const lines = [headers.join(",")];
-    const sortedRows = [...rows].sort(compareSettingRowsByCategory);
-
-    sortedRows.forEach((row) => {
-        const snapshot = toSettingSnapshotEntry(row);
-        lines.push([
-            row.settingKey,
-            snapshot.rawValue,
-            snapshot.displayValue,
-            snapshot.argType,
-            snapshot.category,
-            snapshot.subgroup,
-            snapshot.hasValue,
-            snapshot.invalid,
-            snapshot.isAllowed,
-            snapshot.isSupported,
-        ].map((value) => escapeCsvCell(value == null ? null : String(value))).join(","));
-    });
-
-    return lines.join("\r\n");
 }
 
 export function matchesSettingsBrowserFilters(row: SettingRow, state: SettingsBrowserState): boolean {

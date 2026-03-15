@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-14 11:08:27.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-15 10:56:27.
 
 export interface WebError {
     error: string;
@@ -454,6 +454,12 @@ export interface WebCoalitions {
     coalitions: WebCoalition[];
 }
 
+export interface WebRoleAliases {
+    mappings: { [index: string]: { [index: string]: number } }; // Roles(ordinal)->alliance_id->discord role(id). the Roles ordinal (see CM, to map an ordinal to a name, or to get the description for a Roles). 
+    invalid_role_ordinals: number[]; // any that are mapped to an invalid discord role
+    discord_role_names: { [index: string]: string }; // the names of the discord roles
+}
+
 export interface WebTaxBracket {
     taxId: number;
     dateFetched: number;
@@ -487,7 +493,6 @@ export interface WebCoalition {
 export interface WebCoalitionMember {
     id: number;
     name: string;
-    type: string;
     deleted: boolean;
 }
 

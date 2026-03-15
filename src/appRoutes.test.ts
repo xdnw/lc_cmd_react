@@ -31,6 +31,13 @@ describe("appRoutes shared header metadata", () => {
     expect(tabs.find((tab) => tab.active)?.to).toBe("/conflicts");
   });
 
+  it("builds server tabs from visible server routes", () => {
+    const tabs = buildSectionHeaderTabs(routeConfigs, "/coalitions");
+
+    expect(tabs.map((tab) => tab.label)).toEqual(["Server Settings", "Coalitions"]);
+    expect(tabs.find((tab) => tab.active)?.to).toBe("/coalitions");
+  });
+
   it("exposes status as a shared navbar utility icon", () => {
     const items = buildNavbarIconItems(routeConfigs, "/status");
 
@@ -59,6 +66,7 @@ describe("appRoutes shared header metadata", () => {
       "Tables",
       "Conflicts",
       "Server Settings",
+      "Coalitions",
       "Command Browser",
     ]);
     expect(labels).not.toContain("Guild Select");

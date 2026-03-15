@@ -748,6 +748,18 @@ export const routeConfigs: AppRouteConfig[] = [
       section: "Server",
     },
   }),
+  defineRoute("/coalitions", {
+    label: "Coalitions",
+    navigation: {
+      sidebarLabel: "Coalitions",
+      requireGuild: true,
+    },
+    element: () => import("@/pages/coalitions"),
+    protected: true,
+    shell: {
+      section: "Server",
+    },
+  }),
 
   defineRoute(["/commands", "/command"] as const, {
     label: "Command Browser",

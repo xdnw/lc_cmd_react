@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-15 19:27:55.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-15 21:16:22.
 
 export interface WebError {
     error: string;

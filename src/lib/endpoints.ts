@@ -1,103 +1,5 @@
 import { ApiEndpoint, CommonEndpoint } from "./BulkQuery";
 import type * as ApiTypes from "@/lib/apitypes.d.ts";
-export const LOGOUT: CommonEndpoint<ApiTypes.WebSuccess, Record<string, never>, Record<string, never>> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
-        "logout",
-        "logout",
-        {},
-        (data: unknown) => data as ApiTypes.WebSuccess,
-        2592000,
-        'None',
-        "WebSuccess",
-        `Log out the current user and clear authentication cookies`,
-        true
-    )
-};
-
-export const LOGIN_MAIL: CommonEndpoint<ApiTypes.WebUrl, {nation?: string}, {nation?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebUrl>(
-        "login_mail",
-        "login_mail",
-        {"nation":{"name":"nation","type":"DBNation"}},
-        (data: unknown) => data as ApiTypes.WebUrl,
-        2592000,
-        'None',
-        "WebUrl",
-        `Get mail login URL for the specified nation`,
-        true
-    )
-};
-
-export const SET_TOKEN: CommonEndpoint<ApiTypes.WebSuccess, {token?: string, guild_id?: string}, {token?: string, guild_id?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
-        "set_token",
-        "set_token",
-        {"token":{"name":"token","type":"UUID"},"guild_id":{"name":"guild_id","optional":true,"type":"Long"}},
-        (data: unknown) => data as ApiTypes.WebSuccess,
-        2592000,
-        'None',
-        "WebSuccess",
-        `Set authentication token cookie and optionally guild ID`,
-        true
-    )
-};
-
-export const SET_GUILD: CommonEndpoint<ApiTypes.SetGuild, {guild?: string}, {guild?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.SetGuild>(
-        "set_guild",
-        "set_guild",
-        {"guild":{"name":"guild","type":"Guild"}},
-        (data: unknown) => data as ApiTypes.SetGuild,
-        2592000,
-        'None',
-        "SetGuild",
-        `Select a guild for the session and return its basic info`,
-        true
-    )
-};
-
-export const UNSET_GUILD: CommonEndpoint<ApiTypes.WebSuccess, Record<string, never>, Record<string, never>> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
-        "unset_guild",
-        "unset_guild",
-        {},
-        (data: unknown) => data as ApiTypes.WebSuccess,
-        2592000,
-        'None',
-        "WebSuccess",
-        `Clear the current guild selection cookie`,
-        true
-    )
-};
-
-export const INPUT_OPTIONS: CommonEndpoint<ApiTypes.WebOptions, {type?: string}, {type?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebOptions>(
-        "input_options",
-        "input_options",
-        {"type":{"name":"type","type":"String"}},
-        (data: unknown) => data as ApiTypes.WebOptions,
-        30,
-        'LocalStorage',
-        "WebOptions",
-        `Fetch UI options for an input type based on current user/guild/nation context`,
-        false
-    )
-};
-
-export const SET_OAUTH_CODE: CommonEndpoint<ApiTypes.WebSuccess, {code?: string}, {code?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
-        "set_oauth_code",
-        "set_oauth_code",
-        {"code":{"name":"code","type":"String"}},
-        (data: unknown) => data as ApiTypes.WebSuccess,
-        2592000,
-        'None',
-        "WebSuccess",
-        `Exchange OAuth code for an auth token and set session cookie`,
-        true
-    )
-};
-
 export const REGISTER: CommonEndpoint<ApiTypes.WebSuccess, {confirm?: string}, {confirm?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
         "register",
@@ -182,6 +84,104 @@ export const PERMISSION: CommonEndpoint<ApiTypes.WebPermission, {command?: strin
     )
 };
 
+export const LOGOUT: CommonEndpoint<ApiTypes.WebSuccess, Record<string, never>, Record<string, never>> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
+        "logout",
+        "logout",
+        {},
+        (data: unknown) => data as ApiTypes.WebSuccess,
+        2592000,
+        'None',
+        "WebSuccess",
+        `Log out the current user and clear authentication cookies`,
+        true
+    )
+};
+
+export const SET_TOKEN: CommonEndpoint<ApiTypes.WebSuccess, {token?: string, guild_id?: string}, {token?: string, guild_id?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
+        "set_token",
+        "set_token",
+        {"token":{"name":"token","type":"UUID"},"guild_id":{"name":"guild_id","optional":true,"type":"Long"}},
+        (data: unknown) => data as ApiTypes.WebSuccess,
+        2592000,
+        'None',
+        "WebSuccess",
+        `Set authentication token cookie and optionally guild ID`,
+        true
+    )
+};
+
+export const LOGIN_MAIL: CommonEndpoint<ApiTypes.WebUrl, {nation?: string}, {nation?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebUrl>(
+        "login_mail",
+        "login_mail",
+        {"nation":{"name":"nation","type":"DBNation"}},
+        (data: unknown) => data as ApiTypes.WebUrl,
+        2592000,
+        'None',
+        "WebUrl",
+        `Get mail login URL for the specified nation`,
+        true
+    )
+};
+
+export const UNSET_GUILD: CommonEndpoint<ApiTypes.WebSuccess, Record<string, never>, Record<string, never>> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
+        "unset_guild",
+        "unset_guild",
+        {},
+        (data: unknown) => data as ApiTypes.WebSuccess,
+        2592000,
+        'None',
+        "WebSuccess",
+        `Clear the current guild selection cookie`,
+        true
+    )
+};
+
+export const SET_OAUTH_CODE: CommonEndpoint<ApiTypes.WebSuccess, {code?: string}, {code?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
+        "set_oauth_code",
+        "set_oauth_code",
+        {"code":{"name":"code","type":"String"}},
+        (data: unknown) => data as ApiTypes.WebSuccess,
+        2592000,
+        'None',
+        "WebSuccess",
+        `Exchange OAuth code for an auth token and set session cookie`,
+        true
+    )
+};
+
+export const INPUT_OPTIONS: CommonEndpoint<ApiTypes.WebOptions, {type?: string}, {type?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebOptions>(
+        "input_options",
+        "input_options",
+        {"type":{"name":"type","type":"String"}},
+        (data: unknown) => data as ApiTypes.WebOptions,
+        30,
+        'LocalStorage',
+        "WebOptions",
+        `Fetch UI options for an input type based on current user/guild/nation context`,
+        false
+    )
+};
+
+export const SET_GUILD: CommonEndpoint<ApiTypes.SetGuild, {guild?: string}, {guild?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.SetGuild>(
+        "set_guild",
+        "set_guild",
+        {"guild":{"name":"guild","type":"Guild"}},
+        (data: unknown) => data as ApiTypes.SetGuild,
+        2592000,
+        'None',
+        "SetGuild",
+        `Select a guild for the session and return its basic info`,
+        true
+    )
+};
+
 export const TRADEPRICEBYDAYJSON: CommonEndpoint<ApiTypes.WebGraph, {resources?: string, days?: string}, {resources?: string, days?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
         "tradepricebydayjson",
@@ -196,30 +196,16 @@ export const TRADEPRICEBYDAYJSON: CommonEndpoint<ApiTypes.WebGraph, {resources?:
     )
 };
 
-export const RECORDS: CommonEndpoint<ApiTypes.WebTable, {nation?: string}, {nation?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebTable>(
-        "records",
-        "records",
-        {"nation":{"name":"nation","optional":true,"type":"DBNation"}},
-        (data: unknown) => data as ApiTypes.WebTable,
+export const AUTOROLEALL: CommonEndpoint<ApiTypes.AutoRoleBulkResult, {force?: string}, {force?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.AutoRoleBulkResult>(
+        "autoroleall",
+        "autoroleall",
+        {"force":{"name":"force","optional":true,"flag":"f","type":"boolean"}},
+        (data: unknown) => data as ApiTypes.AutoRoleBulkResult,
         2592000,
         'None',
-        "WebTable",
-        `Fetch bank transaction records for a nation`,
-        false
-    )
-};
-
-export const AUTOROLE: CommonEndpoint<ApiTypes.AutoRoleResult, {member?: string, force?: string}, {member?: string, force?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.AutoRoleResult>(
-        "autorole",
-        "autorole",
-        {"member":{"name":"member","type":"Member"},"force":{"name":"force","optional":true,"flag":"f","type":"boolean"}},
-        (data: unknown) => data as ApiTypes.AutoRoleResult,
-        2592000,
-        'None',
-        "AutoRoleResult",
-        `Preview or execute autorole for a guild member`,
+        "AutoRoleBulkResult",
+        `Preview or execute autorole for all guild members`,
         true
     )
 };
@@ -238,17 +224,31 @@ export const RAID: CommonEndpoint<ApiTypes.WebTargets, {nation?: string, nations
     )
 };
 
-export const AUTOROLEALL: CommonEndpoint<ApiTypes.AutoRoleBulkResult, {force?: string}, {force?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.AutoRoleBulkResult>(
-        "autoroleall",
-        "autoroleall",
-        {"force":{"name":"force","optional":true,"flag":"f","type":"boolean"}},
-        (data: unknown) => data as ApiTypes.AutoRoleBulkResult,
+export const AUTOROLE: CommonEndpoint<ApiTypes.AutoRoleResult, {member?: string, force?: string}, {member?: string, force?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.AutoRoleResult>(
+        "autorole",
+        "autorole",
+        {"member":{"name":"member","type":"Member"},"force":{"name":"force","optional":true,"flag":"f","type":"boolean"}},
+        (data: unknown) => data as ApiTypes.AutoRoleResult,
         2592000,
         'None',
-        "AutoRoleBulkResult",
-        `Preview or execute autorole for all guild members`,
+        "AutoRoleResult",
+        `Preview or execute autorole for a guild member`,
         true
+    )
+};
+
+export const RECORDS: CommonEndpoint<ApiTypes.WebTable, {nation?: string}, {nation?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebTable>(
+        "records",
+        "records",
+        {"nation":{"name":"nation","optional":true,"type":"DBNation"}},
+        (data: unknown) => data as ApiTypes.WebTable,
+        2592000,
+        'None',
+        "WebTable",
+        `Fetch bank transaction records for a nation`,
+        false
     )
 };
 
@@ -308,6 +308,104 @@ export const UNPROTECTED: CommonEndpoint<ApiTypes.WebTargets, {nation?: string, 
     )
 };
 
+export const UNREAD_ANNOUNCEMENT: CommonEndpoint<ApiTypes.WebSuccess, {ann_id?: string}, {ann_id?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
+        "unread_announcement",
+        "unread_announcement",
+        {"ann_id":{"name":"ann_id","type":"int"}},
+        (data: unknown) => data as ApiTypes.WebSuccess,
+        2592000,
+        'None',
+        "WebSuccess",
+        `Mark a single announcement as unread`,
+        true
+    )
+};
+
+export const ANNOUNCEMENT_TITLES: CommonEndpoint<ApiTypes.WebAnnouncements, {read?: string}, {read?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebAnnouncements>(
+        "announcement_titles",
+        "announcement_titles",
+        {"read":{"name":"read","optional":true,"flag":"r","type":"boolean"}},
+        (data: unknown) => data as ApiTypes.WebAnnouncements,
+        2592000,
+        'None',
+        "WebAnnouncements",
+        `Get announcement titles, optionally filtering by read state`,
+        false
+    )
+};
+
+export const READ_ANNOUNCEMENT: CommonEndpoint<ApiTypes.WebSuccess, {ann_id?: string}, {ann_id?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
+        "read_announcement",
+        "read_announcement",
+        {"ann_id":{"name":"ann_id","type":"int"}},
+        (data: unknown) => data as ApiTypes.WebSuccess,
+        2592000,
+        'None',
+        "WebSuccess",
+        `Mark a specific announcement as read`,
+        true
+    )
+};
+
+export const UNREAD_COUNT: CommonEndpoint<ApiTypes.WebInt, Record<string, never>, Record<string, never>> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebInt>(
+        "unread_count",
+        "unread_count",
+        {},
+        (data: unknown) => data as ApiTypes.WebInt,
+        2592000,
+        'None',
+        "WebInt",
+        `Return count of unread announcements`,
+        false
+    )
+};
+
+export const VIEW_ANNOUNCEMENT: CommonEndpoint<ApiTypes.WebAnnouncement, {ann_id?: string}, {ann_id?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebAnnouncement>(
+        "view_announcement",
+        "view_announcement",
+        {"ann_id":{"name":"ann_id","type":"int"}},
+        (data: unknown) => data as ApiTypes.WebAnnouncement,
+        2592000,
+        'SessionStorage',
+        "WebAnnouncement",
+        `View a specific announcement and mark it read`,
+        false
+    )
+};
+
+export const BANK_ACCESS: CommonEndpoint<ApiTypes.WebBankAccess, Record<string, never>, Record<string, never>> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebBankAccess>(
+        "bank_access",
+        "bank_access",
+        {},
+        (data: unknown) => data as ApiTypes.WebBankAccess,
+        2592000,
+        'None',
+        "WebBankAccess",
+        `Retrieve allowed bank accounts and access types`,
+        false
+    )
+};
+
+export const MARK_ALL_READ: CommonEndpoint<ApiTypes.WebSuccess, Record<string, never>, Record<string, never>> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
+        "mark_all_read",
+        "mark_all_read",
+        {},
+        (data: unknown) => data as ApiTypes.WebSuccess,
+        2592000,
+        'None',
+        "WebSuccess",
+        `Mark all announcements as read`,
+        true
+    )
+};
+
 export const MY_WARS: CommonEndpoint<ApiTypes.WebMyWars, Record<string, never>, Record<string, never>> = {
     endpoint: new ApiEndpoint<ApiTypes.WebMyWars>(
         "my_wars",
@@ -336,101 +434,17 @@ export const MY_AUDITS: CommonEndpoint<ApiTypes.WebAudits, Record<string, never>
     )
 };
 
-export const ANNOUNCEMENT_TITLES: CommonEndpoint<ApiTypes.WebAnnouncements, {read?: string}, {read?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebAnnouncements>(
-        "announcement_titles",
-        "announcement_titles",
-        {"read":{"name":"read","optional":true,"flag":"r","type":"boolean"}},
-        (data: unknown) => data as ApiTypes.WebAnnouncements,
-        2592000,
-        'None',
-        "WebAnnouncements",
-        `Get announcement titles, optionally filtering by read state`,
-        false
-    )
-};
-
-export const UNREAD_ANNOUNCEMENT: CommonEndpoint<ApiTypes.WebSuccess, {ann_id?: string}, {ann_id?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
-        "unread_announcement",
-        "unread_announcement",
-        {"ann_id":{"name":"ann_id","type":"int"}},
-        (data: unknown) => data as ApiTypes.WebSuccess,
-        2592000,
-        'None',
-        "WebSuccess",
-        `Mark a single announcement as unread`,
-        true
-    )
-};
-
-export const MARK_ALL_READ: CommonEndpoint<ApiTypes.WebSuccess, Record<string, never>, Record<string, never>> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
-        "mark_all_read",
-        "mark_all_read",
+export const LOCUTUS_TASKS: CommonEndpoint<ApiTypes.TaskList, Record<string, never>, Record<string, never>> = {
+    endpoint: new ApiEndpoint<ApiTypes.TaskList>(
+        "locutus_tasks",
+        "locutus_tasks",
         {},
-        (data: unknown) => data as ApiTypes.WebSuccess,
-        2592000,
-        'None',
-        "WebSuccess",
-        `Mark all announcements as read`,
-        true
-    )
-};
-
-export const UNREAD_COUNT: CommonEndpoint<ApiTypes.WebInt, Record<string, never>, Record<string, never>> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebInt>(
-        "unread_count",
-        "unread_count",
-        {},
-        (data: unknown) => data as ApiTypes.WebInt,
-        2592000,
-        'None',
-        "WebInt",
-        `Return count of unread announcements`,
-        false
-    )
-};
-
-export const BANK_ACCESS: CommonEndpoint<ApiTypes.WebBankAccess, Record<string, never>, Record<string, never>> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebBankAccess>(
-        "bank_access",
-        "bank_access",
-        {},
-        (data: unknown) => data as ApiTypes.WebBankAccess,
-        2592000,
-        'None',
-        "WebBankAccess",
-        `Retrieve allowed bank accounts and access types`,
-        false
-    )
-};
-
-export const VIEW_ANNOUNCEMENT: CommonEndpoint<ApiTypes.WebAnnouncement, {ann_id?: string}, {ann_id?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebAnnouncement>(
-        "view_announcement",
-        "view_announcement",
-        {"ann_id":{"name":"ann_id","type":"int"}},
-        (data: unknown) => data as ApiTypes.WebAnnouncement,
-        2592000,
+        (data: unknown) => data as ApiTypes.TaskList,
+        15,
         'SessionStorage',
-        "WebAnnouncement",
-        `View a specific announcement and mark it read`,
+        "TaskList",
+        `List repeating tasks, hiding errors for non-admins`,
         false
-    )
-};
-
-export const READ_ANNOUNCEMENT: CommonEndpoint<ApiTypes.WebSuccess, {ann_id?: string}, {ann_id?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebSuccess>(
-        "read_announcement",
-        "read_announcement",
-        {"ann_id":{"name":"ann_id","type":"int"}},
-        (data: unknown) => data as ApiTypes.WebSuccess,
-        2592000,
-        'None',
-        "WebSuccess",
-        `Mark a specific announcement as read`,
-        true
     )
 };
 
@@ -444,20 +458,6 @@ export const LOCUTUS_TASK: CommonEndpoint<ApiTypes.TaskDetails, {id?: string}, {
         'SessionStorage',
         "TaskDetails",
         `Get detailed information and recent history for a specific repeating task`,
-        false
-    )
-};
-
-export const LOCUTUS_TASKS: CommonEndpoint<ApiTypes.TaskList, Record<string, never>, Record<string, never>> = {
-    endpoint: new ApiEndpoint<ApiTypes.TaskList>(
-        "locutus_tasks",
-        "locutus_tasks",
-        {},
-        (data: unknown) => data as ApiTypes.TaskList,
-        15,
-        'SessionStorage',
-        "TaskList",
-        `List repeating tasks, hiding errors for non-admins`,
         false
     )
 };
@@ -490,34 +490,6 @@ export const CONFLICTALLIANCES: CommonEndpoint<ApiTypes.ConflictAlliances, {conf
     )
 };
 
-export const VIRTUALCONFLICTS: CommonEndpoint<ApiTypes.VirtualConflictMeta[], {all?: string}, {all?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.VirtualConflictMeta[]>(
-        "virtualconflicts",
-        "virtualConflicts",
-        {"all":{"name":"all","optional":true,"flag":"a","type":"boolean"}},
-        (data: unknown) => data as ApiTypes.VirtualConflictMeta[],
-        2592000,
-        'None',
-        "VirtualConflictMeta[]",
-        `List temporary virtual conflicts accessible to the current user`,
-        false
-    )
-};
-
-export const CONFLICTPOSTS: CommonEndpoint<ApiTypes.ConflictPosts, {conflicts?: string}, {conflicts?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.ConflictPosts>(
-        "conflictposts",
-        "conflictPosts",
-        {"conflicts":{"name":"conflicts","type":"Set\u003cConflict\u003e"}},
-        (data: unknown) => data as ApiTypes.ConflictPosts,
-        2592000,
-        'None',
-        "ConflictPosts",
-        `Fetch forum announcement posts for given conflicts`,
-        false
-    )
-};
-
 export const VIRTUALCONFLICTINFO: CommonEndpoint<ApiTypes.WebVirtualConflict, {conflict?: string}, {conflict?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebVirtualConflict>(
         "virtualconflictinfo",
@@ -546,16 +518,30 @@ export const REMOVEVIRTUALCONFLICT: CommonEndpoint<ApiTypes.WebSuccess, {conflic
     )
 };
 
-export const GLOBALSTATS: CommonEndpoint<ApiTypes.CoalitionGraphs, {metrics?: string, start?: string, end?: string, topX?: string}, {metrics?: string, start?: string, end?: string, topX?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.CoalitionGraphs>(
-        "globalstats",
-        "globalStats",
-        {"metrics":{"name":"metrics","type":"Set\u003cAllianceMetric\u003e"},"start":{"name":"start","type":"long[Timestamp]"},"end":{"name":"end","type":"long[Timestamp]"},"topX":{"name":"topX","type":"int"}},
-        (data: unknown) => data as ApiTypes.CoalitionGraphs,
+export const VIRTUALCONFLICTS: CommonEndpoint<ApiTypes.VirtualConflictMeta[], {all?: string}, {all?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.VirtualConflictMeta[]>(
+        "virtualconflicts",
+        "virtualConflicts",
+        {"all":{"name":"all","optional":true,"flag":"a","type":"boolean"}},
+        (data: unknown) => data as ApiTypes.VirtualConflictMeta[],
         2592000,
         'None',
-        "CoalitionGraphs",
-        `Generate coalition graphs for specified metrics across spheres`,
+        "VirtualConflictMeta[]",
+        `List temporary virtual conflicts accessible to the current user`,
+        false
+    )
+};
+
+export const CONFLICTPOSTS: CommonEndpoint<ApiTypes.ConflictPosts, {conflicts?: string}, {conflicts?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.ConflictPosts>(
+        "conflictposts",
+        "conflictPosts",
+        {"conflicts":{"name":"conflicts","type":"Set\u003cConflict\u003e"}},
+        (data: unknown) => data as ApiTypes.ConflictPosts,
+        2592000,
+        'None',
+        "ConflictPosts",
+        `Fetch forum announcement posts for given conflicts`,
         false
     )
 };
@@ -570,6 +556,20 @@ export const GLOBALTIERSTATS: CommonEndpoint<ApiTypes.CoalitionGraphs, {metrics?
         'None',
         "CoalitionGraphs",
         `Generate tiered coalition graphs with custom grouping for nation metrics`,
+        false
+    )
+};
+
+export const GLOBALSTATS: CommonEndpoint<ApiTypes.CoalitionGraphs, {metrics?: string, start?: string, end?: string, topX?: string}, {metrics?: string, start?: string, end?: string, topX?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.CoalitionGraphs>(
+        "globalstats",
+        "globalStats",
+        {"metrics":{"name":"metrics","type":"Set\u003cAllianceMetric\u003e"},"start":{"name":"start","type":"long[Timestamp]"},"end":{"name":"end","type":"long[Timestamp]"},"topX":{"name":"topX","type":"int"}},
+        (data: unknown) => data as ApiTypes.CoalitionGraphs,
+        2592000,
+        'None',
+        "CoalitionGraphs",
+        `Generate coalition graphs for specified metrics across spheres`,
         false
     )
 };
@@ -646,49 +646,6 @@ Effective score range is limited to 1.75x with a linear reduction of strength up
     )
 };
 
-export const SPYTIERGRAPH: CommonEndpoint<ApiTypes.WebGraph, {coalition1?: string, coalition2?: string, includeInactives?: string, includeApplicants?: string, total?: string, barGraph?: string}, {coalition1?: string, coalition2?: string, includeInactives?: string, includeApplicants?: string, total?: string, barGraph?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
-        "spytiergraph",
-        "spyTierGraph",
-        {"coalition1":{"name":"coalition1","type":"Set\u003cDBNation\u003e"},"coalition2":{"name":"coalition2","type":"Set\u003cDBNation\u003e"},"includeInactives":{"name":"includeInactives","optional":true,"flag":"i","type":"boolean"},"includeApplicants":{"name":"includeApplicants","optional":true,"flag":"a","type":"boolean"},"total":{"name":"total","optional":true,"flag":"t","desc":"Graph the total spies instead of average per nation","type":"boolean"},"barGraph":{"name":"barGraph","optional":true,"flag":"b","type":"boolean"}},
-        (data: unknown) => data as ApiTypes.WebGraph,
-        2592000,
-        'None',
-        "WebGraph",
-        `Generate a graph of spy counts by city count between two coalitions
-Nations which are applicants, in vacation mode or inactive (2 days) are excluded`,
-        false
-    )
-};
-
-export const METRIC_COMPARE_BY_TURN: CommonEndpoint<ApiTypes.WebGraph, {metric?: string, alliances?: string, start?: string, end?: string}, {metric?: string, alliances?: string, start?: string, end?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
-        "metric_compare_by_turn",
-        "metric_compare_by_turn",
-        {"metric":{"name":"metric","type":"AllianceMetric"},"alliances":{"name":"alliances","type":"Set\u003cDBAlliance\u003e"},"start":{"name":"start","desc":"Date to start from","type":"long[Timestamp]"},"end":{"name":"end","optional":true,"type":"Long[Timestamp]"}},
-        (data: unknown) => data as ApiTypes.WebGraph,
-        2592000,
-        'None',
-        "WebGraph",
-        `Compare the metric over time between multiple alliances`,
-        false
-    )
-};
-
-export const COMPARESTOCKPILEVALUEBYDAY: CommonEndpoint<ApiTypes.WebGraph, {stockpile1?: string, stockpile2?: string, numDays?: string}, {stockpile1?: string, stockpile2?: string, numDays?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
-        "comparestockpilevaluebyday",
-        "compareStockpileValueByDay",
-        {"stockpile1":{"name":"stockpile1","type":"Map\u003cResourceType,Double\u003e"},"stockpile2":{"name":"stockpile2","type":"Map\u003cResourceType,Double\u003e"},"numDays":{"name":"numDays","type":"int","min":1.0,"max":3000.0}},
-        (data: unknown) => data as ApiTypes.WebGraph,
-        2592000,
-        'None',
-        "WebGraph",
-        `Generate a graph comparing market values of two resource amounts by day`,
-        false
-    )
-};
-
 export const ALLIANCESDATABYDAY: CommonEndpoint<ApiTypes.WebGraph, {metric?: string, start?: string, end?: string, mode?: string, alliances?: string, filter?: string, includeApps?: string}, {metric?: string, start?: string, end?: string, mode?: string, alliances?: string, filter?: string, includeApps?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
         "alliancesdatabyday",
@@ -732,6 +689,21 @@ export const SCORETIERGRAPH: CommonEndpoint<ApiTypes.WebGraph, {coalition1?: str
     )
 };
 
+export const SPYTIERGRAPH: CommonEndpoint<ApiTypes.WebGraph, {coalition1?: string, coalition2?: string, includeInactives?: string, includeApplicants?: string, total?: string, barGraph?: string}, {coalition1?: string, coalition2?: string, includeInactives?: string, includeApplicants?: string, total?: string, barGraph?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
+        "spytiergraph",
+        "spyTierGraph",
+        {"coalition1":{"name":"coalition1","type":"Set\u003cDBNation\u003e"},"coalition2":{"name":"coalition2","type":"Set\u003cDBNation\u003e"},"includeInactives":{"name":"includeInactives","optional":true,"flag":"i","type":"boolean"},"includeApplicants":{"name":"includeApplicants","optional":true,"flag":"a","type":"boolean"},"total":{"name":"total","optional":true,"flag":"t","desc":"Graph the total spies instead of average per nation","type":"boolean"},"barGraph":{"name":"barGraph","optional":true,"flag":"b","type":"boolean"}},
+        (data: unknown) => data as ApiTypes.WebGraph,
+        2592000,
+        'None',
+        "WebGraph",
+        `Generate a graph of spy counts by city count between two coalitions
+Nations which are applicants, in vacation mode or inactive (2 days) are excluded`,
+        false
+    )
+};
+
 export const RADIATIONBYTURN: CommonEndpoint<ApiTypes.WebGraph, {continents?: string, start?: string, end?: string}, {continents?: string, start?: string, end?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
         "radiationbyturn",
@@ -742,6 +714,34 @@ export const RADIATIONBYTURN: CommonEndpoint<ApiTypes.WebGraph, {continents?: st
         'None',
         "WebGraph",
         `Graph global and per continent radiation by turn over a specified time period`,
+        false
+    )
+};
+
+export const METRIC_COMPARE_BY_TURN: CommonEndpoint<ApiTypes.WebGraph, {metric?: string, alliances?: string, start?: string, end?: string}, {metric?: string, alliances?: string, start?: string, end?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
+        "metric_compare_by_turn",
+        "metric_compare_by_turn",
+        {"metric":{"name":"metric","type":"AllianceMetric"},"alliances":{"name":"alliances","type":"Set\u003cDBAlliance\u003e"},"start":{"name":"start","desc":"Date to start from","type":"long[Timestamp]"},"end":{"name":"end","optional":true,"type":"Long[Timestamp]"}},
+        (data: unknown) => data as ApiTypes.WebGraph,
+        2592000,
+        'None',
+        "WebGraph",
+        `Compare the metric over time between multiple alliances`,
+        false
+    )
+};
+
+export const COMPARESTOCKPILEVALUEBYDAY: CommonEndpoint<ApiTypes.WebGraph, {stockpile1?: string, stockpile2?: string, numDays?: string}, {stockpile1?: string, stockpile2?: string, numDays?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
+        "comparestockpilevaluebyday",
+        "compareStockpileValueByDay",
+        {"stockpile1":{"name":"stockpile1","type":"Map\u003cResourceType,Double\u003e"},"stockpile2":{"name":"stockpile2","type":"Map\u003cResourceType,Double\u003e"},"numDays":{"name":"numDays","type":"int","min":1.0,"max":3000.0}},
+        (data: unknown) => data as ApiTypes.WebGraph,
+        2592000,
+        'None',
+        "WebGraph",
+        `Generate a graph comparing market values of two resource amounts by day`,
         false
     )
 };
@@ -774,20 +774,6 @@ export const MILITARIZATIONTIME: CommonEndpoint<ApiTypes.WebGraph, {alliance?: s
     )
 };
 
-export const ORBISSTATBYDAY: CommonEndpoint<ApiTypes.WebGraph, {metrics?: string, start?: string, end?: string}, {metrics?: string, start?: string, end?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
-        "orbisstatbyday",
-        "orbisStatByDay",
-        {"metrics":{"name":"metrics","type":"Set\u003cOrbisMetric\u003e"},"start":{"name":"start","optional":true,"type":"Long[Timestamp]"},"end":{"name":"end","optional":true,"type":"Long[Timestamp]"}},
-        (data: unknown) => data as ApiTypes.WebGraph,
-        2592000,
-        'None',
-        "WebGraph",
-        `Get a game graph by day`,
-        false
-    )
-};
-
 export const WARATTACKSBYDAY: CommonEndpoint<ApiTypes.WebGraph, {nations?: string, cutoff?: string, allowedTypes?: string}, {nations?: string, cutoff?: string, allowedTypes?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
         "warattacksbyday",
@@ -812,6 +798,20 @@ export const WARCOSTSBYDAY: CommonEndpoint<ApiTypes.WebGraph, {coalition1?: stri
         'None',
         "WebGraph",
         `Get a line graph by day of the war stats between two coalitions`,
+        false
+    )
+};
+
+export const ORBISSTATBYDAY: CommonEndpoint<ApiTypes.WebGraph, {metrics?: string, start?: string, end?: string}, {metrics?: string, start?: string, end?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
+        "orbisstatbyday",
+        "orbisStatByDay",
+        {"metrics":{"name":"metrics","type":"Set\u003cOrbisMetric\u003e"},"start":{"name":"start","optional":true,"type":"Long[Timestamp]"},"end":{"name":"end","optional":true,"type":"Long[Timestamp]"}},
+        (data: unknown) => data as ApiTypes.WebGraph,
+        2592000,
+        'None',
+        "WebGraph",
+        `Get a game graph by day`,
         false
     )
 };
@@ -844,20 +844,6 @@ export const WARSCOSTRANKINGBYDAY: CommonEndpoint<ApiTypes.WebGraph, {type?: str
     )
 };
 
-export const TRADEVOLUMEBYDAY: CommonEndpoint<ApiTypes.WebGraph, {resource?: string, start?: string, end?: string}, {resource?: string, start?: string, end?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
-        "tradevolumebyday",
-        "tradeVolumeByDay",
-        {"resource":{"name":"resource","type":"ResourceType"},"start":{"name":"start","type":"long[Timestamp]"},"end":{"name":"end","optional":true,"type":"Long[Timestamp]"}},
-        (data: unknown) => data as ApiTypes.WebGraph,
-        2592000,
-        'None',
-        "WebGraph",
-        `Generate a graph of average trade buy and sell volume by day`,
-        false
-    )
-};
-
 export const TRADETOTALBYDAY: CommonEndpoint<ApiTypes.WebGraph, {resource?: string, start?: string, end?: string}, {resource?: string, start?: string, end?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
         "tradetotalbyday",
@@ -872,16 +858,16 @@ export const TRADETOTALBYDAY: CommonEndpoint<ApiTypes.WebGraph, {resource?: stri
     )
 };
 
-export const METRICBYGROUP: CommonEndpoint<ApiTypes.WebGraph, {metrics?: string, nations?: string, groupBy?: string, includeInactives?: string, includeApplicants?: string, total?: string, snapshotDate?: string}, {metrics?: string, nations?: string, groupBy?: string, includeInactives?: string, includeApplicants?: string, total?: string, snapshotDate?: string}> = {
+export const TRADEMARGINBYDAY: CommonEndpoint<ApiTypes.WebGraph, {resources?: string, start?: string, end?: string, percent?: string}, {resources?: string, start?: string, end?: string, percent?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
-        "metricbygroup",
-        "metricByGroup",
-        {"metrics":{"name":"metrics","type":"Set\u003cTypedFunction\u003cDBNation,Double\u003e\u003e"},"nations":{"name":"nations","type":"Set\u003cDBNation\u003e"},"groupBy":{"name":"groupBy","optional":true,"type":"TypedFunction\u003cDBNation,Double\u003e","def":"getCities"},"includeInactives":{"name":"includeInactives","optional":true,"flag":"i","type":"boolean"},"includeApplicants":{"name":"includeApplicants","optional":true,"flag":"a","type":"boolean"},"total":{"name":"total","optional":true,"flag":"t","type":"boolean"},"snapshotDate":{"name":"snapshotDate","optional":true,"flag":"s","type":"Long[Timestamp]"}},
+        "trademarginbyday",
+        "tradeMarginByDay",
+        {"resources":{"name":"resources","type":"Set\u003cResourceType\u003e"},"start":{"name":"start","type":"long[Timestamp]"},"end":{"name":"end","optional":true,"type":"Long[Timestamp]"},"percent":{"name":"percent","optional":true,"desc":"Use the margin percent instead of absolute difference","type":"boolean","def":"true"}},
         (data: unknown) => data as ApiTypes.WebGraph,
         2592000,
         'None',
         "WebGraph",
-        `Graph a set of nation metrics for the specified nations over a period of time based on daily nation and city snapshots`,
+        `Generate a graph of average trade buy and sell margin by day`,
         false
     )
 };
@@ -900,16 +886,30 @@ export const TRADEPRICEBYDAY: CommonEndpoint<ApiTypes.WebGraph, {resources?: str
     )
 };
 
-export const TRADEMARGINBYDAY: CommonEndpoint<ApiTypes.WebGraph, {resources?: string, start?: string, end?: string, percent?: string}, {resources?: string, start?: string, end?: string, percent?: string}> = {
+export const TRADEVOLUMEBYDAY: CommonEndpoint<ApiTypes.WebGraph, {resource?: string, start?: string, end?: string}, {resource?: string, start?: string, end?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
-        "trademarginbyday",
-        "tradeMarginByDay",
-        {"resources":{"name":"resources","type":"Set\u003cResourceType\u003e"},"start":{"name":"start","type":"long[Timestamp]"},"end":{"name":"end","optional":true,"type":"Long[Timestamp]"},"percent":{"name":"percent","optional":true,"desc":"Use the margin percent instead of absolute difference","type":"boolean","def":"true"}},
+        "tradevolumebyday",
+        "tradeVolumeByDay",
+        {"resource":{"name":"resource","type":"ResourceType"},"start":{"name":"start","type":"long[Timestamp]"},"end":{"name":"end","optional":true,"type":"Long[Timestamp]"}},
         (data: unknown) => data as ApiTypes.WebGraph,
         2592000,
         'None',
         "WebGraph",
-        `Generate a graph of average trade buy and sell margin by day`,
+        `Generate a graph of average trade buy and sell volume by day`,
+        false
+    )
+};
+
+export const METRICBYGROUP: CommonEndpoint<ApiTypes.WebGraph, {metrics?: string, nations?: string, groupBy?: string, includeInactives?: string, includeApplicants?: string, total?: string, snapshotDate?: string}, {metrics?: string, nations?: string, groupBy?: string, includeInactives?: string, includeApplicants?: string, total?: string, snapshotDate?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebGraph>(
+        "metricbygroup",
+        "metricByGroup",
+        {"metrics":{"name":"metrics","type":"Set\u003cTypedFunction\u003cDBNation,Double\u003e\u003e"},"nations":{"name":"nations","type":"Set\u003cDBNation\u003e"},"groupBy":{"name":"groupBy","optional":true,"type":"TypedFunction\u003cDBNation,Double\u003e","def":"getCities"},"includeInactives":{"name":"includeInactives","optional":true,"flag":"i","type":"boolean"},"includeApplicants":{"name":"includeApplicants","optional":true,"flag":"a","type":"boolean"},"total":{"name":"total","optional":true,"flag":"t","type":"boolean"},"snapshotDate":{"name":"snapshotDate","optional":true,"flag":"s","type":"Long[Timestamp]"}},
+        (data: unknown) => data as ApiTypes.WebGraph,
+        2592000,
+        'None',
+        "WebGraph",
+        `Graph a set of nation metrics for the specified nations over a period of time based on daily nation and city snapshots`,
         false
     )
 };
@@ -957,44 +957,30 @@ export const LIST_COALITIONS: CommonEndpoint<ApiTypes.WebCoalitions, {filter?: s
     )
 };
 
-export const ADD_ALLIANCE_ROLE: CommonEndpoint<ApiTypes.WebAllianceAutoRole, {alliance?: string}, {alliance?: string}> = {
+export const LIST_AUTOROLE_ROLES: CommonEndpoint<ApiTypes.WebAutoRoleRoles, Record<string, never>, Record<string, never>> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebAutoRoleRoles>(
+        "list_autorole_roles",
+        "list_autorole_roles",
+        {},
+        (data: unknown) => data as ApiTypes.WebAutoRoleRoles,
+        2592000,
+        'None',
+        "WebAutoRoleRoles",
+        `List autorole-managed alliance, city, and tax roles`,
+        false
+    )
+};
+
+export const REMOVE_ALLIANCE_ROLE: CommonEndpoint<ApiTypes.WebAllianceAutoRole, {alliance?: string}, {alliance?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebAllianceAutoRole>(
-        "add_alliance_role",
-        "add_alliance_role",
+        "remove_alliance_role",
+        "remove_alliance_role",
         {"alliance":{"name":"alliance","type":"DBAlliance"}},
         (data: unknown) => data as ApiTypes.WebAllianceAutoRole,
         2592000,
         'None',
         "WebAllianceAutoRole",
-        `Create or return the alliance autorole role`,
-        true
-    )
-};
-
-export const REMOVE_CITY_ROLE: CommonEndpoint<ApiTypes.WebCityAutoRole, {range?: string}, {range?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebCityAutoRole>(
-        "remove_city_role",
-        "remove_city_role",
-        {"range":{"name":"range","type":"CityRanges"}},
-        (data: unknown) => data as ApiTypes.WebCityAutoRole,
-        2592000,
-        'None',
-        "WebCityAutoRole",
-        `Delete the city autorole role`,
-        true
-    )
-};
-
-export const ADD_TAX_ROLE: CommonEndpoint<ApiTypes.WebTaxAutoRole, {rate?: string}, {rate?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebTaxAutoRole>(
-        "add_tax_role",
-        "add_tax_role",
-        {"rate":{"name":"rate","type":"TaxRate"}},
-        (data: unknown) => data as ApiTypes.WebTaxAutoRole,
-        2592000,
-        'None',
-        "WebTaxAutoRole",
-        `Create or return the tax autorole role`,
+        `Delete the alliance autorole role`,
         true
     )
 };
@@ -1013,6 +999,34 @@ export const LIST_ROLE_ALIASES: CommonEndpoint<ApiTypes.WebRoleAliases, {roles_f
     )
 };
 
+export const ADD_TAX_ROLE: CommonEndpoint<ApiTypes.WebTaxAutoRole, {rate?: string}, {rate?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebTaxAutoRole>(
+        "add_tax_role",
+        "add_tax_role",
+        {"rate":{"name":"rate","type":"TaxRate"}},
+        (data: unknown) => data as ApiTypes.WebTaxAutoRole,
+        2592000,
+        'None',
+        "WebTaxAutoRole",
+        `Create or return the tax autorole role`,
+        true
+    )
+};
+
+export const ADD_ALLIANCE_ROLE: CommonEndpoint<ApiTypes.WebAllianceAutoRole, {alliance?: string}, {alliance?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebAllianceAutoRole>(
+        "add_alliance_role",
+        "add_alliance_role",
+        {"alliance":{"name":"alliance","type":"DBAlliance"}},
+        (data: unknown) => data as ApiTypes.WebAllianceAutoRole,
+        2592000,
+        'None',
+        "WebAllianceAutoRole",
+        `Create or return the alliance autorole role`,
+        true
+    )
+};
+
 export const REMOVE_TAX_ROLE: CommonEndpoint<ApiTypes.WebTaxAutoRole, {rate?: string}, {rate?: string}> = {
     endpoint: new ApiEndpoint<ApiTypes.WebTaxAutoRole>(
         "remove_tax_role",
@@ -1023,6 +1037,20 @@ export const REMOVE_TAX_ROLE: CommonEndpoint<ApiTypes.WebTaxAutoRole, {rate?: st
         'None',
         "WebTaxAutoRole",
         `Delete the tax autorole role`,
+        true
+    )
+};
+
+export const REMOVE_CITY_ROLE: CommonEndpoint<ApiTypes.WebCityAutoRole, {range?: string}, {range?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebCityAutoRole>(
+        "remove_city_role",
+        "remove_city_role",
+        {"range":{"name":"range","type":"CityRanges"}},
+        (data: unknown) => data as ApiTypes.WebCityAutoRole,
+        2592000,
+        'None',
+        "WebCityAutoRole",
+        `Delete the city autorole role`,
         true
     )
 };
@@ -1041,30 +1069,16 @@ export const ADD_CITY_ROLE: CommonEndpoint<ApiTypes.WebCityAutoRole, {range?: st
     )
 };
 
-export const REMOVE_ALLIANCE_ROLE: CommonEndpoint<ApiTypes.WebAllianceAutoRole, {alliance?: string}, {alliance?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebAllianceAutoRole>(
-        "remove_alliance_role",
-        "remove_alliance_role",
-        {"alliance":{"name":"alliance","type":"DBAlliance"}},
-        (data: unknown) => data as ApiTypes.WebAllianceAutoRole,
+export const MULTI_V2: CommonEndpoint<ApiTypes.AdvMultiReport, {nation?: string, forceUpdate?: string}, {nation?: string, forceUpdate?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.AdvMultiReport>(
+        "multi_v2",
+        "multi_v2",
+        {"nation":{"name":"nation","type":"DBNation"},"forceUpdate":{"name":"forceUpdate","optional":true,"type":"Boolean"}},
+        (data: unknown) => data as ApiTypes.AdvMultiReport,
         2592000,
         'None',
-        "WebAllianceAutoRole",
-        `Delete the alliance autorole role`,
-        true
-    )
-};
-
-export const LIST_AUTOROLE_ROLES: CommonEndpoint<ApiTypes.WebAutoRoleRoles, Record<string, never>, Record<string, never>> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebAutoRoleRoles>(
-        "list_autorole_roles",
-        "list_autorole_roles",
-        {},
-        (data: unknown) => data as ApiTypes.WebAutoRoleRoles,
-        2592000,
-        'None',
-        "WebAutoRoleRoles",
-        `List autorole-managed alliance, city, and tax roles`,
+        "AdvMultiReport",
+        `Generate advanced multi report using snapshot data and UID map`,
         false
     )
 };
@@ -1083,16 +1097,16 @@ export const MULTI_BUSTER: CommonEndpoint<ApiTypes.MultiResult, {nation?: string
     )
 };
 
-export const MULTI_V2: CommonEndpoint<ApiTypes.AdvMultiReport, {nation?: string, forceUpdate?: string}, {nation?: string, forceUpdate?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.AdvMultiReport>(
-        "multi_v2",
-        "multi_v2",
-        {"nation":{"name":"nation","type":"DBNation"},"forceUpdate":{"name":"forceUpdate","optional":true,"type":"Boolean"}},
-        (data: unknown) => data as ApiTypes.AdvMultiReport,
+export const TREATY_CHANGES: CommonEndpoint<ApiTypes.WebTreatyChanges, {start?: string}, {start?: string}> = {
+    endpoint: new ApiEndpoint<ApiTypes.WebTreatyChanges>(
+        "treaty_changes",
+        "treaty_changes",
+        {"start":{"name":"start","type":"long[Timestamp]"}},
+        (data: unknown) => data as ApiTypes.WebTreatyChanges,
         2592000,
         'None',
-        "AdvMultiReport",
-        `Generate advanced multi report using snapshot data and UID map`,
+        "WebTreatyChanges",
+        `Get treaty changes (signed, extended, cancelled, expired) since a given timestamp`,
         false
     )
 };
@@ -1111,18 +1125,4 @@ export const CURRENT_TREATIES: CommonEndpoint<ApiTypes.WebCurrentTreaties, Recor
     )
 };
 
-export const TREATY_CHANGES: CommonEndpoint<ApiTypes.WebTreatyChanges, {start?: string}, {start?: string}> = {
-    endpoint: new ApiEndpoint<ApiTypes.WebTreatyChanges>(
-        "treaty_changes",
-        "treaty_changes",
-        {"start":{"name":"start","type":"long[Timestamp]"}},
-        (data: unknown) => data as ApiTypes.WebTreatyChanges,
-        2592000,
-        'None',
-        "WebTreatyChanges",
-        `Get treaty changes (signed, extended, cancelled, expired) since a given timestamp`,
-        false
-    )
-};
-
-export const ENDPOINTS = [LOGOUT, LOGIN_MAIL, SET_TOKEN, SET_GUILD, UNSET_GUILD, INPUT_OPTIONS, SET_OAUTH_CODE, REGISTER, QUERY, SESSION, COMMAND, UNREGISTER, PERMISSION, TRADEPRICEBYDAYJSON, RECORDS, AUTOROLE, RAID, AUTOROLEALL, WITHDRAW, ANNOUNCEMENTS, BALANCE, UNPROTECTED, MY_WARS, MY_AUDITS, ANNOUNCEMENT_TITLES, UNREAD_ANNOUNCEMENT, MARK_ALL_READ, UNREAD_COUNT, BANK_ACCESS, VIEW_ANNOUNCEMENT, READ_ANNOUNCEMENT, LOCUTUS_TASK, LOCUTUS_TASKS, TABLE, CONFLICTALLIANCES, VIRTUALCONFLICTS, CONFLICTPOSTS, VIRTUALCONFLICTINFO, REMOVEVIRTUALCONFLICT, GLOBALSTATS, GLOBALTIERSTATS, COMPARESTATS, ALLIANCESTATS, COMPARETIERSTATS, CITYTIERGRAPH, STRENGTHTIERGRAPH, SPYTIERGRAPH, METRIC_COMPARE_BY_TURN, COMPARESTOCKPILEVALUEBYDAY, ALLIANCESDATABYDAY, ALLIANCEMETRICAB, SCORETIERGRAPH, RADIATIONBYTURN, ALLIANCEMETRICBYTURN, MILITARIZATIONTIME, ORBISSTATBYDAY, WARATTACKSBYDAY, WARCOSTSBYDAY, NTHBEIGELOOTBYSCORERANGE, WARSCOSTRANKINGBYDAY, TRADEVOLUMEBYDAY, TRADETOTALBYDAY, METRICBYGROUP, TRADEPRICEBYDAY, TRADEMARGINBYDAY, COMPARETIERDELTAGRAPH, TAX_EXPENSE, LIST_COALITIONS, ADD_ALLIANCE_ROLE, REMOVE_CITY_ROLE, ADD_TAX_ROLE, LIST_ROLE_ALIASES, REMOVE_TAX_ROLE, ADD_CITY_ROLE, REMOVE_ALLIANCE_ROLE, LIST_AUTOROLE_ROLES, MULTI_BUSTER, MULTI_V2, CURRENT_TREATIES, TREATY_CHANGES];
+export const ENDPOINTS = [REGISTER, QUERY, SESSION, COMMAND, UNREGISTER, PERMISSION, LOGOUT, SET_TOKEN, LOGIN_MAIL, UNSET_GUILD, SET_OAUTH_CODE, INPUT_OPTIONS, SET_GUILD, TRADEPRICEBYDAYJSON, AUTOROLEALL, RAID, AUTOROLE, RECORDS, WITHDRAW, ANNOUNCEMENTS, BALANCE, UNPROTECTED, UNREAD_ANNOUNCEMENT, ANNOUNCEMENT_TITLES, READ_ANNOUNCEMENT, UNREAD_COUNT, VIEW_ANNOUNCEMENT, BANK_ACCESS, MARK_ALL_READ, MY_WARS, MY_AUDITS, LOCUTUS_TASKS, LOCUTUS_TASK, TABLE, CONFLICTALLIANCES, VIRTUALCONFLICTINFO, REMOVEVIRTUALCONFLICT, VIRTUALCONFLICTS, CONFLICTPOSTS, GLOBALTIERSTATS, GLOBALSTATS, COMPARESTATS, ALLIANCESTATS, COMPARETIERSTATS, CITYTIERGRAPH, STRENGTHTIERGRAPH, ALLIANCESDATABYDAY, ALLIANCEMETRICAB, SCORETIERGRAPH, SPYTIERGRAPH, RADIATIONBYTURN, METRIC_COMPARE_BY_TURN, COMPARESTOCKPILEVALUEBYDAY, ALLIANCEMETRICBYTURN, MILITARIZATIONTIME, WARATTACKSBYDAY, WARCOSTSBYDAY, ORBISSTATBYDAY, NTHBEIGELOOTBYSCORERANGE, WARSCOSTRANKINGBYDAY, TRADETOTALBYDAY, TRADEMARGINBYDAY, TRADEPRICEBYDAY, TRADEVOLUMEBYDAY, METRICBYGROUP, COMPARETIERDELTAGRAPH, TAX_EXPENSE, LIST_COALITIONS, LIST_AUTOROLE_ROLES, REMOVE_ALLIANCE_ROLE, LIST_ROLE_ALIASES, ADD_TAX_ROLE, ADD_ALLIANCE_ROLE, REMOVE_TAX_ROLE, REMOVE_CITY_ROLE, ADD_CITY_ROLE, MULTI_V2, MULTI_BUSTER, TREATY_CHANGES, CURRENT_TREATIES];

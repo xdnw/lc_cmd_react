@@ -1,15 +1,17 @@
 import { COMMANDS } from "@/lib/commands";
 import type {
-    AutoRoleManagedRoles,
     AutoRoleMemberResult,
     AutoRoleMaskedMember,
     AutoRoleIssueType,
     UnmaskedReason,
+    WebAutoRoleRoles,
     WebRoleAliases,
 } from "@/lib/apitypes";
 import type { SettingKey } from "@/pages/settings/settingsDomain";
 
 const rolesOptionConfig = COMMANDS.options.Roles;
+const JAVA_INTEGER_MAX_VALUE = 2147483647;
+type AutoRoleManagedRoles = WebAutoRoleRoles;
 
 export const LOCUTUS_ROLE_OPTIONS = [
     ...((typeof rolesOptionConfig === "string" ? [] : rolesOptionConfig.options) ?? []),
@@ -197,16 +199,18 @@ export function mergeRoleNameMaps(...maps: Array<Record<string, string> | undefi
 }
 
 export function getDiscordRoleName(roleId: number, roleNames?: Record<string, string> | null): string | null {
-    return roleNames?.[String(roleId)] ?? null;
+    const knownName = roleNames?.[String(roleId)]?.trim();
+    return knownName ? knownName : null;
 }
 
 export function formatDiscordRoleName(roleId: number, roleNames?: Record<string, string> | null): string {
-    return getDiscordRoleName(roleId, roleNames) ?? `Role #${roleId}`;
+    const knownName = getDiscordRoleName(roleId, roleNames);
+    return knownName ? `@${knownName.replace(/^@+/, "")}` : `Role #${roleId}`;
 }
 
 export function formatDiscordRoleLabel(roleId: number, roleNames?: Record<string, string> | null): string {
-    const knownName = getDiscordRoleName(roleId, roleNames);
-    return knownName ? `${knownName} (${roleId})` : `Role #${roleId}`;
+    const formattedName = formatDiscordRoleName(roleId, roleNames);
+    return formattedName.startsWith("@") ? `${formattedName} (${roleId})` : formattedName;
 }
 
 export function getRoleMention(roleId: number): string {
@@ -226,7 +230,12 @@ export function formatAliasScopeLabel(
 }
 
 export function formatCityRoleRangeLabel(rangeStart: number, rangeEnd: number): string {
-    if (!Number.isFinite(rangeEnd) || rangeEnd <= 0 || rangeEnd < rangeStart) {
+    if (
+        !Number.isFinite(rangeEnd)
+        || rangeEnd <= 0
+        || rangeEnd < rangeStart
+        || rangeEnd >= JAVA_INTEGER_MAX_VALUE
+    ) {
         return `c${rangeStart}+`;
     }
 

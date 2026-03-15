@@ -16,16 +16,16 @@ import Loading from "@/components/ui/loading";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CommonEndpoint, QueryResult } from "@/lib/BulkQuery";
 import type {
-    AllianceRoleEntry,
     AutoRoleBulkResult,
     AutoRoleIssue,
-    AutoRoleManagedRoles,
     AutoRoleMemberResult,
     AutoRoleResult,
     AutoRoleSyncState,
-    CityRoleEntry,
-    TaxRoleEntry,
+    WebAllianceAutoRole,
+    WebAutoRoleRoles,
+    WebCityAutoRole,
     WebRoleAliases,
+    WebTaxAutoRole,
     WebTable,
 } from "@/lib/apitypes";
 import { COMMANDS } from "@/lib/commands";
@@ -76,6 +76,11 @@ type RoleFormArgs = Record<string, string>;
 type AliasFilterMode = "all" | "mapped" | "invalid";
 type ManagedRolePermissionMode = "ready" | "readonly" | "error";
 type ManagedRoleLike = { role_id: number; duplicate_key: boolean };
+type EndpointArgMap = { [key: string]: string | string[] | undefined };
+type AutoRoleManagedRoles = WebAutoRoleRoles;
+type AllianceRoleEntry = WebAllianceAutoRole;
+type CityRoleEntry = WebCityAutoRole;
+type TaxRoleEntry = WebTaxAutoRole;
 
 function coerceRoleCommandPath(path: [string, string]): AnyCommandPath {
     return path as unknown as AnyCommandPath;
@@ -144,7 +149,7 @@ function useEndpointAction<T, A extends { [key: string]: string | string[] | und
     const { showDialog } = useDialog();
 
     const mutation = useMutation({
-        mutationFn: (args: { readonly [key: string]: string | string[] }) => queryClient.fetchQuery(singleQueryOptions(endpoint.endpoint, args, 0, 10)),
+        mutationFn: (args: A) => queryClient.fetchQuery(singleQueryOptions(endpoint.endpoint, args, 0, 10)),
         onSuccess: (result: QueryResult<T>) => {
             if (result.error) {
                 showDialog(failureTitle, result.error);
@@ -163,7 +168,7 @@ function useEndpointAction<T, A extends { [key: string]: string | string[] | und
         },
     });
 
-    const run = useCallback((args: { readonly [key: string]: string | string[] }) => {
+    const run = useCallback((args: A) => {
         mutation.mutate(args);
     }, [mutation]);
 
@@ -643,26 +648,30 @@ function RoleAliasRow({
     );
 }
 
-function ManagedRoleRemoveButton({
+function ManagedRoleRemoveButton<T, A extends EndpointArgMap>({
     endpoint,
-    roleId,
+    removeArgs,
+    failureTitle,
     disabled,
     onSuccess,
 }: {
-    endpoint: CommonEndpoint<AutoRoleManagedRoles, { role?: string }, { role?: string }>;
-    roleId: number;
+    endpoint: CommonEndpoint<T, A, A>;
+    removeArgs: A;
+    failureTitle: string;
     disabled: boolean;
-    onSuccess: (data: AutoRoleManagedRoles) => void;
+    onSuccess: () => void;
 }) {
     const action = useEndpointAction({
         endpoint,
-        failureTitle: `Could not remove role ${roleId}`,
-        onSuccessData: onSuccess,
+        failureTitle,
+        onSuccessData: () => {
+            onSuccess();
+        },
     });
 
     const handleConfirm = useCallback(() => {
-        action.run({ role: String(roleId) });
-    }, [action, roleId]);
+        action.run(removeArgs);
+    }, [action, removeArgs]);
 
     return (
         <InlineConfirmButton
@@ -678,12 +687,13 @@ function ManagedRoleRemoveButton({
     );
 }
 
-function ManagedRoleRow({
+function ManagedRoleRow<T, A extends EndpointArgMap>({
     label,
     roleId,
     duplicateKey,
     roleNames,
     removeEndpoint,
+    removeArgs,
     canManage,
     onManagedRolesChanged,
 }: {
@@ -691,9 +701,10 @@ function ManagedRoleRow({
     roleId: number;
     duplicateKey: boolean;
     roleNames?: Record<string, string> | null;
-    removeEndpoint: CommonEndpoint<AutoRoleManagedRoles, { role?: string }, { role?: string }>;
+    removeEndpoint: CommonEndpoint<T, A, A>;
+    removeArgs: A;
     canManage: boolean;
-    onManagedRolesChanged: (data: AutoRoleManagedRoles) => void;
+    onManagedRolesChanged: () => void;
 }) {
     return (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 bg-background px-3 py-2 text-sm">
@@ -705,7 +716,8 @@ function ManagedRoleRow({
             {canManage ? (
                 <ManagedRoleRemoveButton
                     endpoint={removeEndpoint}
-                    roleId={roleId}
+                    removeArgs={removeArgs}
+                    failureTitle={`Could not remove ${label}`}
                     disabled={!canManage}
                     onSuccess={onManagedRolesChanged}
                 />
@@ -714,13 +726,14 @@ function ManagedRoleRow({
     );
 }
 
-function ManagedRoleBlock<T extends ManagedRoleLike>({
+function ManagedRoleBlock<T extends ManagedRoleLike, TResponse, TArgs extends EndpointArgMap>({
     title,
     addForm,
     emptyMessage,
     items,
     getKey,
     getLabel,
+    getRemoveArgs,
     roleNames,
     removeEndpoint,
     canManage,
@@ -732,10 +745,11 @@ function ManagedRoleBlock<T extends ManagedRoleLike>({
     items: readonly T[];
     getKey: (entry: T) => string;
     getLabel: (entry: T) => string;
+    getRemoveArgs: (entry: T) => TArgs;
     roleNames?: Record<string, string> | null;
-    removeEndpoint: CommonEndpoint<AutoRoleManagedRoles, { role?: string }, { role?: string }>;
+    removeEndpoint: CommonEndpoint<TResponse, TArgs, TArgs>;
     canManage: boolean;
-    onManagedRolesChanged: (data: AutoRoleManagedRoles) => void;
+    onManagedRolesChanged: () => void;
 }) {
     return (
         <div className="space-y-3">
@@ -751,6 +765,7 @@ function ManagedRoleBlock<T extends ManagedRoleLike>({
                             duplicateKey={entry.duplicate_key}
                             roleNames={roleNames}
                             removeEndpoint={removeEndpoint}
+                            removeArgs={getRemoveArgs(entry)}
                             canManage={canManage}
                             onManagedRolesChanged={onManagedRolesChanged}
                         />
@@ -990,7 +1005,10 @@ export default function RoleManagementPage() {
         : "readonly";
 
     const aliasEntries = useMemo(
-        () => buildRoleAliasEntries(aliasQuery.data?.data as WebRoleAliases | null | undefined),
+        () => {
+            console.log("Building alias entries", { rawData: aliasQuery.data?.data });
+            return buildRoleAliasEntries(aliasQuery.data?.data as WebRoleAliases | null | undefined)
+        },
         [aliasQuery.data?.data],
     );
     const managedRoles = useMemo(
@@ -1102,13 +1120,13 @@ export default function RoleManagementPage() {
         }
     }, []);
 
-    const handleManagedRolesChanged = useCallback((_updatedManagedRoles: AutoRoleManagedRoles) => {
+    const refreshManagedRoles = useCallback(() => {
         void managedRolesQuery.refetch();
     }, [managedRolesQuery]);
 
-    const handleManagedRolesResponse = useCallback((result: { data: AutoRoleManagedRoles }) => {
-        handleManagedRolesChanged(result.data);
-    }, [handleManagedRolesChanged]);
+    const handleManagedRolesResponse = useCallback((_result: { data: unknown }) => {
+        refreshManagedRoles();
+    }, [refreshManagedRoles]);
 
     const openAliasDialog = useCallback((args: { title: string; initialValues: RoleSetAliasArgs }) => {
         showDialog(
@@ -1167,10 +1185,13 @@ export default function RoleManagementPage() {
     const managedRoleCanWrite = managedRolePermissionMode === "ready";
     const getAllianceRoleKey = useCallback((entry: AllianceRoleEntry) => `alliance-${entry.role_id}-${entry.alliance_id}`, []);
     const getAllianceRoleLabel = useCallback((entry: AllianceRoleEntry) => formatAllianceLabel(entry.alliance_id, allianceNames), [allianceNames]);
+    const getAllianceRoleRemoveArgs = useCallback((entry: AllianceRoleEntry) => ({ alliance: String(entry.alliance_id) }), []);
     const getCityRoleKey = useCallback((entry: CityRoleEntry) => `city-${entry.role_id}-${entry.range_start}-${entry.range_end}`, []);
     const getCityRoleLabel = useCallback((entry: CityRoleEntry) => formatCityRoleRangeLabel(entry.range_start, entry.range_end), []);
+    const getCityRoleRemoveArgs = useCallback((entry: CityRoleEntry) => ({ range: formatCityRoleRangeLabel(entry.range_start, entry.range_end) }), []);
     const getTaxRoleKey = useCallback((entry: TaxRoleEntry) => `tax-${entry.role_id}-${entry.money_rate}-${entry.rss_rate}`, []);
     const getTaxRoleLabel = useCallback((entry: TaxRoleEntry) => formatTaxRoleRateLabel(entry.money_rate, entry.rss_rate), []);
+    const getTaxRoleRemoveArgs = useCallback((entry: TaxRoleEntry) => ({ rate: formatTaxRoleRateLabel(entry.money_rate, entry.rss_rate) }), []);
 
     usePageSidebar(defaultSidebar);
     usePageHeader(pageHeaderConfig);
@@ -1192,24 +1213,24 @@ export default function RoleManagementPage() {
                     <PageSection
                         title="Role aliases"
                         actions={(
-                            <>
+                            <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
                                 <Input
                                     value={aliasSearch}
                                     onChange={handleAliasSearchChange}
                                     placeholder="Search aliases"
-                                    className="w-full min-w-48 sm:w-56"
+                                    className="min-w-48 flex-1 lg:w-56 lg:flex-none"
                                 />
-                                <Tabs value={aliasFilterMode} onValueChange={handleAliasFilterChange}>
+                                <Tabs value={aliasFilterMode} onValueChange={handleAliasFilterChange} className="w-auto shrink-0">
                                     <TabsList>
                                         <TabsTrigger value="all">All</TabsTrigger>
                                         <TabsTrigger value="mapped">Mapped</TabsTrigger>
                                         <TabsTrigger value="invalid">Invalid</TabsTrigger>
                                     </TabsList>
                                 </Tabs>
-                                <Button type="button" variant="outline" size="sm" onClick={refreshAliases}>
+                                <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={refreshAliases}>
                                     Refresh aliases
                                 </Button>
-                            </>
+                            </div>
                         )}
                     >
                         {aliasQuery.isLoading ? (
@@ -1265,7 +1286,7 @@ export default function RoleManagementPage() {
                             <div className="text-sm text-destructive">Failed to load managed roles: {managedRolesQuery.error.message}</div>
                         ) : (
                             <div className="space-y-6">
-                                <ManagedRoleBlock<AllianceRoleEntry>
+                                <ManagedRoleBlock
                                     title="Alliance roles"
                                     addForm={managedRoleCanWrite ? (
                                         <ApiFormInputs
@@ -1278,13 +1299,14 @@ export default function RoleManagementPage() {
                                     items={managedRoles?.alliance_roles ?? []}
                                     getKey={getAllianceRoleKey}
                                     getLabel={getAllianceRoleLabel}
+                                    getRemoveArgs={getAllianceRoleRemoveArgs}
                                     roleNames={knownRoleNames}
                                     removeEndpoint={REMOVE_ALLIANCE_ROLE}
                                     canManage={managedRoleCanWrite}
-                                    onManagedRolesChanged={handleManagedRolesChanged}
+                                    onManagedRolesChanged={refreshManagedRoles}
                                 />
 
-                                <ManagedRoleBlock<CityRoleEntry>
+                                <ManagedRoleBlock
                                     title="City roles"
                                     addForm={managedRoleCanWrite ? (
                                         <ApiFormInputs
@@ -1297,13 +1319,14 @@ export default function RoleManagementPage() {
                                     items={managedRoles?.city_roles ?? []}
                                     getKey={getCityRoleKey}
                                     getLabel={getCityRoleLabel}
+                                    getRemoveArgs={getCityRoleRemoveArgs}
                                     roleNames={knownRoleNames}
                                     removeEndpoint={REMOVE_CITY_ROLE}
                                     canManage={managedRoleCanWrite}
-                                    onManagedRolesChanged={handleManagedRolesChanged}
+                                    onManagedRolesChanged={refreshManagedRoles}
                                 />
 
-                                <ManagedRoleBlock<TaxRoleEntry>
+                                <ManagedRoleBlock
                                     title="Tax roles"
                                     addForm={managedRoleCanWrite ? (
                                         <ApiFormInputs
@@ -1316,10 +1339,11 @@ export default function RoleManagementPage() {
                                     items={managedRoles?.tax_roles ?? []}
                                     getKey={getTaxRoleKey}
                                     getLabel={getTaxRoleLabel}
+                                    getRemoveArgs={getTaxRoleRemoveArgs}
                                     roleNames={knownRoleNames}
                                     removeEndpoint={REMOVE_TAX_ROLE}
                                     canManage={managedRoleCanWrite}
-                                    onManagedRolesChanged={handleManagedRolesChanged}
+                                    onManagedRolesChanged={refreshManagedRoles}
                                 />
                             </div>
                         )}

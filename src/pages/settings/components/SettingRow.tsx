@@ -1,6 +1,8 @@
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useCallback } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { useCallback, type ReactNode } from "react";
 import { hasVisibleSettingsSubgroup, type SettingRow } from "../settingsDomain";
 import SettingClearAction from "./SettingClearAction";
 import { getSettingTypeToneStyle } from "./settingsVisuals";
@@ -12,6 +14,33 @@ function summarizeValue(valueText: string, hasValue: boolean): string {
     }
 
     return normalized || "Empty value";
+}
+
+function SettingHoverTooltip({
+    content,
+    disabled = false,
+    children,
+    className,
+}: {
+    content: string;
+    disabled?: boolean;
+    children: ReactNode;
+    className?: string;
+}) {
+    if (disabled) {
+        return <>{children}</>;
+    }
+
+    return (
+        <Tooltip>
+            <TooltipTrigger className={cn("block w-full text-left", className)}>
+                {children}
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[min(42rem,calc(100vw-2rem))] whitespace-pre-wrap wrap-break-word text-xs leading-5">
+                {content}
+            </TooltipContent>
+        </Tooltip>
+    );
 }
 
 export default function SettingRow({
@@ -34,6 +63,11 @@ export default function SettingRow({
     const valueSummary = summarizeValue(row.value.displayText, row.value.hasValue);
     const hasMoreHelp = row.metadata.helpFull.trim() !== row.metadata.helpShort.trim();
     const subgroupVisible = hasVisibleSettingsSubgroup(row.metadata.subgroup);
+    const canEdit = row.flags.isAllowed;
+    const helpTooltipText = row.metadata.helpFull || row.metadata.helpShort;
+    const showHelpTooltip = helpTooltipText.trim().length > 0;
+    const valueTooltipText = row.value.displayText || row.value.rawText || valueSummary;
+    const showValueTooltip = row.value.hasValue && (valueTooltipText.includes("\n") || valueTooltipText.length > 120);
 
     const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
     const handleRefreshSetting = useCallback(
@@ -78,21 +112,23 @@ export default function SettingRow({
                     </div>
 
                     <div className="space-y-0.5">
-                        <div className="line-clamp-2 text-[11px] leading-4.5 text-muted-foreground">
-                            {row.metadata.helpShort}
-                            {hasMoreHelp && (
-                                <>
-                                    {" "}
-                                    <button
-                                        type="button"
-                                        className="font-medium text-foreground underline decoration-border underline-offset-2"
-                                        onClick={handleShowHelp}
-                                    >
-                                        Show more
-                                    </button>
-                                </>
-                            )}
-                        </div>
+                        <SettingHoverTooltip content={helpTooltipText} disabled={!showHelpTooltip}>
+                            <div className="line-clamp-2 text-[11px] leading-4.5 text-muted-foreground">
+                                {row.metadata.helpShort}
+                                {hasMoreHelp && (
+                                    <>
+                                        {" "}
+                                        <button
+                                            type="button"
+                                            className="font-medium text-foreground underline decoration-border underline-offset-2"
+                                            onClick={handleShowHelp}
+                                        >
+                                            Show more
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </SettingHoverTooltip>
                         {detailNotes.length > 0 && (
                             <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
                                 {detailNotes.map((note) => (
@@ -105,9 +141,11 @@ export default function SettingRow({
 
                 <div className="min-w-0 text-left">
                     {row.value.hasValue ? (
-                        <div className="w-full rounded-sm border border-border/60 bg-muted/15 px-2 py-1.5 text-left text-[12px] leading-5 text-foreground wrap-break-word line-clamp-3">
-                            {valueSummary}
-                        </div>
+                        <SettingHoverTooltip content={valueTooltipText} disabled={!showValueTooltip}>
+                            <div className="w-full rounded-sm border border-border/60 bg-muted/15 px-2 py-1.5 text-left text-[12px] leading-5 text-foreground wrap-break-word line-clamp-3">
+                                {valueSummary}
+                            </div>
+                        </SettingHoverTooltip>
                     ) : (
                         <div className="w-full rounded-sm border border-border/60 bg-muted/10 px-2 py-1.5 text-left text-[12px] leading-5 text-muted-foreground">
                             Unset
@@ -116,14 +154,14 @@ export default function SettingRow({
                 </div>
 
                 <div className="flex flex-wrap items-start justify-start gap-1.5 lg:justify-end">
-                    {!unavailableReason && !isUnsupported && (
+                    {canEdit && (
                         <>
                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={handleEdit}
                             >
-                                Edit
+                                {row.value.hasValue ? "Edit" : "Set"}
                             </Button>
                             <SettingClearAction
                                 settingKey={row.settingKey}

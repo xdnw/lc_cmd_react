@@ -38,6 +38,12 @@ describe("appRoutes shared header metadata", () => {
     expect(tabs.find((tab) => tab.active)?.to).toBe("/coalitions");
   });
 
+  it("keeps the settings route in the recent-page cache", () => {
+    expect(resolveAppRouteConfig(routeConfigs, "/settings")?.cachePolicy).toEqual(
+      expect.objectContaining({ mode: "recent" }),
+    );
+  });
+
   it("exposes status as a shared navbar utility icon", () => {
     const items = buildNavbarIconItems(routeConfigs, "/status");
 

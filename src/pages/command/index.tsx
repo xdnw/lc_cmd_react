@@ -155,7 +155,6 @@ export default function CommandPage() {
     }, [jumpState.commitJump]);
 
     if (!cmdObj) {
-        console.log("Not command");
         return <div>No command found</div>;
     }
 

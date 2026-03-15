@@ -9,6 +9,10 @@ import {
     estimateSettingsItemHeight,
     flattenSettingsRows,
     hasVisibleSettingsSubgroup,
+    normalizeGuildSettingRows,
+    parseSettingsPageSearchParams,
+    serializeSettingsSnapshotAsCsv,
+    serializeSettingsSnapshotAsJson,
     type SettingRow,
 } from "./settingsDomain";
 
@@ -180,6 +184,76 @@ describe("deriveSettingsBrowserRows", () => {
 
         expect(result.rows.map((row) => row.settingKey)).toEqual(["alpha"]);
         expect(result.counts.channelTypeRows).toBe(1);
+    });
+});
+
+describe("parseSettingsPageSearchParams", () => {
+    it("maps focus links to a reveal-friendly browser state", () => {
+        const result = parseSettingsPageSearchParams(new URLSearchParams("focus=alerts.channel"));
+
+        expect(result.focusSettingKey).toBe("alerts.channel");
+        expect(result.browserState).toMatchObject({
+            query: "alerts.channel",
+            availability: "all",
+            sort: "relevance",
+        });
+    });
+
+    it("falls back to the default browser state when focus is missing", () => {
+        const result = parseSettingsPageSearchParams(new URLSearchParams());
+
+        expect(result.focusSettingKey).toBeNull();
+        expect(result.browserState).toEqual(createDefaultSettingsBrowserState());
+    });
+});
+
+describe("normalizeGuildSettingRows", () => {
+    it("does not treat an empty table as a schema error", () => {
+        const result = normalizeGuildSettingRows({ cells: [], renderers: [] } as never);
+
+        expect(result.rows).toEqual([]);
+        expect(result.schemaErrors).toEqual([]);
+        expect(result.rowParseErrors).toEqual([]);
+    });
+});
+
+describe("settings exports", () => {
+    it("serializes a keyed JSON snapshot", () => {
+        const rows: SettingRow[] = [
+            createSettingRow({
+                settingKey: "alerts.channel",
+                category: "Admin",
+                subgroup: "Alerts",
+                displayText: "#ops-room",
+            }),
+        ];
+
+        expect(JSON.parse(serializeSettingsSnapshotAsJson(rows))).toEqual({
+            "alerts.channel": {
+                rawValue: "#ops-room",
+                displayValue: "#ops-room",
+                argType: "text",
+                category: "Admin",
+                subgroup: "Alerts",
+                hasValue: true,
+                invalid: false,
+                isAllowed: true,
+                isSupported: true,
+            },
+        });
+    });
+
+    it("escapes multiline and quoted CSV values", () => {
+        const rows: SettingRow[] = [
+            createSettingRow({
+                settingKey: "welcome.template",
+                category: "Member",
+                subgroup: "General",
+                displayText: 'Line 1\n"quoted", value',
+            }),
+        ];
+
+        expect(serializeSettingsSnapshotAsCsv(rows)).toContain('welcome.template,"Line 1\n""quoted"", value"');
     });
 });
 

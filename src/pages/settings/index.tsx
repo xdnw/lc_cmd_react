@@ -1,7 +1,8 @@
 import { useMemo, useState, useCallback, useEffect, useRef, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
-import { SquarePen } from "lucide-react";
+import { ChevronDown, Copy, Download, SquarePen } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { useSession } from "@/components/api/SessionContext";
 import SearchBar from "@/components/cmd/SearchBar";
 import { useDialog } from "@/components/layout/DialogContext";
@@ -14,6 +15,12 @@ import {
 } from "@/components/layout/SidebarNav";
 import Loading from "@/components/ui/loading";
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN,
@@ -28,17 +35,89 @@ import SettingsCategorySection, { SettingsCategoryHeader, SettingsSubgroupHeader
 import {
     GUILD_SETTING_COLUMNS,
     SETTINGS_ROW_ITEM_HEIGHT,
-    createDefaultSettingsBrowserState,
     deriveSettingsBrowserRows,
     type FlattenedSettingsItem,
     getSettingsVisibleContext,
     hasVisibleSettingsSubgroup,
     normalizeGuildSettingRows,
+    parseSettingsPageSearchParams,
     mergeRowIntoTableCache,
     removeRowFromTableCache,
+    serializeSettingsSnapshotAsCsv,
+    serializeSettingsSnapshotAsJson,
+    type SettingsBrowserCounts,
+    type SettingsBrowserState,
     type SettingRow,
+    type UnsupportedInputIssue,
 } from "./settingsDomain";
 import LoginPickerPage from "../login_picker";
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    if (typeof error === "string" && error.trim()) {
+        return error;
+    }
+
+    return "Unknown error";
+}
+
+function downloadTextFile(content: string, filename: string, mimeType: string): void {
+    const blob = new Blob([content], { type: mimeType });
+    const objectUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    anchor.style.display = "none";
+
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+
+    window.setTimeout(() => {
+        window.URL.revokeObjectURL(objectUrl);
+    }, 0);
+}
+
+function createSettingsExportFilename(extension: "csv" | "json"): string {
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    return `guild-settings-${dateStamp}.${extension}`;
+}
+
+function SettingsExportMenu({
+    disabled,
+    onCopyJson,
+    onExportCsv,
+}: {
+    disabled: boolean;
+    onCopyJson: () => void;
+    onExportCsv: () => void;
+}) {
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" size="sm" disabled={disabled} className="shrink-0 gap-1.5">
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Export</span>
+                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={onCopyJson}>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Copy as JSON</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={onExportCsv}>
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Export as CSV</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
 
 function SettingsHeaderControls({
     browserState,
@@ -46,16 +125,22 @@ function SettingsHeaderControls({
     rowParseErrorCount,
     schemaErrorCount,
     unsupportedIssues,
+    exportDisabled,
+    onCopyJson,
+    onExportCsv,
     onBrowserStateChange,
 }: {
-    browserState: ReturnType<typeof createDefaultSettingsBrowserState>;
-    counts: ReturnType<typeof deriveSettingsBrowserRows>["counts"];
+    browserState: SettingsBrowserState;
+    counts: SettingsBrowserCounts;
     rowParseErrorCount: number;
     schemaErrorCount: number;
-    unsupportedIssues: ReturnType<typeof normalizeGuildSettingRows>["unsupportedInputRows"];
-    onBrowserStateChange: Dispatch<SetStateAction<ReturnType<typeof createDefaultSettingsBrowserState>>>;
+    unsupportedIssues: UnsupportedInputIssue[];
+    exportDisabled: boolean;
+    onCopyJson: () => void;
+    onExportCsv: () => void;
+    onBrowserStateChange: Dispatch<SetStateAction<SettingsBrowserState>>;
 }) {
-    const updateState = useCallback((updater: (currentState: ReturnType<typeof createDefaultSettingsBrowserState>) => ReturnType<typeof createDefaultSettingsBrowserState>) => {
+    const updateState = useCallback((updater: (currentState: SettingsBrowserState) => SettingsBrowserState) => {
         onBrowserStateChange((currentState) => updater(currentState));
     }, [onBrowserStateChange]);
 
@@ -64,7 +149,8 @@ function SettingsHeaderControls({
     const showInvalid = browserState.invalid === "only";
     const showChannels = browserState.channelType === "only";
     const showUnsupported = browserState.unsupported === "only";
-    const hasWarnings = schemaErrorCount > 0 || rowParseErrorCount > 0 || unsupportedIssues.length > 0;
+    const unsupportedIssueCount = unsupportedIssues.length;
+    const hasWarnings = schemaErrorCount > 0 || rowParseErrorCount > 0 || unsupportedIssueCount > 0;
 
     const handleSearchChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         const nextQuery = event.target.value;
@@ -129,67 +215,72 @@ function SettingsHeaderControls({
                     className="h-7 border-border/70 bg-background px-2 pr-8 text-sm"
                 />
 
-                <div className="overflow-x-auto pb-0.5">
-                    <div className="flex w-max min-w-full flex-nowrap items-center gap-1 lg:justify-start">
-                        <Button
-                            type="button"
-                            variant={showAllAvailability ? "default" : "outline"}
-                            size="sm"
-                            onClick={toggleAvailability}
-                        >
-                            {showAllAvailability
-                                ? "Show available"
-                                : counts.unavailableRows > 0
-                                    ? `Show all (${counts.unavailableRows})`
-                                    : "Show all"}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={onlySet ? "default" : "outline"}
-                            size="sm"
-                            onClick={toggleHasValue}
-                        >
-                            {onlySet ? "Showing set" : `Show set (${counts.hasValueRows})`}
-                        </Button>
-                        {counts.invalidRows > 0 && (
+                <div className="flex flex-wrap items-center gap-2 lg:justify-between">
+                    <div className="overflow-x-auto pb-0.5">
+                        <div className="flex w-max min-w-full flex-nowrap items-center gap-1 lg:justify-start">
+                            <Button
+                                type="button"
+                                variant={showAllAvailability ? "default" : "outline"}
+                                size="sm"
+                                onClick={toggleAvailability}
+                            >
+                                {showAllAvailability
+                                    ? "Show available"
+                                    : counts.unavailableRows > 0
+                                        ? `Show all (${counts.unavailableRows})`
+                                        : "Show all"}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={onlySet ? "default" : "outline"}
+                                size="sm"
+                                onClick={toggleHasValue}
+                            >
+                                {onlySet ? "Showing set" : `Show set (${counts.hasValueRows})`}
+                            </Button>
                             <Button
                                 type="button"
                                 variant={showInvalid ? "default" : "outline"}
                                 size="sm"
                                 onClick={toggleInvalid}
+                                disabled={counts.invalidRows === 0 && !showInvalid}
                             >
                                 {showInvalid ? `Showing invalid (${counts.invalidRows})` : `Invalid (${counts.invalidRows})`}
                             </Button>
-                        )}
-                        {counts.unsupportedRows > 0 && (
                             <Button
                                 type="button"
                                 variant={showUnsupported ? "default" : "outline"}
                                 size="sm"
                                 onClick={toggleUnsupported}
+                                disabled={counts.unsupportedRows === 0 && !showUnsupported}
                             >
                                 {showUnsupported ? `Showing unsupported (${counts.unsupportedRows})` : `Unsupported (${counts.unsupportedRows})`}
                             </Button>
-                        )}
-                        {counts.channelTypeRows > 0 && (
                             <Button
                                 type="button"
                                 variant={showChannels ? "default" : "outline"}
                                 size="sm"
                                 onClick={toggleChannelType}
+                                disabled={counts.channelTypeRows === 0 && !showChannels}
                             >
                                 {showChannels ? `Showing channels (${counts.channelTypeRows})` : `Channels (${counts.channelTypeRows})`}
                             </Button>
-                        )}
+                        </div>
                     </div>
+
+                    <SettingsExportMenu
+                        disabled={exportDisabled}
+                        onCopyJson={onCopyJson}
+                        onExportCsv={onExportCsv}
+                    />
                 </div>
             </div>
 
             {hasWarnings ? (
                 <div className="border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
-                    {counts.unsupportedRows > 0 && <span>{counts.unsupportedRows} unsupported</span>}
+                    {unsupportedIssueCount > 0 && <span>{unsupportedIssueCount} unsupported</span>}
                     {(schemaErrorCount > 0 || rowParseErrorCount > 0) && (
-                        <span>{counts.unsupportedRows > 0 ? " | " : ""}{schemaErrorCount + rowParseErrorCount} data warnings</span>
+                        <span>{unsupportedIssueCount > 0 ? " | " : ""}{schemaErrorCount + rowParseErrorCount} data warnings</span>
                     )}
                     {unsupportedIssues.length > 0 ? (
                         <div className="mt-1 truncate">
@@ -316,7 +407,7 @@ function buildSettingsSidebarItems({
             } satisfies SidebarNavItem;
         }
 
-        const canEdit = item.row.flags.isAllowed && item.row.editor.inputSupport.supported;
+        const canEdit = item.row.flags.isAllowed;
 
         return {
             id: item.key,
@@ -421,17 +512,20 @@ function buildSettingsSidebarConfig({
 }
 
 export default function SettingsPage() {
+    const location = useLocation();
     const { session } = useSession();
     const { showDialog } = useDialog();
     const defaultSidebar = useDefaultPageSidebar();
     const queryClient = useQueryClient();
     const virtuosoRef = useRef<VirtuosoHandle | null>(null);
-    const [browserState, setBrowserState] = useState(() => createDefaultSettingsBrowserState());
+    const searchState = useMemo(() => parseSettingsPageSearchParams(new URLSearchParams(location.search)), [location.search]);
+    const [browserState, setBrowserState] = useState<SettingsBrowserState>(() => searchState.browserState);
     const [sidebarMode, setSidebarMode] = useState<SettingsSidebarMode>("settings");
     const [perSettingWarning, setPerSettingWarning] = useState<string | null>(null);
     const [visibleIndex, setVisibleIndex] = useState(0);
     const [highlightedSettingKey, setHighlightedSettingKey] = useState<string | null>(null);
     const [pendingScrollIndex, setPendingScrollIndex] = useState<number | null>(null);
+    const [pendingFocusSettingKey, setPendingFocusSettingKey] = useState<string | null>(searchState.focusSettingKey);
 
     const listQueryArgs = useMemo(() => {
         return {
@@ -465,6 +559,15 @@ export default function SettingsPage() {
         () => deriveSettingsBrowserRows(normalized.rows, browserState),
         [browserState, normalized.rows],
     );
+
+    useEffect(() => {
+        if (!searchState.focusSettingKey) {
+            return;
+        }
+
+        setBrowserState(searchState.browserState);
+        setPendingFocusSettingKey(searchState.focusSettingKey);
+    }, [searchState]);
 
     useEffect(() => {
         if (!highlightedSettingKey) {
@@ -530,6 +633,42 @@ export default function SettingsPage() {
         };
     }, [browserResult.flattenedItems.length, pendingScrollIndex]);
 
+    useEffect(() => {
+        if (!pendingFocusSettingKey) {
+            return;
+        }
+
+        if (
+            browserState.query.trim() !== pendingFocusSettingKey
+            || browserState.availability !== "all"
+            || browserState.sort !== "relevance"
+        ) {
+            return;
+        }
+
+        const targetIndex = browserResult.flattenedItems.findIndex((item) => (
+            item.kind === "setting" && item.row.settingKey === pendingFocusSettingKey
+        ));
+
+        if (targetIndex >= 0) {
+            setVisibleIndex(targetIndex);
+            setPendingScrollIndex(targetIndex);
+            setHighlightedSettingKey(pendingFocusSettingKey);
+            setPendingFocusSettingKey(null);
+            setPerSettingWarning((current) => (
+                current?.startsWith("Could not focus setting ") ? null : current
+            ));
+            return;
+        }
+
+        if (listQuery.isLoading || listQuery.isFetching) {
+            return;
+        }
+
+        setPendingFocusSettingKey(null);
+        setPerSettingWarning(`Could not focus setting "${pendingFocusSettingKey}" because it was not found in this guild.`);
+    }, [browserResult.flattenedItems, browserState.availability, browserState.query, browserState.sort, listQuery.isFetching, listQuery.isLoading, pendingFocusSettingKey]);
+
     const handleVisibleRangeChanged = useCallback(({ startIndex }: { startIndex: number; endIndex: number }) => {
         setVisibleIndex((current) => (current === startIndex ? current : startIndex));
     }, []);
@@ -554,26 +693,52 @@ export default function SettingsPage() {
             columns: GUILD_SETTING_COLUMNS,
         };
 
-        const singleResult = await queryClient.fetchQuery(bulkQueryOptions(TABLE.endpoint, singleArgs));
-        const normalizedSingle = normalizeGuildSettingRows(singleResult.data!);
+        try {
+            const singleResult = await queryClient.fetchQuery(bulkQueryOptions(TABLE.endpoint, singleArgs));
+            const normalizedSingle = normalizeGuildSettingRows(singleResult.data!);
 
-        const updatedRow = normalizedSingle.rows.find((row) => row.settingKey === settingKey) ?? normalizedSingle.rows[0];
-        if (!updatedRow) {
+            const updatedRow = normalizedSingle.rows.find((row) => row.settingKey === settingKey) ?? normalizedSingle.rows[0];
+            if (!updatedRow) {
+                setPerSettingWarning(null);
+                queryClient.setQueryData(listQueryKey, (old) => {
+                    return removeRowFromTableCache({
+                        oldResult: old as QueryResult<WebTable> | undefined,
+                        settingKey,
+                    });
+                });
+                return;
+            }
+
             setPerSettingWarning(null);
             queryClient.setQueryData(listQueryKey, (old) => {
-                return removeRowFromTableCache({
-                    oldResult: old as QueryResult<WebTable> | undefined,
-                    settingKey,
-                });
+                return mergeRowIntoTableCache({ oldResult: old as QueryResult<WebTable> | undefined, updatedRow });
             });
-            return;
+        } catch (error) {
+            setPerSettingWarning(`Failed to refresh ${settingKey}: ${getErrorMessage(error)}`);
         }
-
-        setPerSettingWarning(null);
-        queryClient.setQueryData(listQueryKey, (old) => {
-            return mergeRowIntoTableCache({ oldResult: old as QueryResult<WebTable> | undefined, updatedRow });
-        });
     }, [session?.guild, listQueryKey, queryClient]);
+
+    const handleCopySettingsJson = useCallback(async () => {
+        try {
+            await navigator.clipboard.writeText(serializeSettingsSnapshotAsJson(normalized.rows));
+            showDialog("Settings copied", "Copied all settings as JSON to the clipboard.");
+        } catch (error) {
+            showDialog("Copy failed", `Failed to copy settings JSON: ${getErrorMessage(error)}`);
+        }
+    }, [normalized.rows, showDialog]);
+
+    const handleExportSettingsCsv = useCallback(() => {
+        try {
+            downloadTextFile(
+                serializeSettingsSnapshotAsCsv(normalized.rows),
+                createSettingsExportFilename("csv"),
+                "text/csv;charset=utf-8",
+            );
+            showDialog("Export started", "Your settings CSV download should begin shortly.");
+        } catch (error) {
+            showDialog("Export failed", `Failed to export settings CSV: ${getErrorMessage(error)}`);
+        }
+    }, [normalized.rows, showDialog]);
 
     const openEditDialog = useCallback((row: SettingRow) => {
         showDialog(
@@ -682,6 +847,9 @@ export default function SettingsPage() {
                     rowParseErrorCount={normalized.rowParseErrors.length}
                     schemaErrorCount={normalized.schemaErrors.length}
                     unsupportedIssues={normalized.unsupportedInputRows}
+                    exportDisabled={normalized.rows.length === 0}
+                    onCopyJson={handleCopySettingsJson}
+                    onExportCsv={handleExportSettingsCsv}
                     onBrowserStateChange={setBrowserState}
                 />
             ),
@@ -694,7 +862,10 @@ export default function SettingsPage() {
         normalized.rowParseErrors.length,
         normalized.schemaErrors.length,
         normalized.unsupportedInputRows,
+        normalized.rows.length,
         session?.guild,
+        handleCopySettingsJson,
+        handleExportSettingsCsv,
     ]);
 
     usePageSidebar(activeSidebarConfig);

@@ -252,13 +252,17 @@ export type SettingsSortMode = "category" | "name" | "relevance";
 
 export type SettingsBrowserState = {
     query: string;
-    showFilters: boolean;
     availability: SettingsAvailabilityFilter;
     invalid: SettingsFlagFilter;
     unsupported: SettingsFlagFilter;
     hasValue: SettingsFlagFilter;
     channelType: SettingsFlagFilter;
     sort: SettingsSortMode;
+};
+
+export type SettingsPageSearchState = {
+    browserState: SettingsBrowserState;
+    focusSettingKey: string | null;
 };
 
 export type SettingsBrowserCounts = {
@@ -282,6 +286,18 @@ export type SettingsBrowserDerivedResult = {
 export type SettingsVisibleContext = {
     category: GuildSettingCategory | null;
     subgroup: GuildSettingSubgroup | null;
+};
+
+export type SettingSnapshotEntry = {
+    rawValue: string | null;
+    displayValue: string | null;
+    argType: string;
+    category: GuildSettingCategory;
+    subgroup: GuildSettingSubgroup;
+    hasValue: boolean;
+    invalid: boolean;
+    isAllowed: boolean;
+    isSupported: boolean;
 };
 
 export function hasVisibleSettingsSubgroup(subgroup: string | null | undefined): subgroup is GuildSettingSubgroup {
@@ -359,13 +375,34 @@ export function createDefaultSettingsBrowserState(
 ): SettingsBrowserState {
     return {
         query: overrides?.query ?? "",
-        showFilters: overrides?.showFilters ?? false,
         availability: overrides?.availability ?? "available",
         invalid: overrides?.invalid ?? "all",
         unsupported: overrides?.unsupported ?? "all",
         hasValue: overrides?.hasValue ?? "all",
         channelType: overrides?.channelType ?? "all",
         sort: overrides?.sort ?? "category",
+    };
+}
+
+function normalizeFocusedSettingKey(value: string | null): string | null {
+    const normalized = value?.trim() ?? "";
+    return normalized.length > 0 ? normalized : null;
+}
+
+export function parseSettingsPageSearchParams(searchParams: URLSearchParams): SettingsPageSearchState {
+    const focusSettingKey = normalizeFocusedSettingKey(searchParams.get("focus"));
+
+    return {
+        focusSettingKey,
+        browserState: createDefaultSettingsBrowserState(
+            focusSettingKey
+                ? {
+                    query: focusSettingKey,
+                    availability: "all",
+                    sort: "relevance",
+                }
+                : undefined,
+        ),
     };
 }
 
@@ -422,6 +459,78 @@ export function getSettingSearchableText(row: SettingRow): string {
         .filter(Boolean)
         .join("\n")
         .toLowerCase();
+}
+
+function toSettingSnapshotEntry(row: SettingRow): SettingSnapshotEntry {
+    return {
+        rawValue: row.value.hasValue ? row.value.rawText : null,
+        displayValue: row.value.hasValue ? row.value.displayText : null,
+        argType: row.metadata.argType,
+        category: row.metadata.category,
+        subgroup: row.metadata.subgroup,
+        hasValue: row.value.hasValue,
+        invalid: row.flags.invalid,
+        isAllowed: row.flags.isAllowed,
+        isSupported: row.editor.inputSupport.supported,
+    };
+}
+
+function escapeCsvCell(value: string | boolean | null): string {
+    if (value == null) {
+        return "";
+    }
+
+    const text = String(value);
+    if (!/[",\r\n]/.test(text)) {
+        return text;
+    }
+
+    return `"${text.split('"').join('""')}"`;
+}
+
+export function serializeSettingsSnapshotAsJson(rows: SettingRow[]): string {
+    const sortedRows = [...rows].sort(compareSettingRowsByCategory);
+    const snapshot = Object.fromEntries(
+        sortedRows.map((row) => [row.settingKey, toSettingSnapshotEntry(row)]),
+    );
+
+    return JSON.stringify(snapshot, null, 2);
+}
+
+export function serializeSettingsSnapshotAsCsv(rows: SettingRow[]): string {
+    const headers = [
+        "settingKey",
+        "rawValue",
+        "displayValue",
+        "argType",
+        "category",
+        "subgroup",
+        "hasValue",
+        "invalid",
+        "isAllowed",
+        "isSupported",
+    ] as const;
+
+    const lines = [headers.join(",")];
+    const sortedRows = [...rows].sort(compareSettingRowsByCategory);
+
+    sortedRows.forEach((row) => {
+        const snapshot = toSettingSnapshotEntry(row);
+        lines.push([
+            row.settingKey,
+            snapshot.rawValue,
+            snapshot.displayValue,
+            snapshot.argType,
+            snapshot.category,
+            snapshot.subgroup,
+            snapshot.hasValue,
+            snapshot.invalid,
+            snapshot.isAllowed,
+            snapshot.isSupported,
+        ].map((value) => escapeCsvCell(value == null ? null : String(value))).join(","));
+    });
+
+    return lines.join("\r\n");
 }
 
 export function matchesSettingsBrowserFilters(row: SettingRow, state: SettingsBrowserState): boolean {
@@ -677,10 +786,6 @@ export function normalizeGuildSettingRows(table: WebTable): NormalizedSettingsRo
 
     const backendRenderers = Array.isArray(table.renderers) ? table.renderers : EMPTY_RENDERERS;
     const allCells = Array.isArray(table.cells) ? table.cells : [];
-
-    if (allCells.length === 0) {
-        schemaErrors.push("GuildSetting TABLE returned no rows");
-    }
 
     const dataRows = allCells.slice(1);
 

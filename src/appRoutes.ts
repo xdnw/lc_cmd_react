@@ -743,6 +743,7 @@ export const routeConfigs: AppRouteConfig[] = [
       requireGuild: true,
     },
     element: () => import("@/pages/settings"),
+    cachePolicy: RECENT_PAGE_CACHE_POLICY,
     protected: true,
     shell: {
       section: "Server",

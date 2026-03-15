@@ -4,5 +4,6 @@ export const UNPACKR = new Unpackr({
   largeBigIntToFloat: true,
   mapsAsObjects: true,
   bundleStrings: true,
-  int64AsType: "number",
+  int64AsType: "string",
+  useRecords: false,
 });

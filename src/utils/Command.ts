@@ -48,6 +48,7 @@ export type IOptionData = {
     guild?: boolean | null;
     nation?: boolean | null;
     user?: boolean | null;
+    custom?: boolean | null;
     composite?: string[];
 }
 
@@ -160,12 +161,14 @@ class OptionData {
     guild: boolean;
     nation: boolean;
     user: boolean;
+    custom: boolean;
     multi: boolean;
     map: CommandMap;
     composite: string[];
     typeKey: string;
+    queryTypeKey: string;
 
-    constructor(map: CommandMap, data: IOptionData, multi: boolean, typeKey: string) {
+    constructor(map: CommandMap, data: IOptionData, multi: boolean, typeKey: string, queryTypeKey: string = typeKey) {
         this.map = map;
         this.options = data.options || undefined;
         this.query = data.query || false;
@@ -173,9 +176,11 @@ class OptionData {
         this.guild = data.guild || false;
         this.nation = data.nation || false;
         this.user = data.user || false;
+        this.custom = data.custom || false;
         this.multi = multi;
         this.composite = data.composite || [];
         this.typeKey = typeKey;
+        this.queryTypeKey = queryTypeKey;
     }
 
     toConfig(): IOptionData {
@@ -186,12 +191,13 @@ class OptionData {
             guild: this.guild,
             nation: this.nation,
             user: this.user,
+            custom: this.custom,
             composite: this.composite,
         };
     }
 
     withMulti(multi: boolean): OptionData {
-        return new OptionData(this.map, this.toConfig(), multi, this.typeKey);
+        return new OptionData(this.map, this.toConfig(), multi, this.typeKey, this.queryTypeKey);
     }
 }
 
@@ -202,6 +208,10 @@ type ResolvedOptionData = {
 
 function normalizeTypeLookupKey(type: string): string {
     return type.replace(/<\?>$/, "");
+}
+
+function getExactTypeKey(element: string, annotations: string | null): string {
+    return annotations ? `${element}[${annotations}]` : element;
 }
 
 function getTypeLookupKeys(element: string, annotations: string | null): string[] {
@@ -896,6 +906,8 @@ export class TypeBreakdown {
             return this.optionData;
         }
 
+        const exactTypeKey = getExactTypeKey(this.element, this.annotations);
+
         if ((this.element === "Set" || this.element === "List" || this.element === "TypedFunction") && this.child !== null) {
             this.optionData = this.child[0].getOptionData().withMulti(true);
             return this.optionData;
@@ -903,12 +915,12 @@ export class TypeBreakdown {
 
         const resolved = resolveOptionDataForType(this.element, this.annotations);
         if (resolved) {
-            this.optionData = new OptionData(this.map, resolved.config, false, resolved.typeKey);
+            this.optionData = new OptionData(this.map, resolved.config, false, resolved.typeKey, exactTypeKey);
             return this.optionData;
         }
 
         const fallbackTypeKey = getTypeLookupKeys(this.element, this.annotations)[0] ?? this.element;
-        this.optionData = new OptionData(this.map, { options: null, query: false, completions: false, guild: false, nation: false, user: false }, false, fallbackTypeKey);
+        this.optionData = new OptionData(this.map, { options: null, query: false, completions: false, guild: false, nation: false, user: false, custom: false }, false, fallbackTypeKey, exactTypeKey);
         return this.optionData;
     }
 }

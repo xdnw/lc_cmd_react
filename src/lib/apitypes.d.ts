@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-15 15:31:29.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-15 16:16:18.
 
 export interface WebError {
     error: string;
@@ -460,6 +460,12 @@ export interface WebRoleAliases {
     discord_role_names: { [index: string]: string };
 }
 
+export interface AutoRoleManagedRoles {
+    alliance_roles: AllianceRoleEntry[];
+    city_roles: CityRoleEntry[];
+    tax_roles: TaxRoleEntry[];
+}
+
 export interface AutoRoleResult {
     sync?: AutoRoleSyncState;
     role_names: { [index: string]: string };
@@ -567,6 +573,31 @@ export interface WebCurrentTreaty {
 export interface WebCoalition {
     name: string;
     members: WebCoalitionMember[];
+}
+
+export interface AllianceRoleEntry {
+    role_id: number;
+    role_name: string;
+    alliance_id: number;
+    alliance_name: string;
+    duplicate_key: boolean;
+}
+
+export interface CityRoleEntry {
+    role_id: number;
+    role_name: string;
+    range_text: string;
+    range_start: number;
+    range_end: number;
+    duplicate_key: boolean;
+}
+
+export interface TaxRoleEntry {
+    role_id: number;
+    role_name: string;
+    money_rate: number;
+    rss_rate: number;
+    duplicate_key: boolean;
 }
 
 export interface TaxRole {

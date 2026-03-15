@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-15 16:16:18.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-15 17:12:03.
 
 export interface WebError {
     error: string;
@@ -577,16 +577,12 @@ export interface WebCoalition {
 
 export interface AllianceRoleEntry {
     role_id: number;
-    role_name: string;
     alliance_id: number;
-    alliance_name: string;
     duplicate_key: boolean;
 }
 
 export interface CityRoleEntry {
     role_id: number;
-    role_name: string;
-    range_text: string;
     range_start: number;
     range_end: number;
     duplicate_key: boolean;
@@ -594,7 +590,6 @@ export interface CityRoleEntry {
 
 export interface TaxRoleEntry {
     role_id: number;
-    role_name: string;
     money_rate: number;
     rss_rate: number;
     duplicate_key: boolean;

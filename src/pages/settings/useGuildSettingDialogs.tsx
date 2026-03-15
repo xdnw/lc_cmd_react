@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import { useDialog } from "@/components/layout/DialogContext";
+import MarkupRenderer from "@/components/ui/MarkupRenderer";
 
 import { hasVisibleSettingsSubgroup, type SettingRow } from "./settingsDomain";
 import SettingEditDialog from "./components/SettingEditDialog";
@@ -42,8 +43,8 @@ export function useGuildSettingDialogs(onRefreshSetting: (settingKey: string) =>
                     <span>{row.metadata.category}</span>
                     {hasVisibleSettingsSubgroup(row.metadata.subgroup) ? <span>{row.metadata.subgroup}</span> : null}
                 </div>
-                <div className="whitespace-pre-wrap wrap-break-word text-foreground">
-                    {row.metadata.helpFull || row.metadata.helpShort}
+                <div className="wrap-break-word text-foreground">
+                    <MarkupRenderer content={row.metadata.helpFull || row.metadata.helpShort} />
                 </div>
             </div>,
         );

@@ -12,6 +12,7 @@ import {
     type SidebarNavStatus,
 } from "@/components/layout/SidebarNav";
 import Loading from "@/components/ui/loading";
+import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -648,7 +649,11 @@ export default function SettingsPage() {
     }
 
     if (listQuery.error) {
-        return <div className="text-sm text-destructive">Failed to load settings: {listQuery.error.message}</div>;
+        return (
+            <div className="text-sm text-destructive wrap-break-word">
+                Failed to load settings: <MarkupRenderer content={listQuery.error.message} />
+            </div>
+        );
     }
 
     return (
@@ -658,10 +663,16 @@ export default function SettingsPage() {
                     {(normalized.schemaErrors.length > 0 || normalized.rowParseErrors.length > 0) && (
                         <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
                             {normalized.schemaErrors.map((error) => (
-                                <div key={`schema-${error}`}>Schema: {error}</div>
+                                <div key={`schema-${error}`} className="wrap-break-word">
+                                    <span className="font-medium">Schema:</span>{" "}
+                                    <MarkupRenderer content={error} />
+                                </div>
                             ))}
                             {normalized.rowParseErrors.slice(0, 12).map((error) => (
-                                <div key={`parse-${error}`}>Parse: {error}</div>
+                                <div key={`parse-${error}`} className="wrap-break-word">
+                                    <span className="font-medium">Parse:</span>{" "}
+                                    <MarkupRenderer content={error} />
+                                </div>
                             ))}
                             {normalized.rowParseErrors.length > 12 && <div>…and {normalized.rowParseErrors.length - 12} more parse errors.</div>}
                         </div>
@@ -669,7 +680,9 @@ export default function SettingsPage() {
 
                     {perSettingWarning && (
                         <div className="rounded border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs space-y-2">
-                            <div>{perSettingWarning}</div>
+                            <div className="wrap-break-word">
+                                <MarkupRenderer content={perSettingWarning} />
+                            </div>
                             <Button size="sm" variant="outline" onClick={onRefreshAll}>
                                 Refresh all
                             </Button>

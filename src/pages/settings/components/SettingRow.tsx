@@ -1,5 +1,6 @@
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useCallback, type ReactNode } from "react";
@@ -22,7 +23,7 @@ function SettingHoverTooltip({
     children,
     className,
 }: {
-    content: string;
+    content: ReactNode;
     disabled?: boolean;
     children: ReactNode;
     className?: string;
@@ -79,11 +80,25 @@ export default function SettingRow({
     const typeToneStyle = getSettingTypeToneStyle(row.metadata.argType);
     const rowSpacingClass = subgroupPosition === "last" || subgroupPosition === "only" ? "mb-0" : "mb-1";
     const detailNotes = [
-        subgroupVisible ? row.metadata.subgroup : null,
-        row.rowParseErrors.length > 0 ? row.rowParseErrors.join("; ") : null,
-        isUnsupported ? row.editor.inputSupport.reason ?? "Unsupported web input" : null,
-        unavailableReason,
-    ].filter(Boolean);
+        subgroupVisible
+            ? { key: `subgroup-${row.metadata.subgroup}`, content: row.metadata.subgroup, useMarkup: false }
+            : null,
+        ...row.rowParseErrors.map((error, index) => ({
+            key: `parse-${index}`,
+            content: error,
+            useMarkup: true,
+        })),
+        isUnsupported
+            ? {
+                key: "unsupported",
+                content: row.editor.inputSupport.reason ?? "Unsupported web input",
+                useMarkup: true,
+            }
+            : null,
+        unavailableReason
+            ? { key: "unavailable", content: unavailableReason, useMarkup: true }
+            : null,
+    ].filter((note): note is { key: string; content: string; useMarkup: boolean } => Boolean(note));
 
     return (
         <div
@@ -112,9 +127,16 @@ export default function SettingRow({
                     </div>
 
                     <div className="space-y-0.5">
-                        <SettingHoverTooltip content={helpTooltipText} disabled={!showHelpTooltip}>
+                        <SettingHoverTooltip
+                            content={(
+                                <div className="text-foreground">
+                                    <MarkupRenderer content={helpTooltipText} disableLinkTabStops />
+                                </div>
+                            )}
+                            disabled={!showHelpTooltip}
+                        >
                             <div className="line-clamp-2 text-[11px] leading-4.5 text-muted-foreground">
-                                {row.metadata.helpShort}
+                                <MarkupRenderer content={row.metadata.helpShort} disableLinkTabStops />
                                 {hasMoreHelp && (
                                     <>
                                         {" "}
@@ -132,7 +154,11 @@ export default function SettingRow({
                         {detailNotes.length > 0 && (
                             <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
                                 {detailNotes.map((note) => (
-                                    <span key={note}>{note}</span>
+                                    <span key={note.key} className="wrap-break-word">
+                                        {note.useMarkup
+                                            ? <MarkupRenderer content={note.content} />
+                                            : note.content}
+                                    </span>
                                 ))}
                             </div>
                         )}

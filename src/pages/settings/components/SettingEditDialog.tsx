@@ -1,6 +1,7 @@
 import ArgInput from "@/components/cmd/ArgInput";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import Badge from "@/components/ui/badge";
+import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { Textarea } from "@/components/ui/textarea";
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 import type { ArgInputSupport } from "@/components/cmd/ArgInput";
@@ -43,7 +44,9 @@ function SettingArgInputContent({
     return (
         <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
             <div className="mb-1 font-medium">Unsupported web input for this setting</div>
-            <div className="mb-2">{inputSupport.reason ?? "Unknown type"}</div>
+            <div className="mb-2 wrap-break-word">
+                <MarkupRenderer content={inputSupport.reason ?? "Unknown type"} />
+            </div>
             <Badge variant="outline">Type: {argType || "(missing)"}</Badge>
             <div className="mt-3 space-y-2 text-foreground">
                 <div className="text-xs leading-5 text-muted-foreground">
@@ -124,8 +127,8 @@ export default function SettingEditDialog({
                         </div>
                     )}
 
-                    <div className="text-sm leading-6 text-muted-foreground whitespace-pre-wrap wrap-break-word">
-                        {row.metadata.helpFull || row.metadata.helpShort}
+                    <div className="text-sm leading-6 text-muted-foreground wrap-break-word">
+                        <MarkupRenderer content={row.metadata.helpFull || row.metadata.helpShort} />
                     </div>
 
                     <SettingArgInputContent
@@ -162,7 +165,13 @@ export default function SettingEditDialog({
 
                         {row.rowParseErrors.length > 0 && (
                             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                                {row.rowParseErrors.join("; ")}
+                                <div className="space-y-1 wrap-break-word">
+                                    {row.rowParseErrors.map((error, index) => (
+                                        <div key={`parse-${index}`}>
+                                            <MarkupRenderer content={error} />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>

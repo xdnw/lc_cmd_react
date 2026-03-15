@@ -4,6 +4,7 @@ import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Loading from "@/components/ui/loading";
+import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { cn } from "@/lib/utils";
 import LoginPickerPage from "@/pages/login_picker";
 
@@ -67,6 +68,13 @@ export default function GuildSettingsSubset({
     }, [refreshSingleSetting]);
 
     const { openEditDialog, openHelpDialog } = useGuildSettingDialogs(handleRefreshSetting);
+    const renderedDescription = useMemo(() => {
+        if (typeof description === "string") {
+            return <MarkupRenderer content={description} />;
+        }
+
+        return description;
+    }, [description]);
 
     const handleRefreshAll = useCallback(() => {
         setWarning(null);
@@ -81,7 +89,7 @@ export default function GuildSettingsSubset({
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 pb-3">
             <div className="space-y-1">
                 <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
-                {description ? <div className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</div> : null}
+                {renderedDescription ? <div className="max-w-3xl text-sm leading-6 text-muted-foreground wrap-break-word">{renderedDescription}</div> : null}
                 {showAvailabilitySummary ? (
                     <div className="text-[11px] text-muted-foreground">
                         {formatPlural(filteredRows.length, "setting")}
@@ -108,7 +116,9 @@ export default function GuildSettingsSubset({
         <div className="space-y-3">
             {warning ? (
                 <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
-                    {warning}
+                    <div className="wrap-break-word">
+                        <MarkupRenderer content={warning} />
+                    </div>
                 </div>
             ) : null}
 
@@ -131,7 +141,9 @@ export default function GuildSettingsSubset({
                     <Loading variant="ripple" />
                 </div>
             ) : listQuery.error ? (
-                <div className="text-sm text-destructive">Failed to load settings: {listQuery.error.message}</div>
+                <div className="text-sm text-destructive wrap-break-word">
+                    Failed to load settings: <MarkupRenderer content={listQuery.error.message} />
+                </div>
             ) : flattenedItems.length > 0 ? (
                 <div className="space-y-1.5">
                     {flattenedItems.map((item, index) => (

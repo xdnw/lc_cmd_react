@@ -4,7 +4,7 @@ import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useCallback, type ReactNode } from "react";
-import { hasVisibleSettingsSubgroup, type SettingRow } from "../settingsDomain";
+import type { SettingRow } from "../settingsDomain";
 import SettingClearAction from "./SettingClearAction";
 import { getSettingTypeToneStyle } from "./settingsVisuals";
 
@@ -63,7 +63,6 @@ export default function SettingRow({
     const unavailableReason = !row.flags.isAllowed ? row.flags.availabilityReason : undefined;
     const valueSummary = summarizeValue(row.value.displayText, row.value.hasValue);
     const hasMoreHelp = row.metadata.helpFull.trim() !== row.metadata.helpShort.trim();
-    const subgroupVisible = hasVisibleSettingsSubgroup(row.metadata.subgroup);
     const canEdit = row.flags.isAllowed;
     const helpTooltipText = row.metadata.helpFull || row.metadata.helpShort;
     const showHelpTooltip = helpTooltipText.trim().length > 0;
@@ -80,9 +79,6 @@ export default function SettingRow({
     const typeToneStyle = getSettingTypeToneStyle(row.metadata.argType);
     const rowSpacingClass = subgroupPosition === "last" || subgroupPosition === "only" ? "mb-0" : "mb-1";
     const detailNotes = [
-        subgroupVisible
-            ? { key: `subgroup-${row.metadata.subgroup}`, content: row.metadata.subgroup, useMarkup: false }
-            : null,
         ...row.rowParseErrors.map((error, index) => ({
             key: `parse-${index}`,
             content: error,

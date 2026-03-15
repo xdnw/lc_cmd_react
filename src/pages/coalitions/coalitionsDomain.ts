@@ -1,4 +1,5 @@
 import type { WebCoalitionMember, WebCoalitions } from "@/lib/apitypes.d.ts";
+import { getCanonicalQueryPrefix } from "@/components/cmd/queryOptionDataset";
 import type { AnyCommandPath } from "@/utils/Command";
 
 export const COALITION_GUILD_ID_THRESHOLD = 2_147_483_647;
@@ -16,6 +17,7 @@ export const COALITION_COMMANDS = {
 
 export type CoalitionCommandPath = (typeof COALITION_COMMANDS)[keyof typeof COALITION_COMMANDS];
 export type CoalitionMemberKind = "alliance" | "guild";
+export type CoalitionMemberTokenValue = "canonical" | "id" | "name";
 
 export type CoalitionMemberRecord = {
     key: string;
@@ -64,22 +66,49 @@ function formatSafeId(id: number, isSafeId: boolean): string | undefined {
     return String(Math.trunc(id));
 }
 
-function buildAllianceToken(name: string, idText: string | undefined): string {
-    if (idText) {
-        return `AA:${idText}`;
-    }
-
-    return name ? `AA:${name}` : "";
+function getCoalitionMemberQueryType(kind: CoalitionMemberKind): "DBAlliance" | "GuildDB" {
+    return kind === "guild" ? "GuildDB" : "DBAlliance";
 }
 
-function buildGuildToken(name: string, idText: string | undefined): string {
-    if (idText) {
-        return `guild:${idText}`;
+function qualifyCoalitionMemberValue(kind: CoalitionMemberKind, value: string): string {
+    if (!value) {
+        return "";
     }
 
-    // Guild ids can exceed JS's safe integer range, so fall back to the canonical
-    // name prefix when the numeric id is not precise enough to round-trip safely.
-    return name ? `guild:${name}` : "";
+    const prefix = getCanonicalQueryPrefix(getCoalitionMemberQueryType(kind));
+    if (!prefix) {
+        return value;
+    }
+
+    return value.toLowerCase().startsWith(prefix.toLowerCase()) ? value : `${prefix}${value}`;
+}
+
+function getCoalitionMemberRawValue(member: Pick<CoalitionMemberRecord, "idText" | "name">, value: CoalitionMemberTokenValue): string {
+    switch (value) {
+        case "id":
+            return member.idText ?? "";
+        case "name":
+            return member.name;
+        case "canonical":
+        default:
+            return member.idText ?? member.name;
+    }
+}
+
+export function formatCoalitionMemberToken(
+    member: Pick<CoalitionMemberRecord, "kind" | "idText" | "name">,
+    options: { value?: CoalitionMemberTokenValue; qualified?: boolean } = {},
+): string {
+    const rawValue = getCoalitionMemberRawValue(member, options.value ?? "canonical");
+    if (!rawValue) {
+        return "";
+    }
+
+    if (options.qualified === false) {
+        return rawValue;
+    }
+
+    return qualifyCoalitionMemberValue(member.kind, rawValue);
 }
 
 export function getCoalitionMemberKind(id: number): CoalitionMemberKind {
@@ -92,9 +121,7 @@ export function toCoalitionMemberRecord(member: WebCoalitionMember, index = 0): 
     const idText = formatSafeId(id, isSafeId);
     const name = normalizeCoalitionName(member.name);
     const kind = getCoalitionMemberKind(id);
-    const displayToken = kind === "guild"
-        ? buildGuildToken(name, idText)
-        : buildAllianceToken(name, idText);
+    const displayToken = formatCoalitionMemberToken({ kind, idText, name });
 
     return {
         key: `${kind}:${displayToken || name}:${index}`,
@@ -136,42 +163,45 @@ export function normalizeCoalitions(data: WebCoalitions | undefined): CoalitionR
         .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
 }
 
-function matchesCoalitionQuery(coalition: CoalitionRecord, visibleMembers: CoalitionMemberRecord[], normalizedQuery: string): boolean {
+function matchesCoalitionMemberQuery(member: CoalitionMemberRecord, normalizedQuery: string): boolean {
     if (!normalizedQuery) {
         return true;
     }
 
-    if (coalition.name.toLowerCase().includes(normalizedQuery)) {
+    if (member.name.toLowerCase().includes(normalizedQuery)) {
         return true;
     }
 
-    return visibleMembers.some((member) => {
-        if (member.name.toLowerCase().includes(normalizedQuery)) {
-            return true;
-        }
+    if ((member.idText ?? "").toLowerCase().includes(normalizedQuery)) {
+        return true;
+    }
 
-        if ((member.idText ?? "").toLowerCase().includes(normalizedQuery)) {
-            return true;
-        }
-
-        return member.kind.toLowerCase().includes(normalizedQuery);
-    });
+    return member.kind.toLowerCase().includes(normalizedQuery);
 }
 
 export function filterCoalitions(
     coalitions: CoalitionRecord[],
-    options: { query: string; showDeletedMembers: boolean },
+    options: { query: string; memberVisibility: "active" | "all" | "deleted" },
 ): CoalitionViewRecord[] {
     const normalizedQuery = options.query.trim().toLowerCase();
 
     return coalitions.flatMap((coalition) => {
-        const visibleMembers = options.showDeletedMembers
+        const scopedMembers = options.memberVisibility === "all"
             ? coalition.members
-            : coalition.members.filter((member) => !member.deleted);
+            : options.memberVisibility === "deleted"
+                ? coalition.members.filter((member) => member.deleted)
+                : coalition.members.filter((member) => !member.deleted);
 
-        if (!matchesCoalitionQuery(coalition, visibleMembers, normalizedQuery)) {
+        const coalitionNameMatches = !normalizedQuery || coalition.name.toLowerCase().includes(normalizedQuery);
+        const matchingMembers = normalizedQuery
+            ? scopedMembers.filter((member) => matchesCoalitionMemberQuery(member, normalizedQuery))
+            : scopedMembers;
+
+        if (!coalitionNameMatches && matchingMembers.length === 0) {
             return [];
         }
+
+        const visibleMembers = coalitionNameMatches ? scopedMembers : matchingMembers;
 
         const visibleAllianceMembers = visibleMembers.filter((member) => member.kind === "alliance");
         const visibleGuildMembers = visibleMembers.filter((member) => member.kind === "guild");

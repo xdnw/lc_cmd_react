@@ -1,20 +1,27 @@
-import { useCallback, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useSession } from "@/components/api/SessionContext";
+import { COMMAND_POPUP_OPEN_ATTR } from "@/components/cmd/commandKeyboard";
 import ConfirmCommandActionButton from "@/components/cmd/ConfirmCommandActionButton";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import { useDialog } from "@/components/layout/DialogContext";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import Badge from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import LazyIcon from "@/components/ui/LazyIcon";
 import Loading from "@/components/ui/loading";
 import type { WebCoalitions } from "@/lib/apitypes.d.ts";
 import { LIST_COALITIONS } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
-import RowActionsDetailDialog, { type RowActionsDetailField } from "@/pages/custom_table/actions/RowActionsDetailDialog";
+import { cn } from "@/lib/utils";
 import { usePermission } from "@/utils/PermUtil";
 
 import LoginPickerPage from "../login_picker";
@@ -22,9 +29,11 @@ import {
     COALITION_COMMANDS,
     COALITION_LIST_QUERY_ARGS,
     filterCoalitions,
+    formatCoalitionMemberToken,
     normalizeCoalitions,
     type CoalitionCommandPath,
     type CoalitionMemberRecord,
+    type CoalitionMemberTokenValue,
     type CoalitionViewRecord,
 } from "./coalitionsDomain";
 
@@ -39,6 +48,95 @@ type CommandDialogOptions = {
     initialValues?: Record<string, string>;
     header?: ReactNode;
 };
+
+type CoalitionMemberVisibilityFilter = "active" | "all" | "deleted";
+type CoalitionCopyMode = "ids" | "names";
+type CoalitionCopyScope = "visible" | "selected";
+type CoalitionCopyNameMode = "flat" | "named";
+type CoalitionCopyFeedbackTone = "warning" | "error";
+
+type CoalitionCopyFeedback = {
+    tone: CoalitionCopyFeedbackTone;
+    message: string;
+};
+
+type CompactSegmentedOption<T extends string> = {
+    value: T;
+    label: string;
+    activeClassName?: string;
+    title?: string;
+};
+
+const MEMBER_VISIBILITY_OPTIONS: readonly CompactSegmentedOption<CoalitionMemberVisibilityFilter>[] = [
+    {
+        value: "active",
+        label: "Live",
+        title: "Show non-deleted members",
+        activeClassName: "border-emerald-500/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200",
+    },
+    {
+        value: "all",
+        label: "All",
+        title: "Show all members",
+        activeClassName: "border-sky-500/40 bg-sky-500/15 text-sky-800 dark:text-sky-200",
+    },
+    {
+        value: "deleted",
+        label: "Deleted",
+        title: "Show deleted members only",
+        activeClassName: "border-rose-500/40 bg-rose-500/15 text-rose-800 dark:text-rose-200",
+    },
+] as const;
+
+const COPY_SCOPE_OPTIONS: readonly CompactSegmentedOption<CoalitionCopyScope>[] = [
+    {
+        value: "visible",
+        label: "Visible",
+        title: "Copy all shown coalitions",
+        activeClassName: "border-sky-500/40 bg-sky-500/15 text-sky-800 dark:text-sky-200",
+    },
+    {
+        value: "selected",
+        label: "Selected",
+        title: "Copy only selected coalitions",
+        activeClassName: "border-emerald-500/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200",
+    },
+] as const;
+
+const COPY_QUALIFIER_OPTIONS: readonly CompactSegmentedOption<"qualified" | "plain">[] = [
+    {
+        value: "qualified",
+        label: "Qualified",
+        title: "Copy with canonical prefixes",
+        activeClassName: "border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-200",
+    },
+    {
+        value: "plain",
+        label: "Plain",
+        title: "Copy without prefixes",
+        activeClassName: "border-stone-500/30 bg-stone-500/10 text-stone-800 dark:text-stone-200",
+    },
+] as const;
+
+const COPY_NAME_OPTIONS: readonly CompactSegmentedOption<CoalitionCopyNameMode>[] = [
+    {
+        value: "flat",
+        label: "Flat",
+        title: "Copy a flat merged list without coalition names",
+        activeClassName: "border-stone-500/30 bg-stone-500/10 text-stone-800 dark:text-stone-200",
+    },
+    {
+        value: "named",
+        label: "Named",
+        title: "Prefix each copied coalition with its name",
+        activeClassName: "border-indigo-500/40 bg-indigo-500/15 text-indigo-800 dark:text-indigo-200",
+    },
+] as const;
+
+const COPY_MENU_OPTIONS: readonly { value: CoalitionCopyMode; label: string }[] = [
+    { value: "ids", label: "Copy ids" },
+    { value: "names", label: "Copy names" },
+] as const;
 
 function useOpenCoalitionCommandDialog(onSuccess: () => void) {
     const { showDialog } = useDialog();
@@ -64,154 +162,294 @@ function useOpenCoalitionCommandDialog(onSuccess: () => void) {
     }, [onSuccess, showDialog]);
 }
 
-function CoalitionMemberChips({ members }: { members: CoalitionMemberRecord[] }) {
-    const previewMembers = members.slice(0, 6);
-    const remaining = members.length - previewMembers.length;
+function getCopyTokenValue(mode: CoalitionCopyMode): Exclude<CoalitionMemberTokenValue, "canonical"> {
+    return mode === "ids" ? "id" : "name";
+}
 
-    if (members.length === 0) {
-        return <div className="rounded border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">No members match the current filters.</div>;
+function getMemberVisibilityLabel(visibility: CoalitionMemberVisibilityFilter): string {
+    switch (visibility) {
+        case "active":
+            return "live members";
+        case "deleted":
+            return "deleted members";
+        case "all":
+        default:
+            return "all members";
     }
+}
+
+function formatPlural(count: number, singular: string, plural = `${singular}s`): string {
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function CompactSegmentedControl<T extends string>({
+    ariaLabel,
+    value,
+    options,
+    onChange,
+}: {
+    ariaLabel: string;
+    value: T;
+    options: readonly CompactSegmentedOption<T>[];
+    onChange: (value: T) => void;
+}) {
+    const optionClickHandlers = useMemo(
+        () => options.map((option) => () => onChange(option.value)),
+        [onChange, options],
+    );
 
     return (
-        <div className="flex flex-wrap gap-1.5">
-            {previewMembers.map((member) => (
-                <Badge key={member.key} variant={member.deleted ? "destructive" : "outline"} className="max-w-full gap-1 truncate px-2 py-1 text-[11px]">
-                    <span className="truncate">{member.name}</span>
-                    <span className="text-[10px] opacity-70">{member.kindLabel}</span>
-                </Badge>
-            ))}
-            {remaining > 0 ? <Badge variant="secondary">+{remaining} more</Badge> : null}
+        <div
+            role="radiogroup"
+            aria-label={ariaLabel}
+            className="inline-flex items-center gap-0.5 rounded-md border border-border/80 bg-muted/25 p-0.5"
+        >
+            {options.map((option, index) => {
+                const isActive = option.value === value;
+                return (
+                    <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        title={option.title ?? option.label}
+                        onClick={optionClickHandlers[index]}
+                        className={cn(
+                            "inline-flex h-6 items-center justify-center rounded-sm px-2 text-[10px] font-medium leading-none transition-colors",
+                            isActive
+                                ? cn("border border-border/70 bg-background text-foreground shadow-xs", option.activeClassName)
+                                : "text-foreground/70 hover:bg-background hover:text-foreground",
+                        )}
+                    >
+                        {option.label}
+                    </button>
+                );
+            })}
         </div>
     );
 }
 
-function CoalitionCard({
+function CoalitionCopyMenu({
+    disabled,
+    onCopy,
+}: {
+    disabled?: boolean;
+    onCopy: (mode: CoalitionCopyMode) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const copyHandlers = useMemo(
+        () => COPY_MENU_OPTIONS.map((option) => () => onCopy(option.value)),
+        [onCopy],
+    );
+
+    return (
+        <div {...{ [COMMAND_POPUP_OPEN_ATTR]: open ? "true" : "false" }}>
+            <DropdownMenu open={open} onOpenChange={setOpen}>
+                <DropdownMenuTrigger
+                    disabled={disabled}
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-6 gap-1 rounded-md px-2 text-[11px]")}
+                >
+                    <LazyIcon name="Copy" size={13} className="shrink-0" />
+                    <span>Copy</span>
+                    <LazyIcon name="ChevronDown" size={13} className="shrink-0 opacity-60" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-32">
+                    {COPY_MENU_OPTIONS.map((option, index) => (
+                        <DropdownMenuItem key={option.value} onClick={copyHandlers[index]}>
+                            {option.label}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
+}
+
+function CoalitionMemberPreview({ members }: { members: CoalitionMemberRecord[] }) {
+    const previewMembers = members.slice(0, 8);
+    const remaining = members.length - previewMembers.length;
+
+    if (members.length === 0) {
+        return <div className="text-[11px] text-foreground/55">No matching members.</div>;
+    }
+
+    return (
+        <div className="flex flex-wrap gap-1">
+            {previewMembers.map((member) => (
+                <Badge
+                    key={member.key}
+                    variant={member.deleted ? "destructive" : "outline"}
+                    className="max-w-full px-1.5 text-[10px]"
+                >
+                    <span className="truncate">{member.name}</span>
+                </Badge>
+            ))}
+            {remaining > 0 ? <Badge variant="secondary" className="px-1.5 text-[10px]">+{remaining}</Badge> : null}
+        </div>
+    );
+}
+
+function CoalitionRow({
     coalition,
-    showDeletedMembers,
+    isSelected,
     onManage,
+    onSetSelected,
 }: {
     coalition: CoalitionViewRecord;
-    showDeletedMembers: boolean;
+    isSelected: boolean;
     onManage: (coalitionName: string) => void;
+    onSetSelected: (coalitionKey: string, nextSelected: boolean) => void;
 }) {
-    const hiddenDeletedCount = coalition.deletedMembers - coalition.visibleMembers.filter((member) => member.deleted).length;
+    const summary = useMemo(() => {
+        const parts = [`${coalition.visibleTotalMembers}/${coalition.totalMembers} shown`, `${coalition.visibleAllianceMembers.length} aa`, `${coalition.visibleGuildMembers.length} guild`];
+        if (coalition.deletedMembers > 0) {
+            parts.push(`${coalition.deletedMembers} deleted`);
+        }
+        return parts.join(" • ");
+    }, [
+        coalition.deletedMembers,
+        coalition.totalMembers,
+        coalition.visibleAllianceMembers.length,
+        coalition.visibleGuildMembers.length,
+        coalition.visibleTotalMembers,
+    ]);
+
     const onManageClick = useCallback(() => {
         onManage(coalition.name);
     }, [coalition.name, onManage]);
 
+    const onSelectionChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+        onSetSelected(coalition.key, event.target.checked);
+    }, [coalition.key, onSetSelected]);
+
     return (
-        <Card className="flex h-full flex-col">
-            <CardHeader className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 space-y-1">
-                        <CardTitle className="truncate text-base">{coalition.name}</CardTitle>
-                        <CardDescription>
-                            {coalition.visibleTotalMembers} visible member{coalition.visibleTotalMembers === 1 ? "" : "s"}
-                            {coalition.totalMembers !== coalition.visibleTotalMembers ? ` of ${coalition.totalMembers}` : ""}
-                        </CardDescription>
-                    </div>
-                    {coalition.deletedMembers > 0 ? (
-                        <Badge variant={showDeletedMembers ? "destructive" : "secondary"}>
-                            {coalition.deletedMembers} deleted
-                        </Badge>
-                    ) : null}
+        <div className={cn(
+            "grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-3 py-2.5",
+            isSelected && "bg-emerald-500/6",
+        )}>
+            <div className="min-w-0 space-y-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="truncate text-sm font-semibold text-foreground">{coalition.name}</span>
+                    <span className="text-[11px] text-foreground/55">{summary}</span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                    <Badge variant="outline">{coalition.visibleAllianceMembers.length} alliances</Badge>
-                    <Badge variant="outline">{coalition.visibleGuildMembers.length} guilds</Badge>
-                    {hiddenDeletedCount > 0 ? <Badge variant="secondary">{hiddenDeletedCount} hidden</Badge> : null}
-                </div>
-            </CardHeader>
-            <CardContent className="flex-1 space-y-3">
-                <CoalitionMemberChips members={coalition.visibleMembers} />
-            </CardContent>
-            <CardFooter className="items-center justify-between gap-2">
-                <span className="text-[11px] text-muted-foreground">{coalition.activeMembers} active</span>
-                <Button size="sm" onClick={onManageClick}>
+                <CoalitionMemberPreview members={coalition.visibleMembers} />
+            </div>
+
+            <div className="flex items-start gap-2">
+                <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-[11px]" onClick={onManageClick}>
                     Manage
                 </Button>
-            </CardFooter>
-        </Card>
+                <label className="inline-flex h-6 items-center justify-center rounded-md border border-border/70 bg-background px-1.5">
+                    <Input
+                        type="checkbox"
+                        className="h-4 w-4 rounded-sm"
+                        checked={isSelected}
+                        onChange={onSelectionChange}
+                        aria-label={`Select ${coalition.name}`}
+                        title={`Select ${coalition.name}`}
+                    />
+                </label>
+            </div>
+        </div>
     );
 }
 
 function CoalitionMembersSection({
     title,
     members,
+    emptyMessage,
     coalitionName,
     canRemove,
     onMutationComplete,
 }: {
     title: string;
     members: CoalitionMemberRecord[];
+    emptyMessage: string;
     coalitionName: string;
     canRemove: boolean;
     onMutationComplete: (result?: CommandResult) => void;
 }) {
     const sortedMembers = useMemo(() => {
-        return members.slice().sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
+        return members.slice().sort((left, right) => {
+            if (left.deleted !== right.deleted) {
+                return Number(left.deleted) - Number(right.deleted);
+            }
+
+            return left.name.localeCompare(right.name, undefined, { sensitivity: "base" });
+        });
     }, [members]);
 
-    const hasUnsafeGuildIds = useMemo(() => {
-        return sortedMembers.some((member) => member.kind === "guild" && !member.isSafeId);
-    }, [sortedMembers]);
-
     return (
-        <div className="mt-4 border-t border-border pt-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">{title}</h3>
-                <Badge variant="outline">{sortedMembers.length}</Badge>
+        <section className="overflow-hidden rounded-md border border-border/80 bg-background/80">
+            <div className="flex items-center justify-between gap-2 border-b border-border/70 px-2.5 py-1.5">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground/70">{title}</h3>
+                <span className="text-[11px] text-foreground/60">{sortedMembers.length}</span>
             </div>
-            {hasUnsafeGuildIds ? (
-                <p className="mb-2 text-[11px] text-muted-foreground">
-                    Guild membership is still classified from the returned id threshold, but remove actions fall back to the canonical
-                    <code className="mx-1 rounded bg-muted px-1 py-0.5">guild:</code>
-                    name token when a guild id is not JS-safe.
-                </p>
-            ) : null}
+
             {sortedMembers.length === 0 ? (
-                <div className="text-xs text-muted-foreground">No {title.toLowerCase()} in this coalition.</div>
+                <div className="px-2.5 py-2 text-xs text-foreground/70">{emptyMessage}</div>
             ) : (
-                <div className="space-y-1">
-                    {sortedMembers.map((member) => {
-                        const removeDisabled = !canRemove || !member.displayToken;
-                        return (
-                            <div key={member.key} className="flex items-start gap-2 rounded border border-border px-2 py-1.5 hover:bg-muted/60">
-                                <div className="min-w-0 flex-1 space-y-1">
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className="truncate text-sm font-medium">{member.name}</span>
-                                        <Badge variant="outline">{member.kindLabel}</Badge>
-                                        {member.deleted ? <Badge variant="destructive">Deleted</Badge> : null}
-                                    </div>
-                                    {member.idText ? (
-                                        <div className="text-[11px] text-muted-foreground">
-                                            {member.kind === "guild" ? "Guild" : "Alliance"} id {member.idText}
-                                        </div>
-                                    ) : null}
-                                </div>
-                                <ConfirmCommandActionButton
-                                    command={COALITION_COMMANDS.remove}
-                                    args={{
-                                        coalitionName,
-                                        alliances: member.displayToken,
-                                    }}
-                                    label="Remove"
-                                    disabled={removeDisabled}
-                                    showResultDialog
-                                    onComplete={onMutationComplete}
-                                    resetOnComplete="non-error"
-                                    buttonVariant="destructive"
-                                    buttonSize="sm"
-                                    buttonClassName="h-6 px-2 text-[11px]"
-                                    classes="!m-0 !h-6 !px-2 !w-auto"
-                                    cancelSize="sm"
-                                    cancelClassName="h-6 px-2 text-[11px]"
-                                />
-                            </div>
-                        );
-                    })}
+                <div className="divide-y divide-border/60">
+                    {sortedMembers.map((member) => (
+                        <CoalitionMemberRow
+                            key={member.key}
+                            member={member}
+                            coalitionName={coalitionName}
+                            canRemove={canRemove}
+                            onMutationComplete={onMutationComplete}
+                        />
+                    ))}
                 </div>
             )}
+        </section>
+    );
+}
+
+function CoalitionMemberRow({
+    member,
+    coalitionName,
+    canRemove,
+    onMutationComplete,
+}: {
+    member: CoalitionMemberRecord;
+    coalitionName: string;
+    canRemove: boolean;
+    onMutationComplete: (result?: CommandResult) => void;
+}) {
+    const removeToken = useMemo(() => formatCoalitionMemberToken(member), [member]);
+    const removeDisabled = !canRemove || !removeToken;
+
+    return (
+        <div className="flex items-center gap-2 px-2.5 py-1.5">
+            <div className="min-w-0 flex flex-1 flex-wrap items-center gap-1.5 text-sm text-foreground">
+                <span className="truncate font-medium">{member.name}</span>
+                {member.idText ? (
+                    <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground/75">
+                        id {member.idText}
+                    </span>
+                ) : (
+                    <span className="text-[11px] text-foreground/55">name token</span>
+                )}
+                {member.deleted ? <Badge variant="destructive" className="px-1.5 text-[10px]">Deleted</Badge> : null}
+            </div>
+            <ConfirmCommandActionButton
+                command={COALITION_COMMANDS.remove}
+                args={{
+                    coalitionName,
+                    alliances: removeToken,
+                }}
+                label="Remove"
+                disabled={removeDisabled}
+                showResultDialog
+                onComplete={onMutationComplete}
+                resetOnComplete="non-error"
+                buttonVariant="destructive"
+                buttonSize="sm"
+                buttonClassName="h-6 px-2 text-[10px]"
+                classes="!m-0 !h-6 !w-auto !px-2"
+                cancelSize="sm"
+                cancelClassName="h-6 px-2 text-[10px]"
+            />
         </div>
     );
 }
@@ -268,55 +506,22 @@ function CoalitionDetailDialogContent({
         });
     }, [coalitionName, openCommandDialog]);
 
-    const detailFields = useMemo<readonly RowActionsDetailField[]>(() => {
-        if (!coalition) {
-            return [];
-        }
-
-        return [
-            {
-                key: "coalition-name",
-                label: "Coalition",
-                value: coalition.name,
-            },
-            {
-                key: "total-members",
-                label: "Members",
-                value: String(coalition.totalMembers),
-            },
-            {
-                key: "alliances",
-                label: "Alliances",
-                value: String(coalition.allianceMembers.length),
-            },
-            {
-                key: "guilds",
-                label: "Guilds",
-                value: String(coalition.guildMembers.length),
-            },
-            {
-                key: "deleted",
-                label: "Deleted",
-                value: String(coalition.deletedMembers),
-            },
-        ] as const;
-    }, [coalition]);
-
     const deleteAction = useMemo(() => {
         return (
             <ConfirmCommandActionButton
                 command={COALITION_COMMANDS.delete}
                 args={{ coalitionName }}
-                label="Delete coalition"
+                label="Delete"
                 disabled={!canDelete}
                 showResultDialog
                 onComplete={handleMutationComplete}
                 resetOnComplete="non-error"
                 buttonVariant="destructive"
                 buttonSize="sm"
-                buttonClassName="h-7 px-3"
-                classes="!m-0 !h-7 !px-3 !w-auto"
+                buttonClassName="h-6 px-2 text-[11px]"
+                classes="!m-0 !h-6 !w-auto !px-2"
                 cancelSize="sm"
+                cancelClassName="h-6 px-2 text-[10px]"
             />
         );
     }, [canDelete, coalitionName, handleMutationComplete]);
@@ -336,7 +541,7 @@ function CoalitionDetailDialogContent({
     if (!coalition) {
         return (
             <div className="space-y-3 text-sm">
-                <p className="text-muted-foreground">This coalition is no longer present in the current list.</p>
+                <p className="text-foreground/70">This coalition is no longer present in the current list.</p>
                 <Button size="sm" variant="outline" onClick={onCoalitionMutation}>
                     Refresh coalitions
                 </Button>
@@ -344,47 +549,51 @@ function CoalitionDetailDialogContent({
         );
     }
 
+    const modalSummary = `${coalition.allianceMembers.length} alliances • ${coalition.guildMembers.length} guilds${coalition.deletedMembers > 0 ? ` • ${coalition.deletedMembers} deleted` : ""}`;
+
     return (
-        <div className="space-y-3 pr-1">
+        <div className="space-y-2 text-foreground">
             {permissionErrors.length > 0 ? (
-                <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
                     {permissionErrors.join(" | ")}
                 </div>
             ) : null}
-            <RowActionsDetailDialog
-                fields={detailFields}
-                footerActions={[
-                    {
-                        key: "add-members",
-                        label: "Add members",
-                        onClick: openAddMembersDialog,
-                        disabled: !canAdd,
-                        variant: "outline",
-                    },
-                    {
-                        key: "delete-coalition",
-                        content: deleteAction,
-                    },
-                ]}
-                extraSections={[
-                    <CoalitionMembersSection
-                        key="alliances"
-                        title="Alliance Members"
-                        members={coalition.allianceMembers}
-                        coalitionName={coalition.name}
-                        canRemove={canRemove}
-                        onMutationComplete={handleMutationComplete}
-                    />,
-                    <CoalitionMembersSection
-                        key="guilds"
-                        title="Guild Members"
-                        members={coalition.guildMembers}
-                        coalitionName={coalition.name}
-                        canRemove={canRemove}
-                        onMutationComplete={handleMutationComplete}
-                    />,
-                ]}
-            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/80 bg-muted/10 px-2.5 py-2">
+                <div className="text-[11px] text-foreground/60">{modalSummary}</div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 text-[11px]"
+                        onClick={openAddMembersDialog}
+                        disabled={!canAdd}
+                    >
+                        Add members
+                    </Button>
+                    {deleteAction}
+                </div>
+            </div>
+
+            <div className="grid gap-2">
+                <CoalitionMembersSection
+                    title="Alliances"
+                    members={coalition.allianceMembers}
+                    emptyMessage="No alliances in this coalition."
+                    coalitionName={coalition.name}
+                    canRemove={canRemove}
+                    onMutationComplete={handleMutationComplete}
+                />
+                <CoalitionMembersSection
+                    title="Guilds"
+                    members={coalition.guildMembers}
+                    emptyMessage="No guilds in this coalition."
+                    coalitionName={coalition.name}
+                    canRemove={canRemove}
+                    onMutationComplete={handleMutationComplete}
+                />
+            </div>
         </div>
     );
 }
@@ -394,7 +603,12 @@ export default function CoalitionsPage() {
     const queryClient = useQueryClient();
     const { showDialog } = useDialog();
     const [query, setQuery] = useState("");
-    const [showDeletedMembers, setShowDeletedMembers] = useState(false);
+    const [memberVisibility, setMemberVisibility] = useState<CoalitionMemberVisibilityFilter>("all");
+    const [copyScope, setCopyScope] = useState<CoalitionCopyScope>("visible");
+    const [copyQualifier, setCopyQualifier] = useState<"qualified" | "plain">("qualified");
+    const [copyNameMode, setCopyNameMode] = useState<CoalitionCopyNameMode>("flat");
+    const [copyFeedback, setCopyFeedback] = useState<CoalitionCopyFeedback | null>(null);
+    const [selectedCoalitionKeys, setSelectedCoalitionKeys] = useState<Set<string>>(() => new Set());
 
     const listQuery = useQuery({
         ...bulkQueryOptions(LIST_COALITIONS.endpoint, COALITION_LIST_QUERY_ARGS),
@@ -422,26 +636,35 @@ export default function CoalitionsPage() {
         return normalizeCoalitions(listQuery.data?.data as WebCoalitions | undefined);
     }, [listQuery.data]);
 
+    useEffect(() => {
+        const validKeys = new Set(normalizedCoalitions.map((coalition) => coalition.key));
+        setSelectedCoalitionKeys((current) => {
+            const next = new Set(Array.from(current).filter((key) => validKeys.has(key)));
+            return next.size === current.size ? current : next;
+        });
+    }, [normalizedCoalitions]);
+
     const coalitions = useMemo(() => {
         return filterCoalitions(normalizedCoalitions, {
             query,
-            showDeletedMembers,
+            memberVisibility,
         });
-    }, [normalizedCoalitions, query, showDeletedMembers]);
+    }, [memberVisibility, normalizedCoalitions, query]);
+
+    const selectedVisibleCoalitions = useMemo(() => {
+        return coalitions.filter((coalition) => selectedCoalitionKeys.has(coalition.key));
+    }, [coalitions, selectedCoalitionKeys]);
+
+    const copyTargets = useMemo(() => {
+        return copyScope === "selected" ? selectedVisibleCoalitions : coalitions;
+    }, [coalitions, copyScope, selectedVisibleCoalitions]);
 
     const totals = useMemo(() => {
-        const totalMembers = normalizedCoalitions.reduce((sum, coalition) => sum + coalition.totalMembers, 0);
-        const deletedMembers = normalizedCoalitions.reduce((sum, coalition) => sum + coalition.deletedMembers, 0);
-        const visibleMembers = coalitions.reduce((sum, coalition) => sum + coalition.visibleTotalMembers, 0);
-
         return {
             totalCoalitions: normalizedCoalitions.length,
             shownCoalitions: coalitions.length,
-            totalMembers,
-            visibleMembers,
-            deletedMembers,
         };
-    }, [coalitions, normalizedCoalitions]);
+    }, [coalitions.length, normalizedCoalitions.length]);
 
     const topPermissionErrors = useMemo(() => {
         const errors: string[] = [];
@@ -457,13 +680,43 @@ export default function CoalitionsPage() {
 
     const openCommandDialog = useOpenCoalitionCommandDialog(refreshCoalitions);
 
-    const openCoalitionDetails = useCallback((coalitionName: string) => {
+    const setCoalitionSelected = useCallback((coalitionKey: string, nextSelected: boolean) => {
+        setSelectedCoalitionKeys((current) => {
+            const next = new Set(current);
+            if (nextSelected) {
+                next.add(coalitionKey);
+            } else {
+                next.delete(coalitionKey);
+            }
+            return next;
+        });
+    }, []);
+
+    const visibleCoalitionKeys = useMemo(() => coalitions.map((coalition) => coalition.key), [coalitions]);
+
+    const allVisibleSelected = useMemo(() => {
+        return visibleCoalitionKeys.length > 0 && visibleCoalitionKeys.every((key) => selectedCoalitionKeys.has(key));
+    }, [selectedCoalitionKeys, visibleCoalitionKeys]);
+
+    const toggleSelectVisible = useCallback(() => {
+        setSelectedCoalitionKeys((current) => {
+            const next = new Set(current);
+            const shouldSelect = visibleCoalitionKeys.some((key) => !next.has(key));
+            for (const key of visibleCoalitionKeys) {
+                if (shouldSelect) {
+                    next.add(key);
+                } else {
+                    next.delete(key);
+                }
+            }
+            return next;
+        });
+    }, [visibleCoalitionKeys]);
+
+    const openCoalitionDetails = useCallback((name: string) => {
         showDialog(
-            coalitionName,
-            <CoalitionDetailDialogContent
-                coalitionName={coalitionName}
-                onCoalitionMutation={refreshCoalitions}
-            />,
+            name,
+            <CoalitionDetailDialogContent coalitionName={name} onCoalitionMutation={refreshCoalitions} />,
             {
                 openInNewTab: true,
                 focusNewTab: true,
@@ -474,10 +727,6 @@ export default function CoalitionsPage() {
 
     const onQueryChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         setQuery(event.target.value);
-    }, []);
-
-    const toggleDeletedMembers = useCallback(() => {
-        setShowDeletedMembers((current) => !current);
     }, []);
 
     const openCreateCoalitionDialog = useCallback(() => {
@@ -504,6 +753,76 @@ export default function CoalitionsPage() {
         });
     }, [openCommandDialog]);
 
+    const handleCopyCoalitions = useCallback(async (mode: CoalitionCopyMode) => {
+        if (copyTargets.length === 0) {
+            setCopyFeedback({
+                tone: "warning",
+                message: copyScope === "selected"
+                    ? "Select at least one shown coalition before copying."
+                    : "No shown coalitions are available to copy.",
+            });
+            return;
+        }
+
+        const tokenValue = getCopyTokenValue(mode);
+        const qualified = copyQualifier === "qualified";
+        const includeNames = copyNameMode === "named";
+        const rows = copyTargets.map((coalition) => {
+            const rawTokens = coalition.visibleMembers
+                .map((member) => formatCoalitionMemberToken(member, { value: tokenValue, qualified }))
+                .filter(Boolean);
+
+            return {
+                coalitionName: coalition.name,
+                tokens: Array.from(new Set(rawTokens)),
+                skippedCount: coalition.visibleMembers.length - rawTokens.length,
+            };
+        });
+        const copyableRows = rows.filter((row) => row.tokens.length > 0);
+        const skippedTotal = rows.reduce((sum, row) => sum + row.skippedCount, 0);
+
+        if (copyableRows.length === 0) {
+            setCopyFeedback({
+                tone: "warning",
+                message: mode === "ids"
+                    ? `No safe ids are available for ${getMemberVisibilityLabel(memberVisibility)}.`
+                    : `No names are available for ${getMemberVisibilityLabel(memberVisibility)}.`,
+            });
+            return;
+        }
+
+        if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+            setCopyFeedback({
+                tone: "error",
+                message: "Clipboard access is unavailable in this browser context.",
+            });
+            return;
+        }
+
+        const output = includeNames
+            ? copyableRows.map((row) => `${row.coalitionName}: ${row.tokens.join(", ")}`).join("\n")
+            : Array.from(new Set(copyableRows.flatMap((row) => row.tokens))).join(", ");
+
+        try {
+            await navigator.clipboard.writeText(output);
+            if (skippedTotal > 0) {
+                setCopyFeedback({
+                    tone: "warning",
+                    message: `Copied with skips. ${formatPlural(skippedTotal, "member")} had no ${mode === "ids" ? "safe id" : "copyable name"}.`,
+                });
+                return;
+            }
+
+            setCopyFeedback(null);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            setCopyFeedback({
+                tone: "error",
+                message: `Copy failed: ${message}`,
+            });
+        }
+    }, [copyNameMode, copyQualifier, copyScope, copyTargets, memberVisibility]);
+
     const pageHeaderConfig = useMemo<PageHeaderConfig | null>(() => {
         if (!session?.guild || listQuery.isLoading || listQuery.error) {
             return null;
@@ -517,88 +836,117 @@ export default function CoalitionsPage() {
                     <span className="text-xs text-muted-foreground">
                         {totals.shownCoalitions} shown of {totals.totalCoalitions}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                        {totals.visibleMembers} visible members
-                    </span>
                 </div>
             ),
             content: (
-                <div className="grid gap-2 lg:grid-cols-[minmax(18rem,32rem)_minmax(0,1fr)] lg:items-center">
-                    <Input
-                        value={query}
-                        onChange={onQueryChange}
-                        placeholder="Search coalitions, alliances, or guilds"
-                        className="h-8"
-                    />
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                            type="button"
-                            variant={showDeletedMembers ? "default" : "outline"}
-                            size="sm"
-                            onClick={toggleDeletedMembers}
-                        >
-                            {showDeletedMembers
-                                ? "Showing deleted members"
-                                : totals.deletedMembers > 0
-                                    ? `Show deleted members (${totals.deletedMembers})`
-                                    : "Hide deleted members"}
-                        </Button>
-                        {listQuery.isFetching ? <span className="text-[11px] text-muted-foreground">Refreshing coalition list...</span> : null}
+                <div className="space-y-1.5">
+                    <div className="grid gap-2 xl:grid-cols-[minmax(16rem,1fr)_auto] xl:items-center">
+                        <Input
+                            value={query}
+                            onChange={onQueryChange}
+                            placeholder="Search coalitions, alliances, or guilds"
+                            className="h-8"
+                        />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <CompactSegmentedControl
+                                ariaLabel="Coalition member visibility"
+                                value={memberVisibility}
+                                options={MEMBER_VISIBILITY_OPTIONS}
+                                onChange={setMemberVisibility}
+                            />
+                            <CompactSegmentedControl
+                                ariaLabel="Copy target scope"
+                                value={copyScope}
+                                options={COPY_SCOPE_OPTIONS}
+                                onChange={setCopyScope}
+                            />
+                            <CompactSegmentedControl
+                                ariaLabel="Copy formatting"
+                                value={copyQualifier}
+                                options={COPY_QUALIFIER_OPTIONS}
+                                onChange={setCopyQualifier}
+                            />
+                            <CompactSegmentedControl
+                                ariaLabel="Coalition name in copy output"
+                                value={copyNameMode}
+                                options={COPY_NAME_OPTIONS}
+                                onChange={setCopyNameMode}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={toggleSelectVisible}
+                                disabled={visibleCoalitionKeys.length === 0}
+                            >
+                                {allVisibleSelected ? "Clear shown" : "Select shown"}
+                            </Button>
+                            <CoalitionCopyMenu disabled={copyTargets.length === 0} onCopy={handleCopyCoalitions} />
+                            {listQuery.isFetching ? <span className="text-[11px] text-muted-foreground">Refreshing...</span> : null}
+                        </div>
                     </div>
+                    {copyFeedback ? (
+                        <div
+                            className={cn(
+                                "rounded-md border px-2 py-1 text-[11px]",
+                                copyFeedback.tone === "warning" && "border-amber-500/35 bg-amber-500/10 text-amber-950 dark:text-amber-200",
+                                copyFeedback.tone === "error" && "border-destructive/35 bg-destructive/10 text-destructive",
+                            )}
+                        >
+                            {copyFeedback.message}
+                        </div>
+                    ) : null}
                 </div>
             ),
             actions: (
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={refreshCoalitions} disabled={listQuery.isFetching}>
-                        Refresh
-                    </Button>
                     <Button
                         size="sm"
-                        variant="outline"
                         onClick={openCreateCoalitionDialog}
                         disabled={!canCreate}
+                        className="before:bg-emerald-600 hover:before:bg-emerald-500 active:before:bg-emerald-700"
                     >
                         Create coalition
                     </Button>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={openGenerateCoalitionDialog}
-                        disabled={!canGenerate}
-                    >
+                    <Button size="sm" variant="outline" onClick={openGenerateCoalitionDialog} disabled={!canGenerate}>
                         Generate coalition
                     </Button>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={openCoalitionSheetDialog}
-                        disabled={!canExportSheet}
-                    >
+                    <Button size="sm" variant="outline" onClick={openCoalitionSheetDialog} disabled={!canExportSheet}>
                         Export sheet
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={refreshCoalitions} disabled={listQuery.isFetching}>
+                        Refresh
                     </Button>
                 </div>
             ),
         } satisfies PageHeaderConfig;
     }, [
+        allVisibleSelected,
         canCreate,
         canExportSheet,
         canGenerate,
+        copyFeedback,
+        copyNameMode,
+        copyQualifier,
+        copyScope,
+        copyTargets.length,
+        handleCopyCoalitions,
         listQuery.error,
         listQuery.isFetching,
         listQuery.isLoading,
+        memberVisibility,
+        onQueryChange,
         openCoalitionSheetDialog,
         openCreateCoalitionDialog,
         openGenerateCoalitionDialog,
-        onQueryChange,
         query,
         refreshCoalitions,
         session?.guild,
-        showDeletedMembers,
-        toggleDeletedMembers,
-        totals.deletedMembers,
+        toggleSelectVisible,
         totals.shownCoalitions,
         totals.totalCoalitions,
-        totals.visibleMembers,
+        visibleCoalitionKeys.length,
     ]);
 
     usePageHeader(pageHeaderConfig);
@@ -622,43 +970,34 @@ export default function CoalitionsPage() {
     return (
         <div className="pb-6">
             <div className="w-full px-3 sm:px-4">
-                <div className="mx-auto max-w-6xl space-y-3">
+                <div className="mx-auto max-w-6xl space-y-2">
                     {topPermissionErrors.length > 0 ? (
-                        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
                             {topPermissionErrors.join(" | ")}
                         </div>
                     ) : null}
 
-                    <div className="rounded border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                        Coalition membership uses the backend list read model, and member kind is derived from the id threshold rule:
-                        <code className="mx-1 rounded bg-background px-1 py-0.5">id &gt; 2147483647</code>
-                        means guild, otherwise alliance.
-                    </div>
-
                     {coalitions.length > 0 ? (
-                        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-                            {coalitions.map((coalition) => (
-                                <CoalitionCard
-                                    key={coalition.key}
-                                    coalition={coalition}
-                                    showDeletedMembers={showDeletedMembers}
-                                    onManage={openCoalitionDetails}
-                                />
-                            ))}
-                        </div>
+                        <section className="overflow-hidden rounded-md border border-border/70 bg-background/70">
+                            <div className="divide-y divide-border/60">
+                                {coalitions.map((coalition) => (
+                                    <CoalitionRow
+                                        key={coalition.key}
+                                        coalition={coalition}
+                                        isSelected={selectedCoalitionKeys.has(coalition.key)}
+                                        onManage={openCoalitionDetails}
+                                        onSetSelected={setCoalitionSelected}
+                                    />
+                                ))}
+                            </div>
+                        </section>
                     ) : (
-                        <div className="rounded border border-dashed border-border px-4 py-8 text-sm text-muted-foreground">
+                        <div className="rounded-md border border-dashed border-border px-4 py-6 text-sm text-foreground/70">
                             {totals.totalCoalitions === 0
                                 ? "No coalitions were returned for the current guild context."
-                                : "No coalitions match the current search and deleted-member filters."}
+                                : "No coalitions match the current filters."}
                         </div>
                     )}
-
-                    {totals.totalCoalitions > 0 ? (
-                        <div className="text-[11px] text-muted-foreground">
-                            {totals.totalMembers} total member entries across {totals.totalCoalitions} coalition{totals.totalCoalitions === 1 ? "" : "s"}.
-                        </div>
-                    ) : null}
                 </div>
             </div>
         </div>

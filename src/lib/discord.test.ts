@@ -36,6 +36,31 @@ describe("markup", () => {
         expect(html).toContain("<em>italic</em>");
     });
 
+    it("renders slash command references as in-app command links", () => {
+        const html = markup({
+            txt: "Run </settings info:1481873961384935498>",
+            replaceEmoji: false,
+        });
+
+        expect(html).toContain('class="command-reference"');
+        expect(html).toContain('href="#/command/settings%20info"');
+        expect(html).toContain('>/settings info</a>');
+    });
+
+    it("renders plain mention tokens as stub spans without embed metadata", () => {
+        const html = markup({
+            txt: "Hello <@123> in <#456> with <@&789>",
+            replaceEmoji: false,
+        });
+
+        expect(html).toContain('class="mention user"');
+        expect(html).toContain('&lt;@123&gt;');
+        expect(html).toContain('class="mention channel"');
+        expect(html).toContain('&lt;#456&gt;');
+        expect(html).toContain('class="mention role"');
+        expect(html).toContain('&lt;@&amp;789&gt;');
+    });
+
     it("reuses prepared embed options without changing mention rendering", () => {
         const embed = {
             id: "prepared-options",

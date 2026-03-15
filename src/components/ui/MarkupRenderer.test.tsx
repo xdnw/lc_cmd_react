@@ -42,6 +42,23 @@ describe("MarkupRenderer", () => {
         expect(screen.getByText("italic").tagName).toBe("EM");
     });
 
+    it("renders command references as in-app links", () => {
+        const { container } = render(<MarkupRenderer content="Try </settings info:1481873961384935498>" />);
+
+        const anchor = container.querySelector("a.command-reference");
+        expect(anchor).toBeTruthy();
+        expect(anchor?.getAttribute("href")).toBe("#/command/settings%20info");
+        expect(anchor?.textContent).toBe("/settings info");
+    });
+
+    it("renders plain mention tokens as stub spans", () => {
+        const { container } = render(<MarkupRenderer content="<#1234> <@1234> <@&1234>" />);
+
+        const mentions = Array.from(container.querySelectorAll("span.mention"));
+        expect(mentions).toHaveLength(3);
+        expect(mentions.map((mention) => mention.textContent)).toEqual(["<#1234>", "<@1234>", "<@&1234>"]);
+    });
+
     it("can keep generated links out of the tab order for embedded arg descriptions", () => {
         const { container } = render(<MarkupRenderer content="https://example.com" disableLinkTabStops />);
 

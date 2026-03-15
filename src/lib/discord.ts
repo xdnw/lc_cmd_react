@@ -12,14 +12,11 @@ export interface HtmlOptions {
         everyone: () => string;
         here: () => string;
         timestamp: (node: { timestamp: number; style: string }) => string;
-        // You could also add other callbacks like `slash` if you plan to support them
-        // slash?: (node: { name: string; id: string }) => string;
+        slash: (node: { name: string; id: string }) => string;
     };
 }
 
-type DiscordCallback = Partial<HtmlOptions["discordCallback"]> & {
-    slash?: (name: string, id: string) => string;
-};
+type DiscordCallback = Partial<HtmlOptions["discordCallback"]>;
 
 const HTML_ESCAPE_TEST_RE = /[&<>"]/;
 const URL_RE = /\bhttps?:\/\/[^\s<>'"]+/gi;
@@ -42,88 +39,125 @@ const MARK_CLOSE_TAG: Record<"b" | "i" | "u" | "s" | "sp", string> = {
     sp: "</span>",
 };
 
+const DEFAULT_DISCORD_CALLBACK: HtmlOptions["discordCallback"] = {
+    user: (node) => renderMentionSpan("user", node.id, `<@${node.id}>`),
+    channel: (node) => renderMentionSpan("channel", node.id, `<#${node.id}>`),
+    role: (node) => renderMentionSpan("role", node.id, `<@&${node.id}>`),
+    everyone: () => `<span class="mention everyone">@everyone</span>`,
+    here: () => `<span class="mention here">@here</span>`,
+    timestamp: (node) => renderTimestampReference(node.timestamp, node.style),
+    slash: (node) => renderSlashCommandReference(node.name, node.id),
+};
+
+const DEFAULT_HTML_OPTIONS: HtmlOptions = {
+    escapeHTML: true,
+    discordCallback: DEFAULT_DISCORD_CALLBACK,
+};
+
+function normalizeHtmlOptions(options?: HtmlOptions): HtmlOptions {
+    if (!options) {
+        return DEFAULT_HTML_OPTIONS;
+    }
+
+    return {
+        escapeHTML: options.escapeHTML,
+        discordCallback: {
+            ...DEFAULT_DISCORD_CALLBACK,
+            ...options.discordCallback,
+        },
+    };
+}
+
 export function createOptions({ embed, showDialog }:
     {
         embed: DiscordEmbed,
         showDialog?: ShowDialogFn;
     }): HtmlOptions {
-    // Will add later, but should include in interface
-    // users?: { [key: string]: string };
-    // channels?: { [key: string]: string };
-    // roles?: { [key: string]: string };
     return {
         escapeHTML: true,
         discordCallback: {
+            ...DEFAULT_DISCORD_CALLBACK,
             // user: (id: Number) User mentions "@someperson"
             user: (node: { id: string; }): string => {
                 const user = embed.users && embed.users[node.id];
                 if (user) {
-                    return `<span class="mention user" data-id="${node.id}">${user}</span>`;
+                    return renderMentionSpan("user", node.id, user);
                 }
-                return `<span class="mention user" data-id="${node.id}">&lt;@${node.id}&gt;</span>`;
+                return DEFAULT_DISCORD_CALLBACK.user(node);
             },
             // channel: (id: Number) Channel mentions "#somechannel"
             channel: (node: { id: string; }): string => {
                 const channel = embed.channels && embed.channels[node.id];
                 if (channel) {
-                    return `<span class="mention channel" data-id="${node.id}">${channel}</span>`;
+                    return renderMentionSpan("channel", node.id, channel);
                 }
-                return `<span class="mention channel" data-id="${node.id}">&lt;#${node.id}&gt;</span>`;
+                return DEFAULT_DISCORD_CALLBACK.channel(node);
             },
             // role: (id: Number) Role mentions "@somerole"
             role: (node: { id: string; }): string => {
                 const role = embed.roles && embed.roles[node.id];
                 if (role) {
-                    return `<span class="mention role" data-id="${node.id}">${role}</span>`;
+                    return renderMentionSpan("role", node.id, role);
                 }
-                return `<span class="mention role" data-id="${node.id}">&lt;@&${node.id}&gt;</span>`;
+                return DEFAULT_DISCORD_CALLBACK.role(node);
             },
-            // everyone: () Everyone mention "@everyone"
-            everyone: () => {
-                return `<span class="mention everyone">@everyone</span>`;
-            },
-            // here: () Here mention "@here"
-            here: () => {
-                return `<span class="mention here">@here</span>`;
-            },
-            // slash: (name: String, id: Number) Slash command reference "</somecommand:someid>"
-            // timestamp: (timestamp: Number, style: String|undefined) Relative timestamp reference "<t:sometimestamp:somestyle>"
             timestamp: (node: { timestamp: number; style: string; }): string => {
-                const timestamp = formatTimestamp(node.timestamp, node.style);
-                let updateScript = '';
-                const now = Date.now();
-                if (node.style === 'R') {
-                    const diff = Math.abs(now - node.timestamp * 1000) / 1000;
-                    let frequency;
-                    if (diff < 60) {
-                        frequency = 1000;
-                    } else if (diff < 3600) {
-                        frequency = 60000;
-                    } else if (diff < 86400) {
-                        frequency = 3600000;
-                    } else if (diff < 31536000) {
-                        frequency = 86400000;
-                    } else {
-                        frequency = 31536000000;
-                    }
-                    if (frequency !== 31536000000) {
-                        (global as unknown as { formatTimestamp: (timestamp: number, style: string) => string }).formatTimestamp = formatTimestamp;
-                        updateScript = `<iframe src="about:blank"  class='hidden' onload="(function() {
-                                const element = document.querySelector('.timestamp[data-timestamp=\\'${node.timestamp}\\']');
-                                if (element) {
-                                    setInterval(() => {
-                                        const newTimestamp = formatTimestamp(${node.timestamp}, '${node.style}');
-                                        element.innerHTML = newTimestamp;
-                                    }, ${frequency});
-                                }
-                            })()"></iframe>`;
-                    }
-                }
-                const url = `https://www.epochconverter.com/${node.timestamp > now ? "countdown" : ""}?q=${node.timestamp}`
-                return `<a class="timestamp bg-background p-0.5 rounded-sm" data-timestamp="${node.timestamp}" data-style="${node.style}" href="${url}">${timestamp}</a>${updateScript}`;
-            }
+                return renderTimestampReference(node.timestamp, node.style);
+            },
         }
     };
+}
+
+function renderMentionSpan(kind: "user" | "channel" | "role", id: string, label: string): string {
+    return `<span class="mention ${kind}" data-id="${safeAttr(id)}">${escapeHtml(label)}</span>`;
+}
+
+function createCommandReferenceHref(name: string): string {
+    return `#/command/${encodeURIComponent(name)}`;
+}
+
+function renderSlashCommandReference(name: string, id: string): string {
+    const commandName = name.trim();
+    if (!commandName) {
+        return safeLtGt(`</${name}:${id}>`);
+    }
+
+    return `<a class="command-reference" data-command-id="${safeAttr(id)}" href="${createCommandReferenceHref(commandName)}">${escapeHtml(`/${commandName}`)}</a>`;
+}
+
+function renderTimestampReference(timestampSeconds: number, style: string): string {
+    const timestamp = formatTimestamp(timestampSeconds, style);
+    let updateScript = '';
+    const now = Date.now();
+    if (style === 'R') {
+        const diff = Math.abs(now - timestampSeconds * 1000) / 1000;
+        let frequency;
+        if (diff < 60) {
+            frequency = 1000;
+        } else if (diff < 3600) {
+            frequency = 60000;
+        } else if (diff < 86400) {
+            frequency = 3600000;
+        } else if (diff < 31536000) {
+            frequency = 86400000;
+        } else {
+            frequency = 31536000000;
+        }
+        if (frequency !== 31536000000) {
+            (global as unknown as { formatTimestamp: (timestamp: number, style: string) => string }).formatTimestamp = formatTimestamp;
+            updateScript = `<iframe src="about:blank"  class='hidden' onload="(function() {
+                    const element = document.querySelector('.timestamp[data-timestamp=\\'${timestampSeconds}\\']');
+                    if (element) {
+                        setInterval(() => {
+                            const newTimestamp = formatTimestamp(${timestampSeconds}, '${style}');
+                            element.innerHTML = newTimestamp;
+                        }, ${frequency});
+                    }
+                })()"></iframe>`;
+        }
+    }
+    const url = `https://www.epochconverter.com/${timestampSeconds > now ? "countdown" : ""}?q=${timestampSeconds}`;
+    return `<a class="timestamp bg-background p-0.5 rounded-sm" data-timestamp="${timestampSeconds}" data-style="${style}" href="${url}">${timestamp}</a>${updateScript}`;
 }
 
 function formatTimestamp(timestamp: number, style: string): string {
@@ -177,7 +211,7 @@ export function markupWithPreparedOptions({
         txt = txt.replace(MARKUP_EMOJI_REPLACE_RE, (match, p: string) => p && emojis[p] ? emojis[p] : match);
     }
 
-    return toHTML(txt, options ?? { escapeHTML: true } as HtmlOptions);
+    return toHTML(txt, normalizeHtmlOptions(options));
 }
 
 export function markup({ txt, replaceEmoji, embed, showDialog }: { txt: string, replaceEmoji: boolean, embed?: DiscordEmbed, showDialog?: ShowDialogFn }): string {
@@ -687,7 +721,7 @@ function renderDiscordAngles(payload: string, cb: DiscordCallback): string | nul
     if (m) {
         const name = m[1];
         const id = m[2];
-        if (cb.slash) return cb.slash(name, id);
+        if (cb.slash) return cb.slash({ name, id });
         return safeLtGt(`</${name}:${id}>`);
     }
 

@@ -382,12 +382,12 @@ function CoalitionMembersSection({
     return (
         <section className="overflow-hidden rounded-md border border-border/80 bg-background/80">
             <div className="flex items-center justify-between gap-2 border-b border-border/70 px-2.5 py-1.5">
-                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground/70">{title}</h3>
-                <span className="text-[11px] text-foreground/60">{sortedMembers.length}</span>
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground/80">{title}</h3>
+                <span className="text-[11px] text-foreground/75">{sortedMembers.length}</span>
             </div>
 
             {sortedMembers.length === 0 ? (
-                <div className="px-2.5 py-2 text-xs text-foreground/70">{emptyMessage}</div>
+                <div className="px-2.5 py-2 text-xs text-foreground/80">{emptyMessage}</div>
             ) : (
                 <div className="divide-y divide-border/60">
                     {sortedMembers.map((member) => (
@@ -428,7 +428,7 @@ function CoalitionMemberRow({
                         id {member.idText}
                     </span>
                 ) : (
-                    <span className="text-[11px] text-foreground/55">name token</span>
+                    <span className="text-[11px] text-foreground/75">name token</span>
                 )}
                 {member.deleted ? <Badge variant="destructive" className="px-1.5 text-[10px]">Deleted</Badge> : null}
             </div>
@@ -541,7 +541,7 @@ function CoalitionDetailDialogContent({
     if (!coalition) {
         return (
             <div className="space-y-3 text-sm">
-                <p className="text-foreground/70">This coalition is no longer present in the current list.</p>
+                <p className="text-foreground/80">This coalition is no longer present in the current list.</p>
                 <Button size="sm" variant="outline" onClick={onCoalitionMutation}>
                     Refresh coalitions
                 </Button>
@@ -560,7 +560,7 @@ function CoalitionDetailDialogContent({
             ) : null}
 
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/80 bg-muted/10 px-2.5 py-2">
-                <div className="text-[11px] text-foreground/60">{modalSummary}</div>
+                <div className="text-[11px] text-foreground/75">{modalSummary}</div>
                 <div className="flex flex-wrap items-center gap-1.5">
                     <Button
                         type="button"

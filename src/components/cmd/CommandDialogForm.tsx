@@ -251,7 +251,7 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
             ref={rootRef}
             {...shellEscapeProps}
             tabIndex={-1}
-            className="flex min-h-0 flex-1 flex-col gap-2"
+            className="flex min-h-0 flex-1 flex-col gap-2 text-foreground"
             onMouseDownCapture={handleMouseDownCapture}
             onBlurCapture={handleBlurCapture}
             onKeyDownCapture={handleKeyDownCapture}

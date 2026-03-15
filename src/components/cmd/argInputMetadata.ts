@@ -78,7 +78,7 @@ function getQuerySource(optionData: OptionData): string | undefined {
         return optionData.composite.join(", ");
     }
     if (optionData.query) {
-        return optionData.typeKey;
+        return optionData.queryTypeKey;
     }
     return undefined;
 }
@@ -246,6 +246,18 @@ function resolveArgInputUncached(breakdown: TypeBreakdown): ArgInputResolution {
         }
 
         return { kind: "set", componentName: "SetInput", support: supported(), optionData };
+    }
+
+    // Annotated string families use the base String query config, but they must
+    // still resolve to the query-backed selector instead of the generic textbox.
+    if (lower === "string" && optionData.query && breakdown.annotations) {
+        return {
+            kind: "query",
+            componentName: "QueryComponent",
+            support: supported(),
+            optionData,
+            querySource: getQuerySource(optionData),
+        };
     }
 
     if (lower === "boolean") {

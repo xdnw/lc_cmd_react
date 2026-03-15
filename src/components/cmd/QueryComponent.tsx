@@ -168,12 +168,13 @@ function formatDeferredSearchPrompt(optionCount: number): string {
 }
 
 export default function QueryComponent(
-    {element, multi, argName, initialValue, setOutputValue, preloadOptions}:
+    {element, multi, argName, initialValue, setOutputValue, allowCustomOption = false, preloadOptions}:
     {
         element: string,
         multi: boolean,
         argName: string,
         initialValue: string,
+        allowCustomOption?: boolean,
         preloadOptions?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
@@ -183,18 +184,20 @@ export default function QueryComponent(
         multi={multi}
         argName={argName}
         initialValue={initialValue}
+        allowCustomOption={allowCustomOption}
         preloadOptions={preloadOptions}
         setOutputValue={setOutputValue}
     />;
 }
 
 export function CompositeQueryComponent(
-    {composites, multi, argName, initialValue, setOutputValue, preloadOptions}:
+    {composites, multi, argName, initialValue, setOutputValue, allowCustomOption = false, preloadOptions}:
     {
         composites: string[],
         multi: boolean,
         argName: string,
         initialValue: string,
+        allowCustomOption?: boolean,
         preloadOptions?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
@@ -204,18 +207,20 @@ export function CompositeQueryComponent(
         multi={multi}
         argName={argName}
         initialValue={initialValue}
+        allowCustomOption={allowCustomOption}
         preloadOptions={preloadOptions}
         setOutputValue={setOutputValue}
     />;
 }
 
 function ResolvedQueryOptionsComponent(
-    {types, argName, multi, initialValue, setOutputValue, preloadOptions}:
+    {types, argName, multi, initialValue, setOutputValue, allowCustomOption = false, preloadOptions}:
     {
         types: string[],
         argName: string,
         multi: boolean,
         initialValue: string,
+        allowCustomOption?: boolean,
         preloadOptions?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
@@ -230,6 +235,7 @@ function ResolvedQueryOptionsComponent(
                 multi={multi}
                 argName={argName}
                 initialValue={initialValue}
+                allowCustomOption={allowCustomOption}
                 preloadOptions={preloadOptions}
                 setOutputValue={setOutputValue}
             />
@@ -242,6 +248,7 @@ function ResolvedQueryOptionsComponent(
             multi={multi}
             argName={argName}
             initialValue={initialValue}
+            allowCustomOption={allowCustomOption}
             preloadOptions={preloadOptions}
             setOutputValue={setOutputValue}
         />
@@ -249,12 +256,13 @@ function ResolvedQueryOptionsComponent(
 }
 
 function ResolvedQueryOptionsWithLocalQueries(
-    {types, argName, multi, initialValue, setOutputValue, preloadOptions}:
+    {types, argName, multi, initialValue, setOutputValue, allowCustomOption = false, preloadOptions}:
     {
         types: string[],
         argName: string,
         multi: boolean,
         initialValue: string,
+        allowCustomOption?: boolean,
         preloadOptions?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
@@ -274,6 +282,7 @@ function ResolvedQueryOptionsWithLocalQueries(
             multi={multi}
             argName={argName}
             initialValue={initialValue}
+            allowCustomOption={allowCustomOption}
             preloadOptions={preloadOptions}
             setOutputValue={setOutputValue}
         />
@@ -281,13 +290,14 @@ function ResolvedQueryOptionsWithLocalQueries(
 }
 
 function ResolvedQueryOptionsContent(
-    {types, queries, argName, multi, initialValue, setOutputValue, preloadOptions}:
+    {types, queries, argName, multi, initialValue, setOutputValue, allowCustomOption = false, preloadOptions}:
     {
         types: string[],
         queries: QueryLookupResult[],
         argName: string,
         multi: boolean,
         initialValue: string,
+        allowCustomOption?: boolean,
         preloadOptions?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
@@ -334,6 +344,7 @@ function ResolvedQueryOptionsContent(
                 multi={multi}
                 argName={argName}
                 initialValue={initialValue}
+                allowCustomOption={allowCustomOption}
                 preloadOptions={preloadOptions}
                 setOutputValue={setOutputValue}
             />
@@ -356,7 +367,7 @@ function ResolvedQueryOptionsContent(
         <div className="flex flex-col gap-2">
             {combined.warning && <QueryNotice tone="warning" message={combined.warning} />}
             <ListComponent argName={argName} options={combined.options} isMulti={multi} initialValue={initialValue}
-                          setOutputValue={setOutputValue}/>
+                          setOutputValue={setOutputValue} allowCustomOption={allowCustomOption}/>
         </div>
     );
 }
@@ -366,6 +377,7 @@ function DeferredCompositeQueryOptionsList({
     multi,
     argName,
     initialValue,
+    allowCustomOption = false,
     preloadOptions,
     setOutputValue,
 }: {
@@ -373,6 +385,7 @@ function DeferredCompositeQueryOptionsList({
     multi: boolean;
     argName: string;
     initialValue: string;
+    allowCustomOption?: boolean;
     preloadOptions?: boolean;
     setOutputValue: (name: string, value: string) => void;
 }) {
@@ -473,6 +486,7 @@ function DeferredCompositeQueryOptionsList({
                 isMulti={multi}
                 initialValue={initialValue}
                 setOutputValue={setOutputValue}
+                allowCustomOption={allowCustomOption}
                 onSearchValueChange={handleSearchValueChange}
                 optionsArePrefiltered
                 loadingOptions={loading}
@@ -483,12 +497,13 @@ function DeferredCompositeQueryOptionsList({
 }
 
 function SingleQueryOptionsComponent(
-    {element, multi, argName, initialValue, setOutputValue, preloadOptions}:
+    {element, multi, argName, initialValue, setOutputValue, allowCustomOption = false, preloadOptions}:
     {
         element: string,
         multi: boolean,
         argName: string,
         initialValue: string,
+        allowCustomOption?: boolean,
         preloadOptions?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
@@ -503,6 +518,7 @@ function SingleQueryOptionsComponent(
                 multi={multi}
                 argName={argName}
                 initialValue={initialValue}
+                allowCustomOption={allowCustomOption}
                 preloadOptions={preloadOptions}
                 setOutputValue={setOutputValue}
             />
@@ -515,6 +531,7 @@ function SingleQueryOptionsComponent(
             multi={multi}
             argName={argName}
             initialValue={initialValue}
+            allowCustomOption={allowCustomOption}
             preloadOptions={preloadOptions}
             setOutputValue={setOutputValue}
         />
@@ -522,12 +539,13 @@ function SingleQueryOptionsComponent(
 }
 
 function SingleQueryOptionsWithLocalQuery(
-    {element, multi, argName, initialValue, setOutputValue, preloadOptions}:
+    {element, multi, argName, initialValue, setOutputValue, allowCustomOption = false, preloadOptions}:
     {
         element: string,
         multi: boolean,
         argName: string,
         initialValue: string,
+        allowCustomOption?: boolean,
         preloadOptions?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
@@ -547,6 +565,7 @@ function SingleQueryOptionsWithLocalQuery(
             multi={multi}
             argName={argName}
             initialValue={initialValue}
+            allowCustomOption={allowCustomOption}
             preloadOptions={preloadOptions}
             setOutputValue={setOutputValue}
         />
@@ -554,13 +573,14 @@ function SingleQueryOptionsWithLocalQuery(
 }
 
 function SingleQueryOptionsContent(
-    {element, query, multi, argName, initialValue, setOutputValue, preloadOptions}:
+    {element, query, multi, argName, initialValue, setOutputValue, allowCustomOption = false, preloadOptions}:
     {
         element: string,
         query: QueryLookupResult | undefined,
         multi: boolean,
         argName: string,
         initialValue: string,
+        allowCustomOption?: boolean,
         preloadOptions?: boolean,
         setOutputValue: (name: string, value: string) => void
     }
@@ -595,6 +615,7 @@ function SingleQueryOptionsContent(
                 multi={multi}
                 argName={argName}
                 initialValue={initialValue}
+                allowCustomOption={allowCustomOption}
                 preloadOptions={preloadOptions}
                 setOutputValue={setOutputValue}
             />
@@ -611,7 +632,7 @@ function SingleQueryOptionsContent(
 
     return (
         <ListComponent argName={argName} options={resolved.options} isMulti={multi} initialValue={initialValue}
-                      setOutputValue={setOutputValue}/>
+                      setOutputValue={setOutputValue} allowCustomOption={allowCustomOption}/>
     );
 }
 
@@ -621,6 +642,7 @@ function DeferredQueryOptionsList({
     multi,
     argName,
     initialValue,
+    allowCustomOption = false,
     preloadOptions,
     setOutputValue,
 }: {
@@ -629,6 +651,7 @@ function DeferredQueryOptionsList({
     multi: boolean;
     argName: string;
     initialValue: string;
+    allowCustomOption?: boolean;
     preloadOptions?: boolean;
     setOutputValue: (name: string, value: string) => void;
 }) {
@@ -707,6 +730,7 @@ function DeferredQueryOptionsList({
                 isMulti={multi}
                 initialValue={initialValue}
                 setOutputValue={setOutputValue}
+                allowCustomOption={allowCustomOption}
                 onSearchValueChange={handleSearchValueChange}
                 optionsArePrefiltered
                 loadingOptions={loading}

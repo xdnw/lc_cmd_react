@@ -251,11 +251,11 @@ async function fetchBackendOptionsForBreakdown(breakdown: TypeBreakdown): Promis
     return promise;
   }
 
-  return fetchBackendOptionsForType(optionData.typeKey);
+  return fetchBackendOptionsForType(optionData.query ? optionData.queryTypeKey : optionData.typeKey);
 }
 
-function describeBackendResolution(example: string, options: SelectOption[], isMulti: boolean): CheckResult {
-  const resolution = resolveSelectionInput(example, options, isMulti);
+function describeBackendResolution(example: string, options: SelectOption[], isMulti: boolean, allowCustomOption: boolean = false): CheckResult {
+  const resolution = resolveSelectionInput(example, options, isMulti, undefined, allowCustomOption);
   const actualOutput = serializeSelection(resolution.selection, isMulti);
 
   if (resolution.unmatchedTokens.length > 0 || resolution.selection.length === 0) {
@@ -429,7 +429,7 @@ async function inspectDefaultState(type: string, example: string, breakdown: Typ
       return { status: "fail", detail: `Backend returned 0 options for ${backend.source}.` };
     }
     return withBackendWarning(
-      describeBackendResolution(example, backend.options, breakdown.getOptionData().multi),
+      describeBackendResolution(example, backend.options, breakdown.getOptionData().multi, breakdown.getOptionData().custom),
       backend,
     );
   }
@@ -470,7 +470,7 @@ async function inspectDefaultState(type: string, example: string, breakdown: Typ
     }
 
     const isMulti = breakdown.getOptionData().multi;
-    const expectedSelection = resolveSelectionInput(example, options, isMulti).selection;
+    const expectedSelection = resolveSelectionInput(example, options, isMulti, undefined, breakdown.getOptionData().custom).selection;
     if (isMulti) {
       const selectedChipButtons = Array.from(container.querySelectorAll("button"))
         .filter((button) => button.textContent?.trim() === "×");
@@ -622,7 +622,7 @@ async function applyPasteAndCheck(type: string, example: string, breakdown: Type
       return { status: "fail", detail: `Backend returned 0 options for ${backend.source}.` };
     }
     return withBackendWarning(
-      describeBackendResolution(example, backend.options, breakdown.getOptionData().multi),
+      describeBackendResolution(example, backend.options, breakdown.getOptionData().multi, breakdown.getOptionData().custom),
       backend,
     );
   }
@@ -703,7 +703,7 @@ async function applyPasteAndCheck(type: string, example: string, breakdown: Type
     }
 
     fireEvent.paste(input, makeClipboardEventPayload(example));
-    const resolution = resolveSelectionInput(example, options, breakdown.getOptionData().multi);
+    const resolution = resolveSelectionInput(example, options, breakdown.getOptionData().multi, undefined, breakdown.getOptionData().custom);
     const expected = serializeSelection(resolution.selection, breakdown.getOptionData().multi);
     const actual = getLastOutput() ?? "";
     return actual === expected

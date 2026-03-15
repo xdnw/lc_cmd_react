@@ -176,6 +176,19 @@ describe("ArgInput resolution", () => {
     });
   });
 
+  it("routes annotated custom strings through query inputs with the exact annotated query key", () => {
+    const resolution = resolveArgInput(getTypeBreakdown(CM, "String[GuildCoalition]"));
+
+    expect(resolution).toMatchObject({
+      kind: "query",
+      componentName: "QueryComponent",
+      querySource: "String[GuildCoalition]",
+    });
+    expect(resolution.optionData.typeKey).toBe("String");
+    expect(resolution.optionData.queryTypeKey).toBe("String[GuildCoalition]");
+    expect(resolution.optionData.custom).toBe(true);
+  });
+
   it("resolves CityBuild to the dedicated composite input", () => {
     expect(resolveArgInput(getTypeBreakdown(CM, "CityBuild"))).toMatchObject({
       kind: "citybuild",

@@ -324,9 +324,9 @@ export function getExpressionValueSourceRef(typeName: string): ExpressionValueSo
     if (optionData.query) {
         const source: ExpressionValueSourceRef = {
             kind: "query-options",
-            cacheKey: `query:${optionData.typeKey}`,
+            cacheKey: `query:${optionData.queryTypeKey}`,
             typeName,
-            typeKey: optionData.typeKey,
+            typeKey: optionData.queryTypeKey,
         };
         valueSourceCache.set(typeName, source);
         return source;
@@ -385,9 +385,9 @@ export function getExpressionCompletionSourceRefs(typeName: string): ExpressionV
 
             return {
                 kind: "query-options",
-                cacheKey: `query:${optionData.typeKey}`,
+                cacheKey: `query:${optionData.queryTypeKey}`,
                 typeName,
-                typeKey: optionData.typeKey,
+                typeKey: optionData.queryTypeKey,
             } satisfies ExpressionValueSourceRef;
         })();
 

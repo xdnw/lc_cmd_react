@@ -229,7 +229,13 @@ export function resolveOptionForToken(token: string, options: SelectOption[]): S
     return result.option ?? { label: result.normalizedToken, value: result.normalizedToken };
 }
 
-export function resolveSelectionInput(initialValue: string, options: SelectOption[], isMulti: boolean, baseSelection?: SelectOption[]): SelectResolution {
+export function resolveSelectionInput(
+    initialValue: string,
+    options: SelectOption[],
+    isMulti: boolean,
+    baseSelection?: SelectOption[],
+    allowCustomOptions: boolean = false,
+): SelectResolution {
     const tokens = splitInitialValue(initialValue);
     const selection = isMulti ? [...(baseSelection ?? [])] : [];
     const unmatchedTokens: string[] = [];
@@ -275,18 +281,19 @@ export function resolveSelectionInput(initialValue: string, options: SelectOptio
         }
 
         const match = resolveOptionMatch(rawToken, options);
-        matchedTokens.push(match);
-        if (!match.option) {
+        const resolvedOption = match.option ?? (allowCustomOptions ? resolveOptionForToken(rawToken, options) : null);
+        matchedTokens.push(resolvedOption && !match.option ? { ...match, option: resolvedOption } : match);
+        if (!resolvedOption || !resolvedOption.value) {
             unmatchedTokens.push(rawToken);
             continue;
         }
 
         if (isMulti) {
-            if (!selection.some((option) => option.value === match.option!.value)) {
-                selection.push(match.option);
+            if (!selection.some((option) => option.value === resolvedOption.value)) {
+                selection.push(resolvedOption);
             }
         } else {
-            selection.splice(0, selection.length, match.option);
+            selection.splice(0, selection.length, resolvedOption);
         }
     }
 
@@ -298,8 +305,8 @@ export function resolveSelectionInput(initialValue: string, options: SelectOptio
     };
 }
 
-export function resolveInitialSelection(initialValue: string, options: SelectOption[], isMulti: boolean): SelectOption[] {
-    const resolved = resolveSelectionInput(initialValue, options, isMulti).selection;
+export function resolveInitialSelection(initialValue: string, options: SelectOption[], isMulti: boolean, allowCustomOptions: boolean = false): SelectOption[] {
+    const resolved = resolveSelectionInput(initialValue, options, isMulti, undefined, allowCustomOptions).selection;
 
     if (resolved.length === 0) return [];
     return isMulti ? dedupeByValue(resolved) : [resolved[0]];

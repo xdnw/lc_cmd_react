@@ -2,28 +2,28 @@
   "generatedAt": "2026-03-08T12:00:00.000Z",
   "summary": {
     "totalExamples": 260,
-    "supportedExamples": 255,
-    "unsupportedExamples": 5,
+    "supportedExamples": 254,
+    "unsupportedExamples": 6,
     "renderStatuses": {
-      "pass": 255,
+      "pass": 254,
       "fail": 0,
-      "unsupported": 5,
+      "unsupported": 6,
       "query-backed": 0,
       "uncheckable": 0,
       "render-error": 0
     },
     "defaultStatuses": {
-      "pass": 215,
-      "fail": 40,
-      "unsupported": 5,
+      "pass": 198,
+      "fail": 56,
+      "unsupported": 6,
       "query-backed": 0,
       "uncheckable": 0,
       "render-error": 0
     },
     "pasteStatuses": {
-      "pass": 215,
-      "fail": 40,
-      "unsupported": 5,
+      "pass": 187,
+      "fail": 67,
+      "unsupported": 6,
       "query-backed": 0,
       "uncheckable": 0,
       "render-error": 0
@@ -103,11 +103,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild."
+        "detail": "Backend request failed for AppMenu: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild."
+        "detail": "Backend request failed for AppMenu: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -123,11 +123,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild."
+        "detail": "Backend request failed for AppMenu: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for AppMenu: AppMenu requires a guild. Please select a guild."
+        "detail": "Backend request failed for AppMenu: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -221,13 +221,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected Yes to be selected by default, but got True."
+        "status": "pass",
+        "detail": "Default selected True as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted 1.",
-        "actualOutput": "1"
+        "detail": "Paste emitted True.",
+        "actualOutput": "True"
       }
     },
     {
@@ -241,13 +241,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected Yes to be selected by default, but got True."
+        "status": "pass",
+        "detail": "Default selected True as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted 1.",
-        "actualOutput": "1"
+        "detail": "Paste emitted True.",
+        "actualOutput": "True"
       }
     },
     {
@@ -261,13 +261,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected Yes to be selected by default, but got True."
+        "status": "pass",
+        "detail": "Default selected True as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted 1.",
-        "actualOutput": "1"
+        "detail": "Paste emitted True.",
+        "actualOutput": "True"
       }
     },
     {
@@ -281,13 +281,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected Yes to be selected by default, but got True."
+        "status": "pass",
+        "detail": "Default selected True as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted 1.",
-        "actualOutput": "1"
+        "detail": "Paste emitted True.",
+        "actualOutput": "True"
       }
     },
     {
@@ -301,13 +301,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected Yes to be selected by default, but got True."
+        "status": "pass",
+        "detail": "Default selected True as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted 1.",
-        "actualOutput": "1"
+        "detail": "Paste emitted True.",
+        "actualOutput": "True"
       }
     },
     {
@@ -321,13 +321,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected Yes to be selected by default, but got True."
+        "status": "pass",
+        "detail": "Default selected True as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted 1.",
-        "actualOutput": "1"
+        "detail": "Paste emitted True.",
+        "actualOutput": "True"
       }
     },
     {
@@ -341,13 +341,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected No to be selected by default, but got False."
+        "status": "pass",
+        "detail": "Default selected False as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted -1.",
-        "actualOutput": "-1"
+        "detail": "Paste emitted False.",
+        "actualOutput": "False"
       }
     },
     {
@@ -361,13 +361,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected No to be selected by default, but got False."
+        "status": "pass",
+        "detail": "Default selected False as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted -1.",
-        "actualOutput": "-1"
+        "detail": "Paste emitted False.",
+        "actualOutput": "False"
       }
     },
     {
@@ -381,13 +381,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected No to be selected by default, but got False."
+        "status": "pass",
+        "detail": "Default selected False as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted -1.",
-        "actualOutput": "-1"
+        "detail": "Paste emitted False.",
+        "actualOutput": "False"
       }
     },
     {
@@ -401,13 +401,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected No to be selected by default, but got False."
+        "status": "pass",
+        "detail": "Default selected False as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted -1.",
-        "actualOutput": "-1"
+        "detail": "Paste emitted False.",
+        "actualOutput": "False"
       }
     },
     {
@@ -421,13 +421,13 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Expected No to be selected by default, but got False."
+        "status": "pass",
+        "detail": "Default selected False as expected."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted -1.",
-        "actualOutput": "-1"
+        "detail": "Paste emitted False.",
+        "actualOutput": "False"
       }
     },
     {
@@ -446,8 +446,8 @@
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted 0.",
-        "actualOutput": "0"
+        "detail": "Paste emitted (empty).",
+        "actualOutput": ""
       }
     },
     {
@@ -761,14 +761,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (544) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliance: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (544) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliance: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -783,14 +781,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (544) to 13809.",
-        "actualOutput": "13809"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliance: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (544) to 13809.",
-        "actualOutput": "13809"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliance: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -805,14 +801,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (544) to 13809.",
-        "actualOutput": "13809"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliance: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (544) to 13809.",
-        "actualOutput": "13809"
+        "status": "fail",
+        "detail": "Backend request failed for DBAlliance: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -828,11 +822,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild."
+        "detail": "Backend request failed for DBAlliancePosition: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild."
+        "detail": "Backend request failed for DBAlliancePosition: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -848,11 +842,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild."
+        "detail": "Backend request failed for DBAlliancePosition: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for DBAlliancePosition: DBAlliancePosition requires a guild. Please select a guild."
+        "detail": "Backend request failed for DBAlliancePosition: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -867,14 +861,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (6455) to 229898.",
-        "actualOutput": "229898"
+        "status": "fail",
+        "detail": "Backend request failed for DBBan: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (6455) to 229898.",
-        "actualOutput": "229898"
+        "status": "fail",
+        "detail": "Backend request failed for DBBan: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -930,11 +922,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend returned 0 options for DBLoan."
+        "detail": "Backend request failed for DBLoan: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend returned 0 options for DBLoan."
+        "detail": "Backend request failed for DBLoan: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -949,14 +941,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18365) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18365) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -972,13 +962,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"<@664156861033086987>\". Unmatched: <@664156861033086987>. Backend options (18365): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18355 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for DBNation: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"<@664156861033086987>\". Unmatched: <@664156861033086987>. Backend options (18365): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18355 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for DBNation: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -993,14 +981,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18365) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18365) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -1015,14 +1001,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18365) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18365) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -1436,11 +1420,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for GrantRequest: GrantRequest requires a guild. Please select a guild."
+        "detail": "Backend request failed for GrantRequest: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for GrantRequest: GrantRequest requires a guild. Please select a guild."
+        "detail": "Backend request failed for GrantRequest: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -1475,14 +1459,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15) to 672217848311054346.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for Guild: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15) to 672217848311054346.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for Guild: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -1497,14 +1479,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15) to 672217848311054346.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for GuildDB: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (15) to 672217848311054346.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for GuildDB: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -1519,14 +1499,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (559) to 672217848311054346.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for GuildDB, DBAlliance: GuildDB: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (559) to 672217848311054346.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for GuildDB, DBAlliance: GuildDB: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -1541,14 +1519,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (559) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for GuildDB, DBAlliance: GuildDB: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (559) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for GuildDB, DBAlliance: GuildDB: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -2041,12 +2017,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w3d16h48m47s)."
+        "detail": "Default produced a normalized timediff value (2w16h53m39s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:924527000).",
-        "actualOutput": "timediff:924527000"
+        "detail": "Paste emitted a timediff value (timediff:1270419000).",
+        "actualOutput": "timediff:1270419000"
       }
     },
     {
@@ -2061,12 +2037,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w3d16h48m47s)."
+        "detail": "Default produced a normalized timediff value (2w16h53m39s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:924527000).",
-        "actualOutput": "timediff:924527000"
+        "detail": "Paste emitted a timediff value (timediff:1270419000).",
+        "actualOutput": "timediff:1270419000"
       }
     },
     {
@@ -2141,12 +2117,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w3d16h48m47s)."
+        "detail": "Default produced a normalized timediff value (2w16h53m39s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:924527000).",
-        "actualOutput": "timediff:924527000"
+        "detail": "Paste emitted a timediff value (timediff:1270419000).",
+        "actualOutput": "timediff:1270419000"
       }
     },
     {
@@ -2161,12 +2137,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timediff value (1w3d16h48m47s)."
+        "detail": "Default produced a normalized timediff value (2w16h53m39s)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timediff value (timediff:924527000).",
-        "actualOutput": "timediff:924527000"
+        "detail": "Paste emitted a timediff value (timediff:1270419000).",
+        "actualOutput": "timediff:1270419000"
       }
     },
     {
@@ -2201,12 +2177,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-11T16:48:47.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-15T16:53:39.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773208127000).",
-        "actualOutput": "timestamp:1773208127000"
+        "detail": "Paste emitted a timestamp value (timestamp:1773554019000).",
+        "actualOutput": "timestamp:1773554019000"
       }
     },
     {
@@ -2221,12 +2197,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-06T16:48:47.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-10T16:53:39.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772776127000).",
-        "actualOutput": "timestamp:1772776127000"
+        "detail": "Paste emitted a timestamp value (timestamp:1773122019000).",
+        "actualOutput": "timestamp:1773122019000"
       }
     },
     {
@@ -2321,12 +2297,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-11T16:48:47.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-15T16:53:39.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1773208127000).",
-        "actualOutput": "timestamp:1773208127000"
+        "detail": "Paste emitted a timestamp value (timestamp:1773554019000).",
+        "actualOutput": "timestamp:1773554019000"
       }
     },
     {
@@ -2341,12 +2317,12 @@
       },
       "defaultValue": {
         "status": "pass",
-        "detail": "Default produced a normalized timestamp input value (2026-03-06T16:48:47.000)."
+        "detail": "Default produced a normalized timestamp input value (2026-03-10T16:53:39.000)."
       },
       "paste": {
         "status": "pass",
-        "detail": "Paste emitted a timestamp value (timestamp:1772776127000).",
-        "actualOutput": "timestamp:1772776127000"
+        "detail": "Paste emitted a timestamp value (timestamp:1773122019000).",
+        "actualOutput": "timestamp:1773122019000"
       }
     },
     {
@@ -2722,11 +2698,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
+        "detail": "Backend request failed for Member: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
+        "detail": "Backend request failed for Member: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -2742,11 +2718,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
+        "detail": "Backend request failed for Member: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
+        "detail": "Backend request failed for Member: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3061,14 +3037,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18909) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18909) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3083,14 +3057,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18909) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18909) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3105,14 +3077,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18909) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18909) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3127,14 +3097,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 189573.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3149,14 +3117,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 11657.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3171,14 +3137,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 672217848311054346.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 672217848311054346.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3193,14 +3157,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 189573. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 189573. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": "189573"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3215,14 +3177,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 11657. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 11657. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": "11657"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3237,14 +3197,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 672217848311054346. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 672217848311054346. Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": "672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3260,13 +3218,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"tax_id=26171\". Unmatched: tax_id=26171. Backend options (18924): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18914 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": ""
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"tax_id=26171\". Unmatched: tax_id=26171. Backend options (18924): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18914 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": ""
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3282,13 +3238,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"https://politicsandwar.com/index.php?id=15&tax_id=26171\". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18924): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18914 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": ""
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"https://politicsandwar.com/index.php?id=15&tax_id=26171\". Unmatched: https://politicsandwar.com/index.php?id=15&tax_id=26171. Backend options (18924): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18914 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": ""
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3683,14 +3637,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (102) to 1.",
-        "actualOutput": "1"
+        "status": "fail",
+        "detail": "Backend request failed for Report: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (102) to 1.",
-        "actualOutput": "1"
+        "status": "fail",
+        "detail": "Backend request failed for Report: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3786,11 +3738,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
+        "detail": "Backend request failed for Role: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
+        "detail": "Backend request failed for Role: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3806,11 +3758,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
+        "detail": "Backend request failed for Role: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
+        "detail": "Backend request failed for Role: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3826,11 +3778,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
+        "detail": "Backend request failed for Role: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
+        "detail": "Backend request failed for Role: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -3896,21 +3848,20 @@
     {
       "type": "SelectionAlias",
       "example": "nation:*,#cities>10",
-      "controlKind": "query",
-      "componentName": "QueryComponent",
-      "querySource": "SelectionAlias",
-      "supported": true,
+      "controlKind": "text",
+      "componentName": "UnknownType",
+      "supported": false,
       "render": {
-        "status": "pass",
-        "detail": "Rendered successfully."
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
       },
       "defaultValue": {
-        "status": "fail",
-        "detail": "Backend request failed for SelectionAlias: SelectionAlias requires a guild. Please select a guild."
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
       },
       "paste": {
-        "status": "fail",
-        "detail": "Backend request failed for SelectionAlias: SelectionAlias requires a guild. Please select a guild."
+        "status": "unsupported",
+        "detail": "Type is not currently supported by ArgInput."
       }
     },
     {
@@ -4066,11 +4017,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for Category: Category requires a guild. Please select a guild."
+        "detail": "Backend request failed for Category: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for Category: Category requires a guild. Please select a guild."
+        "detail": "Backend request failed for Category: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4246,11 +4197,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
+        "detail": "Backend request failed for Member: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for Member: Member requires a guild. Please select a guild."
+        "detail": "Backend request failed for Member: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4325,14 +4276,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 189573,11657,672217848311054346.",
-        "actualOutput": "189573,11657,672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (18924) to 189573,11657,672217848311054346.",
-        "actualOutput": "189573,11657,672217848311054346"
+        "status": "fail",
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4348,13 +4297,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=26171\". Unmatched: tax_id=26171. Backend options (18924): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18914 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": "189573,11657,672217848311054346"
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"borg,AA:Singularity,672217848311054346,tax_id=26171\". Unmatched: tax_id=26171. Backend options (18924): Viltrum empire [745350], Weona [673189], United Kingdom 2011 [747724], Pakistan99 [752210], Hindu Swaraj [751023], Jordandia [572139], New Sealand [754584], BlackWaterCorporation [160416], CANZUK [435864], Aaryavrt [749836] ... (+18914 more). Warning: TaxBracket: TaxBracket requires a guild. Please select a guild.",
-        "actualOutput": "189573,11657,672217848311054346"
+        "detail": "Backend request failed for DBNation, DBAlliance, GuildDB, TaxBracket: DBNation: Failed to fetch: 502 Bad Gateway | DBAlliance: Failed to fetch: 502 Bad Gateway | GuildDB: Failed to fetch: 502 Bad Gateway | TaxBracket: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4510,11 +4457,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
+        "detail": "Backend request failed for Role: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for Role: Role requires a guild. Please select a guild."
+        "detail": "Backend request failed for Role: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4740,41 +4687,41 @@
     {
       "type": "String[GuildCoalition]",
       "example": "dnr",
-      "controlKind": "text",
-      "componentName": "StringInput",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "String[GuildCoalition]",
       "supported": true,
       "render": {
         "status": "pass",
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default field value matched the example."
+        "status": "fail",
+        "detail": "Backend request failed for String[GuildCoalition]: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted dnr.",
-        "actualOutput": "dnr"
+        "status": "fail",
+        "detail": "Backend request failed for String[GuildCoalition]: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
       "type": "String[MenuLabel]",
       "example": "Confirm",
-      "controlKind": "text",
-      "componentName": "StringInput",
+      "controlKind": "query",
+      "componentName": "QueryComponent",
+      "querySource": "String[MenuLabel]",
       "supported": true,
       "render": {
         "status": "pass",
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Default field value matched the example."
+        "status": "fail",
+        "detail": "Backend request failed for String[MenuLabel]: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Paste emitted Confirm.",
-        "actualOutput": "Confirm"
+        "status": "fail",
+        "detail": "Backend request failed for String[MenuLabel]: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4850,11 +4797,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
+        "detail": "Backend request failed for TaxBracket: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
+        "detail": "Backend request failed for TaxBracket: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4870,11 +4817,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
+        "detail": "Backend request failed for TaxBracket: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
+        "detail": "Backend request failed for TaxBracket: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4890,11 +4837,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
+        "detail": "Backend request failed for TaxBracket: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for TaxBracket: TaxBracket requires a guild. Please select a guild."
+        "detail": "Backend request failed for TaxBracket: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4950,11 +4897,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
+        "detail": "Backend request failed for TextChannel: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
+        "detail": "Backend request failed for TextChannel: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4970,11 +4917,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
+        "detail": "Backend request failed for TextChannel: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
+        "detail": "Backend request failed for TextChannel: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -4990,11 +4937,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
+        "detail": "Backend request failed for TextChannel: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "Backend request failed for TextChannel: TextChannel requires a guild. Please select a guild."
+        "detail": "Backend request failed for TextChannel: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -5010,13 +4957,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"1234:5678\". Unmatched: 1234:5678. Backend options (517): NAP:Defensive Treaty Organization/AA:14120 [31331], MDOAP:United Socialist Nations/Paddys Pub [32716], NAP:The Imperial Grand House/Chimera [31793], OFFSHORE:United Workers Network/Borgs Cat Cafe [32980], ODP:The Commonwealth of orbis/Agora [32584], MDOAP:Singularity/House Stark [32651], MDOAP:Federated States of Orbis/The Fremen [31200], MDP:Elastic Bands/The Rising Coast [31727], MDOAP:Singularity/The Fighting Pacifists [32650], PROTECTORATE:Yarr/AA:12544 [29615] ... (+507 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for Treaty: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"1234:5678\". Unmatched: 1234:5678. Backend options (517): NAP:Defensive Treaty Organization/AA:14120 [31331], MDOAP:United Socialist Nations/Paddys Pub [32716], NAP:The Imperial Grand House/Chimera [31793], OFFSHORE:United Workers Network/Borgs Cat Cafe [32980], ODP:The Commonwealth of orbis/Agora [32584], MDOAP:Singularity/House Stark [32651], MDOAP:Federated States of Orbis/The Fremen [31200], MDP:Elastic Bands/The Rising Coast [31727], MDOAP:Singularity/The Fighting Pacifists [32650], PROTECTORATE:Yarr/AA:12544 [29615] ... (+507 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for Treaty: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -5051,14 +4996,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (252) to 664156861033086987.",
-        "actualOutput": "664156861033086987"
+        "status": "fail",
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (252) to 664156861033086987.",
-        "actualOutput": "664156861033086987"
+        "status": "fail",
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -5073,14 +5016,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (252) to 664156861033086987.",
-        "actualOutput": "664156861033086987"
+        "status": "fail",
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (252) to 664156861033086987.",
-        "actualOutput": "664156861033086987"
+        "status": "fail",
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -5095,14 +5036,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (252) to 664156861033086987.",
-        "actualOutput": "664156861033086987"
+        "status": "fail",
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (252) to 664156861033086987.",
-        "actualOutput": "664156861033086987"
+        "status": "fail",
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -5118,13 +5057,11 @@
       },
       "defaultValue": {
         "status": "fail",
-        "detail": "No backend match for \"Borg\". Unmatched: Borg. Backend options (252): cadn [228928965845188608], imgnAI [1054891522786611231], epicbeetle626 [501191012493033482], assisaki [1051851858735534141], kztor [202523678078926858], dr.rush [217897994375266304], booboo5298 [1123729132379971656], Ticket Tool [557628352828014614], therealiodinamacer [974805584845099028], pwmernal [1338479826637557760] ... (+242 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
         "status": "fail",
-        "detail": "No backend match for \"Borg\". Unmatched: Borg. Backend options (252): cadn [228928965845188608], imgnAI [1054891522786611231], epicbeetle626 [501191012493033482], assisaki [1051851858735534141], kztor [202523678078926858], dr.rush [217897994375266304], booboo5298 [1123729132379971656], Ticket Tool [557628352828014614], therealiodinamacer [974805584845099028], pwmernal [1338479826637557760] ... (+242 more).",
-        "actualOutput": ""
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       }
     },
     {
@@ -5139,14 +5076,12 @@
         "detail": "Rendered successfully."
       },
       "defaultValue": {
-        "status": "pass",
-        "detail": "Resolved against backend options (252) to 664156861033086987.",
-        "actualOutput": "664156861033086987"
+        "status": "fail",
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       },
       "paste": {
-        "status": "pass",
-        "detail": "Resolved against backend options (252) to 664156861033086987.",
-        "actualOutput": "664156861033086987"
+        "status": "fail",
+        "detail": "Backend request failed for User: Failed to fetch: 502 Bad Gateway"
       }
     },
     {

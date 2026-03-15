@@ -254,6 +254,34 @@ describe("CompositeQueryComponent", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("keeps the exact annotated query type and forwards custom-entry support", () => {
+    useQueriesMock.mockReturnValue([
+      {
+        isLoading: false,
+        error: null,
+        data: {
+          data: makeWebOptions([{ label: "spyops", value: "spyops" }]),
+        },
+      },
+    ]);
+
+    render(
+      <QueryComponent
+        element="String[GuildCoalition]"
+        multi={false}
+        argName="coalition"
+        initialValue=""
+        allowCustomOption
+        setOutputValue={vi.fn()}
+      />,
+    );
+
+    const queryConfig = useQueriesMock.mock.calls[0]?.[0] as { queries: Array<{ queryKey: unknown }> };
+    expect(JSON.stringify(queryConfig.queries[0]?.queryKey)).toContain("String[GuildCoalition]");
+    const lastListProps = listComponentMock.mock.calls[listComponentMock.mock.calls.length - 1]?.[0];
+    expect(lastListProps).toMatchObject({ allowCustomOption: true });
+  });
+
   it("reuses shared command query registry results instead of creating a per-input query hook", () => {
     useQueriesMock.mockReturnValue([
       {

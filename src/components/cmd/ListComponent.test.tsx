@@ -143,6 +143,95 @@ describe("ListComponent keyboard contract", () => {
     expect(setOutputValue).toHaveBeenCalledWith("nation", "borg");
   });
 
+  it("commits freeform values when custom options are allowed and no option matches", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="coalition"
+        options={[
+          { label: "spyops", value: "spyops" },
+          { label: "allies", value: "allies" },
+        ]}
+        isMulti={false}
+        initialValue=""
+        allowCustomOption
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "SpyOps-2" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(setOutputValue).toHaveBeenCalledWith("coalition", "SpyOps-2");
+  });
+
+  it("waits for deferred-query loading to finish before committing freeform custom values", () => {
+    const setOutputValue = vi.fn();
+    const { rerender } = render(
+      <ListComponent
+        argName="coalition"
+        options={[]}
+        isMulti={false}
+        initialValue=""
+        allowCustomOption
+        optionsArePrefiltered
+        loadingOptions
+        emptyMessage="Type 1+ characters to search 6,000 options."
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "SpyOps-2" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(setOutputValue).not.toHaveBeenCalled();
+
+    rerender(
+      <ListComponent
+        argName="coalition"
+        options={[]}
+        isMulti={false}
+        initialValue=""
+        allowCustomOption
+        optionsArePrefiltered
+        loadingOptions={false}
+        emptyMessage="No matching options."
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+
+    expect(setOutputValue).toHaveBeenCalledTimes(1);
+    expect(setOutputValue).toHaveBeenCalledWith("coalition", "SpyOps-2");
+  });
+
+  it("preserves an initial freeform value when custom options are allowed", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="coalition"
+        options={[
+          { label: "spyops", value: "spyops" },
+          { label: "allies", value: "allies" },
+        ]}
+        isMulti={false}
+        initialValue="SpyOps-2"
+        allowCustomOption
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const input = screen.getByRole("combobox");
+    expect(input.getAttribute("placeholder")).toBe("SpyOps-2");
+  });
+
   it("keeps the popup open while focus is moving into the portaled option list", () => {
     const setOutputValue = vi.fn();
 

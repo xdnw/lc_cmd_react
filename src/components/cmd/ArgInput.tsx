@@ -126,8 +126,9 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
         setOutputValue={setOutputValue} displayMode={displayMode} />;
 
     case "query":
-      return <QueryComponent element={options.typeKey} multi={options.multi}
-        argName={argName} initialValue={currentValue} setOutputValue={setOutputValue} preloadOptions={forceMountAll || prewarm} />;
+      return <QueryComponent element={options.queryTypeKey} multi={options.multi}
+        argName={argName} initialValue={currentValue} setOutputValue={setOutputValue}
+        allowCustomOption={options.custom} preloadOptions={forceMountAll || prewarm} />;
 
     case "boolean":
       if (resolution.booleanMode === "tri-state") {

@@ -12,6 +12,7 @@ import {
     dedupeByValue,
     resolveInitialSelection,
     resolveOptionMatch,
+    resolveOptionForToken,
     resolveSelectionInput,
     serializeSelection,
     summarizeOptions,
@@ -144,6 +145,7 @@ type ListComponentProps = {
     isMulti: boolean;
     initialValue: string;
     setOutputValue: (name: string, value: string) => void;
+    allowCustomOption?: boolean;
     onSearchValueChange?: (value: string) => void;
     optionsArePrefiltered?: boolean;
     loadingOptions?: boolean;
@@ -179,6 +181,7 @@ function getPopupListInputAction({
     inputValue,
     canOpenOnEnter,
     allowBackspaceRemove,
+    allowFreeformCommit,
 }: {
     key: string;
     isOpen: boolean;
@@ -187,6 +190,7 @@ function getPopupListInputAction({
     inputValue: string;
     canOpenOnEnter: boolean;
     allowBackspaceRemove: boolean;
+    allowFreeformCommit: boolean;
 }): PopupListInputAction {
     if (key === "Escape") {
         return isOpen ? { type: "close" } : { type: "blur-input" };
@@ -204,6 +208,10 @@ function getPopupListInputAction({
         return { type: "none" };
     }
 
+    if (key === "Enter" && allowFreeformCommit && itemCount === 0 && inputValue.trim().length > 0) {
+        return { type: "commit-freeform" };
+    }
+
     const searchListAction = getSearchListKeyboardAction({
         key,
         itemCount,
@@ -218,7 +226,7 @@ function getPopupListInputAction({
     }
 
     if (searchListAction.type === "activate") {
-        return itemCount > 0 ? { type: "commit-highlighted" } : { type: "commit-freeform" };
+        return { type: "commit-highlighted" };
     }
 
     if (key === "Backspace" && allowBackspaceRemove && !inputValue) {
@@ -593,6 +601,7 @@ function usePopupListInputKeyDown({
     inputValue,
     canOpenOnEnter,
     allowBackspaceRemove,
+    allowFreeformCommit,
     onOpen,
     onClose,
     onMove,
@@ -607,6 +616,7 @@ function usePopupListInputKeyDown({
     inputValue: string;
     canOpenOnEnter: boolean;
     allowBackspaceRemove: boolean;
+    allowFreeformCommit: boolean;
     onOpen: () => void;
     onClose: () => void;
     onMove: (nextIndex: number) => void;
@@ -624,6 +634,7 @@ function usePopupListInputKeyDown({
             inputValue,
             canOpenOnEnter,
             allowBackspaceRemove,
+            allowFreeformCommit,
         });
 
         switch (action.type) {
@@ -660,12 +671,15 @@ function usePopupListInputKeyDown({
             default:
                 return;
         }
-    }, [activeIndex, allowBackspaceRemove, canOpenOnEnter, inputValue, isOpen, itemCount, onBlurInput, onClose, onCommitFreeform, onCommitHighlighted, onMove, onOpen, onRemoveLast]);
+    }, [activeIndex, allowBackspaceRemove, allowFreeformCommit, canOpenOnEnter, inputValue, isOpen, itemCount, onBlurInput, onClose, onCommitFreeform, onCommitHighlighted, onMove, onOpen, onRemoveLast]);
 }
 
-function SingleSelectListComponent({ argName, options, initialValue, setOutputValue, onSearchValueChange, optionsArePrefiltered = false, loadingOptions = false, emptyMessage }: Omit<ListComponentProps, "isMulti">) {
+function SingleSelectListComponent({ argName, options, initialValue, setOutputValue, allowCustomOption = false, onSearchValueChange, optionsArePrefiltered = false, loadingOptions = false, emptyMessage }: Omit<ListComponentProps, "isMulti">) {
     const { showDialog } = useDialog();
-    const normalizedInitialSelection = useMemo(() => resolveInitialSelection(initialValue || '', options, false)[0] ?? null, [initialValue, options]);
+    const normalizedInitialSelection = useMemo(
+        () => resolveInitialSelection(initialValue || '', options, false, allowCustomOption)[0] ?? null,
+        [allowCustomOption, initialValue, options],
+    );
     const [value, setValue] = useSyncedState<SelectOption | null>(normalizedInitialSelection);
     const {
         inputValue,
@@ -694,18 +708,22 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
     const syncOutput = useCallback((selection: SelectOption | null) => {
         setOutputValue(argName, selection?.value ?? '');
     }, [argName, setOutputValue]);
+    const allowDeferredFreeformCommit = allowCustomOption && !loadingOptions;
 
     const selectOption = useCallback((option: SelectOption | undefined, inputString?: string) => {
-        if (!option) {
+        const resolvedOption = option ?? (allowCustomOption && inputString?.trim()
+            ? resolveOptionForToken(inputString, options)
+            : undefined);
+        if (!resolvedOption?.value) {
             showDialog("Invalid value", <>The value <kbd className='bg-secondary rounded px-0.5'>{inputString}</kbd> is not a valid option.</>);
             return;
         }
 
-        const nextSelection = value?.value === option.value ? null : option;
+        const nextSelection = value?.value === resolvedOption.value ? null : resolvedOption;
         setValue(nextSelection);
         syncOutput(nextSelection);
         closePopup();
-    }, [closePopup, showDialog, syncOutput, setValue, value?.value]);
+    }, [allowCustomOption, closePopup, options, showDialog, syncOutput, setValue, value?.value]);
 
     const handleKeyDown = usePopupListInputKeyDown({
         isOpen,
@@ -714,6 +732,7 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
         inputValue,
         canOpenOnEnter: inputValue.trim().length > 0 || value == null,
         allowBackspaceRemove: false,
+        allowFreeformCommit: allowDeferredFreeformCommit,
         onOpen: () => setIsOpen(true),
         onClose: closePopup,
         onBlurInput: () => inputRef.current?.blur(),
@@ -727,10 +746,11 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
         if (!pastedText) return;
 
         const match = resolveOptionMatch(pastedText.trim(), options);
-        if (match.option) {
+        const resolvedOption = match.option ?? (allowCustomOption ? resolveOptionForToken(pastedText, options) : null);
+        if (resolvedOption?.value) {
             e.preventDefault();
-            setValue(match.option);
-            syncOutput(match.option);
+            setValue(resolvedOption);
+            syncOutput(resolvedOption);
             setIsOpen(false);
             inputRef.current?.blur();
             return;
@@ -743,7 +763,7 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
                 <div className="mt-2 text-xs text-muted-foreground">Available options: {summarizeOptions(options)}</div>
             </>,
         );
-    }, [inputRef, options, setIsOpen, setValue, showDialog, syncOutput]);
+    }, [allowCustomOption, inputRef, options, setIsOpen, setValue, showDialog, syncOutput]);
 
     const handleInputCopy = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
         if (inputRef.current && inputRef.current.selectionStart !== inputRef.current.selectionEnd) {
@@ -820,13 +840,13 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
     );
 }
 
-function MultiSelectListComponent({ argName, options, initialValue, setOutputValue, onSearchValueChange, optionsArePrefiltered = false, loadingOptions = false, emptyMessage }: Omit<ListComponentProps, "isMulti">) {
+function MultiSelectListComponent({ argName, options, initialValue, setOutputValue, allowCustomOption = false, onSearchValueChange, optionsArePrefiltered = false, loadingOptions = false, emptyMessage }: Omit<ListComponentProps, "isMulti">) {
     const { showDialog } = useDialog();
     const helperHintId = useId();
 
     const normalizedInitialSelection = useMemo(() => {
-        return resolveInitialSelection(initialValue || '', options, true);
-    }, [initialValue, options]);
+        return resolveInitialSelection(initialValue || '', options, true, allowCustomOption);
+    }, [allowCustomOption, initialValue, options]);
 
     const [value, setValue] = useSyncedState<SelectOption[]>(normalizedInitialSelection);
     const {
@@ -859,25 +879,29 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
     const syncOutput = useCallback((selection: SelectOption[]) => {
         setOutputValue(argName, serializeSelection(selection, true));
     }, [argName, setOutputValue]);
+    const allowDeferredFreeformCommit = allowCustomOption && !loadingOptions;
 
     const toggleOption = useCallback((option: SelectOption | undefined, inputString?: string) => {
-        if (!option) {
+        const resolvedOption = option ?? (allowCustomOption && inputString?.trim()
+            ? resolveOptionForToken(inputString, options)
+            : undefined);
+        if (!resolvedOption?.value) {
             showDialog("Invalid value", <>The value <kbd className='bg-secondary rounded px-0.5'>{inputString}</kbd> is not a valid option.</>);
             return;
         }
 
-        const isSelected = selectedValueSet.has(option.value);
+        const isSelected = selectedValueSet.has(resolvedOption.value);
         let nextSelection: SelectOption[];
 
-        if (isSelected) nextSelection = value.filter(v => v.value !== option.value);
-        else nextSelection = dedupeByValue([...value, option]);
+        if (isSelected) nextSelection = value.filter(v => v.value !== resolvedOption.value);
+        else nextSelection = dedupeByValue([...value, resolvedOption]);
 
         setValue(nextSelection);
         syncOutput(nextSelection);
 
         clearSearch();
         inputRef.current?.focus();
-    }, [clearSearch, inputRef, value, selectedValueSet, setValue, syncOutput, showDialog]);
+    }, [allowCustomOption, clearSearch, inputRef, options, value, selectedValueSet, setValue, syncOutput, showDialog]);
 
     const handlePopupKeyDown = usePopupListInputKeyDown({
         isOpen,
@@ -886,6 +910,7 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
         inputValue,
         canOpenOnEnter: inputValue.trim().length > 0 || value.length === 0,
         allowBackspaceRemove: value.length > 0,
+        allowFreeformCommit: allowDeferredFreeformCommit,
         onOpen: () => setIsOpen(true),
         onClose: closePopup,
         onBlurInput: () => inputRef.current?.blur(),
@@ -939,7 +964,7 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
         const pastedText = e.clipboardData.getData('text');
         if (!pastedText) return;
 
-        const resolution = resolveSelectionInput(pastedText, options, true, value);
+        const resolution = resolveSelectionInput(pastedText, options, true, value, allowCustomOption);
         if (resolution.unmatchedTokens.length > 0) {
             showDialog(
                 "Invalid value",
@@ -955,7 +980,7 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
             setValue(resolution.selection);
             syncOutput(resolution.selection);
         }
-    }, [options, setValue, showDialog, syncOutput, value]);
+    }, [allowCustomOption, options, setValue, showDialog, syncOutput, value]);
 
     const handleInputCopy = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
         // If there's text selected in the input, let the default copy behavior happen

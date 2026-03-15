@@ -57,7 +57,7 @@ export function collectArgInputWarmQueryTargets(breakdown: TypeBreakdown): WarmQ
   const targets: WarmQueryTarget[] = [];
 
   if (resolution.kind === "query") {
-    targets.push({ type: resolution.optionData.typeKey, warmWorkerDataset: true });
+    targets.push({ type: resolution.optionData.queryTypeKey, warmWorkerDataset: true });
   }
 
   if (resolution.kind === "composite-query") {

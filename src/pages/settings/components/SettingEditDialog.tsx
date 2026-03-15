@@ -136,13 +136,6 @@ export default function SettingEditDialog({
                         value={draftValue}
                         setOutput={setOutput}
                     />
-
-                    {requiresExplicitValue && !hasMeaningfulSettingValue(draftValue) ? (
-                        <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-900 dark:text-yellow-200">
-                            Enter a value before saving. Leaving the field blank would fall back to the read-only settings info command.
-                        </div>
-                    ) : null}
-
                     <div className="space-y-3 border-t border-border/60 pt-3">
                         {row.value.hasValue ? (
                             <>

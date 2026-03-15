@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-15 17:12:03.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-15 19:27:55.
 
 export interface WebError {
     error: string;
@@ -460,10 +460,36 @@ export interface WebRoleAliases {
     discord_role_names: { [index: string]: string };
 }
 
-export interface AutoRoleManagedRoles {
-    alliance_roles: AllianceRoleEntry[];
-    city_roles: CityRoleEntry[];
-    tax_roles: TaxRoleEntry[];
+export interface WebAutoRoleRoles {
+    alliance_roles: WebAllianceAutoRole[];
+    city_roles: WebCityAutoRole[];
+    tax_roles: WebTaxAutoRole[];
+}
+
+export interface WebAllianceAutoRole {
+    role_id: number;
+    name: string;
+    color: number;
+    alliance_id: number;
+    duplicate_key: boolean;
+}
+
+export interface WebCityAutoRole {
+    role_id: number;
+    name: string;
+    color: number;
+    range_start: number;
+    range_end: number;
+    duplicate_key: boolean;
+}
+
+export interface WebTaxAutoRole {
+    role_id: number;
+    name: string;
+    color: number;
+    money_rate: number;
+    rss_rate: number;
+    duplicate_key: boolean;
 }
 
 export interface AutoRoleResult {
@@ -573,26 +599,6 @@ export interface WebCurrentTreaty {
 export interface WebCoalition {
     name: string;
     members: WebCoalitionMember[];
-}
-
-export interface AllianceRoleEntry {
-    role_id: number;
-    alliance_id: number;
-    duplicate_key: boolean;
-}
-
-export interface CityRoleEntry {
-    role_id: number;
-    range_start: number;
-    range_end: number;
-    duplicate_key: boolean;
-}
-
-export interface TaxRoleEntry {
-    role_id: number;
-    money_rate: number;
-    rss_rate: number;
-    duplicate_key: boolean;
 }
 
 export interface TaxRole {

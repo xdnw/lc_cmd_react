@@ -1,22 +1,20 @@
-import { useCallback, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiFormInputs } from "@/components/api/apiform";
+import { useSession } from "@/components/api/SessionContext";
 import ArgInput from "@/components/cmd/ArgInput";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import ConfirmCommandActionButton from "@/components/cmd/ConfirmCommandActionButton";
-import { useSession } from "@/components/api/SessionContext";
 import { useDialog } from "@/components/layout/DialogContext";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import { useDefaultPageSidebar, usePageSidebar } from "@/components/layout/PageSidebarContext";
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Loading from "@/components/ui/loading";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CommonEndpoint, QueryResult } from "@/lib/BulkQuery";
-import { COMMANDS } from "@/lib/commands";
 import type {
     AllianceRoleEntry,
     AutoRoleBulkResult,
@@ -28,7 +26,9 @@ import type {
     CityRoleEntry,
     TaxRoleEntry,
     WebRoleAliases,
+    WebTable,
 } from "@/lib/apitypes";
+import { COMMANDS } from "@/lib/commands";
 import {
     ADD_ALLIANCE_ROLE,
     ADD_CITY_ROLE,
@@ -40,8 +40,10 @@ import {
     REMOVE_ALLIANCE_ROLE,
     REMOVE_CITY_ROLE,
     REMOVE_TAX_ROLE,
+    TABLE,
 } from "@/lib/endpoints";
 import { bulkQueryOptions, singleQueryOptions } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 import LoginPickerPage from "@/pages/login_picker";
 import GuildSettingsSubset from "@/pages/settings/components/GuildSettingsSubset";
 import { CM, type AnyCommandPath, type CommandArguments } from "@/utils/Command";
@@ -50,13 +52,16 @@ import { usePermission } from "@/utils/PermUtil";
 import {
     AUTO_ROLE_SETTING_KEYS,
     buildRoleAliasEntries,
+    formatAliasScopeLabel,
+    formatAllianceLabel,
     formatAutoRoleIssueType,
-    formatDiscordRoleLabel,
+    formatCityRoleRangeLabel,
+    formatDiscordRoleName,
+    formatTaxRoleRateLabel,
     formatUnmaskedReason,
+    getRoleMention,
     hasAutoRoleMemberActivity,
     mergeRoleNameMaps,
-    summarizeManagedRoles,
-    summarizeRoleAliases,
     type RoleAliasEntry,
     type RoleAliasMapping,
 } from "./rolesDomain";
@@ -64,18 +69,16 @@ import {
 const ROLE_SET_ALIAS_COMMAND: ["role", "setalias"] = ["role", "setalias"];
 const ROLE_AUTOROLE_COMMAND: ["role", "autorole"] = ["role", "autorole"];
 const ROLE_AUTOASSIGN_COMMAND: ["role", "autoassign"] = ["role", "autoassign"];
+const ALLIANCE_NAME_QUERY_COLUMNS = ["{getid}", "{getname}"];
 
 type RoleSetAliasArgs = Partial<CommandArguments<typeof COMMANDS.commands, ["role", "setalias"]>>;
 type RoleFormArgs = Record<string, string>;
 type AliasFilterMode = "all" | "mapped" | "invalid";
 type ManagedRolePermissionMode = "ready" | "readonly" | "error";
+type ManagedRoleLike = { role_id: number; duplicate_key: boolean };
 
 function coerceRoleCommandPath(path: [string, string]): AnyCommandPath {
     return path as unknown as AnyCommandPath;
-}
-
-function formatPlural(count: number, singular: string, plural = `${singular}s`): string {
-    return `${count} ${count === 1 ? singular : plural}`;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -90,22 +93,58 @@ function getErrorMessage(error: unknown): string {
     return "Unknown error";
 }
 
-function useEndpointAction<T, A extends { [key: string]: string | string[] | undefined }>({
-    endpoint,
-    failureTitle,
-    onSuccessData,
-}: {
+function addAllianceId(ids: Set<number>, allianceId: number | null | undefined) {
+    if (typeof allianceId !== "number" || !Number.isFinite(allianceId) || allianceId <= 0) {
+        return;
+    }
+
+    ids.add(allianceId);
+}
+
+function collectAllianceIdsFromIssues(ids: Set<number>, issues: readonly AutoRoleIssue[]) {
+    issues.forEach((issue) => addAllianceId(ids, issue.alliance_id));
+}
+
+function collectAllianceIdsFromMemberResult(ids: Set<number>, result: AutoRoleMemberResult) {
+    addAllianceId(ids, result.alliance_id);
+    collectAllianceIdsFromIssues(ids, result.issues);
+    collectAllianceIdsFromIssues(ids, result.execution_issues);
+}
+
+function buildAllianceSelection(allianceIds: readonly number[]): string {
+    return allianceIds.map((allianceId) => `AA:${allianceId}`).join(",");
+}
+
+function parseAllianceNames(table?: WebTable | null): Record<string, string> {
+    const rows = Array.isArray(table?.cells) ? table.cells.slice(1) : [];
+
+    return rows.reduce<Record<string, string>>((map, row) => {
+        if (!Array.isArray(row)) {
+            return map;
+        }
+
+        const allianceId = Number(row[0]);
+        const allianceName = typeof row[1] === "string" ? row[1].trim() : "";
+        if (!Number.isFinite(allianceId) || !allianceName) {
+            return map;
+        }
+
+        map[String(allianceId)] = allianceName;
+        return map;
+    }, {});
+}
+
+function useEndpointAction<T, A extends { [key: string]: string | string[] | undefined }>(params: {
     endpoint: CommonEndpoint<T, A, A>;
     failureTitle: string;
     onSuccessData?: (data: T) => void;
 }) {
+    const { endpoint, failureTitle, onSuccessData } = params;
     const queryClient = useQueryClient();
     const { showDialog } = useDialog();
 
     const mutation = useMutation({
-        mutationFn: (args: { readonly [key: string]: string | string[] }) => {
-            return queryClient.fetchQuery(singleQueryOptions(endpoint.endpoint, args, 0, 10));
-        },
+        mutationFn: (args: { readonly [key: string]: string | string[] }) => queryClient.fetchQuery(singleQueryOptions(endpoint.endpoint, args, 0, 10)),
         onSuccess: (result: QueryResult<T>) => {
             if (result.error) {
                 showDialog(failureTitle, result.error);
@@ -132,6 +171,37 @@ function useEndpointAction<T, A extends { [key: string]: string | string[] | und
         run,
         isPending: mutation.isPending,
     };
+}
+
+function PageSection({
+    title,
+    actions,
+    children,
+    className,
+}: {
+    title: string;
+    actions?: ReactNode;
+    children: ReactNode;
+    className?: string;
+}) {
+    return (
+        <section className={cn("space-y-4", className)}>
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 pb-3">
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+                {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+            </div>
+            {children}
+        </section>
+    );
+}
+
+function SectionPanel({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <div className="space-y-3 rounded-md border border-border/70 bg-muted/10 p-3">
+            <div className="text-sm font-semibold text-foreground">{title}</div>
+            {children}
+        </div>
+    );
 }
 
 function InlineConfirmButton({
@@ -200,8 +270,58 @@ function InlineConfirmButton({
     );
 }
 
-function RoleIdBadge({ roleId, roleNames }: { roleId: number; roleNames?: Record<string, string> | null }) {
-    return <Badge variant="outline">{formatDiscordRoleLabel(roleId, roleNames)}</Badge>;
+function CopyableRoleChip({
+    roleId,
+    roleNames,
+    className,
+}: {
+    roleId: number;
+    roleNames?: Record<string, string> | null;
+    className?: string;
+}) {
+    const [copied, setCopied] = useState(false);
+    const label = formatDiscordRoleName(roleId, roleNames);
+    const canCopy = typeof navigator !== "undefined" && typeof navigator.clipboard?.writeText === "function";
+
+    useEffect(() => {
+        if (!copied) {
+            return undefined;
+        }
+
+        const timeout = window.setTimeout(() => {
+            setCopied(false);
+        }, 1200);
+
+        return () => {
+            window.clearTimeout(timeout);
+        };
+    }, [copied]);
+
+    const handleCopy = useCallback(() => {
+        if (!canCopy) {
+            return;
+        }
+
+        void navigator.clipboard.writeText(getRoleMention(roleId)).then(() => {
+            setCopied(true);
+        });
+    }, [canCopy, roleId]);
+
+    return (
+        <button
+            type="button"
+            onClick={handleCopy}
+            title={canCopy ? `Copy ${getRoleMention(roleId)}` : undefined}
+            className={cn(
+                "inline-flex items-center rounded-md border border-border/70 bg-background px-2 py-1 text-xs text-foreground transition",
+                canCopy ? "hover:border-foreground/30 hover:bg-background" : "cursor-default",
+                copied && "border-primary/40 bg-primary/5 text-primary",
+                className,
+            )}
+        >
+            {label}
+        </button>
+    );
 }
 
 function RoleIdList({
@@ -218,11 +338,11 @@ function RoleIdList({
     }
 
     return (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
             <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{title}</div>
             <div className="flex flex-wrap gap-1.5">
                 {roleIds.map((roleId) => (
-                    <RoleIdBadge key={`${title}-${roleId}`} roleId={roleId} roleNames={roleNames} />
+                    <CopyableRoleChip key={`${title}-${roleId}`} roleId={roleId} roleNames={roleNames} />
                 ))}
             </div>
         </div>
@@ -244,13 +364,13 @@ function RenameList({
     }
 
     return (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
             <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{title}</div>
-            <div className="grid gap-1">
+            <div className="grid gap-1.5">
                 {items.map(([roleId, nextName]) => (
-                    <div key={`${title}-${roleId}`} className="rounded-md border border-border/70 bg-muted/10 px-2 py-1.5 text-xs text-foreground/85">
-                        <span className="font-medium">{formatDiscordRoleLabel(Number(roleId), roleNames)}</span>
-                        <span className="text-muted-foreground">{" -> "}</span>
+                    <div key={`${title}-${roleId}`} className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-background px-2.5 py-2 text-xs text-foreground/85">
+                        <CopyableRoleChip roleId={Number(roleId)} roleNames={roleNames} />
+                        <span className="text-muted-foreground">-&gt;</span>
                         <span>{nextName}</span>
                     </div>
                 ))}
@@ -263,10 +383,12 @@ function AutoRoleIssuesList({
     title,
     issues,
     roleNames,
+    allianceNames,
 }: {
     title: string;
     issues: readonly AutoRoleIssue[];
     roleNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
 }) {
     if (issues.length === 0) {
         return null;
@@ -280,8 +402,8 @@ function AutoRoleIssuesList({
                     <div key={`${title}-${issue.type}-${index}`} className="rounded-md border border-amber-500/35 bg-amber-500/10 px-2.5 py-2 text-xs text-foreground/85">
                         <div className="flex flex-wrap items-center gap-1.5">
                             <Badge variant="outline">{formatAutoRoleIssueType(issue.type)}</Badge>
-                            {issue.role_id != null ? <Badge variant="outline">{formatDiscordRoleLabel(issue.role_id, roleNames)}</Badge> : null}
-                            {issue.alliance_id != null ? <Badge variant="outline">Alliance #{issue.alliance_id}</Badge> : null}
+                            {issue.role_id != null ? <CopyableRoleChip roleId={issue.role_id} roleNames={roleNames} /> : null}
+                            {issue.alliance_id != null ? <Badge variant="outline">{formatAllianceLabel(issue.alliance_id, allianceNames)}</Badge> : null}
                             {issue.nickname ? <Badge variant="outline">Nickname: {issue.nickname}</Badge> : null}
                             {issue.error_type ? <Badge variant="destructive">{issue.error_type}</Badge> : null}
                         </div>
@@ -293,7 +415,13 @@ function AutoRoleIssuesList({
     );
 }
 
-function AutoRoleSyncCard({ sync, roleNames }: { sync?: AutoRoleSyncState; roleNames?: Record<string, string> | null }) {
+function AutoRoleSyncSection({
+    sync,
+    roleNames,
+}: {
+    sync?: AutoRoleSyncState;
+    roleNames?: Record<string, string> | null;
+}) {
     if (!sync) {
         return null;
     }
@@ -305,7 +433,7 @@ function AutoRoleSyncCard({ sync, roleNames }: { sync?: AutoRoleSyncState; roleN
         sync.top_x != null ? `Top X limit: ${sync.top_x}` : null,
         `Ally gov roles: ${sync.ally_gov_enabled ? "enabled" : "disabled"}`,
         `Member apps: ${sync.member_apps_enabled ? "enabled" : "disabled"}`,
-        sync.registered_role != null ? `Registered role: ${formatDiscordRoleLabel(sync.registered_role, roleNames)}` : null,
+        sync.registered_role != null ? `Registered role: ${formatDiscordRoleName(sync.registered_role, roleNames)}` : null,
         `Masked alliances: ${sync.masked_alliances.length}`,
         `Alliance ids: ${sync.alliance_ids.length}`,
         `Ally ids: ${sync.ally_ids.length}`,
@@ -319,25 +447,26 @@ function AutoRoleSyncCard({ sync, roleNames }: { sync?: AutoRoleSyncState; roleN
     ].filter((value): value is string => Boolean(value));
 
     return (
-        <div className="space-y-1.5 rounded-md border border-border/70 bg-muted/10 p-3">
-            <div className="text-sm font-semibold text-foreground">Current autorole sync state</div>
-            <div className="grid gap-1 sm:grid-cols-2 xl:grid-cols-3">
+        <SectionPanel title="Current autorole sync state">
+            <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
                 {facts.map((fact) => (
                     <div key={fact} className="rounded-sm border border-border/60 bg-background px-2 py-1 text-xs text-foreground/85">
                         {fact}
                     </div>
                 ))}
             </div>
-        </div>
+        </SectionPanel>
     );
 }
 
 function AutoRoleMemberCard({
     result,
     roleNames,
+    allianceNames,
 }: {
     result: AutoRoleMemberResult;
     roleNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
 }) {
     return (
         <div className="space-y-2 rounded-md border border-border/70 bg-background p-3">
@@ -348,10 +477,10 @@ function AutoRoleMemberCard({
                         <span>@{result.username}</span>
                         <Badge variant="outline">User #{result.user_id}</Badge>
                         {result.nation_id != null ? <Badge variant="outline">Nation #{result.nation_id}</Badge> : null}
-                        {result.alliance_id != null ? <Badge variant="outline">Alliance #{result.alliance_id}</Badge> : null}
+                        {result.alliance_id != null ? <Badge variant="outline">{formatAllianceLabel(result.alliance_id, allianceNames)}</Badge> : null}
                     </div>
                 </div>
-                {hasAutoRoleMemberActivity(result) ? <Badge variant="outline">Has changes or issues</Badge> : <Badge variant="secondary">No changes</Badge>}
+                {hasAutoRoleMemberActivity(result) ? <Badge variant="outline">Changes</Badge> : <Badge variant="secondary">No changes</Badge>}
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">
@@ -372,43 +501,27 @@ function AutoRoleMemberCard({
                 </div>
             </div>
 
-            <AutoRoleIssuesList title="Planning issues" issues={result.issues} roleNames={roleNames} />
-            <AutoRoleIssuesList title="Execution issues" issues={result.execution_issues} roleNames={roleNames} />
+            <AutoRoleIssuesList title="Planning issues" issues={result.issues} roleNames={roleNames} allianceNames={allianceNames} />
+            <AutoRoleIssuesList title="Execution issues" issues={result.execution_issues} roleNames={roleNames} allianceNames={allianceNames} />
         </div>
     );
 }
 
-function AutoRoleResultMeta({
-    title,
-    description,
-    children,
-}: {
-    title: string;
-    description: string;
-    children: ReactNode;
-}) {
-    return (
-        <div className="space-y-2 rounded-md border border-border/70 bg-muted/10 p-3">
-            <div>
-                <div className="text-sm font-semibold text-foreground">{title}</div>
-                <div className="text-xs text-muted-foreground">{description}</div>
-            </div>
-            {children}
-        </div>
-    );
-}
-
-function AliasMappingRow({
+function AliasMappingItem({
     entry,
     mapping,
+    roleNames,
+    allianceNames,
     canEdit,
     onOpenAliasDialog,
     onAliasesChanged,
 }: {
     entry: RoleAliasEntry;
     mapping: RoleAliasMapping;
+    roleNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
     canEdit: boolean;
-    onOpenAliasDialog: (args: { title: string; description: string; initialValues: RoleSetAliasArgs }) => void;
+    onOpenAliasDialog: (args: { title: string; initialValues: RoleSetAliasArgs }) => void;
     onAliasesChanged: () => void;
 }) {
     const editInitialValues = useMemo<RoleSetAliasArgs>(() => ({
@@ -426,7 +539,6 @@ function AliasMappingRow({
     const handleOpenEditDialog = useCallback(() => {
         onOpenAliasDialog({
             title: `Edit ${entry.roleName}`,
-            description: `Update the mapped Discord role for ${entry.roleName}.`,
             initialValues: editInitialValues,
         });
     }, [editInitialValues, entry.roleName, onOpenAliasDialog]);
@@ -440,17 +552,12 @@ function AliasMappingRow({
     }, [onAliasesChanged]);
 
     return (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs">
-            <div className="min-w-0 space-y-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge variant="outline">{mapping.scopeLabel}</Badge>
-                    <span className="font-medium text-foreground/90">{mapping.discordRoleName ?? `Role #${mapping.roleId}`}</span>
-                    <span className="text-muted-foreground">({mapping.roleId})</span>
-                </div>
-            </div>
+        <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs">
+            <span className="text-muted-foreground">{formatAliasScopeLabel(mapping, allianceNames)}</span>
+            <CopyableRoleChip roleId={mapping.roleId} roleNames={roleNames} />
             {canEdit ? (
-                <div className="flex flex-wrap items-center gap-1.5">
-                    <Button type="button" variant="outline" size="sm" onClick={handleOpenEditDialog}>
+                <>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-1.5" onClick={handleOpenEditDialog}>
                         Edit
                     </Button>
                     <ConfirmCommandActionButton
@@ -461,31 +568,34 @@ function AliasMappingRow({
                         showResultDialog
                         onComplete={handleAliasMutationComplete}
                         buttonVariant="destructive"
-                        buttonClassName="h-7 px-2"
-                        cancelClassName="h-7 px-2"
-                        classes="!m-0 !h-7 !w-auto !px-2"
+                        buttonClassName="h-6 px-2"
+                        cancelClassName="h-6 px-2"
+                        classes="!m-0 !h-6 !w-auto !px-2"
                     />
-                </div>
+                </>
             ) : null}
         </div>
     );
 }
 
-function RoleAliasCard({
+function RoleAliasRow({
     entry,
+    roleNames,
+    allianceNames,
     canEdit,
     onOpenAliasDialog,
     onAliasesChanged,
 }: {
     entry: RoleAliasEntry;
+    roleNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
     canEdit: boolean;
-    onOpenAliasDialog: (args: { title: string; description: string; initialValues: RoleSetAliasArgs }) => void;
+    onOpenAliasDialog: (args: { title: string; initialValues: RoleSetAliasArgs }) => void;
     onAliasesChanged: () => void;
 }) {
     const handleOpenCreateDialog = useCallback(() => {
         onOpenAliasDialog({
             title: `Map ${entry.roleName}`,
-            description: `Set a Discord role alias for ${entry.roleName}.`,
             initialValues: {
                 locutusRole: entry.roleName,
             },
@@ -493,43 +603,42 @@ function RoleAliasCard({
     }, [entry.roleName, onOpenAliasDialog]);
 
     return (
-        <div className="space-y-2 rounded-md border border-border/70 bg-muted/10 p-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
+        <div
+            className={cn(
+                "rounded-md border px-3 py-2",
+                entry.mappingCount > 0 ? "border-border/70 bg-background" : "border-dashed border-border/60 bg-muted/10",
+                entry.isInvalid && "border-destructive/40 bg-destructive/5",
+            )}
+        >
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <div className="text-sm font-semibold text-foreground">{entry.roleName}</div>
-                        {entry.isInvalid ? <Badge variant="destructive">Invalid target role</Badge> : null}
-                        {entry.mappingCount === 0 ? <Badge variant="secondary">Unmapped</Badge> : <Badge variant="outline">{formatPlural(entry.mappingCount, "mapping")}</Badge>}
+                        {entry.isInvalid ? <Badge variant="destructive">Invalid</Badge> : null}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                        {entry.hasAllianceSpecificMappings ? "Includes alliance-scoped mappings." : "Global alias only or currently unmapped."}
-                    </div>
+                    {entry.mappings.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {entry.mappings.map((mapping) => (
+                                <AliasMappingItem
+                                    key={mapping.key}
+                                    entry={entry}
+                                    mapping={mapping}
+                                    roleNames={roleNames}
+                                    allianceNames={allianceNames}
+                                    canEdit={canEdit}
+                                    onOpenAliasDialog={onOpenAliasDialog}
+                                    onAliasesChanged={onAliasesChanged}
+                                />
+                            ))}
+                        </div>
+                    ) : null}
                 </div>
                 {canEdit ? (
-                    <Button type="button" variant="outline" size="sm" onClick={handleOpenCreateDialog}>
+                    <Button type="button" variant={entry.mappingCount > 0 ? "outline" : "default"} size="sm" onClick={handleOpenCreateDialog}>
                         {entry.mappingCount > 0 ? "Add mapping" : "Set alias"}
                     </Button>
                 ) : null}
             </div>
-
-            {entry.mappings.length > 0 ? (
-                <div className="space-y-2">
-                    {entry.mappings.map((mapping) => (
-                        <AliasMappingRow
-                            key={mapping.key}
-                            entry={entry}
-                            mapping={mapping}
-                            canEdit={canEdit}
-                            onOpenAliasDialog={onOpenAliasDialog}
-                            onAliasesChanged={onAliasesChanged}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <div className="rounded-md border border-dashed border-border/70 px-3 py-2 text-xs text-muted-foreground">
-                    No Discord role is mapped to this Locutus role yet.
-                </div>
-            )}
         </div>
     );
 }
@@ -570,33 +679,28 @@ function ManagedRoleRemoveButton({
 }
 
 function ManagedRoleRow({
-    title,
-    details,
-    duplicateKey,
+    label,
     roleId,
+    duplicateKey,
     roleNames,
     removeEndpoint,
     canManage,
     onManagedRolesChanged,
 }: {
-    title: string;
-    details: ReactNode;
-    duplicateKey: boolean;
+    label: string;
     roleId: number;
+    duplicateKey: boolean;
     roleNames?: Record<string, string> | null;
     removeEndpoint: CommonEndpoint<AutoRoleManagedRoles, { role?: string }, { role?: string }>;
     canManage: boolean;
     onManagedRolesChanged: (data: AutoRoleManagedRoles) => void;
 }) {
     return (
-        <div className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-border/70 bg-background px-2.5 py-2">
-            <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
-                    <span>{title}</span>
-                    <Badge variant="outline">{formatDiscordRoleLabel(roleId, roleNames)}</Badge>
-                    {duplicateKey ? <Badge variant="destructive">Duplicate key</Badge> : null}
-                </div>
-                <div className="text-xs text-muted-foreground">{details}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 bg-background px-3 py-2 text-sm">
+            <div className="min-w-0 flex flex-1 flex-wrap items-center gap-2">
+                <span className="font-medium text-foreground">{label}</span>
+                <CopyableRoleChip roleId={roleId} roleNames={roleNames} />
+                {duplicateKey ? <Badge variant="destructive">Duplicate</Badge> : null}
             </div>
             {canManage ? (
                 <ManagedRoleRemoveButton
@@ -610,25 +714,51 @@ function ManagedRoleRow({
     );
 }
 
-function ManagedRoleGroup({
+function ManagedRoleBlock<T extends ManagedRoleLike>({
     title,
-    description,
     addForm,
-    children,
+    emptyMessage,
+    items,
+    getKey,
+    getLabel,
+    roleNames,
+    removeEndpoint,
+    canManage,
+    onManagedRolesChanged,
 }: {
     title: string;
-    description: string;
     addForm: ReactNode;
-    children: ReactNode;
+    emptyMessage: string;
+    items: readonly T[];
+    getKey: (entry: T) => string;
+    getLabel: (entry: T) => string;
+    roleNames?: Record<string, string> | null;
+    removeEndpoint: CommonEndpoint<AutoRoleManagedRoles, { role?: string }, { role?: string }>;
+    canManage: boolean;
+    onManagedRolesChanged: (data: AutoRoleManagedRoles) => void;
 }) {
     return (
-        <div className="space-y-3 rounded-md border border-border/70 bg-muted/10 p-3">
-            <div className="space-y-1">
-                <div className="text-sm font-semibold text-foreground">{title}</div>
-                <div className="text-xs leading-5 text-muted-foreground">{description}</div>
-            </div>
+        <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
             {addForm}
-            <div className="space-y-2">{children}</div>
+            {items.length > 0 ? (
+                <div className="space-y-2">
+                    {items.map((entry) => (
+                        <ManagedRoleRow
+                            key={getKey(entry)}
+                            label={getLabel(entry)}
+                            roleId={entry.role_id}
+                            duplicateKey={entry.duplicate_key}
+                            roleNames={roleNames}
+                            removeEndpoint={removeEndpoint}
+                            canManage={canManage}
+                            onManagedRolesChanged={onManagedRolesChanged}
+                        />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-sm text-muted-foreground">{emptyMessage}</div>
+            )}
         </div>
     );
 }
@@ -660,7 +790,7 @@ function AutoroleSinglePanel({
     const runDisabled = !canRun || pending || !member.trim();
 
     return (
-        <AutoRoleResultMeta title="Single member" description="Preview or execute autorole for one guild member.">
+        <SectionPanel title="Single member">
             {memberArgument ? (
                 <ArgInput
                     argName="member"
@@ -679,7 +809,7 @@ function AutoroleSinglePanel({
                     {pending ? <Loading size={3} variant="ripple" /> : "Run member"}
                 </Button>
             </div>
-        </AutoRoleResultMeta>
+        </SectionPanel>
     );
 }
 
@@ -695,7 +825,7 @@ function AutoroleBulkPanel({
     pending: boolean;
 }) {
     return (
-        <AutoRoleResultMeta title="Whole guild" description="Preview the guild-wide autorole pass or run it with force=true.">
+        <SectionPanel title="Whole guild">
             <div className="flex flex-wrap items-center gap-2">
                 <Button type="button" variant="outline" size="sm" disabled={!canRun || pending} onClick={onPreview}>
                     {pending ? <Loading size={3} variant="ripple" /> : "Preview all"}
@@ -711,44 +841,49 @@ function AutoroleBulkPanel({
                     size="sm"
                 />
             </div>
-        </AutoRoleResultMeta>
+        </SectionPanel>
     );
 }
 
-function SingleAutoRoleResultCard({
+function ResultSection({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <div className="space-y-3 rounded-md border border-border/70 p-4">
+            <div className="text-base font-semibold text-foreground">{title}</div>
+            {children}
+        </div>
+    );
+}
+
+function SingleAutoRoleResultSection({
     result,
     roleNames,
+    allianceNames,
 }: {
     result: AutoRoleResult;
     roleNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
 }) {
     return (
-        <Card>
-            <CardHeader className="space-y-1 border-b border-border/70 pb-3">
-                <CardTitle className="text-base">Latest single-member autorole result</CardTitle>
-                <CardDescription>
-                    Preview and execution payloads share the same structured response; execution simply fills the applied fields.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-3">
-                <AutoRoleSyncCard sync={result.sync} roleNames={roleNames} />
-                <RoleIdList title="Roles to create" roleIds={result.create_roles} roleNames={roleNames} />
-                <RenameList title="Roles to rename" renames={result.rename_roles} roleNames={roleNames} />
-                <RoleIdList title="Roles created" roleIds={result.created_roles} roleNames={roleNames} />
-                <RenameList title="Roles renamed" renames={result.renamed_roles} roleNames={roleNames} />
-                <AutoRoleIssuesList title="Top-level execution issues" issues={result.execution_issues} roleNames={roleNames} />
-                <AutoRoleMemberCard result={result.result} roleNames={roleNames} />
-            </CardContent>
-        </Card>
+        <ResultSection title="Latest single-member autorole result">
+            <AutoRoleSyncSection sync={result.sync} roleNames={roleNames} />
+            <RoleIdList title="Roles to create" roleIds={result.create_roles} roleNames={roleNames} />
+            <RenameList title="Roles to rename" renames={result.rename_roles} roleNames={roleNames} />
+            <RoleIdList title="Roles created" roleIds={result.created_roles} roleNames={roleNames} />
+            <RenameList title="Roles renamed" renames={result.renamed_roles} roleNames={roleNames} />
+            <AutoRoleIssuesList title="Top-level execution issues" issues={result.execution_issues} roleNames={roleNames} allianceNames={allianceNames} />
+            <AutoRoleMemberCard result={result.result} roleNames={roleNames} allianceNames={allianceNames} />
+        </ResultSection>
     );
 }
 
-function BulkAutoRoleResultCard({
+function BulkAutoRoleResultSection({
     result,
     roleNames,
+    allianceNames,
 }: {
     result: AutoRoleBulkResult;
     roleNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
 }) {
     const interestingResults = useMemo(
         () => result.results.filter((memberResult) => hasAutoRoleMemberActivity(memberResult)),
@@ -756,73 +891,69 @@ function BulkAutoRoleResultCard({
     );
 
     return (
-        <Card>
-            <CardHeader className="space-y-1 border-b border-border/70 pb-3">
-                <CardTitle className="text-base">Latest bulk autorole result</CardTitle>
-                <CardDescription>
-                    Showing members with planned or applied changes by default to keep the result reviewable.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-3">
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
-                        <div className="text-muted-foreground">Members evaluated</div>
-                        <div className="mt-1 text-sm font-semibold text-foreground">{result.results.length}</div>
-                    </div>
-                    <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
-                        <div className="text-muted-foreground">Members with changes/issues</div>
-                        <div className="mt-1 text-sm font-semibold text-foreground">{interestingResults.length}</div>
-                    </div>
-                    <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
-                        <div className="text-muted-foreground">Masked non-members</div>
-                        <div className="mt-1 text-sm font-semibold text-foreground">{result.masked_non_members.length}</div>
-                    </div>
-                    <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
-                        <div className="text-muted-foreground">Top-level issues</div>
-                        <div className="mt-1 text-sm font-semibold text-foreground">{result.execution_issues.length}</div>
-                    </div>
+        <ResultSection title="Latest bulk autorole result">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
+                    <div className="text-muted-foreground">Members evaluated</div>
+                    <div className="mt-1 text-sm font-semibold text-foreground">{result.results.length}</div>
                 </div>
-                <AutoRoleSyncCard sync={result.sync} roleNames={roleNames} />
-                <RoleIdList title="Roles to create" roleIds={result.create_roles} roleNames={roleNames} />
-                <RenameList title="Roles to rename" renames={result.rename_roles} roleNames={roleNames} />
-                <RoleIdList title="Roles created" roleIds={result.created_roles} roleNames={roleNames} />
-                <RenameList title="Roles renamed" renames={result.renamed_roles} roleNames={roleNames} />
-                <AutoRoleIssuesList title="Top-level execution issues" issues={result.execution_issues} roleNames={roleNames} />
-                {result.masked_non_members.length > 0 ? (
-                    <div className="space-y-1.5 rounded-md border border-border/70 bg-muted/10 p-3">
-                        <div className="text-sm font-semibold text-foreground">Masked non-members</div>
-                        <div className="grid gap-1.5">
-                            {result.masked_non_members.map((member) => (
-                                <div key={`${member.user_id}-${member.reason}`} className="rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs">
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className="font-medium text-foreground">{member.display_name || member.username}</span>
-                                        <Badge variant="outline">@{member.username}</Badge>
-                                        <Badge variant="outline">{formatUnmaskedReason(member.reason)}</Badge>
-                                        {member.nation_id != null ? <Badge variant="outline">Nation #{member.nation_id}</Badge> : null}
-                                    </div>
+                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
+                    <div className="text-muted-foreground">Members with changes/issues</div>
+                    <div className="mt-1 text-sm font-semibold text-foreground">{interestingResults.length}</div>
+                </div>
+                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
+                    <div className="text-muted-foreground">Masked non-members</div>
+                    <div className="mt-1 text-sm font-semibold text-foreground">{result.masked_non_members.length}</div>
+                </div>
+                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
+                    <div className="text-muted-foreground">Top-level issues</div>
+                    <div className="mt-1 text-sm font-semibold text-foreground">{result.execution_issues.length}</div>
+                </div>
+            </div>
+            <AutoRoleSyncSection sync={result.sync} roleNames={roleNames} />
+            <RoleIdList title="Roles to create" roleIds={result.create_roles} roleNames={roleNames} />
+            <RenameList title="Roles to rename" renames={result.rename_roles} roleNames={roleNames} />
+            <RoleIdList title="Roles created" roleIds={result.created_roles} roleNames={roleNames} />
+            <RenameList title="Roles renamed" renames={result.renamed_roles} roleNames={roleNames} />
+            <AutoRoleIssuesList title="Top-level execution issues" issues={result.execution_issues} roleNames={roleNames} allianceNames={allianceNames} />
+            {result.masked_non_members.length > 0 ? (
+                <SectionPanel title="Masked non-members">
+                    <div className="grid gap-1.5">
+                        {result.masked_non_members.map((member) => (
+                            <div key={`${member.user_id}-${member.reason}`} className="rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="font-medium text-foreground">{member.display_name || member.username}</span>
+                                    <Badge variant="outline">@{member.username}</Badge>
+                                    <Badge variant="outline">{formatUnmaskedReason(member.reason)}</Badge>
+                                    {member.nation_id != null ? <Badge variant="outline">Nation #{member.nation_id}</Badge> : null}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
-                ) : null}
-                {interestingResults.length > 0 ? (
-                    <details className="rounded-md border border-border/70 bg-muted/10 p-3" open>
-                        <summary className="cursor-pointer text-sm font-semibold text-foreground">
-                            Review member changes ({interestingResults.length})
-                        </summary>
-                        <div className="mt-3 grid gap-2">
-                            {interestingResults.map((memberResult) => (
-                                <AutoRoleMemberCard key={`${memberResult.user_id}-${memberResult.nation_id ?? "none"}`} result={memberResult} roleNames={roleNames} />
-                            ))}
-                        </div>
-                    </details>
-                ) : (
-                    <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-sm text-muted-foreground">
-                        No member-level role or nickname changes were planned or applied.
+                </SectionPanel>
+            ) : null}
+            {interestingResults.length > 0 ? (
+                <details className="rounded-md border border-border/70 bg-muted/10 p-3" open>
+                    <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                        Review member changes ({interestingResults.length})
+                    </summary>
+                    <div className="mt-3 grid gap-2">
+                        {interestingResults.map((memberResult) => (
+                            <AutoRoleMemberCard
+                                key={`${memberResult.user_id}-${memberResult.nation_id ?? "none"}`}
+                                result={memberResult}
+                                roleNames={roleNames}
+                                allianceNames={allianceNames}
+                            />
+                        ))}
                     </div>
-                )}
-            </CardContent>
-        </Card>
+                </details>
+            ) : (
+                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-sm text-muted-foreground">
+                    No member-level role or nickname changes were planned or applied.
+                </div>
+            )}
+        </ResultSection>
     );
 }
 
@@ -862,9 +993,8 @@ export default function RoleManagementPage() {
         () => buildRoleAliasEntries(aliasQuery.data?.data as WebRoleAliases | null | undefined),
         [aliasQuery.data?.data],
     );
-    const aliasSummary = useMemo(() => summarizeRoleAliases(aliasEntries), [aliasEntries]);
-    const managedRoleSummary = useMemo(
-        () => summarizeManagedRoles(managedRolesQuery.data?.data as AutoRoleManagedRoles | null | undefined),
+    const managedRoles = useMemo(
+        () => managedRolesQuery.data?.data as AutoRoleManagedRoles | null | undefined,
         [managedRolesQuery.data?.data],
     );
     const knownRoleNames = useMemo(
@@ -872,11 +1002,52 @@ export default function RoleManagementPage() {
         [aliasQuery.data?.data?.discord_role_names, runtimeRoleNames],
     );
 
+    const allianceIds = useMemo(() => {
+        const ids = new Set<number>();
+
+        aliasEntries.forEach((entry) => {
+            entry.mappings.forEach((mapping) => addAllianceId(ids, mapping.allianceId));
+        });
+        (managedRoles?.alliance_roles ?? []).forEach((entry) => addAllianceId(ids, entry.alliance_id));
+
+        if (singleResult) {
+            collectAllianceIdsFromIssues(ids, singleResult.execution_issues);
+            collectAllianceIdsFromMemberResult(ids, singleResult.result);
+        }
+
+        if (bulkResult) {
+            collectAllianceIdsFromIssues(ids, bulkResult.execution_issues);
+            bulkResult.results.forEach((result) => collectAllianceIdsFromMemberResult(ids, result));
+        }
+
+        return Array.from(ids).sort((left, right) => left - right);
+    }, [aliasEntries, bulkResult, managedRoles?.alliance_roles, singleResult]);
+
+    const allianceSelection = useMemo(() => buildAllianceSelection(allianceIds), [allianceIds]);
+    const allianceNamesQuery = useQuery({
+        ...bulkQueryOptions(TABLE.endpoint, {
+            type: "DBAlliance",
+            selection_str: allianceSelection,
+            columns: ALLIANCE_NAME_QUERY_COLUMNS,
+        }),
+        enabled: Boolean(session?.guild) && allianceIds.length > 0,
+    });
+    const allianceNames = useMemo(
+        () => parseAllianceNames(allianceNamesQuery.data?.data as WebTable | null | undefined),
+        [allianceNamesQuery.data?.data],
+    );
+
     const permissionMessages = useMemo(() => {
         const messages: string[] = [];
-        if (aliasPermission.error) messages.push(`Role alias permission lookup failed: ${aliasPermission.error}`);
-        if (singleAutorolePermission.error) messages.push(`Single autorole permission lookup failed: ${singleAutorolePermission.error}`);
-        if (bulkAutorolePermission.error) messages.push(`Bulk autorole permission lookup failed: ${bulkAutorolePermission.error}`);
+        if (aliasPermission.error) {
+            messages.push(`Role alias permission lookup failed: ${aliasPermission.error}`);
+        }
+        if (singleAutorolePermission.error) {
+            messages.push(`Single autorole permission lookup failed: ${singleAutorolePermission.error}`);
+        }
+        if (bulkAutorolePermission.error) {
+            messages.push(`Bulk autorole permission lookup failed: ${bulkAutorolePermission.error}`);
+        }
         return messages;
     }, [aliasPermission.error, bulkAutorolePermission.error, singleAutorolePermission.error]);
 
@@ -897,13 +1068,17 @@ export default function RoleManagementPage() {
 
             const searchableText = [
                 entry.roleName,
-                entry.mappings.map((mapping) => mapping.scopeLabel).join("\n"),
-                entry.mappings.map((mapping) => mapping.discordRoleName ?? String(mapping.roleId)).join("\n"),
+                ...entry.mappings.flatMap((mapping) => [
+                    formatAliasScopeLabel(mapping, allianceNames),
+                    mapping.scopeLabel,
+                    formatDiscordRoleName(mapping.roleId, knownRoleNames),
+                    String(mapping.roleId),
+                ]),
             ].join("\n").toLowerCase();
 
             return searchableText.includes(normalizedAliasSearch);
         });
-    }, [aliasEntries, aliasFilterMode, normalizedAliasSearch]);
+    }, [aliasEntries, aliasFilterMode, allianceNames, knownRoleNames, normalizedAliasSearch]);
 
     const mergeRuntimeNames = useCallback((roleNames?: Record<string, string> | null) => {
         if (!roleNames) {
@@ -935,13 +1110,12 @@ export default function RoleManagementPage() {
         handleManagedRolesChanged(result.data);
     }, [handleManagedRolesChanged]);
 
-    const openAliasDialog = useCallback((args: { title: string; description: string; initialValues: RoleSetAliasArgs }) => {
+    const openAliasDialog = useCallback((args: { title: string; initialValues: RoleSetAliasArgs }) => {
         showDialog(
             args.title,
             <CommandDialogForm
                 commandPath={coerceRoleCommandPath(ROLE_SET_ALIAS_COMMAND)}
                 initialValues={args.initialValues as Record<string, string>}
-                description={args.description}
                 showResultDialog
                 actionsLayout="sticky"
                 onCompleteSuccess={refreshAliases}
@@ -985,22 +1159,18 @@ export default function RoleManagementPage() {
 
         return {
             sticky: true,
-            title: (
-                <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">Role management</h1>
-                    <span className="text-xs text-muted-foreground">Aliases, autorole tasks, managed role bindings, and AUTO_ROLE settings</span>
-                </div>
-            ),
-            content: (
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline">{aliasSummary.mappedRoles}/{aliasSummary.totalRoles} aliases mapped</Badge>
-                    <Badge variant="outline">{aliasSummary.invalidRoles} invalid aliases</Badge>
-                    <Badge variant="outline">{managedRoleSummary.total} managed roles</Badge>
-                    <Badge variant="outline">{AUTO_ROLE_SETTING_KEYS.length} AUTO_ROLE settings</Badge>
-                </div>
-            ),
+            title: <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">Role management</h1>,
         } satisfies PageHeaderConfig;
-    }, [aliasSummary.invalidRoles, aliasSummary.mappedRoles, aliasSummary.totalRoles, managedRoleSummary.total, session?.guild]);
+    }, [session?.guild]);
+
+    const managedRoleReadOnlyMessage = bulkAutorolePermission.error ?? "Requires bulk autorole permission.";
+    const managedRoleCanWrite = managedRolePermissionMode === "ready";
+    const getAllianceRoleKey = useCallback((entry: AllianceRoleEntry) => `alliance-${entry.role_id}-${entry.alliance_id}`, []);
+    const getAllianceRoleLabel = useCallback((entry: AllianceRoleEntry) => formatAllianceLabel(entry.alliance_id, allianceNames), [allianceNames]);
+    const getCityRoleKey = useCallback((entry: CityRoleEntry) => `city-${entry.role_id}-${entry.range_start}-${entry.range_end}`, []);
+    const getCityRoleLabel = useCallback((entry: CityRoleEntry) => formatCityRoleRangeLabel(entry.range_start, entry.range_end), []);
+    const getTaxRoleKey = useCallback((entry: TaxRoleEntry) => `tax-${entry.role_id}-${entry.money_rate}-${entry.rss_rate}`, []);
+    const getTaxRoleLabel = useCallback((entry: TaxRoleEntry) => formatTaxRoleRateLabel(entry.money_rate, entry.rss_rate), []);
 
     usePageSidebar(defaultSidebar);
     usePageHeader(pageHeaderConfig);
@@ -1012,252 +1182,155 @@ export default function RoleManagementPage() {
     return (
         <div className="pb-8">
             <div className="w-full px-3 sm:px-4">
-                <div className="mx-auto max-w-6xl space-y-4">
+                <div className="mx-auto max-w-6xl space-y-8">
                     {permissionMessages.length > 0 ? (
                         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
                             {permissionMessages.join(" | ")}
                         </div>
                     ) : null}
 
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        <Card>
-                            <CardHeader className="space-y-1 pb-2">
-                                <CardTitle className="text-sm">Role aliases</CardTitle>
-                                <CardDescription>{formatPlural(aliasSummary.totalMappings, "mapping")} across {formatPlural(aliasSummary.mappedRoles, "mapped role")}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="pt-0 text-xs text-muted-foreground">
-                                {aliasSummary.invalidRoles} invalid alias targets
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="space-y-1 pb-2">
-                                <CardTitle className="text-sm">Managed roles</CardTitle>
-                                <CardDescription>{managedRoleSummary.allianceRoles} alliance, {managedRoleSummary.cityRoles} city, {managedRoleSummary.taxRoles} tax</CardDescription>
-                            </CardHeader>
-                            <CardContent className="pt-0 text-xs text-muted-foreground">
-                                {managedRoleSummary.duplicateKeys} duplicate key warning(s)
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="space-y-1 pb-2">
-                                <CardTitle className="text-sm">Autorole tasks</CardTitle>
-                                <CardDescription>Single-member and guild-wide preview/run endpoints</CardDescription>
-                            </CardHeader>
-                            <CardContent className="pt-0 text-xs text-muted-foreground">
-                                Single: {canRunSingleAutorole ? "ready" : "read-only"} | Bulk: {canRunBulkAutorole ? "ready" : "read-only"}
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="space-y-1 pb-2">
-                                <CardTitle className="text-sm">AUTO_ROLE settings</CardTitle>
-                                <CardDescription>Shared settings browser subset</CardDescription>
-                            </CardHeader>
-                            <CardContent className="pt-0 text-xs text-muted-foreground">
-                                {AUTO_ROLE_SETTING_KEYS.join(", ")}
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-                        <Card>
-                            <CardHeader className="space-y-3 border-b border-border/70 pb-3">
-                                <div className="space-y-1">
-                                    <CardTitle className="text-base">Role aliases</CardTitle>
-                                    <CardDescription>
-                                        Manage the Discord roles Locutus uses for permission and alert aliases. Reads come from `list_role_aliases`; writes stay command-backed through `/role setalias`.
-                                    </CardDescription>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Input
-                                        value={aliasSearch}
-                                        onChange={handleAliasSearchChange}
-                                        placeholder="Search aliases"
-                                        className="max-w-xs"
+                    <PageSection
+                        title="Role aliases"
+                        actions={(
+                            <>
+                                <Input
+                                    value={aliasSearch}
+                                    onChange={handleAliasSearchChange}
+                                    placeholder="Search aliases"
+                                    className="w-full min-w-48 sm:w-56"
+                                />
+                                <Tabs value={aliasFilterMode} onValueChange={handleAliasFilterChange}>
+                                    <TabsList>
+                                        <TabsTrigger value="all">All</TabsTrigger>
+                                        <TabsTrigger value="mapped">Mapped</TabsTrigger>
+                                        <TabsTrigger value="invalid">Invalid</TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
+                                <Button type="button" variant="outline" size="sm" onClick={refreshAliases}>
+                                    Refresh aliases
+                                </Button>
+                            </>
+                        )}
+                    >
+                        {aliasQuery.isLoading ? (
+                            <div className="py-6"><Loading variant="ripple" /></div>
+                        ) : aliasQuery.error ? (
+                            <div className="text-sm text-destructive">Failed to load role aliases: {aliasQuery.error.message}</div>
+                        ) : filteredAliasEntries.length > 0 ? (
+                            <div className="space-y-2">
+                                {filteredAliasEntries.map((entry) => (
+                                    <RoleAliasRow
+                                        key={entry.ordinal}
+                                        entry={entry}
+                                        roleNames={knownRoleNames}
+                                        allianceNames={allianceNames}
+                                        canEdit={canManageAliases}
+                                        onOpenAliasDialog={openAliasDialog}
+                                        onAliasesChanged={refreshAliases}
                                     />
-                                    <Tabs value={aliasFilterMode} onValueChange={handleAliasFilterChange}>
-                                        <TabsList>
-                                            <TabsTrigger value="all">All</TabsTrigger>
-                                            <TabsTrigger value="mapped">Mapped</TabsTrigger>
-                                            <TabsTrigger value="invalid">Invalid</TabsTrigger>
-                                        </TabsList>
-                                    </Tabs>
-                                    <Button type="button" variant="outline" size="sm" onClick={refreshAliases}>
-                                        Refresh aliases
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3 pt-3">
-                                {aliasQuery.isLoading ? (
-                                    <div className="py-6"><Loading variant="ripple" /></div>
-                                ) : aliasQuery.error ? (
-                                    <div className="text-sm text-destructive">Failed to load role aliases: {aliasQuery.error.message}</div>
-                                ) : filteredAliasEntries.length > 0 ? (
-                                    <div className="grid gap-3 lg:grid-cols-2">
-                                        {filteredAliasEntries.map((entry) => (
-                                            <RoleAliasCard
-                                                key={entry.ordinal}
-                                                entry={entry}
-                                                canEdit={canManageAliases}
-                                                onOpenAliasDialog={openAliasDialog}
-                                                onAliasesChanged={refreshAliases}
-                                            />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-sm text-muted-foreground">No alias rows match the current filters.</div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-sm text-muted-foreground">No alias rows match the current filters.</div>
+                        )}
+                    </PageSection>
 
-                        <div className="space-y-4">
-                            <Card>
-                                <CardHeader className="space-y-1 border-b border-border/70 pb-3">
-                                    <CardTitle className="text-base">Autorole preview and execution</CardTitle>
-                                    <CardDescription>
-                                        The autorole endpoints preview by default. Running with `force=true` executes the same planned changes.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-3 pt-3">
-                                    <AutoroleSinglePanel
-                                        canRun={canRunSingleAutorole}
-                                        onResult={handleSingleAutoroleRequest}
-                                        pending={singleAutoroleAction.isPending}
-                                    />
-                                    <AutoroleBulkPanel
-                                        canRun={canRunBulkAutorole}
-                                        onPreview={handleBulkPreview}
-                                        onRun={handleBulkRun}
-                                        pending={bulkAutoroleAction.isPending}
-                                    />
-                                </CardContent>
-                            </Card>
-
-                            {singleResult ? <SingleAutoRoleResultCard result={singleResult} roleNames={knownRoleNames} /> : null}
-                            {bulkResult ? <BulkAutoRoleResultCard result={bulkResult} roleNames={knownRoleNames} /> : null}
+                    <PageSection title="Autorole">
+                        <div className="grid gap-3 lg:grid-cols-2">
+                            <AutoroleSinglePanel
+                                canRun={canRunSingleAutorole}
+                                onResult={handleSingleAutoroleRequest}
+                                pending={singleAutoroleAction.isPending}
+                            />
+                            <AutoroleBulkPanel
+                                canRun={canRunBulkAutorole}
+                                onPreview={handleBulkPreview}
+                                onRun={handleBulkRun}
+                                pending={bulkAutoroleAction.isPending}
+                            />
                         </div>
-                    </div>
+                        {singleResult ? <SingleAutoRoleResultSection result={singleResult} roleNames={knownRoleNames} allianceNames={allianceNames} /> : null}
+                        {bulkResult ? <BulkAutoRoleResultSection result={bulkResult} roleNames={knownRoleNames} allianceNames={allianceNames} /> : null}
+                    </PageSection>
 
-                    <Card>
-                        <CardHeader className="space-y-1 border-b border-border/70 pb-3">
-                            <CardTitle className="text-base">Alliance, city, and tax autorole bindings</CardTitle>
-                            <CardDescription>
-                                These bindings come from `list_autorole_roles`. Adds and removals use the dedicated role-management endpoints rather than command output parsing.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4 pt-3">
-                            {managedRolePermissionMode === "error" ? (
-                                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
-                                    Managed-role permissions could not be verified. Reads remain available, but writes stay disabled until the permission check succeeds.
-                                </div>
-                            ) : null}
-                            {managedRolesQuery.isLoading ? (
-                                <div className="py-6"><Loading variant="ripple" /></div>
-                            ) : managedRolesQuery.error ? (
-                                <div className="text-sm text-destructive">Failed to load managed roles: {managedRolesQuery.error.message}</div>
-                            ) : (
-                                <div className="grid gap-4 xl:grid-cols-3">
-                                    <ManagedRoleGroup
-                                        title="Alliance roles"
-                                        description="Map specific alliances to autorole-managed Discord roles."
-                                        addForm={managedRolePermissionMode === "ready" ? (
-                                            <ApiFormInputs
-                                                endpoint={ADD_ALLIANCE_ROLE}
-                                                message={<div className="text-xs text-muted-foreground">Rename an existing Discord role into an alliance-scoped autorole binding.</div>}
-                                                label="Add alliance role"
-                                                handle_response={handleManagedRolesResponse}
-                                            />
-                                        ) : <div className="text-xs text-muted-foreground">Read-only: alliance role changes require bulk autorole permissions.</div>}
-                                    >
-                                        {(managedRolesQuery.data?.data?.alliance_roles ?? []).length > 0 ? (
-                                            (managedRolesQuery.data?.data?.alliance_roles ?? []).map((entry: AllianceRoleEntry) => (
-                                                <ManagedRoleRow
-                                                    key={`alliance-${entry.role_id}-${entry.alliance_id}`}
-                                                    title={`Alliance #${entry.alliance_id}`}
-                                                    details={`Discord role binding for alliance ${entry.alliance_id}.`}
-                                                    duplicateKey={entry.duplicate_key}
-                                                    roleId={entry.role_id}
-                                                    roleNames={knownRoleNames}
-                                                    removeEndpoint={REMOVE_ALLIANCE_ROLE}
-                                                    canManage={managedRolePermissionMode === "ready"}
-                                                    onManagedRolesChanged={handleManagedRolesChanged}
-                                                />
-                                            ))
-                                        ) : (
-                                            <div className="text-sm text-muted-foreground">No alliance autorole bindings.</div>
-                                        )}
-                                    </ManagedRoleGroup>
+                    <PageSection title="Alliance, city, and tax roles">
+                        {managedRolePermissionMode === "error" ? (
+                            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
+                                {bulkAutorolePermission.error}
+                            </div>
+                        ) : null}
+                        {managedRolesQuery.isLoading ? (
+                            <div className="py-6"><Loading variant="ripple" /></div>
+                        ) : managedRolesQuery.error ? (
+                            <div className="text-sm text-destructive">Failed to load managed roles: {managedRolesQuery.error.message}</div>
+                        ) : (
+                            <div className="space-y-6">
+                                <ManagedRoleBlock<AllianceRoleEntry>
+                                    title="Alliance roles"
+                                    addForm={managedRoleCanWrite ? (
+                                        <ApiFormInputs
+                                            endpoint={ADD_ALLIANCE_ROLE}
+                                            label="Add alliance role"
+                                            handle_response={handleManagedRolesResponse}
+                                        />
+                                    ) : managedRolePermissionMode === "readonly" ? <div className="text-sm text-muted-foreground">{managedRoleReadOnlyMessage}</div> : null}
+                                    emptyMessage="No alliance roles."
+                                    items={managedRoles?.alliance_roles ?? []}
+                                    getKey={getAllianceRoleKey}
+                                    getLabel={getAllianceRoleLabel}
+                                    roleNames={knownRoleNames}
+                                    removeEndpoint={REMOVE_ALLIANCE_ROLE}
+                                    canManage={managedRoleCanWrite}
+                                    onManagedRolesChanged={handleManagedRolesChanged}
+                                />
 
-                                    <ManagedRoleGroup
-                                        title="City roles"
-                                        description="Bind city ranges to autorole-managed Discord roles."
-                                        addForm={managedRolePermissionMode === "ready" ? (
-                                            <ApiFormInputs
-                                                endpoint={ADD_CITY_ROLE}
-                                                message={<div className="text-xs text-muted-foreground">Rename an existing Discord role into a city-range autorole binding.</div>}
-                                                label="Add city role"
-                                                handle_response={handleManagedRolesResponse}
-                                            />
-                                        ) : <div className="text-xs text-muted-foreground">Read-only: city role changes require bulk autorole permissions.</div>}
-                                    >
-                                        {(managedRolesQuery.data?.data?.city_roles ?? []).length > 0 ? (
-                                            (managedRolesQuery.data?.data?.city_roles ?? []).map((entry: CityRoleEntry) => (
-                                                <ManagedRoleRow
-                                                    key={`city-${entry.role_id}-${entry.range_start}-${entry.range_end}`}
-                                                    title={`${entry.range_start}-${entry.range_end} cities`}
-                                                    details={`Applies to nations within the ${entry.range_start}-${entry.range_end} city range.`}
-                                                    duplicateKey={entry.duplicate_key}
-                                                    roleId={entry.role_id}
-                                                    roleNames={knownRoleNames}
-                                                    removeEndpoint={REMOVE_CITY_ROLE}
-                                                    canManage={managedRolePermissionMode === "ready"}
-                                                    onManagedRolesChanged={handleManagedRolesChanged}
-                                                />
-                                            ))
-                                        ) : (
-                                            <div className="text-sm text-muted-foreground">No city-range autorole bindings.</div>
-                                        )}
-                                    </ManagedRoleGroup>
+                                <ManagedRoleBlock<CityRoleEntry>
+                                    title="City roles"
+                                    addForm={managedRoleCanWrite ? (
+                                        <ApiFormInputs
+                                            endpoint={ADD_CITY_ROLE}
+                                            label="Add city role"
+                                            handle_response={handleManagedRolesResponse}
+                                        />
+                                    ) : managedRolePermissionMode === "readonly" ? <div className="text-sm text-muted-foreground">{managedRoleReadOnlyMessage}</div> : null}
+                                    emptyMessage="No city roles."
+                                    items={managedRoles?.city_roles ?? []}
+                                    getKey={getCityRoleKey}
+                                    getLabel={getCityRoleLabel}
+                                    roleNames={knownRoleNames}
+                                    removeEndpoint={REMOVE_CITY_ROLE}
+                                    canManage={managedRoleCanWrite}
+                                    onManagedRolesChanged={handleManagedRolesChanged}
+                                />
 
-                                    <ManagedRoleGroup
-                                        title="Tax roles"
-                                        description="Bind tax rates to autorole-managed Discord roles."
-                                        addForm={managedRolePermissionMode === "ready" ? (
-                                            <ApiFormInputs
-                                                endpoint={ADD_TAX_ROLE}
-                                                message={<div className="text-xs text-muted-foreground">Rename an existing Discord role into a tax-rate autorole binding.</div>}
-                                                label="Add tax role"
-                                                handle_response={handleManagedRolesResponse}
-                                            />
-                                        ) : <div className="text-xs text-muted-foreground">Read-only: tax role changes require bulk autorole permissions.</div>}
-                                    >
-                                        {(managedRolesQuery.data?.data?.tax_roles ?? []).length > 0 ? (
-                                            (managedRolesQuery.data?.data?.tax_roles ?? []).map((entry: TaxRoleEntry) => (
-                                                <ManagedRoleRow
-                                                    key={`tax-${entry.role_id}-${entry.money_rate}-${entry.rss_rate}`}
-                                                    title={`${entry.money_rate}/${entry.rss_rate} tax`}
-                                                    details={`Applies to members on the ${entry.money_rate}/${entry.rss_rate} tax bracket.`}
-                                                    duplicateKey={entry.duplicate_key}
-                                                    roleId={entry.role_id}
-                                                    roleNames={knownRoleNames}
-                                                    removeEndpoint={REMOVE_TAX_ROLE}
-                                                    canManage={managedRolePermissionMode === "ready"}
-                                                    onManagedRolesChanged={handleManagedRolesChanged}
-                                                />
-                                            ))
-                                        ) : (
-                                            <div className="text-sm text-muted-foreground">No tax-rate autorole bindings.</div>
-                                        )}
-                                    </ManagedRoleGroup>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                                <ManagedRoleBlock<TaxRoleEntry>
+                                    title="Tax roles"
+                                    addForm={managedRoleCanWrite ? (
+                                        <ApiFormInputs
+                                            endpoint={ADD_TAX_ROLE}
+                                            label="Add tax role"
+                                            handle_response={handleManagedRolesResponse}
+                                        />
+                                    ) : managedRolePermissionMode === "readonly" ? <div className="text-sm text-muted-foreground">{managedRoleReadOnlyMessage}</div> : null}
+                                    emptyMessage="No tax roles."
+                                    items={managedRoles?.tax_roles ?? []}
+                                    getKey={getTaxRoleKey}
+                                    getLabel={getTaxRoleLabel}
+                                    roleNames={knownRoleNames}
+                                    removeEndpoint={REMOVE_TAX_ROLE}
+                                    canManage={managedRoleCanWrite}
+                                    onManagedRolesChanged={handleManagedRolesChanged}
+                                />
+                            </div>
+                        )}
+                    </PageSection>
 
                     <GuildSettingsSubset
                         title="AUTO_ROLE settings"
-                        description="This is a thin wrapper over the shared guild settings browser, scoped to the AUTO_ROLE settings that shape autorole planning and execution."
                         settings={AUTO_ROLE_SETTING_KEYS}
                         emptyMessage="No AUTO_ROLE settings are currently available for this guild."
+                        renderAs="section"
+                        showAvailabilitySummary={false}
                     />
                 </div>
             </div>

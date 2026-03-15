@@ -6,9 +6,15 @@ import {
     AUTO_ROLE_SETTING_KEYS,
     LOCUTUS_ROLE_OPTIONS,
     buildRoleAliasEntries,
+    formatAliasScopeLabel,
+    formatAllianceLabel,
     formatAutoRoleIssueType,
+    formatCityRoleRangeLabel,
+    formatDiscordRoleName,
     formatDiscordRoleLabel,
+    formatTaxRoleRateLabel,
     formatUnmaskedReason,
+    getRoleMention,
     summarizeManagedRoles,
     summarizeRoleAliases,
 } from "./rolesDomain";
@@ -65,7 +71,7 @@ describe("rolesDomain", () => {
         });
         expect(milcomEntry?.mappings[0]).toMatchObject({
             allianceId: 123,
-            scopeLabel: "Alliance #123",
+            scopeLabel: "AA:123",
             discordRoleName: "Milcom",
         });
 
@@ -118,7 +124,15 @@ describe("rolesDomain", () => {
     it("formats issue, reason, and role labels for UI output", () => {
         expect(formatAutoRoleIssueType("MISSING_REGISTERED_ROLE_MAPPING")).toBe("Missing Registered Role Mapping");
         expect(formatUnmaskedReason("NOT_IN_ALLIANCE")).toBe("Not In Alliance");
+        expect(formatDiscordRoleName(15, { "15": "Registered" })).toBe("Registered");
         expect(formatDiscordRoleLabel(15, { "15": "Registered" })).toBe("Registered (15)");
         expect(formatDiscordRoleLabel(16, {})).toBe("Role #16");
+        expect(getRoleMention(15)).toBe("<@&15>");
+        expect(formatAllianceLabel(77, { "77": "Aurora" })).toBe("Aurora");
+        expect(formatAllianceLabel(78, {})).toBe("AA:78");
+        expect(formatAliasScopeLabel({ allianceId: 77, scopeLabel: "AA:77" }, { "77": "Aurora" })).toBe("Aurora");
+        expect(formatCityRoleRangeLabel(1, 10)).toBe("c1-10");
+        expect(formatCityRoleRangeLabel(5, 0)).toBe("c5+");
+        expect(formatTaxRoleRateLabel(10, 10)).toBe("10/10");
     });
 });

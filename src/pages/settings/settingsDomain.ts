@@ -1,7 +1,7 @@
 import type { ArgInputSupport } from "@/components/cmd/ArgInput";
 import { getArgInputSupport } from "@/components/cmd/ArgInput";
 import { QueryResult } from "@/lib/BulkQuery";
-import type { GuildSettingCategory, GuildSettingSubgroup, WebTable } from "@/lib/apitypes";
+import type { GuildSettingCategory, GuildSettingSubgroup, WebTable, WebTableError } from "@/lib/apitypes";
 import { COMMANDS } from "@/lib/commands";
 import type { JSONValue } from "@/lib/internaltypes";
 import { getRenderer } from "@/components/ui/renderers";
@@ -24,6 +24,7 @@ type SettingColumnDefinition<
         args?: GuildSettingPlaceholderArgs<Command>;
     };
     useRenderer?: boolean;
+    includeInViewTable?: boolean;
 };
 
 function defineSettingColumn<
@@ -50,6 +51,7 @@ const GUILD_SETTING_COLUMN_SCHEMA = [
     defineSettingColumn({ key: "invalid", placeholder: { cmd: "hasinvalidvalue", args: { checkDelegate: "false" } } }),
     defineSettingColumn({ key: "isChannelType", placeholder: { cmd: "ischanneltype" } }),
     defineSettingColumn({ key: "isAllowed", placeholder: { cmd: "allowed", args: { throwException: "false" } } }),
+    defineSettingColumn({ key: "availabilityReason", placeholder: { cmd: "allowed", args: { throwException: "true" } }, includeInViewTable: false }),
 ] as const;
 
 type SettingColumnKey = (typeof GUILD_SETTING_COLUMN_SCHEMA)[number]["key"];
@@ -87,8 +89,10 @@ export const guildSettingColumns = GUILD_SETTING_COLUMN_SCHEMA.reduce(
     CM.placeholders(GUILD_SETTING_TABLE_TYPE).aliased(),
 );
 
-export const GUILD_SETTING_VIEW_TABLE_COLUMNS = guildSettingColumns.aliasedArray();
-export const GUILD_SETTING_COLUMNS = GUILD_SETTING_VIEW_TABLE_COLUMNS.map((column) => getColumnPlaceholder(column));
+export const GUILD_SETTING_VIEW_TABLE_COLUMNS = guildSettingColumnEntries
+    .filter((column) => column.includeInViewTable !== false)
+    .map((column) => guildSettingColumns.aliasedArray()[column.index]);
+export const GUILD_SETTING_COLUMNS = guildSettingColumns.array();
 
 function getColumnIndex(key: SettingColumnKey): number {
     return guildSettingColumnEntryByKey[key].index;
@@ -101,6 +105,33 @@ function getRawColumnValue(rawRow: readonly JSONValue[], key: SettingColumnKey):
 type BackendRendererList = readonly (string | null | undefined)[];
 
 const EMPTY_RENDERERS: BackendRendererList = [];
+
+type TableCellErrorLookup = Map<string, string[]>;
+
+function getCellErrorKey(rowIndex: number, colIndex: number): string {
+    return `${rowIndex}:${colIndex}`;
+}
+
+function buildTableCellErrorLookup(errors?: readonly WebTableError[]): TableCellErrorLookup {
+    const lookup: TableCellErrorLookup = new Map();
+
+    for (const error of errors ?? []) {
+        if (typeof error.row !== "number" || typeof error.col !== "number") {
+            continue;
+        }
+
+        const key = getCellErrorKey(error.row, error.col);
+        const existing = lookup.get(key);
+        if (existing) {
+            existing.push(error.msg);
+            continue;
+        }
+
+        lookup.set(key, [error.msg]);
+    }
+
+    return lookup;
+}
 
 function toText(value: unknown): string {
     if (value == null) return "";
@@ -162,6 +193,43 @@ function readBooleanColumn(
     return parsed ?? false;
 }
 
+function readCellErrorMessage(
+    cellErrors: TableCellErrorLookup,
+    rowIndex: number,
+    key: SettingColumnKey,
+): string | undefined {
+    const messages = cellErrors.get(getCellErrorKey(rowIndex, getColumnIndex(key)));
+    if (!messages || messages.length === 0) {
+        return undefined;
+    }
+
+    return messages.join("; ");
+}
+
+function readAvailabilityReason(
+    rawRow: readonly JSONValue[],
+    backendRenderers: BackendRendererList,
+    cellErrors: TableCellErrorLookup,
+    rowIndex: number,
+): string | undefined {
+    const errorMessage = readCellErrorMessage(cellErrors, rowIndex, "availabilityReason");
+    if (errorMessage) {
+        return errorMessage;
+    }
+
+    const rawValue = readTextColumn(rawRow, "availabilityReason", backendRenderers).trim();
+    if (!rawValue) {
+        return undefined;
+    }
+
+    const normalized = rawValue.toLowerCase();
+    if (normalized === "true" || normalized === "false") {
+        return undefined;
+    }
+
+    return rawValue;
+}
+
 function toSettingKey(value: string): SettingKey {
     return value as SettingKey;
 }
@@ -187,6 +255,7 @@ export type SettingFlags = {
     invalid: boolean;
     isChannelType: boolean;
     isAllowed: boolean;
+    availabilityReason?: string;
 };
 
 export type SettingEditor = {
@@ -644,7 +713,8 @@ function buildSettingValue(
 function buildSettingRow(
     rawRow: readonly JSONValue[],
     backendRenderers: BackendRendererList,
-    rowNumber: number,
+    rowIndex: number,
+    cellErrors: TableCellErrorLookup,
 ): {
     row: SettingRow;
     unsupportedInputIssue?: UnsupportedInputIssue;
@@ -668,6 +738,7 @@ function buildSettingRow(
         invalid: readBooleanColumn(rawRow, "invalid", parseErrors),
         isChannelType: readBooleanColumn(rawRow, "isChannelType", parseErrors),
         isAllowed: readBooleanColumn(rawRow, "isAllowed", parseErrors),
+        availabilityReason: readAvailabilityReason(rawRow, backendRenderers, cellErrors, rowIndex),
     };
 
     const breakdown = metadata.argType ? getTypeBreakdown(CM, metadata.argType) : null;
@@ -694,7 +765,7 @@ function buildSettingRow(
         unsupportedInputIssue: inputSupport.supported
             ? undefined
             : {
-                settingKey: settingKeyText || `row-${rowNumber}`,
+                settingKey: settingKeyText || `row-${rowIndex + 1}`,
                 argType: metadata.argType,
                 reason: inputSupport.reason ?? "unsupported setting input type",
             },
@@ -709,6 +780,7 @@ export function normalizeGuildSettingRows(table: WebTable): NormalizedSettingsRo
 
     const backendRenderers = Array.isArray(table.renderers) ? table.renderers : EMPTY_RENDERERS;
     const allCells = Array.isArray(table.cells) ? table.cells : [];
+    const cellErrors = buildTableCellErrorLookup(table.errors);
 
     const dataRows = allCells.slice(1);
 
@@ -719,7 +791,7 @@ export function normalizeGuildSettingRows(table: WebTable): NormalizedSettingsRo
             continue;
         }
 
-        const { row, unsupportedInputIssue } = buildSettingRow(rawRow as JSONValue[], backendRenderers, index + 1);
+        const { row, unsupportedInputIssue } = buildSettingRow(rawRow as JSONValue[], backendRenderers, index, cellErrors);
         rows.push(row);
 
         if (unsupportedInputIssue) {

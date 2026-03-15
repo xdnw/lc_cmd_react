@@ -213,6 +213,20 @@ describe("normalizeGuildSettingRows", () => {
         expect(result.schemaErrors).toEqual([]);
         expect(result.rowParseErrors).toEqual([]);
     });
+
+    it("captures availability reasons from per-cell table errors", () => {
+        const result = normalizeGuildSettingRows({
+            cells: [
+                [],
+                ["AUTONICK", "text", "DEFAULT", "NONE", "Help text", "nick", "nick", false, false, false, null],
+            ],
+            renderers: [],
+            errors: [{ row: 0, col: 10, msg: "Requires current guild to be the root server" }],
+        } as never);
+
+        expect(result.rows[0]?.flags.isAllowed).toBe(false);
+        expect(result.rows[0]?.flags.availabilityReason).toBe("Requires current guild to be the root server");
+    });
 });
 
 describe("estimateSettingsItemHeight", () => {

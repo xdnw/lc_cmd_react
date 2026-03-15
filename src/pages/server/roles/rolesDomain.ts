@@ -75,7 +75,7 @@ function parseAllianceScopeKey(value: string): { allianceId: number | null; scop
     if (Number.isFinite(parsed) && parsed > 0) {
         return {
             allianceId: parsed,
-            scopeLabel: `Alliance #${parsed}`,
+            scopeLabel: `AA:${parsed}`,
         };
     }
 
@@ -200,9 +200,45 @@ export function getDiscordRoleName(roleId: number, roleNames?: Record<string, st
     return roleNames?.[String(roleId)] ?? null;
 }
 
+export function formatDiscordRoleName(roleId: number, roleNames?: Record<string, string> | null): string {
+    return getDiscordRoleName(roleId, roleNames) ?? `Role #${roleId}`;
+}
+
 export function formatDiscordRoleLabel(roleId: number, roleNames?: Record<string, string> | null): string {
     const knownName = getDiscordRoleName(roleId, roleNames);
     return knownName ? `${knownName} (${roleId})` : `Role #${roleId}`;
+}
+
+export function getRoleMention(roleId: number): string {
+    return `<@&${roleId}>`;
+}
+
+export function formatAllianceLabel(allianceId: number, allianceNames?: Record<string, string> | null): string {
+    const knownName = allianceNames?.[String(allianceId)]?.trim();
+    return knownName ? knownName : `AA:${allianceId}`;
+}
+
+export function formatAliasScopeLabel(
+    mapping: Pick<RoleAliasMapping, "allianceId" | "scopeLabel">,
+    allianceNames?: Record<string, string> | null,
+): string {
+    return mapping.allianceId != null ? formatAllianceLabel(mapping.allianceId, allianceNames) : mapping.scopeLabel;
+}
+
+export function formatCityRoleRangeLabel(rangeStart: number, rangeEnd: number): string {
+    if (!Number.isFinite(rangeEnd) || rangeEnd <= 0 || rangeEnd < rangeStart) {
+        return `c${rangeStart}+`;
+    }
+
+    if (rangeStart === rangeEnd) {
+        return `c${rangeStart}`;
+    }
+
+    return `c${rangeStart}-${rangeEnd}`;
+}
+
+export function formatTaxRoleRateLabel(moneyRate: number, rssRate: number): string {
+    return `${moneyRate}/${rssRate}`;
 }
 
 export function formatAutoRoleIssueType(issueType: AutoRoleIssueType): string {

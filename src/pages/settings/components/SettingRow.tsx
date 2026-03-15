@@ -59,7 +59,7 @@ export default function SettingRow({
     onRefreshSetting: (settingKey: string) => void;
 }) {
     const isUnsupported = !row.editor.inputSupport.supported;
-    const unavailableReason = !row.flags.isAllowed ? "Unavailable in current guild context" : undefined;
+    const unavailableReason = !row.flags.isAllowed ? row.flags.availabilityReason : undefined;
     const valueSummary = summarizeValue(row.value.displayText, row.value.hasValue);
     const hasMoreHelp = row.metadata.helpFull.trim() !== row.metadata.helpShort.trim();
     const subgroupVisible = hasVisibleSettingsSubgroup(row.metadata.subgroup);

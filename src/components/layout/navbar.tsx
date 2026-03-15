@@ -234,7 +234,7 @@ function SearchLauncherTrigger() {
           id="navbar-search"
           className="h-8 w-full rounded-r-none border-r-0 bg-background/80 px-2 text-xs"
           type="search"
-          placeholder="Search commands or pages"
+          placeholder="Search commands or pages. Press / to focus."
           aria-label="Open command launcher"
           aria-haspopup="dialog"
           readOnly

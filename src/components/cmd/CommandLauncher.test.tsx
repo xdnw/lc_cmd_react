@@ -223,7 +223,7 @@ describe("CommandLauncher", () => {
 
     fireEvent.pointerDown(screen.getAllByLabelText(/open command launcher/i)[0]!);
     expect(screen.getByTestId("dialog-root")).toBeTruthy();
-    expect(screen.getByText(/search commands or pages and open them without leaving the current screen/i)).toBeTruthy();
+    expect(screen.getByText(/search commands or pages/i)).toBeTruthy();
   });
 
   it("navigates when the browser expand action is used", () => {

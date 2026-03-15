@@ -5,8 +5,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import CmdList from "@/components/cmd/CmdList";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import {
-    createCmdBrowserSearchParams,
-} from "@/components/cmd/cmdBrowserState";
+    COMMAND_BROWSER_DISPLAY_PREFIX,
+    COMMAND_BROWSER_PAGE_PATH,
+    createCmdBrowserPageLocation,
+} from "@/components/cmd/commandBrowserNavigation";
 import { useCommandLauncher } from "@/components/cmd/CommandLauncherContext";
 import {
     buildCommandRouteSearchParams,
@@ -55,7 +57,7 @@ function focusSearchInput(input: HTMLInputElement | null | undefined): boolean {
 }
 
 function isCommandBrowserPagePath(pathname: string): boolean {
-    return pathname === "/commands" || pathname === "/command";
+    return pathname === COMMAND_BROWSER_PAGE_PATH || pathname === "/command";
 }
 
 function getActiveCommandBrowserPageSearchInput(): HTMLInputElement | null {
@@ -253,12 +255,8 @@ export default function CommandLauncher() {
     }, [clearCommandChromeEscape, handleReturnToBrowser]);
 
     const browserExpand = useMemo(() => buildExpandButton(() => {
-        const searchParams = createCmdBrowserSearchParams(browserState);
         dismissModal();
-        navigate({
-            pathname: "/commands",
-            search: searchParams.size > 0 ? `?${searchParams.toString()}` : "",
-        });
+        navigate(createCmdBrowserPageLocation(browserState));
     }, "Open commands page"), [browserState, dismissModal, navigate]);
 
     const commandExpand = useMemo(() => {
@@ -290,13 +288,13 @@ export default function CommandLauncher() {
                         <DialogHeader className="border-b border-border/70 px-2 pb-1 pt-1.5 pr-16 text-left">
                             <DialogTitle className="text-sm font-semibold">Commands</DialogTitle>
                             <DialogDescription className="mt-0.5 line-clamp-2 text-[11px]">
-                                Search commands or pages and open them without leaving the current screen.
+                                Search commands or pages.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="min-h-0 px-2 py-1.5">
                             <CmdList
                                 commands={allCommands}
-                                prefix="/"
+                                prefix={COMMAND_BROWSER_DISPLAY_PREFIX}
                                 state={browserState}
                                 onStateChange={setBrowserState}
                                 onSelectCommand={handleSelectCommand}

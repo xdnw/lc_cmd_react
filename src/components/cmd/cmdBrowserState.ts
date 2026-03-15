@@ -74,13 +74,13 @@ export function parseCmdBrowserStateFromSearchParams(searchParams: URLSearchPara
     });
 
     return createDefaultCmdBrowserState({
-        query: searchParams.get("q") ?? "",
+        query: searchParams.get("q")?.trim() ?? "",
         showFilters: searchParams.get("filters") === "1",
         filters: {
             triFilters,
             hasArgs: normalizeTriStateValue(searchParams.get("hasArgs")),
-            rolesAny: searchParams.get("roles") ?? "",
-            requiredArgs: searchParams.get("requiredArgs") ?? "",
+            rolesAny: searchParams.get("roles")?.trim() ?? "",
+            requiredArgs: searchParams.get("requiredArgs")?.trim() ?? "",
         },
     });
 }

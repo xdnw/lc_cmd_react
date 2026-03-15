@@ -71,6 +71,16 @@ function renderCommandsPage(initialEntry = "/commands") {
 }
 
 describe("CommandsPage", () => {
+  it("normalizes parsed state without rewriting the URL on mount", async () => {
+    renderCommandsPage("/commands?q=%20alpha%20&roles=%20member%20&unused=1");
+
+    await waitFor(() => {
+      expect((screen.getByRole("combobox", { name: /command list search/i }) as HTMLInputElement).value).toBe("alpha");
+    });
+
+    expect(screen.getByTestId("location-search").textContent).toBe("?q=%20alpha%20&roles=%20member%20&unused=1");
+  });
+
   it("keeps the search focused while syncing query params", async () => {
     renderCommandsPage();
 

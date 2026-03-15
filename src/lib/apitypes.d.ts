@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-15 10:56:27.
+// Generated using typescript-generator version 3.2.1263 on 2026-03-15 15:31:29.
 
 export interface WebError {
     error: string;
@@ -455,9 +455,88 @@ export interface WebCoalitions {
 }
 
 export interface WebRoleAliases {
-    mappings: { [index: string]: { [index: string]: number } }; // Roles(ordinal)->alliance_id->discord role(id). the Roles ordinal (see CM, to map an ordinal to a name, or to get the description for a Roles). 
-    invalid_role_ordinals: number[]; // any that are mapped to an invalid discord role
-    discord_role_names: { [index: string]: string }; // the names of the discord roles
+    mappings: { [index: string]: { [index: string]: number } };
+    invalid_role_ordinals: number[];
+    discord_role_names: { [index: string]: string };
+}
+
+export interface AutoRoleResult {
+    sync?: AutoRoleSyncState;
+    role_names: { [index: string]: string };
+    create_roles: number[];
+    rename_roles: { [index: string]: string };
+    created_roles: number[];
+    renamed_roles: { [index: string]: string };
+    execution_issues: AutoRoleIssue[];
+    result: AutoRoleMemberResult;
+}
+
+export interface AutoRoleBulkResult {
+    sync?: AutoRoleSyncState;
+    role_names: { [index: string]: string };
+    create_roles: number[];
+    rename_roles: { [index: string]: string };
+    created_roles: number[];
+    renamed_roles: { [index: string]: string };
+    execution_issues: AutoRoleIssue[];
+    results: AutoRoleMemberResult[];
+    masked_non_members: AutoRoleMaskedMember[];
+}
+
+export interface AutoRoleMemberResult {
+    user_id: number;
+    username: string;
+    display_name: string;
+    nation_id?: number;
+    alliance_id?: number;
+    create_roles: number[];
+    add_roles: number[];
+    remove_roles: number[];
+    nickname?: string;
+    clear_nickname: boolean;
+    issues: AutoRoleIssue[];
+    added_roles: number[];
+    removed_roles: number[];
+    applied_nickname?: string;
+    cleared_nickname: boolean;
+    execution_issues: AutoRoleIssue[];
+}
+
+export interface AutoRoleMaskedMember {
+    user_id: number;
+    username: string;
+    display_name: string;
+    nation_id?: number;
+    reason: UnmaskedReason;
+}
+
+export interface AutoRoleSyncState {
+    nickname_mode: AutoNickOption;
+    alliance_mask_mode: AutoRoleOption;
+    alliance_rank?: Rank;
+    top_x?: number;
+    ally_gov_enabled: boolean;
+    member_apps_enabled: boolean;
+    registered_role?: number;
+    masked_alliances: number[];
+    alliance_ids: number[];
+    ally_ids: number[];
+    extension_ids: number[];
+    alliance_roles: { [index: string]: number };
+    city_roles: number[];
+    tax_roles: TaxRole[];
+    applicant_roles: { [index: string]: number };
+    member_roles: { [index: string]: number };
+    conditional_roles: ConditionalRole[];
+}
+
+export interface AutoRoleIssue {
+    type: AutoRoleIssueType;
+    role_id?: number;
+    alliance_id?: number;
+    nickname?: string;
+    error_type?: string;
+    detail?: string;
 }
 
 export interface WebTaxBracket {
@@ -490,6 +569,17 @@ export interface WebCoalition {
     members: WebCoalitionMember[];
 }
 
+export interface TaxRole {
+    money_rate: number;
+    rss_rate: number;
+    role_id: number;
+}
+
+export interface ConditionalRole {
+    filter: string;
+    role_id: number;
+}
+
 export interface WebCoalitionMember {
     id: number;
     name: string;
@@ -499,6 +589,10 @@ export interface WebCoalitionMember {
 export type CacheType = "None" | "Cookie" | "LocalStorage" | "SessionStorage" | "Memory";
 
 export type GraphType = "STACKED_BAR" | "SIDE_BY_SIDE_BAR" | "HORIZONTAL_BAR" | "LINE" | "STACKED_LINE" | "FILLED_LINE" | "SCATTER";
+
+export type AutoRoleIssueType = "NOT_REGISTERED" | "MISSING_REGISTERED_ROLE_MAPPING" | "MISSING_REGISTERED_ROLE" | "AUTO_NICKNAME_DISABLED" | "PLANNING_FAILED" | "CREATE_ROLE_FAILED" | "ADD_ROLE_FAILED" | "REMOVE_ROLE_FAILED" | "RENAME_ROLE_FAILED" | "SET_NICKNAME_FAILED" | "CLEAR_NICKNAME_FAILED" | "ROLE_ALREADY_PRESENT" | "ROLE_NOT_PRESENT" | "ROLE_ALREADY_NAMED" | "NICKNAME_ALREADY_SET" | "NICKNAME_NOT_PRESENT";
+
+export type UnmaskedReason = "NOT_REGISTERED" | "NOT_IN_ALLIANCE" | "APPLICANT" | "INACTIVE";
 
 export type GuildSettingCategory = "DEFAULT" | "FOREIGN_AFFAIRS" | "WAR_ALERTS" | "BEIGE_ALERTS" | "ORBIS_ALERTS" | "WAR_ROOM" | "BANK_ACCESS" | "BANK_CONVERSION" | "BANK_OFFSHORE" | "BANK_GRANTS" | "BANK_INFO" | "TAX" | "AUDIT" | "SELF_ROLE" | "AUTO_ROLE" | "REWARD" | "RECRUIT" | "INTERVIEW" | "BOUNTY" | "TRADE" | "ARTIFICIAL_INTELLIGENCE";
 
@@ -511,3 +605,9 @@ export type TimeFormat = "NUMERIC" | "DECIMAL_ROUNDED" | "SI_UNIT" | "TURN_TO_DA
 export type TableNumberFormat = "SI_UNIT" | "PERCENTAGE_ONE" | "PERCENTAGE_100" | "DECIMAL_ROUNDED";
 
 export type ResourceType = "MONEY" | "CREDITS" | "FOOD" | "COAL" | "OIL" | "URANIUM" | "LEAD" | "IRON" | "BAUXITE" | "GASOLINE" | "MUNITIONS" | "STEEL" | "ALUMINUM";
+
+export type AutoNickOption = "FALSE" | "LEADER" | "NATION" | "DISCORD" | "NICKNAME";
+
+export type AutoRoleOption = "FALSE" | "ALL" | "ALLIES";
+
+export type Rank = "LEADER" | "HEIR" | "OFFICER" | "MEMBER" | "APPLICANT" | "REMOVE" | "BAN" | "UNBAN" | "INVITE" | "UNINVITE";

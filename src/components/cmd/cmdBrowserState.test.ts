@@ -7,6 +7,18 @@ import {
 } from "@/components/cmd/cmdBrowserState";
 
 describe("cmdBrowserState", () => {
+    it("trims text fields while parsing search params", () => {
+        const parsed = parseCmdBrowserStateFromSearchParams(new URLSearchParams("q=%20who%20&roles=%20member,admin%20&requiredArgs=%20nation,user%20"));
+
+        expect(parsed).toMatchObject({
+            query: "who",
+            filters: {
+                rolesAny: "member,admin",
+                requiredArgs: "nation,user",
+            },
+        });
+    });
+
     it("round-trips query and filter state through URLSearchParams", () => {
         const state: CmdBrowserState = {
             query: "who",

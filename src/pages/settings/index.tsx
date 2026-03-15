@@ -1,12 +1,9 @@
 import { useMemo, useState, useCallback, useEffect, useRef, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { SquarePen } from "lucide-react";
 import { useLocation } from "react-router-dom";
-import { useSession } from "@/components/api/SessionContext";
 import SearchBar from "@/components/cmd/SearchBar";
 import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
-import { useDialog } from "@/components/layout/DialogContext";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import { useDefaultPageSidebar, usePageSidebar } from "@/components/layout/PageSidebarContext";
 import {
@@ -21,44 +18,22 @@ import {
     WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN,
     WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT,
 } from "@/components/ui/virtuosoTuning";
-import { TABLE } from "@/lib/endpoints";
-import { bulkQueryOptions } from "@/lib/queries";
-import { getViewTableUrl } from "@/pages/custom_table/table_util";
-import type { QueryResult } from "@/lib/BulkQuery";
-import type { WebTable } from "@/lib/apitypes";
-import SettingEditDialog from "./components/SettingEditDialog";
-import SettingsCategorySection, { SettingsCategoryHeader, SettingsSubgroupHeader } from "./components/SettingsCategorySection";
+import SettingsFlattenedItem from "./components/SettingsFlattenedItem";
 import {
-    GUILD_SETTING_COLUMNS,
-    GUILD_SETTING_TABLE_TYPE,
-    GUILD_SETTING_VIEW_TABLE_COLUMNS,
     SETTINGS_ROW_ITEM_HEIGHT,
     deriveSettingsBrowserRows,
     type FlattenedSettingsItem,
     getSettingsVisibleContext,
     hasVisibleSettingsSubgroup,
-    normalizeGuildSettingRows,
     parseSettingsPageSearchParams,
-    mergeRowIntoTableCache,
-    removeRowFromTableCache,
     type SettingsBrowserCounts,
     type SettingsBrowserState,
     type SettingRow,
     type UnsupportedInputIssue,
 } from "./settingsDomain";
+import { useGuildSettingsData } from "./useGuildSettingsData";
+import { useGuildSettingDialogs } from "./useGuildSettingDialogs";
 import LoginPickerPage from "../login_picker";
-
-function getErrorMessage(error: unknown): string {
-    if (error instanceof Error && error.message) {
-        return error.message;
-    }
-
-    if (typeof error === "string" && error.trim()) {
-        return error;
-    }
-
-    return "Unknown error";
-}
 
 function SettingsHeaderControls({
     browserState,
@@ -225,53 +200,6 @@ function SettingsHeaderControls({
                     ) : null}
                 </div>
             ) : null}
-        </div>
-    );
-}
-
-function SettingsListItem({
-    item,
-    showCategorySeparator,
-    isHighlighted,
-    onEdit,
-    onShowHelp,
-    onRefreshSetting,
-}: {
-    item: FlattenedSettingsItem;
-    showCategorySeparator: boolean;
-    isHighlighted: boolean;
-    onEdit: (row: SettingRow) => void;
-    onShowHelp: (row: SettingRow) => void;
-    onRefreshSetting: (settingKey: string) => void;
-}) {
-    return (
-        <div data-settings-item-key={item.key}>
-            {item.kind === "category"
-                ? (
-                    <SettingsCategoryHeader
-                        category={item.category}
-                        settingCount={item.settingCount}
-                        showSeparator={showCategorySeparator}
-                    />
-                )
-                : item.kind === "subgroup"
-                ? (
-                    <SettingsSubgroupHeader
-                        category={item.category}
-                        subgroup={item.subgroup}
-                        settingCount={item.settingCount}
-                    />
-                )
-                : (
-                    <SettingsCategorySection
-                        row={item.row}
-                        subgroupPosition={item.subgroupPosition}
-                        isHighlighted={isHighlighted}
-                        onEdit={onEdit}
-                        onShowHelp={onShowHelp}
-                        onRefreshSetting={onRefreshSetting}
-                    />
-                )}
         </div>
     );
 }
@@ -448,10 +376,7 @@ function buildSettingsSidebarConfig({
 
 export default function SettingsPage() {
     const location = useLocation();
-    const { session } = useSession();
-    const { showDialog } = useDialog();
     const defaultSidebar = useDefaultPageSidebar();
-    const queryClient = useQueryClient();
     const virtuosoRef = useRef<VirtuosoHandle | null>(null);
     const searchState = useMemo(() => parseSettingsPageSearchParams(new URLSearchParams(location.search)), [location.search]);
     const [browserState, setBrowserState] = useState<SettingsBrowserState>(() => searchState.browserState);
@@ -461,40 +386,15 @@ export default function SettingsPage() {
     const [highlightedSettingKey, setHighlightedSettingKey] = useState<string | null>(null);
     const [pendingScrollIndex, setPendingScrollIndex] = useState<number | null>(null);
     const [pendingFocusSettingKey, setPendingFocusSettingKey] = useState<string | null>(searchState.focusSettingKey);
-
-    const listQueryArgs = useMemo(() => {
-        return {
-            type: GUILD_SETTING_TABLE_TYPE,
-            selection_str: "*",
-            columns: GUILD_SETTING_COLUMNS,
-        };
-    }, []);
-
-    const viewTableTo = useMemo(() => getViewTableUrl({
-        type: listQueryArgs.type,
-        sel: listQueryArgs.selection_str,
-        columns: GUILD_SETTING_VIEW_TABLE_COLUMNS,
-    }), [listQueryArgs.selection_str, listQueryArgs.type]);
-
-    const listQuery = useQuery({
-        ...bulkQueryOptions(TABLE.endpoint, listQueryArgs),
-        enabled: Boolean(session?.guild),
-    });
-
-    const listQueryKey = useMemo(() => [TABLE.endpoint.name, listQueryArgs] as const, [listQueryArgs]);
-
-    const normalized = useMemo(() => {
-        if (!listQuery.data?.data) {
-            return {
-                rows: [],
-                schemaErrors: [],
-                rowParseErrors: [],
-                unsupportedInputRows: [],
-            };
-        }
-
-        return normalizeGuildSettingRows(listQuery.data.data);
-    }, [listQuery.data]);
+    const {
+        hasGuild,
+        listQuery,
+        normalized,
+        refetchAll,
+        refreshSingleSetting,
+        viewTableTo,
+    } = useGuildSettingsData();
+    const { openEditDialog, openHelpDialog } = useGuildSettingDialogs(refreshSingleSetting);
 
     const browserResult = useMemo(
         () => deriveSettingsBrowserRows(normalized.rows, browserState),
@@ -625,84 +525,15 @@ export default function SettingsPage() {
         setHighlightedSettingKey(targetItem.kind === "setting" ? targetItem.row.settingKey : null);
     }, [browserResult.flattenedItems]);
 
-    const refreshSingleSetting = useCallback(async (settingKey: string) => {
-        if (!session?.guild || !settingKey) return;
-
-        const singleArgs = {
-            type: GUILD_SETTING_TABLE_TYPE,
-            selection_str: settingKey,
-            columns: GUILD_SETTING_COLUMNS,
-        };
-
-        try {
-            const singleResult = await queryClient.fetchQuery(bulkQueryOptions(TABLE.endpoint, singleArgs));
-            const normalizedSingle = normalizeGuildSettingRows(singleResult.data!);
-
-            const updatedRow = normalizedSingle.rows.find((row) => row.settingKey === settingKey) ?? normalizedSingle.rows[0];
-            if (!updatedRow) {
-                setPerSettingWarning(null);
-                queryClient.setQueryData(listQueryKey, (old) => {
-                    return removeRowFromTableCache({
-                        oldResult: old as QueryResult<WebTable> | undefined,
-                        settingKey,
-                    });
-                });
-                return;
-            }
-
-            setPerSettingWarning(null);
-            queryClient.setQueryData(listQueryKey, (old) => {
-                return mergeRowIntoTableCache({ oldResult: old as QueryResult<WebTable> | undefined, updatedRow });
-            });
-        } catch (error) {
-            setPerSettingWarning(`Failed to refresh ${settingKey}: ${getErrorMessage(error)}`);
-        }
-    }, [session?.guild, listQueryKey, queryClient]);
-
-    const openEditDialog = useCallback((row: SettingRow) => {
-        showDialog(
-            row.settingKey,
-            <SettingEditDialog row={row} onRefreshSetting={refreshSingleSetting} />,
-            {
-                header: (
-                    <div className="space-y-1 pr-8">
-                        <div className="wrap-break-word text-base font-semibold tracking-tight text-foreground">{row.settingKey}</div>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                            <span>{row.metadata.category}</span>
-                            {hasVisibleSettingsSubgroup(row.metadata.subgroup) && (
-                                <>
-                                    <span aria-hidden="true">/</span>
-                                    <span>{row.metadata.subgroup}</span>
-                                </>
-                            )}
-                            <span aria-hidden="true">/</span>
-                            <span>{row.metadata.argType}</span>
-                        </div>
-                    </div>
-                ),
-            },
-        );
-    }, [showDialog, refreshSingleSetting]);
-
-    const openHelpDialog = useCallback((row: SettingRow) => {
-        showDialog(
-            row.settingKey,
-            <div className="space-y-3 text-sm">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>{row.metadata.argType}</span>
-                    <span>{row.metadata.category}</span>
-                    {hasVisibleSettingsSubgroup(row.metadata.subgroup) && <span>{row.metadata.subgroup}</span>}
-                </div>
-                <div className="whitespace-pre-wrap wrap-break-word text-foreground">
-                    {row.metadata.helpFull || row.metadata.helpShort}
-                </div>
-            </div>,
-        );
-    }, [showDialog]);
-
     const handleSidebarModeChange = useCallback((nextMode: SettingsSidebarMode) => {
         setSidebarMode(nextMode);
     }, []);
+
+    const handleRefreshSetting = useCallback((settingKey: string) => {
+        void refreshSingleSetting(settingKey).then((errorMessage) => {
+            setPerSettingWarning(errorMessage);
+        });
+    }, [refreshSingleSetting]);
 
     const sidebarItems = useMemo(() => buildSettingsSidebarItems({
         items: browserResult.flattenedItems,
@@ -724,12 +555,12 @@ export default function SettingsPage() {
 
     const settingsSidebarConfig = useMemo<SidebarNavConfig>(() => buildSettingsSidebarConfig({
         activeItem,
-        hasGuild: Boolean(session?.guild),
+        hasGuild,
         isLoading: listQuery.isLoading,
         hasError: Boolean(listQuery.error),
         headerContent: sidebarHeaderContent,
         items: sidebarItems,
-    }), [activeItem, listQuery.error, listQuery.isLoading, session?.guild, sidebarHeaderContent, sidebarItems]);
+    }), [activeItem, hasGuild, listQuery.error, listQuery.isLoading, sidebarHeaderContent, sidebarItems]);
 
     const mainSidebarConfig = useMemo<SidebarNavConfig | null>(() => {
         if (!defaultSidebar) {
@@ -745,7 +576,7 @@ export default function SettingsPage() {
     const activeSidebarConfig = sidebarMode === "settings" ? settingsSidebarConfig : mainSidebarConfig;
 
     const pageHeaderConfig = useMemo<PageHeaderConfig | null>(() => {
-        if (!session?.guild || listQuery.isLoading || listQuery.error) {
+        if (!hasGuild || listQuery.isLoading || listQuery.error) {
             return null;
         }
 
@@ -779,7 +610,7 @@ export default function SettingsPage() {
         normalized.rowParseErrors.length,
         normalized.schemaErrors.length,
         normalized.unsupportedInputRows,
-        session?.guild,
+        hasGuild,
         viewTableTo,
     ]);
 
@@ -789,21 +620,22 @@ export default function SettingsPage() {
     const getFlattenedItemKey = useCallback((_: number, item: FlattenedSettingsItem) => item.key, []);
 
     const renderFlattenedItem = useCallback((index: number, item: FlattenedSettingsItem) => (
-        <SettingsListItem
+        <SettingsFlattenedItem
             item={item}
             showCategorySeparator={index > 0}
             isHighlighted={item.kind === "setting" && highlightedSettingKey === item.row.settingKey}
             onEdit={openEditDialog}
             onShowHelp={openHelpDialog}
-            onRefreshSetting={refreshSingleSetting}
+            onRefreshSetting={handleRefreshSetting}
         />
-    ), [highlightedSettingKey, openEditDialog, openHelpDialog, refreshSingleSetting]);
+    ), [handleRefreshSetting, highlightedSettingKey, openEditDialog, openHelpDialog]);
 
     const onRefreshAll = useCallback(() => {
-        void listQuery.refetch();
-    }, [listQuery]);
+        setPerSettingWarning(null);
+        refetchAll();
+    }, [refetchAll]);
 
-    if (!session?.guild) {
+    if (!hasGuild) {
         return <LoginPickerPage />;
     }
 

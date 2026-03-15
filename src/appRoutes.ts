@@ -749,6 +749,19 @@ export const routeConfigs: AppRouteConfig[] = [
       section: "Server",
     },
   }),
+  defineRoute(["/roles", "/server/roles"] as const, {
+    label: "Role Management",
+    navigation: {
+      sidebarLabel: "Roles",
+      requireGuild: true,
+    },
+    element: () => import("@/pages/server/roles"),
+    cachePolicy: RECENT_PAGE_CACHE_POLICY,
+    protected: true,
+    shell: {
+      section: "Server",
+    },
+  }),
   defineRoute("/coalitions", {
     label: "Coalitions",
     navigation: {

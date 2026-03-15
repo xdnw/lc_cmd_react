@@ -12,6 +12,7 @@ import {
 describe("appRoutes shared header metadata", () => {
   it("uses explicit route labels for canonical, alias, and detail routes", () => {
     expect(getAppRouteLabel(resolveAppRouteConfig(routeConfigs, "/settings"))).toBe("Server Settings");
+    expect(getAppRouteLabel(resolveAppRouteConfig(routeConfigs, "/server/roles"))).toBe("Role Management");
     expect(getAppRouteLabel(resolveAppRouteConfig(routeConfigs, "/announcement"))).toBe("Announcements");
     expect(getAppRouteLabel(resolveAppRouteConfig(routeConfigs, "/announcement/123"))).toBe("Announcement");
     expect(getAppRouteLabel(resolveAppRouteConfig(routeConfigs, "/balance/checking"))).toBe("Holdings");
@@ -34,7 +35,7 @@ describe("appRoutes shared header metadata", () => {
   it("builds server tabs from visible server routes", () => {
     const tabs = buildSectionHeaderTabs(routeConfigs, "/coalitions");
 
-    expect(tabs.map((tab) => tab.label)).toEqual(["Server Settings", "Coalitions"]);
+    expect(tabs.map((tab) => tab.label)).toEqual(["Server Settings", "Roles", "Coalitions"]);
     expect(tabs.find((tab) => tab.active)?.to).toBe("/coalitions");
   });
 
@@ -72,6 +73,7 @@ describe("appRoutes shared header metadata", () => {
       "Tables",
       "Conflicts",
       "Server Settings",
+      "Roles",
       "Coalitions",
       "Command Browser",
     ]);

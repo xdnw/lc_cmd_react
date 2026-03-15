@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    COALITION_COMMANDS,
     COALITION_GUILD_ID_THRESHOLD,
     filterCoalitions,
     formatCoalitionMemberToken,
+    getCoalitionMemberQueryMatch,
     getCoalitionMemberKind,
     normalizeCoalitions,
     toCoalitionMemberRecord,
@@ -94,5 +96,55 @@ describe("coalitionsDomain", () => {
         expect(shownDeleted[0]?.visibleGuildMembers.map((member) => member.name)).toEqual(["Nightglass"]);
         expect(matchedMembersOnly).toHaveLength(1);
         expect(matchedMembersOnly[0]?.visibleMembers.map((member) => member.name)).toEqual(["Rose"]);
+    });
+
+    it("keeps coalition keys stable across local rename refreshes", () => {
+        const beforeRename = normalizeCoalitions({
+            coalitions: [{
+                name: "Old Banner",
+                members: [],
+            }],
+        });
+        const afterRename = normalizeCoalitions({
+            coalitions: [{
+                name: "New Banner",
+                members: [],
+            }],
+        });
+
+        expect(beforeRename[0]?.key).toBe("coalition:0");
+        expect(afterRename[0]?.key).toBe(beforeRename[0]?.key);
+        expect(afterRename[0]?.name).toBe("New Banner");
+    });
+
+    it("reports whether a member matched by name, id, or kind", () => {
+        const guildMember = toCoalitionMemberRecord({
+            id: COALITION_GUILD_ID_THRESHOLD + 25,
+            name: "Nightglass",
+            deleted: false,
+        });
+
+        expect(getCoalitionMemberQueryMatch(guildMember, "night")).toMatchObject({
+            name: true,
+            id: false,
+            kind: false,
+            any: true,
+        });
+        expect(getCoalitionMemberQueryMatch(guildMember, String(COALITION_GUILD_ID_THRESHOLD + 25))).toMatchObject({
+            name: false,
+            id: true,
+            kind: false,
+            any: true,
+        });
+        expect(getCoalitionMemberQueryMatch(guildMember, "guild")).toMatchObject({
+            name: false,
+            id: false,
+            kind: true,
+            any: true,
+        });
+    });
+
+    it("exposes the coalition rename command path", () => {
+        expect(COALITION_COMMANDS.rename).toEqual(["coalitions", "rename"]);
     });
 });

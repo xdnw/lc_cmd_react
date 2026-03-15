@@ -5,6 +5,7 @@ import { useSession } from "@/components/api/SessionContext";
 import { COMMAND_POPUP_OPEN_ATTR } from "@/components/cmd/commandKeyboard";
 import ConfirmCommandActionButton from "@/components/cmd/ConfirmCommandActionButton";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
+import { SearchMatchText } from "@/components/cmd/searchListPrimitives";
 import { useDialog } from "@/components/layout/DialogContext";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import Badge from "@/components/ui/badge";
@@ -28,8 +29,10 @@ import LoginPickerPage from "../login_picker";
 import {
     COALITION_COMMANDS,
     COALITION_LIST_QUERY_ARGS,
+    coerceCoalitionCommandPath,
     filterCoalitions,
     formatCoalitionMemberToken,
+    getCoalitionMemberQueryMatch,
     normalizeCoalitions,
     type CoalitionCommandPath,
     type CoalitionMemberRecord,
@@ -53,7 +56,7 @@ type CoalitionMemberVisibilityFilter = "active" | "all" | "deleted";
 type CoalitionCopyMode = "ids" | "names";
 type CoalitionCopyScope = "visible" | "selected";
 type CoalitionCopyNameMode = "flat" | "named";
-type CoalitionCopyFeedbackTone = "warning" | "error";
+type CoalitionCopyFeedbackTone = "success" | "warning" | "error";
 
 type CoalitionCopyFeedback = {
     tone: CoalitionCopyFeedbackTone;
@@ -145,7 +148,7 @@ function useOpenCoalitionCommandDialog(onSuccess: () => void) {
         showDialog(
             options.title,
             <CommandDialogForm
-                commandPath={options.command}
+                commandPath={coerceCoalitionCommandPath(options.command)}
                 initialValues={options.initialValues ?? {}}
                 description={options.description}
                 showResultDialog
@@ -265,39 +268,70 @@ function CoalitionCopyMenu({
     );
 }
 
-function CoalitionMemberPreview({ members }: { members: CoalitionMemberRecord[] }) {
-    const previewMembers = members.slice(0, 8);
-    const remaining = members.length - previewMembers.length;
+function CoalitionMemberPreviewBadge({
+    member,
+    query,
+}: {
+    member: CoalitionMemberRecord;
+    query: string;
+}) {
+    const queryMatch = useMemo(() => getCoalitionMemberQueryMatch(member, query), [member, query]);
+    const showIdMatch = queryMatch.id && Boolean(member.idText);
+    const showKindMatch = queryMatch.kind;
 
+    return (
+        <Badge
+            variant={member.deleted ? "destructive" : "outline"}
+            className="inline-flex max-w-full items-center gap-1 px-1.5 py-0.5 text-[10px]"
+        >
+            <span className="truncate">
+                <SearchMatchText text={member.name} query={query} />
+            </span>
+            {showIdMatch ? (
+                <span className="rounded bg-black/5 px-1 py-0.5 font-mono text-[9px] opacity-80 dark:bg-white/10">
+                    id <SearchMatchText text={member.idText ?? ""} query={query} />
+                </span>
+            ) : null}
+            {showKindMatch ? (
+                <span className="rounded bg-black/5 px-1 py-0.5 text-[9px] opacity-80 dark:bg-white/10">
+                    <SearchMatchText text={member.kindLabel} query={query} />
+                </span>
+            ) : null}
+        </Badge>
+    );
+}
+
+function CoalitionMemberPreview({
+    members,
+    query,
+}: {
+    members: CoalitionMemberRecord[];
+    query: string;
+}) {
     if (members.length === 0) {
         return <div className="text-[11px] text-foreground/55">No matching members.</div>;
     }
 
     return (
         <div className="flex flex-wrap gap-1">
-            {previewMembers.map((member) => (
-                <Badge
-                    key={member.key}
-                    variant={member.deleted ? "destructive" : "outline"}
-                    className="max-w-full px-1.5 text-[10px]"
-                >
-                    <span className="truncate">{member.name}</span>
-                </Badge>
+            {members.map((member) => (
+                <CoalitionMemberPreviewBadge key={member.key} member={member} query={query} />
             ))}
-            {remaining > 0 ? <Badge variant="secondary" className="px-1.5 text-[10px]">+{remaining}</Badge> : null}
         </div>
     );
 }
 
 function CoalitionRow({
     coalition,
+    query,
     isSelected,
     onManage,
     onSetSelected,
 }: {
     coalition: CoalitionViewRecord;
+    query: string;
     isSelected: boolean;
-    onManage: (coalitionName: string) => void;
+    onManage: (coalition: CoalitionViewRecord) => void;
     onSetSelected: (coalitionKey: string, nextSelected: boolean) => void;
 }) {
     const summary = useMemo(() => {
@@ -315,8 +349,8 @@ function CoalitionRow({
     ]);
 
     const onManageClick = useCallback(() => {
-        onManage(coalition.name);
-    }, [coalition.name, onManage]);
+        onManage(coalition);
+    }, [coalition, onManage]);
 
     const onSelectionChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         onSetSelected(coalition.key, event.target.checked);
@@ -329,10 +363,12 @@ function CoalitionRow({
         )}>
             <div className="min-w-0 space-y-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className="truncate text-sm font-semibold text-foreground">{coalition.name}</span>
+                    <span className="truncate text-sm font-semibold text-foreground">
+                        <SearchMatchText text={coalition.name} query={query} />
+                    </span>
                     <span className="text-[11px] text-foreground/55">{summary}</span>
                 </div>
-                <CoalitionMemberPreview members={coalition.visibleMembers} />
+                <CoalitionMemberPreview members={coalition.visibleMembers} query={query} />
             </div>
 
             <div className="flex items-start gap-2">
@@ -455,37 +491,44 @@ function CoalitionMemberRow({
 }
 
 function CoalitionDetailDialogContent({
+    coalitionKey,
     coalitionName,
     onCoalitionMutation,
 }: {
+    coalitionKey: string;
     coalitionName: string;
     onCoalitionMutation: () => void;
 }) {
     const openCommandDialog = useOpenCoalitionCommandDialog(onCoalitionMutation);
     const listQuery = useQuery({
         ...bulkQueryOptions(LIST_COALITIONS.endpoint, COALITION_LIST_QUERY_ARGS),
-        staleTime: 0,
+        refetchOnMount: false,
     });
     const addPermission = usePermission(COALITION_COMMANDS.add, { showDialogOnError: false });
     const removePermission = usePermission(COALITION_COMMANDS.remove, { showDialogOnError: false });
     const deletePermission = usePermission(COALITION_COMMANDS.delete, { showDialogOnError: false });
+    const renamePermission = usePermission(coerceCoalitionCommandPath(COALITION_COMMANDS.rename), { showDialogOnError: false });
 
     const coalition = useMemo(() => {
         const data = listQuery.data?.data as WebCoalitions | undefined;
-        return normalizeCoalitions(data).find((entry) => entry.name === coalitionName);
-    }, [coalitionName, listQuery.data]);
+        return normalizeCoalitions(data).find((entry) => entry.key === coalitionKey);
+    }, [coalitionKey, listQuery.data]);
+
+    const currentCoalitionName = coalition?.name ?? coalitionName;
 
     const canAdd = Boolean(addPermission.permission?.success);
     const canRemove = Boolean(removePermission.permission?.success);
     const canDelete = Boolean(deletePermission.permission?.success);
+    const canRename = Boolean(renamePermission.permission?.success);
 
     const permissionErrors = useMemo(() => {
         const errors: string[] = [];
         if (addPermission.error) errors.push(`Add permission unavailable: ${addPermission.error}`);
         if (removePermission.error) errors.push(`Remove permission unavailable: ${removePermission.error}`);
         if (deletePermission.error) errors.push(`Delete permission unavailable: ${deletePermission.error}`);
+        if (renamePermission.error) errors.push(`Rename permission unavailable: ${renamePermission.error}`);
         return errors;
-    }, [addPermission.error, deletePermission.error, removePermission.error]);
+    }, [addPermission.error, deletePermission.error, removePermission.error, renamePermission.error]);
 
     const handleMutationComplete = useCallback((result?: CommandResult) => {
         if (result?.status === "error") {
@@ -497,34 +540,25 @@ function CoalitionDetailDialogContent({
 
     const openAddMembersDialog = useCallback(() => {
         openCommandDialog({
-            title: `Add members to ${coalitionName}`,
+            title: `Add members to ${currentCoalitionName}`,
             command: COALITION_COMMANDS.add,
             description: "Add alliances or guilds to this coalition using the existing command form.",
             initialValues: {
-                coalitionName,
+                coalitionName: currentCoalitionName,
             },
         });
-    }, [coalitionName, openCommandDialog]);
+    }, [currentCoalitionName, openCommandDialog]);
 
-    const deleteAction = useMemo(() => {
-        return (
-            <ConfirmCommandActionButton
-                command={COALITION_COMMANDS.delete}
-                args={{ coalitionName }}
-                label="Delete"
-                disabled={!canDelete}
-                showResultDialog
-                onComplete={handleMutationComplete}
-                resetOnComplete="non-error"
-                buttonVariant="destructive"
-                buttonSize="sm"
-                buttonClassName="h-6 px-2 text-[11px]"
-                classes="!m-0 !h-6 !w-auto !px-2"
-                cancelSize="sm"
-                cancelClassName="h-6 px-2 text-[10px]"
-            />
-        );
-    }, [canDelete, coalitionName, handleMutationComplete]);
+    const openRenameCoalitionDialog = useCallback(() => {
+        openCommandDialog({
+            title: `Rename ${currentCoalitionName}`,
+            command: COALITION_COMMANDS.rename,
+            description: "Rename this coalition using the existing command form.",
+            initialValues: {
+                coalition: currentCoalitionName,
+            },
+        });
+    }, [currentCoalitionName, openCommandDialog]);
 
     if (listQuery.isLoading) {
         return (
@@ -559,8 +593,13 @@ function CoalitionDetailDialogContent({
                 </div>
             ) : null}
 
+            <div className="space-y-1 rounded-md border border-border/80 bg-background/80 px-2.5 py-2">
+                <div className="text-sm font-semibold text-foreground">{currentCoalitionName}</div>
+                <div className="text-[11px] text-foreground/70">{modalSummary}</div>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/80 bg-muted/10 px-2.5 py-2">
-                <div className="text-[11px] text-foreground/75">{modalSummary}</div>
+                <div className="text-[11px] text-foreground/75">Manage coalition members and metadata.</div>
                 <div className="flex flex-wrap items-center gap-1.5">
                     <Button
                         type="button"
@@ -572,7 +611,31 @@ function CoalitionDetailDialogContent({
                     >
                         Add members
                     </Button>
-                    {deleteAction}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 text-[11px]"
+                        onClick={openRenameCoalitionDialog}
+                        disabled={!canRename}
+                    >
+                        Rename
+                    </Button>
+                    <ConfirmCommandActionButton
+                        command={COALITION_COMMANDS.delete}
+                        args={{ coalitionName: currentCoalitionName }}
+                        label="Delete"
+                        disabled={!canDelete}
+                        showResultDialog
+                        onComplete={handleMutationComplete}
+                        resetOnComplete="non-error"
+                        buttonVariant="destructive"
+                        buttonSize="sm"
+                        buttonClassName="h-6 px-2 text-[11px]"
+                        classes="!m-0 !h-6 !w-auto !px-2"
+                        cancelSize="sm"
+                        cancelClassName="h-6 px-2 text-[10px]"
+                    />
                 </div>
             </div>
 
@@ -609,6 +672,20 @@ export default function CoalitionsPage() {
     const [copyNameMode, setCopyNameMode] = useState<CoalitionCopyNameMode>("flat");
     const [copyFeedback, setCopyFeedback] = useState<CoalitionCopyFeedback | null>(null);
     const [selectedCoalitionKeys, setSelectedCoalitionKeys] = useState<Set<string>>(() => new Set());
+
+    useEffect(() => {
+        if (copyFeedback?.tone !== "success") {
+            return undefined;
+        }
+
+        const timeoutId = globalThis.setTimeout(() => {
+            setCopyFeedback((current) => current?.tone === "success" ? null : current);
+        }, 2500);
+
+        return () => {
+            globalThis.clearTimeout(timeoutId);
+        };
+    }, [copyFeedback]);
 
     const listQuery = useQuery({
         ...bulkQueryOptions(LIST_COALITIONS.endpoint, COALITION_LIST_QUERY_ARGS),
@@ -713,10 +790,14 @@ export default function CoalitionsPage() {
         });
     }, [visibleCoalitionKeys]);
 
-    const openCoalitionDetails = useCallback((name: string) => {
+    const openCoalitionDetails = useCallback((coalition: CoalitionViewRecord) => {
         showDialog(
-            name,
-            <CoalitionDetailDialogContent coalitionName={name} onCoalitionMutation={refreshCoalitions} />,
+            "Coalition details",
+            <CoalitionDetailDialogContent
+                coalitionKey={coalition.key}
+                coalitionName={coalition.name}
+                onCoalitionMutation={refreshCoalitions}
+            />,
             {
                 openInNewTab: true,
                 focusNewTab: true,
@@ -802,6 +883,9 @@ export default function CoalitionsPage() {
         const output = includeNames
             ? copyableRows.map((row) => `${row.coalitionName}: ${row.tokens.join(", ")}`).join("\n")
             : Array.from(new Set(copyableRows.flatMap((row) => row.tokens))).join(", ");
+        const copiedTokenCount = includeNames
+            ? copyableRows.reduce((sum, row) => sum + row.tokens.length, 0)
+            : Array.from(new Set(copyableRows.flatMap((row) => row.tokens))).length;
 
         try {
             await navigator.clipboard.writeText(output);
@@ -813,7 +897,10 @@ export default function CoalitionsPage() {
                 return;
             }
 
-            setCopyFeedback(null);
+            setCopyFeedback({
+                tone: "success",
+                message: `Copied ${formatPlural(copiedTokenCount, mode === "ids" ? "id" : "name")} from ${formatPlural(copyableRows.length, "coalition")}.`,
+            });
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             setCopyFeedback({
@@ -890,6 +977,7 @@ export default function CoalitionsPage() {
                         <div
                             className={cn(
                                 "rounded-md border px-2 py-1 text-[11px]",
+                                copyFeedback.tone === "success" && "border-emerald-500/35 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200",
                                 copyFeedback.tone === "warning" && "border-amber-500/35 bg-amber-500/10 text-amber-950 dark:text-amber-200",
                                 copyFeedback.tone === "error" && "border-destructive/35 bg-destructive/10 text-destructive",
                             )}
@@ -984,6 +1072,7 @@ export default function CoalitionsPage() {
                                     <CoalitionRow
                                         key={coalition.key}
                                         coalition={coalition}
+                                        query={query}
                                         isSelected={selectedCoalitionKeys.has(coalition.key)}
                                         onManage={openCoalitionDetails}
                                         onSetSelected={setCoalitionSelected}

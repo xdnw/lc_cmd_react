@@ -2,6 +2,9 @@ import type { WebCoalitionMember, WebCoalitions } from "@/lib/apitypes.d.ts";
 import { getCanonicalQueryPrefix } from "@/components/cmd/queryOptionDataset";
 import type { AnyCommandPath } from "@/utils/Command";
 
+export type CoalitionRenameCommandPath = ["coalitions", "rename"];
+type CoalitionKnownCommandPath = AnyCommandPath | CoalitionRenameCommandPath;
+
 export const COALITION_GUILD_ID_THRESHOLD = 2_147_483_647;
 export const COALITION_LIST_QUERY_ARGS = Object.freeze({}) satisfies Record<string, never>;
 
@@ -13,11 +16,23 @@ export const COALITION_COMMANDS = {
     delete: ["coalition", "delete"],
     generate: ["coalition", "generate"],
     sheet: ["coalition", "sheet"],
-} as const satisfies Record<string, AnyCommandPath>;
+    rename: ["coalitions", "rename"],
+} as const satisfies Record<string, CoalitionKnownCommandPath>;
 
 export type CoalitionCommandPath = (typeof COALITION_COMMANDS)[keyof typeof COALITION_COMMANDS];
 export type CoalitionMemberKind = "alliance" | "guild";
 export type CoalitionMemberTokenValue = "canonical" | "id" | "name";
+
+export function coerceCoalitionCommandPath(path: CoalitionCommandPath): AnyCommandPath {
+    return path as unknown as AnyCommandPath;
+}
+
+export type CoalitionMemberQueryMatch = {
+    name: boolean;
+    id: boolean;
+    kind: boolean;
+    any: boolean;
+};
 
 export type CoalitionMemberRecord = {
     key: string;
@@ -150,7 +165,7 @@ export function normalizeCoalitions(data: WebCoalitions | undefined): CoalitionR
             const deletedMembers = members.filter((member) => member.deleted).length;
 
             return {
-                key: `${name}:${coalitionIndex}`,
+                key: `coalition:${coalitionIndex}`,
                 name,
                 members,
                 allianceMembers,
@@ -163,20 +178,28 @@ export function normalizeCoalitions(data: WebCoalitions | undefined): CoalitionR
         .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
 }
 
-function matchesCoalitionMemberQuery(member: CoalitionMemberRecord, normalizedQuery: string): boolean {
+export function getCoalitionMemberQueryMatch(member: CoalitionMemberRecord, query: string): CoalitionMemberQueryMatch {
+    const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
-        return true;
+        return {
+            name: false,
+            id: false,
+            kind: false,
+            any: false,
+        };
     }
 
-    if (member.name.toLowerCase().includes(normalizedQuery)) {
-        return true;
-    }
+    const name = member.name.toLowerCase().includes(normalizedQuery);
+    const id = (member.idText ?? "").toLowerCase().includes(normalizedQuery);
+    const kind = member.kind.toLowerCase().includes(normalizedQuery)
+        || member.kindLabel.toLowerCase().includes(normalizedQuery);
 
-    if ((member.idText ?? "").toLowerCase().includes(normalizedQuery)) {
-        return true;
-    }
-
-    return member.kind.toLowerCase().includes(normalizedQuery);
+    return {
+        name,
+        id,
+        kind,
+        any: name || id || kind,
+    };
 }
 
 export function filterCoalitions(
@@ -194,7 +217,7 @@ export function filterCoalitions(
 
         const coalitionNameMatches = !normalizedQuery || coalition.name.toLowerCase().includes(normalizedQuery);
         const matchingMembers = normalizedQuery
-            ? scopedMembers.filter((member) => matchesCoalitionMemberQuery(member, normalizedQuery))
+            ? scopedMembers.filter((member) => getCoalitionMemberQueryMatch(member, normalizedQuery).any)
             : scopedMembers;
 
         if (!coalitionNameMatches && matchingMembers.length === 0) {

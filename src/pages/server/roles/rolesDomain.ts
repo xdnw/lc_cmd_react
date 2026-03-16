@@ -1,5 +1,7 @@
 import { COMMANDS } from "@/lib/commands";
 import type {
+  AutoRoleBulkResult,
+  AutoRoleIssue,
   AutoRoleMemberResult,
   AutoRoleMaskedMember,
   AutoRoleIssueType,
@@ -62,6 +64,59 @@ export type ManagedRoleSummary = {
   duplicateKeys: number;
 };
 
+export type AutoRoleMemberReference = {
+  userId: number;
+  username: string;
+  displayName: string;
+  nationId: number | null;
+  allianceId: number | null;
+};
+
+export type AutoRoleBulkRoleBucket = {
+  roleId: number;
+  members: AutoRoleMemberReference[];
+};
+
+export type AutoRoleBulkNicknameBucket = {
+  nickname: string;
+  members: AutoRoleMemberReference[];
+};
+
+export type AutoRoleBulkIssueMemberEntry = {
+  member: AutoRoleMemberReference;
+  issues: AutoRoleIssue[];
+};
+
+export type AutoRoleBulkIssueBucket = {
+  type: AutoRoleIssueType;
+  members: AutoRoleBulkIssueMemberEntry[];
+};
+
+export type AutoRoleTopLevelIssueBucket = {
+  type: AutoRoleIssueType;
+  issues: AutoRoleIssue[];
+};
+
+export type AutoRoleMaskedMemberBucket = {
+  reason: UnmaskedReason;
+  members: AutoRoleMemberReference[];
+};
+
+export type AutoRoleBulkSummary = {
+  plannedAdds: AutoRoleBulkRoleBucket[];
+  plannedRemovals: AutoRoleBulkRoleBucket[];
+  plannedNicknames: AutoRoleBulkNicknameBucket[];
+  plannedNicknameClears: AutoRoleMemberReference[];
+  appliedAdds: AutoRoleBulkRoleBucket[];
+  appliedRemovals: AutoRoleBulkRoleBucket[];
+  appliedNicknames: AutoRoleBulkNicknameBucket[];
+  appliedNicknameClears: AutoRoleMemberReference[];
+  planningIssues: AutoRoleBulkIssueBucket[];
+  executionIssues: AutoRoleBulkIssueBucket[];
+  topLevelIssues: AutoRoleTopLevelIssueBucket[];
+  maskedNonMembers: AutoRoleMaskedMemberBucket[];
+};
+
 function parseOrdinalKey(value: string): number | null {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : null;
@@ -121,6 +176,197 @@ function compareRoleIds(a: string, b: string): number {
   // order which matches numeric order for zero-padded-free decimal strings.
   if (a.length !== b.length) return a.length - b.length;
   return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function normalizeText(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function compareText(left: string, right: string): number {
+  return left.localeCompare(right, undefined, { sensitivity: "base" });
+}
+
+function compareMemberReferences(left: AutoRoleMemberReference, right: AutoRoleMemberReference): number {
+  return compareText(left.displayName, right.displayName)
+    || compareText(left.username, right.username)
+    || left.userId - right.userId;
+}
+
+function toMemberReference(member: Pick<AutoRoleMemberResult | AutoRoleMaskedMember, "user_id" | "username" | "display_name" | "nation_id"> & { alliance_id?: number }): AutoRoleMemberReference {
+  return {
+    userId: member.user_id,
+    username: normalizeText(member.username),
+    displayName: getAutoRoleMemberDisplayName(member),
+    nationId: member.nation_id ?? null,
+    allianceId: member.alliance_id ?? null,
+  };
+}
+
+function finalizeMemberMap(memberMap: Map<number, AutoRoleMemberReference>): AutoRoleMemberReference[] {
+  return Array.from(memberMap.values()).sort(compareMemberReferences);
+}
+
+function compareRoleBuckets(left: AutoRoleBulkRoleBucket, right: AutoRoleBulkRoleBucket): number {
+  return right.members.length - left.members.length || left.roleId - right.roleId;
+}
+
+function compareNicknameBuckets(left: AutoRoleBulkNicknameBucket, right: AutoRoleBulkNicknameBucket): number {
+  return right.members.length - left.members.length || compareText(left.nickname, right.nickname);
+}
+
+function compareIssueBuckets(left: AutoRoleBulkIssueBucket, right: AutoRoleBulkIssueBucket): number {
+  return right.members.length - left.members.length || compareText(left.type, right.type);
+}
+
+function compareTopLevelIssueBuckets(left: AutoRoleTopLevelIssueBucket, right: AutoRoleTopLevelIssueBucket): number {
+  return right.issues.length - left.issues.length || compareText(left.type, right.type);
+}
+
+function compareMaskedBuckets(left: AutoRoleMaskedMemberBucket, right: AutoRoleMaskedMemberBucket): number {
+  return right.members.length - left.members.length || compareText(left.reason, right.reason);
+}
+
+function buildRoleBuckets(
+  members: readonly AutoRoleMemberResult[],
+  getRoleIds: (member: AutoRoleMemberResult) => readonly number[],
+): AutoRoleBulkRoleBucket[] {
+  const buckets = new Map<number, Map<number, AutoRoleMemberReference>>();
+
+  members.forEach((member) => {
+    const reference = toMemberReference(member);
+    const seenRoleIds = new Set<number>();
+
+    getRoleIds(member).forEach((roleId) => {
+      if (seenRoleIds.has(roleId)) {
+        return;
+      }
+
+      seenRoleIds.add(roleId);
+      const memberMap = buckets.get(roleId) ?? new Map<number, AutoRoleMemberReference>();
+      memberMap.set(reference.userId, reference);
+      buckets.set(roleId, memberMap);
+    });
+  });
+
+  return Array.from(buckets.entries())
+    .map(([roleId, memberMap]) => ({
+      roleId,
+      members: finalizeMemberMap(memberMap),
+    }))
+    .sort(compareRoleBuckets);
+}
+
+function buildNicknameBuckets(
+  members: readonly AutoRoleMemberResult[],
+  getNickname: (member: AutoRoleMemberResult) => string | undefined,
+): AutoRoleBulkNicknameBucket[] {
+  const buckets = new Map<string, Map<number, AutoRoleMemberReference>>();
+
+  members.forEach((member) => {
+    const nickname = normalizeText(getNickname(member));
+    if (!nickname) {
+      return;
+    }
+
+    const reference = toMemberReference(member);
+    const memberMap = buckets.get(nickname) ?? new Map<number, AutoRoleMemberReference>();
+    memberMap.set(reference.userId, reference);
+    buckets.set(nickname, memberMap);
+  });
+
+  return Array.from(buckets.entries())
+    .map(([nickname, memberMap]) => ({
+      nickname,
+      members: finalizeMemberMap(memberMap),
+    }))
+    .sort(compareNicknameBuckets);
+}
+
+function buildMemberList(
+  members: readonly AutoRoleMemberResult[],
+  predicate: (member: AutoRoleMemberResult) => boolean,
+): AutoRoleMemberReference[] {
+  const memberMap = new Map<number, AutoRoleMemberReference>();
+
+  members.forEach((member) => {
+    if (!predicate(member)) {
+      return;
+    }
+
+    const reference = toMemberReference(member);
+    memberMap.set(reference.userId, reference);
+  });
+
+  return finalizeMemberMap(memberMap);
+}
+
+function buildIssueBuckets(
+  members: readonly AutoRoleMemberResult[],
+  getIssues: (member: AutoRoleMemberResult) => readonly AutoRoleIssue[],
+): AutoRoleBulkIssueBucket[] {
+  const buckets = new Map<AutoRoleIssueType, Map<number, AutoRoleBulkIssueMemberEntry>>();
+
+  members.forEach((member) => {
+    const reference = toMemberReference(member);
+
+    getIssues(member).forEach((issue) => {
+      const memberIssues = buckets.get(issue.type) ?? new Map<number, AutoRoleBulkIssueMemberEntry>();
+      const existing = memberIssues.get(reference.userId);
+
+      if (existing) {
+        existing.issues.push(issue);
+      } else {
+        memberIssues.set(reference.userId, {
+          member: reference,
+          issues: [issue],
+        });
+      }
+
+      buckets.set(issue.type, memberIssues);
+    });
+  });
+
+  return Array.from(buckets.entries())
+    .map(([type, memberIssues]) => ({
+      type,
+      members: Array.from(memberIssues.values()).sort((left, right) => compareMemberReferences(left.member, right.member)),
+    }))
+    .sort(compareIssueBuckets);
+}
+
+function buildTopLevelIssueBuckets(issues: readonly AutoRoleIssue[]): AutoRoleTopLevelIssueBucket[] {
+  const buckets = new Map<AutoRoleIssueType, AutoRoleIssue[]>();
+
+  issues.forEach((issue) => {
+    const bucket = buckets.get(issue.type) ?? [];
+    bucket.push(issue);
+    buckets.set(issue.type, bucket);
+  });
+
+  return Array.from(buckets.entries())
+    .map(([type, bucketIssues]) => ({
+      type,
+      issues: bucketIssues,
+    }))
+    .sort(compareTopLevelIssueBuckets);
+}
+
+function buildMaskedMemberBuckets(maskedMembers: readonly AutoRoleMaskedMember[]): AutoRoleMaskedMemberBucket[] {
+  const buckets = new Map<UnmaskedReason, Map<number, AutoRoleMemberReference>>();
+
+  maskedMembers.forEach((member) => {
+    const reference = toMemberReference(member);
+    const memberMap = buckets.get(member.reason) ?? new Map<number, AutoRoleMemberReference>();
+    memberMap.set(reference.userId, reference);
+    buckets.set(member.reason, memberMap);
+  });
+
+  return Array.from(buckets.entries())
+    .map(([reason, memberMap]) => ({
+      reason,
+      members: finalizeMemberMap(memberMap),
+    }))
+    .sort(compareMaskedBuckets);
 }
 
 export function getLocutusRoleName(ordinal: number): string {
@@ -316,4 +562,37 @@ export function hasAutoRoleMemberActivity(result: AutoRoleMemberResult): boolean
 
 export function hasMaskedMemberReason(maskedMember: AutoRoleMaskedMember, expected: UnmaskedReason): boolean {
   return maskedMember.reason === expected;
+}
+
+export function getAutoRoleMemberDisplayName(
+  member: Pick<AutoRoleMemberResult | AutoRoleMaskedMember, "user_id" | "username" | "display_name">,
+): string {
+  const displayName = normalizeText(member.display_name);
+  if (displayName) {
+    return displayName;
+  }
+
+  const username = normalizeText(member.username);
+  if (username) {
+    return username;
+  }
+
+  return `User #${member.user_id}`;
+}
+
+export function summarizeAutoRoleBulkResult(result: AutoRoleBulkResult): AutoRoleBulkSummary {
+  return {
+    plannedAdds: buildRoleBuckets(result.results, (member) => member.add_roles),
+    plannedRemovals: buildRoleBuckets(result.results, (member) => member.remove_roles),
+    plannedNicknames: buildNicknameBuckets(result.results, (member) => member.nickname),
+    plannedNicknameClears: buildMemberList(result.results, (member) => member.clear_nickname),
+    appliedAdds: buildRoleBuckets(result.results, (member) => member.added_roles),
+    appliedRemovals: buildRoleBuckets(result.results, (member) => member.removed_roles),
+    appliedNicknames: buildNicknameBuckets(result.results, (member) => member.applied_nickname),
+    appliedNicknameClears: buildMemberList(result.results, (member) => member.cleared_nickname),
+    planningIssues: buildIssueBuckets(result.results, (member) => member.issues),
+    executionIssues: buildIssueBuckets(result.results, (member) => member.execution_issues),
+    topLevelIssues: buildTopLevelIssueBuckets(result.execution_issues),
+    maskedNonMembers: buildMaskedMemberBuckets(result.masked_non_members),
+  };
 }

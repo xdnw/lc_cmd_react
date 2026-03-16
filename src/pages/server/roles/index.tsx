@@ -72,10 +72,19 @@ import {
     formatDiscordRoleName,
     formatTaxRoleRateLabel,
     formatUnmaskedReason,
+    getAutoRoleMemberDisplayName,
     getRoleMention,
     hasAutoRoleMemberActivity,
     mergeRoleNameMaps,
+    summarizeAutoRoleBulkResult,
     summarizeManagedRoles,
+    type AutoRoleBulkIssueBucket,
+    type AutoRoleBulkIssueMemberEntry,
+    type AutoRoleBulkNicknameBucket,
+    type AutoRoleBulkRoleBucket,
+    type AutoRoleMaskedMemberBucket,
+    type AutoRoleMemberReference,
+    type AutoRoleTopLevelIssueBucket,
     type RoleAliasEntry,
     type RoleAliasMapping,
 } from "./rolesDomain";
@@ -83,7 +92,7 @@ import {
 const ROLE_SET_ALIAS_COMMAND: ["role", "setalias"] = ["role", "setalias"];
 const ROLE_AUTOROLE_COMMAND: ["role", "autorole"] = ["role", "autorole"];
 const ROLE_AUTOASSIGN_COMMAND: ["role", "autoassign"] = ["role", "autoassign"];
-const ALLIANCE_NAME_QUERY_COLUMNS = ["{getid}", "{getname}"];
+const ENTITY_NAME_QUERY_COLUMNS = ["{getid}", "{getname}"];
 
 type RoleSetAliasArgs = Partial<CommandArguments<typeof COMMANDS.commands, ["role", "setalias"]>>;
 type RoleFormArgs = Record<string, string>;
@@ -147,6 +156,14 @@ function addAllianceId(ids: Set<number>, allianceId: number | null | undefined) 
     ids.add(allianceId);
 }
 
+function addNationId(ids: Set<number>, nationId: number | null | undefined) {
+    if (typeof nationId !== "number" || !Number.isFinite(nationId) || nationId <= 0) {
+        return;
+    }
+
+    ids.add(nationId);
+}
+
 function collectAllianceIdsFromIssues(ids: Set<number>, issues: readonly AutoRoleIssue[]) {
     issues.forEach((issue) => addAllianceId(ids, issue.alliance_id));
 }
@@ -157,11 +174,15 @@ function collectAllianceIdsFromMemberResult(ids: Set<number>, result: AutoRoleMe
     collectAllianceIdsFromIssues(ids, result.execution_issues);
 }
 
-function buildAllianceSelection(allianceIds: readonly number[]): string {
-    return allianceIds.map((allianceId) => `AA:${allianceId}`).join(",");
+function collectNationIdsFromMemberResult(ids: Set<number>, result: AutoRoleMemberResult) {
+    addNationId(ids, result.nation_id);
 }
 
-function parseAllianceNames(table?: WebTable | null): Record<string, string> {
+function buildEntitySelection(ids: readonly number[], prefix = ""): string {
+    return ids.map((id) => `${prefix}${id}`).join(",");
+}
+
+function parseEntityNames(table?: WebTable | null): Record<string, string> {
     const rows = Array.isArray(table?.cells) ? table.cells.slice(1) : [];
 
     return rows.reduce<Record<string, string>>((map, row) => {
@@ -169,13 +190,13 @@ function parseAllianceNames(table?: WebTable | null): Record<string, string> {
             return map;
         }
 
-        const allianceId = Number(row[0]);
-        const allianceName = typeof row[1] === "string" ? row[1].trim() : "";
-        if (!Number.isFinite(allianceId) || !allianceName) {
+        const entityId = Number(row[0]);
+        const entityName = typeof row[1] === "string" ? row[1].trim() : "";
+        if (!Number.isFinite(entityId) || !entityName) {
             return map;
         }
 
-        map[String(allianceId)] = allianceName;
+        map[String(entityId)] = entityName;
         return map;
     }, {});
 }
@@ -237,19 +258,19 @@ function PageSection({
     className?: string;
 }) {
     return (
-        <section className={cn("space-y-4", className)}>
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 pb-3">
+        <section className={cn("overflow-hidden rounded-xl border border-border/70 bg-card/50 shadow-sm", className)}>
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/70 bg-muted/20 px-3 py-2.5">
                 <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
                 {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
             </div>
-            {children}
+            <div className="space-y-3 px-3 py-3">{children}</div>
         </section>
     );
 }
 
 function SectionPanel({ title, children }: { title: string; children: ReactNode }) {
     return (
-        <div className="space-y-3 rounded-md border border-border/70 bg-muted/10 p-3">
+        <div className="space-y-2.5 rounded-lg border border-border/60 bg-background/80 px-2.5 py-2">
             <div className="text-sm font-semibold text-foreground">{title}</div>
             {children}
         </div>
@@ -587,30 +608,24 @@ function AutoRoleSyncSection({
     }
 
     const facts = [
-        `Nickname mode: ${sync.nickname_mode}`,
-        `Alliance mask: ${sync.alliance_mask_mode}`,
-        sync.alliance_rank ? `Minimum alliance rank: ${sync.alliance_rank}` : null,
-        sync.top_x != null ? `Top X limit: ${sync.top_x}` : null,
-        `Ally gov roles: ${sync.ally_gov_enabled ? "enabled" : "disabled"}`,
-        `Member apps: ${sync.member_apps_enabled ? "enabled" : "disabled"}`,
-        sync.registered_role != null ? `Registered role: ${formatDiscordRoleName(String(sync.registered_role), roleNames)}` : null,
-        `Masked alliances: ${sync.masked_alliances.length}`,
-        `Alliance ids: ${sync.alliance_ids.length}`,
-        `Ally ids: ${sync.ally_ids.length}`,
-        `Extension ids: ${sync.extension_ids.length}`,
-        `Alliance role bindings: ${Object.keys(sync.alliance_roles).length}`,
-        `City role bindings: ${sync.city_roles.length}`,
-        `Tax role bindings: ${sync.tax_roles.length}`,
-        `Applicant role bindings: ${Object.keys(sync.applicant_roles).length}`,
-        `Member role bindings: ${Object.keys(sync.member_roles).length}`,
-        `Conditional role bindings: ${sync.conditional_roles.length}`,
+        `Nickname: ${sync.nickname_mode}`,
+        `Mask: ${sync.alliance_mask_mode}`,
+        sync.alliance_rank ? `Minimum rank: ${sync.alliance_rank}` : null,
+        sync.top_x != null ? `Top X: ${sync.top_x}` : null,
+        `Ally gov: ${sync.ally_gov_enabled ? "on" : "off"}`,
+        `Member apps: ${sync.member_apps_enabled ? "on" : "off"}`,
+        sync.registered_role != null ? `Registered: ${formatDiscordRoleName(String(sync.registered_role), roleNames)}` : null,
+        `Mask list: ${sync.masked_alliances.length} alliances`,
+        `Selection: ${sync.alliance_ids.length} alliances, ${sync.ally_ids.length} allies, ${sync.extension_ids.length} extensions`,
+        `Bindings: ${Object.keys(sync.alliance_roles).length} alliance, ${sync.city_roles.length} city, ${sync.tax_roles.length} tax`,
+        `Member bindings: ${Object.keys(sync.applicant_roles).length} applicant, ${Object.keys(sync.member_roles).length} member, ${sync.conditional_roles.length} conditional`,
     ].filter((value): value is string => Boolean(value));
 
     return (
-        <SectionPanel title="Current autorole sync state">
-            <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+        <SectionPanel title="Autorole settings">
+            <div className="flex flex-wrap gap-1.5">
                 {facts.map((fact) => (
-                    <div key={fact} className="rounded-sm border border-border/60 bg-background px-2 py-1 text-xs text-foreground/85">
+                    <div key={fact} className="rounded-md border border-border/60 bg-background px-2.5 py-1 text-xs text-foreground/85">
                         {fact}
                     </div>
                 ))}
@@ -619,51 +634,405 @@ function AutoRoleSyncSection({
     );
 }
 
-function AutoRoleMemberCard({
-    result,
+function getPwNationUrl(nationId: number): string {
+    return `https://politicsandwar.com/nation/id=${nationId}`;
+}
+
+function getPwAllianceUrl(allianceId: number): string {
+    return `https://politicsandwar.com/alliance/id=${allianceId}`;
+}
+
+function EntityLink({ href, label }: { href: string; label: string }) {
+    return (
+        <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-foreground underline decoration-border/70 underline-offset-4 transition hover:text-primary"
+        >
+            {label}
+        </a>
+    );
+}
+
+function MemberLabel({
+    displayName,
+    username,
+}: {
+    displayName: string;
+    username: string;
+}) {
+    const normalizedUsername = username.trim();
+    const normalizedDisplayName = displayName.trim();
+    const displayLabel = normalizedUsername && normalizedDisplayName.localeCompare(normalizedUsername, undefined, { sensitivity: "base" }) === 0
+        ? `@${normalizedUsername}`
+        : normalizedDisplayName;
+    const showUsername = Boolean(normalizedUsername) && displayLabel !== `@${normalizedUsername}`;
+
+    return (
+        <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-semibold text-foreground">{displayLabel}</span>
+            {showUsername ? <span className="text-muted-foreground">@{normalizedUsername}</span> : null}
+        </span>
+    );
+}
+
+function MemberReferenceLabel({ member }: { member: AutoRoleMemberReference }) {
+    return <MemberLabel displayName={member.displayName} username={member.username} />;
+}
+
+function AutoRoleMemberLinks({
+    nationId,
+    allianceId,
+    nationNames,
+    allianceNames,
+}: {
+    nationId?: number | null;
+    allianceId?: number | null;
+    nationNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
+}) {
+    if (nationId == null && allianceId == null) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {nationId != null ? (
+                <span>
+                    Nation{" "}
+                    <EntityLink
+                        href={getPwNationUrl(nationId)}
+                        label={nationNames?.[String(nationId)]?.trim() || `Nation #${nationId}`}
+                    />
+                </span>
+            ) : null}
+            {allianceId != null ? (
+                <span>
+                    Alliance{" "}
+                    <EntityLink href={getPwAllianceUrl(allianceId)} label={formatAllianceLabel(allianceId, allianceNames)} />
+                </span>
+            ) : null}
+        </div>
+    );
+}
+
+function AutoRoleMemberList({ members }: { members: readonly AutoRoleMemberReference[] }) {
+    return (
+        <ul className="grid gap-1.5 text-sm">
+            {members.map((member) => (
+                <li key={member.userId} className="rounded-md border border-border/60 bg-background px-2.5 py-1.5">
+                    <MemberReferenceLabel member={member} />
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+function formatIssueContext(issue: AutoRoleIssue, roleNames?: Record<string, string> | null, allianceNames?: Record<string, string> | null): string {
+    const details = [
+        issue.role_id != null ? `Role: ${formatDiscordRoleName(String(issue.role_id), roleNames)}` : null,
+        issue.alliance_id != null ? `Alliance: ${formatAllianceLabel(issue.alliance_id, allianceNames)}` : null,
+        issue.nickname ? `Nickname: ${issue.nickname}` : null,
+        issue.error_type ? issue.error_type : null,
+        issue.detail ? issue.detail : null,
+    ].filter((value): value is string => Boolean(value));
+
+    return details.join(" | ");
+}
+
+function BulkDisclosure({
+    summary,
+    children,
+    tone = "default",
+}: {
+    summary: ReactNode;
+    children: ReactNode;
+    tone?: "default" | "warning";
+}) {
+    return (
+        <details className={cn(
+            "rounded-md border bg-background px-2.5 py-1.5",
+            tone === "warning" ? "border-amber-500/35 bg-amber-500/5" : "border-border/70",
+        )}>
+            <summary className="cursor-pointer text-sm font-medium text-foreground">{summary}</summary>
+            <div className="mt-2">{children}</div>
+        </details>
+    );
+}
+
+function BulkRoleBucketList({
+    title,
+    buckets,
+    roleNames,
+}: {
+    title: string;
+    buckets: readonly AutoRoleBulkRoleBucket[];
+    roleNames?: Record<string, string> | null;
+}) {
+    if (buckets.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{title}</div>
+            <div className="space-y-1.5">
+                {buckets.map((bucket) => (
+                    <BulkDisclosure
+                        key={`${title}-${bucket.roleId}`}
+                        summary={<>{formatDiscordRoleName(String(bucket.roleId), roleNames)} ({bucket.members.length})</>}
+                    >
+                        <AutoRoleMemberList members={bucket.members} />
+                    </BulkDisclosure>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function BulkNicknameBucketList({
+    title,
+    buckets,
+}: {
+    title: string;
+    buckets: readonly AutoRoleBulkNicknameBucket[];
+}) {
+    if (buckets.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{title}</div>
+            <div className="space-y-1.5">
+                {buckets.map((bucket) => (
+                    <BulkDisclosure
+                        key={`${title}-${bucket.nickname}`}
+                        summary={<><span className="font-semibold">{bucket.nickname}</span> ({bucket.members.length})</>}
+                    >
+                        <AutoRoleMemberList members={bucket.members} />
+                    </BulkDisclosure>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function BulkMemberDisclosureList({
+    title,
+    summary,
+    members,
+}: {
+    title: string;
+    summary: string;
+    members: readonly AutoRoleMemberReference[];
+}) {
+    if (members.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{title}</div>
+            <BulkDisclosure summary={<>{summary} ({members.length})</>}>
+                <AutoRoleMemberList members={members} />
+            </BulkDisclosure>
+        </div>
+    );
+}
+
+function BulkIssueMemberList({
+    entries,
     roleNames,
     allianceNames,
 }: {
-    result: AutoRoleMemberResult;
+    entries: readonly AutoRoleBulkIssueMemberEntry[];
     roleNames?: Record<string, string> | null;
     allianceNames?: Record<string, string> | null;
 }) {
     return (
-        <div className="space-y-2 rounded-md border border-border/70 bg-background p-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="space-y-1">
-                    <div className="text-sm font-semibold text-foreground">{result.display_name || result.username}</div>
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                        <span>@{result.username}</span>
-                        <Badge variant="outline">User #{result.user_id}</Badge>
-                        {result.nation_id != null ? <Badge variant="outline">Nation #{result.nation_id}</Badge> : null}
-                        {result.alliance_id != null ? <Badge variant="outline">{formatAllianceLabel(result.alliance_id, allianceNames)}</Badge> : null}
-                    </div>
-                </div>
-                {hasAutoRoleMemberActivity(result) ? <Badge variant="outline">Changes</Badge> : <Badge variant="secondary">No changes</Badge>}
-            </div>
+        <ul className="grid gap-1.5 text-sm">
+            {entries.map((entry) => {
+                const detailText = entry.issues
+                    .map((issue) => formatIssueContext(issue, roleNames, allianceNames))
+                    .filter(Boolean)
+                    .join(" | ");
 
-            <div className="grid gap-3 lg:grid-cols-2">
-                <div className="space-y-2">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Planned</div>
-                    <RoleIdList title="Create roles" roleIds={result.create_roles} roleNames={roleNames} />
-                    <RoleIdList title="Add roles" roleIds={result.add_roles} roleNames={roleNames} />
-                    <RoleIdList title="Remove roles" roleIds={result.remove_roles} roleNames={roleNames} />
-                    {result.nickname ? <div className="text-xs text-foreground/85">Set nickname to <span className="font-medium">{result.nickname}</span></div> : null}
-                    {result.clear_nickname ? <div className="text-xs text-foreground/85">Clear nickname</div> : null}
+                return (
+                    <li key={`${entry.member.userId}-${entry.member.displayName}`} className="rounded-md border border-border/60 bg-background px-2.5 py-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <MemberReferenceLabel member={entry.member} />
+                        </div>
+                        {detailText ? <div className="mt-1 text-xs text-muted-foreground">{detailText}</div> : null}
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
+
+function BulkIssueBucketList({
+    title,
+    buckets,
+    roleNames,
+    allianceNames,
+}: {
+    title: string;
+    buckets: readonly AutoRoleBulkIssueBucket[];
+    roleNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
+}) {
+    if (buckets.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{title}</div>
+            <div className="space-y-1.5">
+                {buckets.map((bucket) => (
+                    <BulkDisclosure
+                        key={`${title}-${bucket.type}`}
+                        tone="warning"
+                        summary={<>{formatAutoRoleIssueType(bucket.type)} ({bucket.members.length})</>}
+                    >
+                        <BulkIssueMemberList entries={bucket.members} roleNames={roleNames} allianceNames={allianceNames} />
+                    </BulkDisclosure>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function BulkTopLevelIssueList({
+    buckets,
+    roleNames,
+    allianceNames,
+}: {
+    buckets: readonly AutoRoleTopLevelIssueBucket[];
+    roleNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
+}) {
+    if (buckets.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Top-level issues</div>
+            <div className="space-y-1.5">
+                {buckets.map((bucket) => (
+                    <BulkDisclosure
+                        key={`top-level-${bucket.type}`}
+                        tone="warning"
+                        summary={<>{formatAutoRoleIssueType(bucket.type)} ({bucket.issues.length})</>}
+                    >
+                        <div className="grid gap-1.5 text-sm">
+                            {bucket.issues.map((issue, index) => {
+                                const detailText = formatIssueContext(issue, roleNames, allianceNames);
+
+                                return (
+                                    <div key={`${bucket.type}-${index}`} className="rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-muted-foreground">
+                                        {detailText || formatAutoRoleIssueType(issue.type)}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </BulkDisclosure>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function BulkMaskedMemberList({ buckets }: { buckets: readonly AutoRoleMaskedMemberBucket[] }) {
+    if (buckets.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Masked non-members</div>
+            <div className="space-y-1.5">
+                {buckets.map((bucket) => (
+                    <BulkDisclosure
+                        key={`masked-${bucket.reason}`}
+                        summary={<>{formatUnmaskedReason(bucket.reason)} ({bucket.members.length})</>}
+                    >
+                        <AutoRoleMemberList members={bucket.members} />
+                    </BulkDisclosure>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function AutoRoleMemberResultSummary({
+    result,
+    roleNames,
+    allianceNames,
+    nationNames,
+}: {
+    result: AutoRoleMemberResult;
+    roleNames?: Record<string, string> | null;
+    allianceNames?: Record<string, string> | null;
+    nationNames?: Record<string, string> | null;
+}) {
+    const hasPlanned = result.create_roles.length > 0
+        || result.add_roles.length > 0
+        || result.remove_roles.length > 0
+        || Boolean(result.nickname)
+        || result.clear_nickname;
+    const hasApplied = result.added_roles.length > 0
+        || result.removed_roles.length > 0
+        || Boolean(result.applied_nickname)
+        || result.cleared_nickname;
+
+    return (
+        <SectionPanel title="Member result">
+            <div className="space-y-2 rounded-md border border-border/70 bg-background px-2.5 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <MemberLabel displayName={getAutoRoleMemberDisplayName(result)} username={result.username} />
+                    {hasAutoRoleMemberActivity(result) ? <Badge variant="outline">Changes</Badge> : <Badge variant="secondary">No changes</Badge>}
                 </div>
-                <div className="space-y-2">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Applied</div>
-                    <RoleIdList title="Added roles" roleIds={result.added_roles} roleNames={roleNames} />
-                    <RoleIdList title="Removed roles" roleIds={result.removed_roles} roleNames={roleNames} />
-                    {result.applied_nickname ? <div className="text-xs text-foreground/85">Applied nickname <span className="font-medium">{result.applied_nickname}</span></div> : null}
-                    {result.cleared_nickname ? <div className="text-xs text-foreground/85">Cleared nickname</div> : null}
-                </div>
+                <AutoRoleMemberLinks
+                    nationId={result.nation_id}
+                    allianceId={result.alliance_id}
+                    nationNames={nationNames}
+                    allianceNames={allianceNames}
+                />
+
+                {(hasPlanned || hasApplied) ? (
+                    <div className="grid gap-3 lg:grid-cols-2">
+                        {hasPlanned ? (
+                            <div className="space-y-2">
+                                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Planned changes</div>
+                                <RoleIdList title="Create roles" roleIds={result.create_roles} roleNames={roleNames} />
+                                <RoleIdList title="Add roles" roleIds={result.add_roles} roleNames={roleNames} />
+                                <RoleIdList title="Remove roles" roleIds={result.remove_roles} roleNames={roleNames} />
+                                {result.nickname ? <div className="text-sm text-foreground/85">Set nickname to <span className="font-medium">{result.nickname}</span></div> : null}
+                                {result.clear_nickname ? <div className="text-sm text-foreground/85">Clear nickname</div> : null}
+                            </div>
+                        ) : null}
+                        {hasApplied ? (
+                            <div className="space-y-2">
+                                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Applied changes</div>
+                                <RoleIdList title="Added roles" roleIds={result.added_roles} roleNames={roleNames} />
+                                <RoleIdList title="Removed roles" roleIds={result.removed_roles} roleNames={roleNames} />
+                                {result.applied_nickname ? <div className="text-sm text-foreground/85">Applied nickname <span className="font-medium">{result.applied_nickname}</span></div> : null}
+                                {result.cleared_nickname ? <div className="text-sm text-foreground/85">Cleared nickname</div> : null}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : (
+                    <div className="text-sm text-muted-foreground">No planned or applied member changes.</div>
+                )}
             </div>
 
             <AutoRoleIssuesList title="Planning issues" issues={result.issues} roleNames={roleNames} allianceNames={allianceNames} />
             <AutoRoleIssuesList title="Execution issues" issues={result.execution_issues} roleNames={roleNames} allianceNames={allianceNames} />
-        </div>
+        </SectionPanel>
     );
 }
 
@@ -712,7 +1081,7 @@ function AliasMappingItem({
     }, [onAliasesChanged]);
 
     return (
-        <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-xs">
             <span className="text-muted-foreground">{formatAliasScopeLabel(mapping, allianceNames)}</span>
             <CopyableRoleChip roleId={mapping.roleId} roleNames={roleNames} />
             {canEdit ? (
@@ -765,7 +1134,7 @@ function RoleAliasRow({
     return (
         <div
             className={cn(
-                "rounded-md border px-3 py-2",
+                "rounded-md border px-2.5 py-1.5",
                 entry.mappingCount > 0 ? "border-border/70 bg-background" : "border-dashed border-border/60 bg-muted/10",
                 entry.isInvalid && "border-destructive/40 bg-destructive/5",
             )}
@@ -862,7 +1231,7 @@ function ManagedRoleRow<T, A extends EndpointArgMap>({
     onManagedRolesChanged: () => void;
 }) {
     return (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 bg-background px-3 py-2 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-md border border-border/70 bg-background px-2.5 py-1.5 text-sm">
             <div className="min-w-0 flex flex-1 flex-wrap items-center gap-2">
                 <span className="font-medium text-foreground">{label}</span>
                 <CopyableRoleChip roleId={roleId} roleNames={roleNames} />
@@ -1015,11 +1384,22 @@ function AutoroleBulkPanel({
     );
 }
 
-function ResultSection({ title, children }: { title: string; children: ReactNode }) {
+function ResultSection({
+    title,
+    actions,
+    children,
+}: {
+    title: string;
+    actions?: ReactNode;
+    children: ReactNode;
+}) {
     return (
-        <div className="space-y-3 rounded-md border border-border/70 p-4">
-            <div className="text-base font-semibold text-foreground">{title}</div>
-            {children}
+        <div className="overflow-hidden rounded-xl border border-primary/15 bg-primary/[0.03] shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-primary/15 bg-primary/[0.05] px-2.5 py-2">
+                <div className="text-base font-semibold text-foreground">{title}</div>
+                {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+            </div>
+            <div className="space-y-3 px-2.5 py-2.5">{children}</div>
         </div>
     );
 }
@@ -1028,20 +1408,27 @@ function SingleAutoRoleResultSection({
     result,
     roleNames,
     allianceNames,
+    nationNames,
+    onDismiss,
 }: {
     result: AutoRoleResult;
     roleNames?: Record<string, string> | null;
     allianceNames?: Record<string, string> | null;
+    nationNames?: Record<string, string> | null;
+    onDismiss: () => void;
 }) {
     return (
-        <ResultSection title="Latest single-member autorole result">
+        <ResultSection
+            title="Latest single-member autorole result"
+            actions={<Button type="button" variant="outline" size="sm" onClick={onDismiss}>Dismiss</Button>}
+        >
             <AutoRoleSyncSection sync={result.sync} roleNames={roleNames} />
             <RoleIdList title="Roles to create" roleIds={result.create_roles} roleNames={roleNames} />
             <RenameList title="Roles to rename" renames={result.rename_roles} roleNames={roleNames} />
             <RoleIdList title="Roles created" roleIds={result.created_roles} roleNames={roleNames} />
             <RenameList title="Roles renamed" renames={result.renamed_roles} roleNames={roleNames} />
             <AutoRoleIssuesList title="Top-level execution issues" issues={result.execution_issues} roleNames={roleNames} allianceNames={allianceNames} />
-            <AutoRoleMemberCard result={result.result} roleNames={roleNames} allianceNames={allianceNames} />
+            <AutoRoleMemberResultSummary result={result.result} roleNames={roleNames} allianceNames={allianceNames} nationNames={nationNames} />
         </ResultSection>
     );
 }
@@ -1050,79 +1437,92 @@ function BulkAutoRoleResultSection({
     result,
     roleNames,
     allianceNames,
+    onDismiss,
 }: {
     result: AutoRoleBulkResult;
     roleNames?: Record<string, string> | null;
     allianceNames?: Record<string, string> | null;
+    onDismiss: () => void;
 }) {
+    const summary = useMemo(() => summarizeAutoRoleBulkResult(result), [result]);
     const interestingResults = useMemo(
         () => result.results.filter((memberResult) => hasAutoRoleMemberActivity(memberResult)),
         [result.results],
     );
+    const hasPlannedChanges = summary.plannedAdds.length > 0
+        || summary.plannedRemovals.length > 0
+        || summary.plannedNicknames.length > 0
+        || summary.plannedNicknameClears.length > 0;
+    const hasAppliedChanges = summary.appliedAdds.length > 0
+        || summary.appliedRemovals.length > 0
+        || summary.appliedNicknames.length > 0
+        || summary.appliedNicknameClears.length > 0;
+    const hasBottomIssues = summary.topLevelIssues.length > 0
+        || summary.planningIssues.length > 0
+        || summary.executionIssues.length > 0
+        || summary.maskedNonMembers.length > 0;
 
     return (
-        <ResultSection title="Latest bulk autorole result">
+        <ResultSection
+            title="Latest bulk autorole result"
+            actions={<Button type="button" variant="outline" size="sm" onClick={onDismiss}>Dismiss</Button>}
+        >
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
+                <div className="rounded-md border border-border/70 bg-muted/10 px-2.5 py-1.5 text-xs">
                     <div className="text-muted-foreground">Members evaluated</div>
                     <div className="mt-1 text-sm font-semibold text-foreground">{result.results.length}</div>
                 </div>
-                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
+                <div className="rounded-md border border-border/70 bg-muted/10 px-2.5 py-1.5 text-xs">
                     <div className="text-muted-foreground">Members with changes/issues</div>
                     <div className="mt-1 text-sm font-semibold text-foreground">{interestingResults.length}</div>
                 </div>
-                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
+                <div className="rounded-md border border-border/70 bg-muted/10 px-2.5 py-1.5 text-xs">
                     <div className="text-muted-foreground">Masked non-members</div>
                     <div className="mt-1 text-sm font-semibold text-foreground">{result.masked_non_members.length}</div>
                 </div>
-                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-xs">
+                <div className="rounded-md border border-border/70 bg-muted/10 px-2.5 py-1.5 text-xs">
                     <div className="text-muted-foreground">Top-level issues</div>
                     <div className="mt-1 text-sm font-semibold text-foreground">{result.execution_issues.length}</div>
                 </div>
             </div>
             <AutoRoleSyncSection sync={result.sync} roleNames={roleNames} />
-            <RoleIdList title="Roles to create" roleIds={result.create_roles} roleNames={roleNames} />
-            <RenameList title="Roles to rename" renames={result.rename_roles} roleNames={roleNames} />
-            <RoleIdList title="Roles created" roleIds={result.created_roles} roleNames={roleNames} />
-            <RenameList title="Roles renamed" renames={result.renamed_roles} roleNames={roleNames} />
-            <AutoRoleIssuesList title="Top-level execution issues" issues={result.execution_issues} roleNames={roleNames} allianceNames={allianceNames} />
-            {result.masked_non_members.length > 0 ? (
-                <SectionPanel title="Masked non-members">
-                    <div className="grid gap-1.5">
-                        {result.masked_non_members.map((member) => (
-                            <div key={`${member.user_id}-${member.reason}`} className="rounded-md border border-border/60 bg-background px-2.5 py-2 text-xs">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="font-medium text-foreground">{member.display_name || member.username}</span>
-                                    <Badge variant="outline">@{member.username}</Badge>
-                                    <Badge variant="outline">{formatUnmaskedReason(member.reason)}</Badge>
-                                    {member.nation_id != null ? <Badge variant="outline">Nation #{member.nation_id}</Badge> : null}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+            {(result.create_roles.length > 0 || Object.keys(result.rename_roles).length > 0 || result.created_roles.length > 0 || Object.keys(result.renamed_roles).length > 0) ? (
+                <SectionPanel title="Server role changes">
+                    <RoleIdList title="Roles to create" roleIds={result.create_roles} roleNames={roleNames} />
+                    <RenameList title="Roles to rename" renames={result.rename_roles} roleNames={roleNames} />
+                    <RoleIdList title="Roles created" roleIds={result.created_roles} roleNames={roleNames} />
+                    <RenameList title="Roles renamed" renames={result.renamed_roles} roleNames={roleNames} />
                 </SectionPanel>
             ) : null}
-            {interestingResults.length > 0 ? (
-                <details className="rounded-md border border-border/70 bg-muted/10 p-3" open>
-                    <summary className="cursor-pointer text-sm font-semibold text-foreground">
-                        Review member changes ({interestingResults.length})
-                    </summary>
-                    <div className="mt-3 grid gap-2">
-                        {interestingResults.map((memberResult) => (
-                            <AutoRoleMemberCard
-                                key={`${memberResult.user_id}-${memberResult.nation_id ?? "none"}`}
-                                result={memberResult}
-                                roleNames={roleNames}
-                                allianceNames={allianceNames}
-                            />
-                        ))}
-                    </div>
-                </details>
-            ) : (
-                <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-sm text-muted-foreground">
-                    No member-level role or nickname changes were planned or applied.
+            {hasPlannedChanges ? (
+                <SectionPanel title="Planned member changes">
+                    <BulkRoleBucketList title="Add roles" buckets={summary.plannedAdds} roleNames={roleNames} />
+                    <BulkRoleBucketList title="Remove roles" buckets={summary.plannedRemovals} roleNames={roleNames} />
+                    <BulkNicknameBucketList title="Set nicknames" buckets={summary.plannedNicknames} />
+                    <BulkMemberDisclosureList title="Clear nicknames" summary="Clear nickname" members={summary.plannedNicknameClears} />
+                </SectionPanel>
+            ) : null}
+            {hasAppliedChanges ? (
+                <SectionPanel title="Applied member changes">
+                    <BulkRoleBucketList title="Added roles" buckets={summary.appliedAdds} roleNames={roleNames} />
+                    <BulkRoleBucketList title="Removed roles" buckets={summary.appliedRemovals} roleNames={roleNames} />
+                    <BulkNicknameBucketList title="Applied nicknames" buckets={summary.appliedNicknames} />
+                    <BulkMemberDisclosureList title="Cleared nicknames" summary="Cleared nickname" members={summary.appliedNicknameClears} />
+                </SectionPanel>
+            ) : null}
+            {!hasPlannedChanges && !hasAppliedChanges ? (
+                <div className="rounded-md border border-border/70 bg-muted/10 px-2.5 py-1.5 text-sm text-muted-foreground">
+                    No grouped member role or nickname changes were produced in this run.
                 </div>
-            )}
+            ) : null}
+            {hasBottomIssues ? (
+                <SectionPanel title="Issues and exceptions">
+                    <BulkTopLevelIssueList buckets={summary.topLevelIssues} roleNames={roleNames} allianceNames={allianceNames} />
+                    <BulkIssueBucketList title="Planning issues" buckets={summary.planningIssues} roleNames={roleNames} allianceNames={allianceNames} />
+                    <BulkIssueBucketList title="Execution issues" buckets={summary.executionIssues} roleNames={roleNames} allianceNames={allianceNames} />
+                    <BulkMaskedMemberList buckets={summary.maskedNonMembers} />
+                </SectionPanel>
+            ) : null}
         </ResultSection>
     );
 }
@@ -1207,18 +1607,46 @@ export default function RoleManagementPage() {
         return Array.from(ids).sort((left, right) => left - right);
     }, [aliasEntries, bulkResult, managedRoles?.alliance_roles, singleResult]);
 
-    const allianceSelection = useMemo(() => buildAllianceSelection(allianceIds), [allianceIds]);
+    const nationIds = useMemo(() => {
+        const ids = new Set<number>();
+
+        if (singleResult) {
+            collectNationIdsFromMemberResult(ids, singleResult.result);
+        }
+
+        if (bulkResult) {
+            bulkResult.results.forEach((memberResult) => collectNationIdsFromMemberResult(ids, memberResult));
+            bulkResult.masked_non_members.forEach((member) => addNationId(ids, member.nation_id));
+        }
+
+        return Array.from(ids).sort((left, right) => left - right);
+    }, [bulkResult, singleResult]);
+
+    const allianceSelection = useMemo(() => buildEntitySelection(allianceIds, "AA:"), [allianceIds]);
     const allianceNamesQuery = useQuery({
         ...bulkQueryOptions(TABLE.endpoint, {
             type: "DBAlliance",
             selection_str: allianceSelection,
-            columns: ALLIANCE_NAME_QUERY_COLUMNS,
+            columns: ENTITY_NAME_QUERY_COLUMNS,
         }),
         enabled: Boolean(session?.guild) && allianceIds.length > 0,
     });
     const allianceNames = useMemo(
-        () => parseAllianceNames(allianceNamesQuery.data?.data as WebTable | null | undefined),
+        () => parseEntityNames(allianceNamesQuery.data?.data as WebTable | null | undefined),
         [allianceNamesQuery.data?.data],
+    );
+    const nationSelection = useMemo(() => buildEntitySelection(nationIds), [nationIds]);
+    const nationNamesQuery = useQuery({
+        ...bulkQueryOptions(TABLE.endpoint, {
+            type: "DBNation",
+            selection_str: nationSelection,
+            columns: ENTITY_NAME_QUERY_COLUMNS,
+        }),
+        enabled: Boolean(session?.guild) && nationIds.length > 0,
+    });
+    const nationNames = useMemo(
+        () => parseEntityNames(nationNamesQuery.data?.data as WebTable | null | undefined),
+        [nationNamesQuery.data?.data],
     );
 
     const permissionMessages = useMemo(() => {
@@ -1353,6 +1781,14 @@ export default function RoleManagementPage() {
         bulkAutoroleAction.run({ force: "true" });
     }, [bulkAutoroleAction]);
 
+    const handleDismissSingleResult = useCallback(() => {
+        setSingleResult(null);
+    }, []);
+
+    const handleDismissBulkResult = useCallback(() => {
+        setBulkResult(null);
+    }, []);
+
     const pageHeaderConfig = useMemo<PageHeaderConfig | null>(() => {
         if (!session?.guild) {
             return null;
@@ -1461,10 +1897,10 @@ export default function RoleManagementPage() {
         <LocalSidebarModeTabs
             localLabel="Roles"
             mode={sidebarMode}
-            isRefreshing={aliasQuery.isFetching || managedRolesQuery.isFetching || settingsListQuery.isFetching || allianceNamesQuery.isFetching}
+            isRefreshing={aliasQuery.isFetching || managedRolesQuery.isFetching || settingsListQuery.isFetching || allianceNamesQuery.isFetching || nationNamesQuery.isFetching}
             onModeChange={handleSidebarModeChange}
         />
-    ), [aliasQuery.isFetching, allianceNamesQuery.isFetching, handleSidebarModeChange, managedRolesQuery.isFetching, settingsListQuery.isFetching, sidebarMode]);
+    ), [aliasQuery.isFetching, allianceNamesQuery.isFetching, handleSidebarModeChange, managedRolesQuery.isFetching, nationNamesQuery.isFetching, settingsListQuery.isFetching, sidebarMode]);
     const rolesSidebarConfig = useMemo<SidebarNavConfig>(() => buildRolesSidebarConfig({
         items: sidebarItems,
         headerContent: sidebarHeaderContent,
@@ -1490,11 +1926,11 @@ export default function RoleManagementPage() {
     }
 
     return (
-        <div className="pb-8">
-            <div className="w-full px-3 sm:px-4">
-                <div className="mx-auto max-w-6xl space-y-8">
+        <div className="pb-6">
+            <div className="w-full px-2.5 sm:px-3.5">
+                <div className="mx-auto max-w-6xl space-y-5">
                     {permissionMessages.length > 0 ? (
-                        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
+                        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-950 dark:text-amber-200">
                             {permissionMessages.join(" | ")}
                         </div>
                     ) : null}
@@ -1524,7 +1960,7 @@ export default function RoleManagementPage() {
                             )}
                         >
                             {aliasQuery.isLoading ? (
-                                <div className="py-6"><Loading variant="ripple" /></div>
+                                <div className="py-4"><Loading variant="ripple" /></div>
                             ) : aliasQuery.error ? (
                                 <div className="text-sm text-destructive">Failed to load role aliases: {aliasQuery.error.message}</div>
                             ) : filteredAliasEntries.length > 0 ? (
@@ -1549,7 +1985,7 @@ export default function RoleManagementPage() {
 
                     <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autorole} getSectionRef={getSectionRef}>
                         <PageSection title="Autorole">
-                            <div className="grid gap-3 lg:grid-cols-2">
+                            <div className="grid gap-2.5 lg:grid-cols-2">
                                 <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autoroleSingle} getSectionRef={getSectionRef}>
                                     <AutoroleSinglePanel
                                         canRun={canRunSingleAutorole}
@@ -1568,12 +2004,12 @@ export default function RoleManagementPage() {
                             </div>
                             {singleResult ? (
                                 <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autoroleSingleResult} getSectionRef={getSectionRef}>
-                                    <SingleAutoRoleResultSection result={singleResult} roleNames={knownRoleNames} allianceNames={allianceNames} />
+                                    <SingleAutoRoleResultSection result={singleResult} roleNames={knownRoleNames} allianceNames={allianceNames} nationNames={nationNames} onDismiss={handleDismissSingleResult} />
                                 </SectionAnchor>
                             ) : null}
                             {bulkResult ? (
                                 <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autoroleBulkResult} getSectionRef={getSectionRef}>
-                                    <BulkAutoRoleResultSection result={bulkResult} roleNames={knownRoleNames} allianceNames={allianceNames} />
+                                    <BulkAutoRoleResultSection result={bulkResult} roleNames={knownRoleNames} allianceNames={allianceNames} onDismiss={handleDismissBulkResult} />
                                 </SectionAnchor>
                             ) : null}
                         </PageSection>
@@ -1582,16 +2018,16 @@ export default function RoleManagementPage() {
                     <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.managedRoles} getSectionRef={getSectionRef}>
                         <PageSection title="Alliance, city, and tax roles">
                             {managedRolePermissionMode === "error" ? (
-                                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
+                                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-950 dark:text-amber-200">
                                     {bulkAutorolePermission.error}
                                 </div>
                             ) : null}
                             {managedRolesQuery.isLoading ? (
-                                <div className="py-6"><Loading variant="ripple" /></div>
+                                <div className="py-4"><Loading variant="ripple" /></div>
                             ) : managedRolesQuery.error ? (
                                 <div className="text-sm text-destructive">Failed to load managed roles: {managedRolesQuery.error.message}</div>
                             ) : (
-                                <div className="space-y-6">
+                                <div className="space-y-4">
                                     <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.managedAlliance} getSectionRef={getSectionRef}>
                                         <ManagedRoleBlock
                                             title="Alliance roles"
@@ -1665,6 +2101,7 @@ export default function RoleManagementPage() {
                     <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.settings} getSectionRef={getSectionRef}>
                         <SettingsSubsetSection
                             title="AUTO_ROLE settings"
+                            className="rounded-xl border border-border/70 bg-card/50 px-3 py-3 shadow-sm"
                             subset={autoRoleSettingsSubset}
                             emptyMessage="No AUTO_ROLE settings are currently available for this guild."
                             renderAs="section"

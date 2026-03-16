@@ -129,7 +129,6 @@ export function getLocutusRoleName(ordinal: number): string {
 
 export function buildRoleAliasEntries(data?: WebRoleAliases | null): RoleAliasEntry[] {
   const mappingsByOrdinal = data?.mappings ?? {};
-  console.log("Raw mappings by ordinal from backend:", mappingsByOrdinal);
   const invalidOrdinals = new Set(data?.invalid_role_ordinals ?? []);
   const ordinals = new Set<number>(LOCUTUS_ROLE_OPTIONS.map((_, index) => index));
 

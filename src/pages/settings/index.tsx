@@ -3,6 +3,7 @@ import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { SquarePen } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import SearchBar from "@/components/cmd/SearchBar";
+import LocalSidebarModeTabs, { type LocalSidebarMode } from "@/components/layout/LocalSidebarModeTabs";
 import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import { useDefaultPageSidebar, usePageSidebar } from "@/components/layout/PageSidebarContext";
@@ -14,7 +15,6 @@ import {
 import Loading from "@/components/ui/loading";
 import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN,
     WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT,
@@ -310,36 +310,6 @@ function getSettingsSidebarTriggerValue(activeItem: FlattenedSettingsItem | null
     return activeItem.subgroup;
 }
 
-type SettingsSidebarMode = "settings" | "main";
-
-function SettingsSidebarModeTabs({
-    mode,
-    isRefreshing,
-    onModeChange,
-}: {
-    mode: SettingsSidebarMode;
-    isRefreshing: boolean;
-    onModeChange: (mode: SettingsSidebarMode) => void;
-}) {
-    const handleValueChange = useCallback((nextValue: string) => {
-        if (nextValue === "settings" || nextValue === "main") {
-            onModeChange(nextValue);
-        }
-    }, [onModeChange]);
-
-    return (
-        <div className="space-y-1">
-            <Tabs value={mode} onValueChange={handleValueChange}>
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="settings">Settings</TabsTrigger>
-                    <TabsTrigger value="main">App nav</TabsTrigger>
-                </TabsList>
-            </Tabs>
-            {isRefreshing ? <div className="text-[10px] text-muted-foreground">Refreshing</div> : null}
-        </div>
-    );
-}
-
 function buildSettingsSidebarConfig({
     activeItem,
     hasGuild,
@@ -381,7 +351,7 @@ export default function SettingsPage() {
     const virtuosoRef = useRef<VirtuosoHandle | null>(null);
     const searchState = useMemo(() => parseSettingsPageSearchParams(new URLSearchParams(location.search)), [location.search]);
     const [browserState, setBrowserState] = useState<SettingsBrowserState>(() => searchState.browserState);
-    const [sidebarMode, setSidebarMode] = useState<SettingsSidebarMode>("settings");
+    const [sidebarMode, setSidebarMode] = useState<LocalSidebarMode>("local");
     const [perSettingWarning, setPerSettingWarning] = useState<string | null>(null);
     const [visibleIndex, setVisibleIndex] = useState(0);
     const [highlightedSettingKey, setHighlightedSettingKey] = useState<string | null>(null);
@@ -526,7 +496,7 @@ export default function SettingsPage() {
         setHighlightedSettingKey(targetItem.kind === "setting" ? targetItem.row.settingKey : null);
     }, [browserResult.flattenedItems]);
 
-    const handleSidebarModeChange = useCallback((nextMode: SettingsSidebarMode) => {
+    const handleSidebarModeChange = useCallback((nextMode: LocalSidebarMode) => {
         setSidebarMode(nextMode);
     }, []);
 
@@ -547,7 +517,8 @@ export default function SettingsPage() {
     }), [activeItem, browserResult.flattenedItems, handleSelectSidebarItem, openEditDialog, visibleContext.category, visibleContext.subgroup]);
 
     const sidebarHeaderContent = useMemo(() => (
-        <SettingsSidebarModeTabs
+        <LocalSidebarModeTabs
+            localLabel="Settings"
             mode={sidebarMode}
             isRefreshing={listQuery.isFetching}
             onModeChange={handleSidebarModeChange}
@@ -574,7 +545,7 @@ export default function SettingsPage() {
         };
     }, [defaultSidebar, sidebarHeaderContent]);
 
-    const activeSidebarConfig = sidebarMode === "settings" ? settingsSidebarConfig : mainSidebarConfig;
+    const activeSidebarConfig = sidebarMode === "local" ? settingsSidebarConfig : mainSidebarConfig;
 
     const pageHeaderConfig = useMemo<PageHeaderConfig | null>(() => {
         if (!hasGuild || listQuery.isLoading || listQuery.error) {

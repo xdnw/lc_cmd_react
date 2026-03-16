@@ -322,6 +322,13 @@ export type FlattenedSettingsItem =
         row: SettingRow;
     };
 
+export type SettingsSubsetModel = {
+    requestedKeys: readonly SettingKey[];
+    presentRows: SettingRow[];
+    missingKeys: SettingKey[];
+    flattenedItems: FlattenedSettingsItem[];
+};
+
 export type SettingsAvailabilityFilter = "available" | "all" | "unavailable";
 export type SettingsFlagFilter = "all" | "only" | "exclude";
 export type SettingsSortMode = "category" | "name" | "relevance";
@@ -892,6 +899,19 @@ export function flattenSettingsRows(rows: SettingRow[]): FlattenedSettingsItem[]
     });
 
     return items;
+}
+
+export function deriveSettingsSubsetModel(rows: SettingRow[], requestedKeys: readonly SettingKey[]): SettingsSubsetModel {
+    const requestedKeySet = new Set<string>(requestedKeys);
+    const presentRows = rows.filter((row) => requestedKeySet.has(row.settingKey));
+    const presentKeySet = new Set(presentRows.map((row) => row.settingKey));
+
+    return {
+        requestedKeys,
+        presentRows,
+        missingKeys: requestedKeys.filter((settingKey) => !presentKeySet.has(settingKey)),
+        flattenedItems: flattenSettingsRows(presentRows),
+    };
 }
 
 export function mergeRowIntoTableCache({

@@ -7,8 +7,15 @@ import ArgInput from "@/components/cmd/ArgInput";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import ConfirmCommandActionButton from "@/components/cmd/ConfirmCommandActionButton";
 import { useDialog } from "@/components/layout/DialogContext";
+import LocalSidebarModeTabs, { type LocalSidebarMode } from "@/components/layout/LocalSidebarModeTabs";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import { useDefaultPageSidebar, usePageSidebar } from "@/components/layout/PageSidebarContext";
+import {
+    type SidebarNavConfig,
+    type SidebarNavItem,
+    type SidebarNavStatus,
+} from "@/components/layout/SidebarNav";
+import useDocumentSectionNavigation from "@/components/layout/useDocumentSectionNavigation";
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +52,13 @@ import {
 import { bulkQueryOptions, singleQueryOptions } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import LoginPickerPage from "@/pages/login_picker";
-import GuildSettingsSubset from "@/pages/settings/components/GuildSettingsSubset";
+import SettingsSubsetSection from "@/pages/settings/components/SettingsSubsetSection";
+import {
+    deriveSettingsSubsetModel,
+    type SettingRow,
+} from "@/pages/settings/settingsDomain";
+import { useGuildSettingsData } from "@/pages/settings/useGuildSettingsData";
+import { useGuildSettingDialogs } from "@/pages/settings/useGuildSettingDialogs";
 import { CM, type AnyCommandPath, type CommandArguments } from "@/utils/Command";
 import { usePermission } from "@/utils/PermUtil";
 
@@ -62,6 +75,7 @@ import {
     getRoleMention,
     hasAutoRoleMemberActivity,
     mergeRoleNameMaps,
+    summarizeManagedRoles,
     type RoleAliasEntry,
     type RoleAliasMapping,
 } from "./rolesDomain";
@@ -81,6 +95,33 @@ type AutoRoleManagedRoles = WebAutoRoleRoles;
 type AllianceRoleEntry = WebAllianceAutoRole;
 type CityRoleEntry = WebCityAutoRole;
 type TaxRoleEntry = WebTaxAutoRole;
+type RolesSidebarSection = {
+    id: string;
+    label: string;
+    meta?: ReactNode;
+    items?: RolesSidebarItem[];
+};
+type RolesSidebarItem = {
+    id: string;
+    label: string;
+    meta?: ReactNode;
+    title?: string;
+    status?: SidebarNavStatus;
+};
+
+const ROLE_SIDEBAR_SECTION_IDS = {
+    aliases: "roles.aliases",
+    autorole: "roles.autorole",
+    autoroleSingle: "roles.autorole.single",
+    autoroleBulk: "roles.autorole.bulk",
+    autoroleSingleResult: "roles.autorole.single-result",
+    autoroleBulkResult: "roles.autorole.bulk-result",
+    managedRoles: "roles.managed",
+    managedAlliance: "roles.managed.alliance",
+    managedCity: "roles.managed.city",
+    managedTax: "roles.managed.tax",
+    settings: "roles.settings",
+} as const;
 
 function coerceRoleCommandPath(path: [string, string]): AnyCommandPath {
     return path as unknown as AnyCommandPath;
@@ -149,7 +190,13 @@ function useEndpointAction<T, A extends { [key: string]: string | string[] | und
     const { showDialog } = useDialog();
 
     const mutation = useMutation({
-        mutationFn: (args: A) => queryClient.fetchQuery(singleQueryOptions(endpoint.endpoint, args, 0, 10)),
+        mutationFn: (args: A) => {
+            const sanitizedArgs = Object.fromEntries(
+                Object.entries(args).filter(([, value]) => value !== undefined),
+            ) as { [key: string]: string | string[] };
+
+            return queryClient.fetchQuery(singleQueryOptions(endpoint.endpoint, sanitizedArgs, 0, 10));
+        },
         onSuccess: (result: QueryResult<T>) => {
             if (result.error) {
                 showDialog(failureTitle, result.error);
@@ -207,6 +254,113 @@ function SectionPanel({ title, children }: { title: string; children: ReactNode 
             {children}
         </div>
     );
+}
+
+function SectionAnchor({
+    sectionId,
+    getSectionRef,
+    children,
+    className,
+}: {
+    sectionId: string;
+    getSectionRef: (sectionId: string) => (node: HTMLElement | null) => void;
+    children: ReactNode;
+    className?: string;
+}) {
+    return (
+        <div id={sectionId} ref={getSectionRef(sectionId)} className={cn("scroll-mt-28", className)}>
+            {children}
+        </div>
+    );
+}
+
+function getRoleSettingSidebarStatus(row: SettingRow): SidebarNavStatus {
+    if (!row.flags.isAllowed) {
+        return "disabled";
+    }
+
+    if (row.flags.invalid) {
+        return "error";
+    }
+
+    if (!row.editor.inputSupport.supported) {
+        return "warning";
+    }
+
+    return row.value.hasValue ? "set" : "unset";
+}
+
+function getRoleSettingSectionId(settingKey: string): string {
+    return `${ROLE_SIDEBAR_SECTION_IDS.settings}.${settingKey}`;
+}
+
+function buildRolesSidebarItems({
+    sections,
+    activeSectionId,
+    onSelect,
+}: {
+    sections: readonly RolesSidebarSection[];
+    activeSectionId: string | null;
+    onSelect: (sectionId: string) => void;
+}): SidebarNavItem[] {
+    return sections.flatMap((section) => {
+        const childIds = new Set(section.items?.map((item) => item.id) ?? []);
+        const sectionInActivePath = activeSectionId != null && childIds.has(activeSectionId);
+
+        const sectionItem: SidebarNavItem = {
+            id: section.id,
+            label: section.label,
+            level: 0,
+            tone: "section",
+            status: "default",
+            meta: section.meta,
+            active: activeSectionId === section.id,
+            inActivePath: sectionInActivePath,
+            onSelect: () => onSelect(section.id),
+        };
+
+        const childItems = (section.items ?? []).map((item) => ({
+            id: item.id,
+            label: item.label,
+            level: 1,
+            tone: "item",
+            title: item.title,
+            status: item.status ?? "default",
+            meta: item.meta,
+            active: activeSectionId === item.id,
+            onSelect: () => onSelect(item.id),
+        } satisfies SidebarNavItem));
+
+        return [sectionItem, ...childItems];
+    });
+}
+
+function getRolesSidebarTriggerValue(items: readonly SidebarNavItem[]): string {
+    const activeItem = items.find((item) => item.active) ?? items.find((item) => item.inActivePath);
+    return activeItem?.label ?? "Browse roles";
+}
+
+function buildRolesSidebarConfig({
+    items,
+    headerContent,
+    hasGuild,
+}: {
+    items: readonly SidebarNavItem[];
+    headerContent: ReactNode;
+    hasGuild: boolean;
+}): SidebarNavConfig {
+    return {
+        ariaLabel: "Role management navigation",
+        layout: "tree",
+        headerContent,
+        items,
+        emptyMessage: hasGuild ? "No role sections available." : "Select a guild to browse role management.",
+        mobileTriggerLabel: "Roles",
+        mobileTriggerValue: getRolesSidebarTriggerValue(items),
+        mobileButtonLabel: "Roles",
+        mobileSheetTitle: "Roles",
+        mobileSheetSubtitle: "Server role management",
+    };
 }
 
 function InlineConfirmButton({
@@ -280,12 +434,13 @@ function CopyableRoleChip({
     roleNames,
     className,
 }: {
-    roleId: number;
+    roleId: string | number;
     roleNames?: Record<string, string> | null;
     className?: string;
 }) {
     const [copied, setCopied] = useState(false);
-    const label = formatDiscordRoleName(roleId, roleNames);
+    const normalizedRoleId = String(roleId);
+    const label = formatDiscordRoleName(normalizedRoleId, roleNames);
     const canCopy = typeof navigator !== "undefined" && typeof navigator.clipboard?.writeText === "function";
 
     useEffect(() => {
@@ -307,16 +462,16 @@ function CopyableRoleChip({
             return;
         }
 
-        void navigator.clipboard.writeText(getRoleMention(roleId)).then(() => {
+        void navigator.clipboard.writeText(getRoleMention(normalizedRoleId)).then(() => {
             setCopied(true);
         });
-    }, [canCopy, roleId]);
+    }, [canCopy, normalizedRoleId]);
 
     return (
         <button
             type="button"
             onClick={handleCopy}
-            title={canCopy ? `Copy ${getRoleMention(roleId)}` : undefined}
+            title={canCopy ? `Copy ${getRoleMention(normalizedRoleId)}` : undefined}
             className={cn(
                 "inline-flex items-center rounded-md border border-border/70 bg-background px-2 py-1 text-xs text-foreground transition",
                 canCopy ? "hover:border-foreground/30 hover:bg-background" : "cursor-default",
@@ -374,7 +529,7 @@ function RenameList({
             <div className="grid gap-1.5">
                 {items.map(([roleId, nextName]) => (
                     <div key={`${title}-${roleId}`} className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-background px-2.5 py-2 text-xs text-foreground/85">
-                        <CopyableRoleChip roleId={Number(roleId)} roleNames={roleNames} />
+                        <CopyableRoleChip roleId={roleId} roleNames={roleNames} />
                         <span className="text-muted-foreground">-&gt;</span>
                         <span>{nextName}</span>
                     </div>
@@ -438,7 +593,7 @@ function AutoRoleSyncSection({
         sync.top_x != null ? `Top X limit: ${sync.top_x}` : null,
         `Ally gov roles: ${sync.ally_gov_enabled ? "enabled" : "disabled"}`,
         `Member apps: ${sync.member_apps_enabled ? "enabled" : "disabled"}`,
-        sync.registered_role != null ? `Registered role: ${formatDiscordRoleName(sync.registered_role, roleNames)}` : null,
+        sync.registered_role != null ? `Registered role: ${formatDiscordRoleName(String(sync.registered_role), roleNames)}` : null,
         `Masked alliances: ${sync.masked_alliances.length}`,
         `Alliance ids: ${sync.alliance_ids.length}`,
         `Ally ids: ${sync.ally_ids.length}`,
@@ -978,9 +1133,19 @@ export default function RoleManagementPage() {
     const { showDialog } = useDialog();
     const [aliasSearch, setAliasSearch] = useState("");
     const [aliasFilterMode, setAliasFilterMode] = useState<AliasFilterMode>("all");
+    const [sidebarMode, setSidebarMode] = useState<LocalSidebarMode>("local");
     const [singleResult, setSingleResult] = useState<AutoRoleResult | null>(null);
     const [bulkResult, setBulkResult] = useState<AutoRoleBulkResult | null>(null);
     const [runtimeRoleNames, setRuntimeRoleNames] = useState<Record<string, string>>({});
+    const [settingsWarning, setSettingsWarning] = useState<string | null>(null);
+    const {
+        hasGuild,
+        listQuery: settingsListQuery,
+        normalized: normalizedSettings,
+        refetchAll: refetchAllSettings,
+        refreshSingleSetting,
+        viewTableTo,
+    } = useGuildSettingsData();
 
     const aliasQuery = useQuery({
         ...bulkQueryOptions(LIST_ROLE_ALIASES.endpoint, {}),
@@ -1005,10 +1170,7 @@ export default function RoleManagementPage() {
         : "readonly";
 
     const aliasEntries = useMemo(
-        () => {
-            console.log("Building alias entries", { rawData: aliasQuery.data?.data });
-            return buildRoleAliasEntries(aliasQuery.data?.data as WebRoleAliases | null | undefined)
-        },
+        () => buildRoleAliasEntries(aliasQuery.data?.data as WebRoleAliases | null | undefined),
         [aliasQuery.data?.data],
     );
     const managedRoles = useMemo(
@@ -1018,6 +1180,10 @@ export default function RoleManagementPage() {
     const knownRoleNames = useMemo(
         () => mergeRoleNameMaps(aliasQuery.data?.data?.discord_role_names as Record<string, string> | undefined, runtimeRoleNames),
         [aliasQuery.data?.data?.discord_role_names, runtimeRoleNames],
+    );
+    const autoRoleSettingsSubset = useMemo(
+        () => deriveSettingsSubsetModel(normalizedSettings.rows, AUTO_ROLE_SETTING_KEYS),
+        [normalizedSettings.rows],
     );
 
     const allianceIds = useMemo(() => {
@@ -1124,6 +1290,23 @@ export default function RoleManagementPage() {
         void managedRolesQuery.refetch();
     }, [managedRolesQuery]);
 
+    const handleRefreshAutoRoleSetting = useCallback((settingKey: string) => {
+        void refreshSingleSetting(settingKey).then((errorMessage) => {
+            setSettingsWarning(errorMessage);
+        });
+    }, [refreshSingleSetting]);
+
+    const { openEditDialog: openAutoRoleSettingEditDialog, openHelpDialog: openAutoRoleSettingHelpDialog } = useGuildSettingDialogs(handleRefreshAutoRoleSetting);
+
+    const handleRefreshAutoRoleSettings = useCallback(() => {
+        setSettingsWarning(null);
+        refetchAllSettings();
+    }, [refetchAllSettings]);
+
+    const handleSidebarModeChange = useCallback((nextMode: LocalSidebarMode) => {
+        setSidebarMode(nextMode);
+    }, []);
+
     const handleManagedRolesResponse = useCallback((_result: { data: unknown }) => {
         refreshManagedRoles();
     }, [refreshManagedRoles]);
@@ -1192,11 +1375,117 @@ export default function RoleManagementPage() {
     const getTaxRoleKey = useCallback((entry: TaxRoleEntry) => `tax-${entry.role_id}-${entry.money_rate}-${entry.rss_rate}`, []);
     const getTaxRoleLabel = useCallback((entry: TaxRoleEntry) => formatTaxRoleRateLabel(entry.money_rate, entry.rss_rate), []);
     const getTaxRoleRemoveArgs = useCallback((entry: TaxRoleEntry) => ({ rate: formatTaxRoleRateLabel(entry.money_rate, entry.rss_rate) }), []);
+    const managedRoleSummary = useMemo(() => summarizeManagedRoles(managedRoles), [managedRoles]);
+    const autoRoleSettingItems = useMemo(() => autoRoleSettingsSubset.flattenedItems.flatMap((item) => {
+        if (item.kind !== "setting") {
+            return [];
+        }
 
-    usePageSidebar(defaultSidebar);
+        return [{
+            id: getRoleSettingSectionId(item.row.settingKey),
+            label: item.row.settingKey,
+            title: `${item.row.settingKey} - ${item.row.metadata.helpShort}`,
+            status: getRoleSettingSidebarStatus(item.row),
+        } satisfies RolesSidebarItem];
+    }), [autoRoleSettingsSubset.flattenedItems]);
+    const sidebarSections = useMemo<RolesSidebarSection[]>(() => {
+        const sections: RolesSidebarSection[] = [
+            {
+                id: ROLE_SIDEBAR_SECTION_IDS.aliases,
+                label: "Role aliases",
+                meta: filteredAliasEntries.length,
+            },
+            {
+                id: ROLE_SIDEBAR_SECTION_IDS.autorole,
+                label: "Autorole",
+                items: [
+                    { id: ROLE_SIDEBAR_SECTION_IDS.autoroleSingle, label: "Single member" },
+                    { id: ROLE_SIDEBAR_SECTION_IDS.autoroleBulk, label: "Whole guild" },
+                    ...(singleResult ? [{ id: ROLE_SIDEBAR_SECTION_IDS.autoroleSingleResult, label: "Latest single-member result" }] : []),
+                    ...(bulkResult ? [{ id: ROLE_SIDEBAR_SECTION_IDS.autoroleBulkResult, label: "Latest bulk result" }] : []),
+                ],
+            },
+            {
+                id: ROLE_SIDEBAR_SECTION_IDS.managedRoles,
+                label: "Alliance, city, and tax roles",
+                meta: managedRoleSummary.total,
+                items: managedRolesQuery.isLoading || managedRolesQuery.error
+                    ? []
+                    : [
+                        { id: ROLE_SIDEBAR_SECTION_IDS.managedAlliance, label: "Alliance roles", meta: managedRoleSummary.allianceRoles },
+                        { id: ROLE_SIDEBAR_SECTION_IDS.managedCity, label: "City roles", meta: managedRoleSummary.cityRoles },
+                        { id: ROLE_SIDEBAR_SECTION_IDS.managedTax, label: "Tax roles", meta: managedRoleSummary.taxRoles },
+                    ],
+            },
+            {
+                id: ROLE_SIDEBAR_SECTION_IDS.settings,
+                label: "AUTO_ROLE settings",
+                meta: autoRoleSettingsSubset.presentRows.length,
+                items: autoRoleSettingItems,
+            },
+        ];
+
+        return sections;
+    }, [autoRoleSettingItems, autoRoleSettingsSubset.presentRows.length, bulkResult, filteredAliasEntries.length, managedRoleSummary, managedRolesQuery.error, managedRolesQuery.isLoading, singleResult]);
+    const sidebarSectionIds = useMemo(
+        () => sidebarSections.flatMap((section) => [section.id, ...(section.items ?? []).map((item) => item.id)]),
+        [sidebarSections],
+    );
+    const { activeSectionId, getSectionRef, scrollToSection } = useDocumentSectionNavigation(sidebarSectionIds, {
+        activationOffset: 192,
+    });
+    const handleSelectSidebarSection = useCallback((sectionId: string) => {
+        scrollToSection(sectionId);
+    }, [scrollToSection]);
+    const sidebarItems = useMemo(() => buildRolesSidebarItems({
+        sections: sidebarSections,
+        activeSectionId,
+        onSelect: handleSelectSidebarSection,
+    }), [activeSectionId, handleSelectSidebarSection, sidebarSections]);
+    const renderAutoRoleSettingItem = useCallback(({ item, defaultNode }: { item: Parameters<NonNullable<React.ComponentProps<typeof SettingsSubsetSection>["renderItem"]>>[0]["item"]; index: number; defaultNode: ReactNode }) => {
+        if (item.kind !== "setting") {
+            return defaultNode;
+        }
+
+        return (
+            <SectionAnchor
+                key={item.key}
+                sectionId={getRoleSettingSectionId(item.row.settingKey)}
+                getSectionRef={getSectionRef}
+            >
+                {defaultNode}
+            </SectionAnchor>
+        );
+    }, [getSectionRef]);
+    const sidebarHeaderContent = useMemo(() => (
+        <LocalSidebarModeTabs
+            localLabel="Roles"
+            mode={sidebarMode}
+            isRefreshing={aliasQuery.isFetching || managedRolesQuery.isFetching || settingsListQuery.isFetching || allianceNamesQuery.isFetching}
+            onModeChange={handleSidebarModeChange}
+        />
+    ), [aliasQuery.isFetching, allianceNamesQuery.isFetching, handleSidebarModeChange, managedRolesQuery.isFetching, settingsListQuery.isFetching, sidebarMode]);
+    const rolesSidebarConfig = useMemo<SidebarNavConfig>(() => buildRolesSidebarConfig({
+        items: sidebarItems,
+        headerContent: sidebarHeaderContent,
+        hasGuild,
+    }), [hasGuild, sidebarHeaderContent, sidebarItems]);
+    const mainSidebarConfig = useMemo<SidebarNavConfig | null>(() => {
+        if (!defaultSidebar) {
+            return null;
+        }
+
+        return {
+            ...defaultSidebar,
+            headerContent: sidebarHeaderContent,
+        };
+    }, [defaultSidebar, sidebarHeaderContent]);
+    const activeSidebarConfig = sidebarMode === "local" ? rolesSidebarConfig : mainSidebarConfig;
+
+    usePageSidebar(activeSidebarConfig);
     usePageHeader(pageHeaderConfig);
 
-    if (!session?.guild) {
+    if (!hasGuild) {
         return <LoginPickerPage />;
     }
 
@@ -1210,152 +1499,189 @@ export default function RoleManagementPage() {
                         </div>
                     ) : null}
 
-                    <PageSection
-                        title="Role aliases"
-                        actions={(
-                            <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
-                                <Input
-                                    value={aliasSearch}
-                                    onChange={handleAliasSearchChange}
-                                    placeholder="Search aliases"
-                                    className="min-w-48 flex-1 lg:w-56 lg:flex-none"
-                                />
-                                <Tabs value={aliasFilterMode} onValueChange={handleAliasFilterChange} className="w-auto shrink-0">
-                                    <TabsList>
-                                        <TabsTrigger value="all">All</TabsTrigger>
-                                        <TabsTrigger value="mapped">Mapped</TabsTrigger>
-                                        <TabsTrigger value="invalid">Invalid</TabsTrigger>
-                                    </TabsList>
-                                </Tabs>
-                                <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={refreshAliases}>
-                                    Refresh aliases
-                                </Button>
-                            </div>
-                        )}
-                    >
-                        {aliasQuery.isLoading ? (
-                            <div className="py-6"><Loading variant="ripple" /></div>
-                        ) : aliasQuery.error ? (
-                            <div className="text-sm text-destructive">Failed to load role aliases: {aliasQuery.error.message}</div>
-                        ) : filteredAliasEntries.length > 0 ? (
-                            <div className="space-y-2">
-                                {filteredAliasEntries.map((entry) => (
-                                    <RoleAliasRow
-                                        key={entry.ordinal}
-                                        entry={entry}
-                                        roleNames={knownRoleNames}
-                                        allianceNames={allianceNames}
-                                        canEdit={canManageAliases}
-                                        onOpenAliasDialog={openAliasDialog}
-                                        onAliasesChanged={refreshAliases}
+                    <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.aliases} getSectionRef={getSectionRef}>
+                        <PageSection
+                            title="Role aliases"
+                            actions={(
+                                <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
+                                    <Input
+                                        value={aliasSearch}
+                                        onChange={handleAliasSearchChange}
+                                        placeholder="Search aliases"
+                                        className="min-w-48 flex-1 lg:w-56 lg:flex-none"
                                     />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-sm text-muted-foreground">No alias rows match the current filters.</div>
-                        )}
-                    </PageSection>
-
-                    <PageSection title="Autorole">
-                        <div className="grid gap-3 lg:grid-cols-2">
-                            <AutoroleSinglePanel
-                                canRun={canRunSingleAutorole}
-                                onResult={handleSingleAutoroleRequest}
-                                pending={singleAutoroleAction.isPending}
-                            />
-                            <AutoroleBulkPanel
-                                canRun={canRunBulkAutorole}
-                                onPreview={handleBulkPreview}
-                                onRun={handleBulkRun}
-                                pending={bulkAutoroleAction.isPending}
-                            />
-                        </div>
-                        {singleResult ? <SingleAutoRoleResultSection result={singleResult} roleNames={knownRoleNames} allianceNames={allianceNames} /> : null}
-                        {bulkResult ? <BulkAutoRoleResultSection result={bulkResult} roleNames={knownRoleNames} allianceNames={allianceNames} /> : null}
-                    </PageSection>
-
-                    <PageSection title="Alliance, city, and tax roles">
-                        {managedRolePermissionMode === "error" ? (
-                            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
-                                {bulkAutorolePermission.error}
-                            </div>
-                        ) : null}
-                        {managedRolesQuery.isLoading ? (
-                            <div className="py-6"><Loading variant="ripple" /></div>
-                        ) : managedRolesQuery.error ? (
-                            <div className="text-sm text-destructive">Failed to load managed roles: {managedRolesQuery.error.message}</div>
-                        ) : (
-                            <div className="space-y-6">
-                                <ManagedRoleBlock
-                                    title="Alliance roles"
-                                    addForm={managedRoleCanWrite ? (
-                                        <ApiFormInputs
-                                            endpoint={ADD_ALLIANCE_ROLE}
-                                            label="Add alliance role"
-                                            handle_response={handleManagedRolesResponse}
+                                    <Tabs value={aliasFilterMode} onValueChange={handleAliasFilterChange} className="w-auto shrink-0">
+                                        <TabsList>
+                                            <TabsTrigger value="all">All</TabsTrigger>
+                                            <TabsTrigger value="mapped">Mapped</TabsTrigger>
+                                            <TabsTrigger value="invalid">Invalid</TabsTrigger>
+                                        </TabsList>
+                                    </Tabs>
+                                    <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={refreshAliases}>
+                                        Refresh aliases
+                                    </Button>
+                                </div>
+                            )}
+                        >
+                            {aliasQuery.isLoading ? (
+                                <div className="py-6"><Loading variant="ripple" /></div>
+                            ) : aliasQuery.error ? (
+                                <div className="text-sm text-destructive">Failed to load role aliases: {aliasQuery.error.message}</div>
+                            ) : filteredAliasEntries.length > 0 ? (
+                                <div className="space-y-2">
+                                    {filteredAliasEntries.map((entry) => (
+                                        <RoleAliasRow
+                                            key={entry.ordinal}
+                                            entry={entry}
+                                            roleNames={knownRoleNames}
+                                            allianceNames={allianceNames}
+                                            canEdit={canManageAliases}
+                                            onOpenAliasDialog={openAliasDialog}
+                                            onAliasesChanged={refreshAliases}
                                         />
-                                    ) : managedRolePermissionMode === "readonly" ? <div className="text-sm text-muted-foreground">{managedRoleReadOnlyMessage}</div> : null}
-                                    emptyMessage="No alliance roles."
-                                    items={managedRoles?.alliance_roles ?? []}
-                                    getKey={getAllianceRoleKey}
-                                    getLabel={getAllianceRoleLabel}
-                                    getRemoveArgs={getAllianceRoleRemoveArgs}
-                                    roleNames={knownRoleNames}
-                                    removeEndpoint={REMOVE_ALLIANCE_ROLE}
-                                    canManage={managedRoleCanWrite}
-                                    onManagedRolesChanged={refreshManagedRoles}
-                                />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-sm text-muted-foreground">No alias rows match the current filters.</div>
+                            )}
+                        </PageSection>
+                    </SectionAnchor>
 
-                                <ManagedRoleBlock
-                                    title="City roles"
-                                    addForm={managedRoleCanWrite ? (
-                                        <ApiFormInputs
-                                            endpoint={ADD_CITY_ROLE}
-                                            label="Add city role"
-                                            handle_response={handleManagedRolesResponse}
-                                        />
-                                    ) : managedRolePermissionMode === "readonly" ? <div className="text-sm text-muted-foreground">{managedRoleReadOnlyMessage}</div> : null}
-                                    emptyMessage="No city roles."
-                                    items={managedRoles?.city_roles ?? []}
-                                    getKey={getCityRoleKey}
-                                    getLabel={getCityRoleLabel}
-                                    getRemoveArgs={getCityRoleRemoveArgs}
-                                    roleNames={knownRoleNames}
-                                    removeEndpoint={REMOVE_CITY_ROLE}
-                                    canManage={managedRoleCanWrite}
-                                    onManagedRolesChanged={refreshManagedRoles}
-                                />
-
-                                <ManagedRoleBlock
-                                    title="Tax roles"
-                                    addForm={managedRoleCanWrite ? (
-                                        <ApiFormInputs
-                                            endpoint={ADD_TAX_ROLE}
-                                            label="Add tax role"
-                                            handle_response={handleManagedRolesResponse}
-                                        />
-                                    ) : managedRolePermissionMode === "readonly" ? <div className="text-sm text-muted-foreground">{managedRoleReadOnlyMessage}</div> : null}
-                                    emptyMessage="No tax roles."
-                                    items={managedRoles?.tax_roles ?? []}
-                                    getKey={getTaxRoleKey}
-                                    getLabel={getTaxRoleLabel}
-                                    getRemoveArgs={getTaxRoleRemoveArgs}
-                                    roleNames={knownRoleNames}
-                                    removeEndpoint={REMOVE_TAX_ROLE}
-                                    canManage={managedRoleCanWrite}
-                                    onManagedRolesChanged={refreshManagedRoles}
-                                />
+                    <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autorole} getSectionRef={getSectionRef}>
+                        <PageSection title="Autorole">
+                            <div className="grid gap-3 lg:grid-cols-2">
+                                <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autoroleSingle} getSectionRef={getSectionRef}>
+                                    <AutoroleSinglePanel
+                                        canRun={canRunSingleAutorole}
+                                        onResult={handleSingleAutoroleRequest}
+                                        pending={singleAutoroleAction.isPending}
+                                    />
+                                </SectionAnchor>
+                                <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autoroleBulk} getSectionRef={getSectionRef}>
+                                    <AutoroleBulkPanel
+                                        canRun={canRunBulkAutorole}
+                                        onPreview={handleBulkPreview}
+                                        onRun={handleBulkRun}
+                                        pending={bulkAutoroleAction.isPending}
+                                    />
+                                </SectionAnchor>
                             </div>
-                        )}
-                    </PageSection>
+                            {singleResult ? (
+                                <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autoroleSingleResult} getSectionRef={getSectionRef}>
+                                    <SingleAutoRoleResultSection result={singleResult} roleNames={knownRoleNames} allianceNames={allianceNames} />
+                                </SectionAnchor>
+                            ) : null}
+                            {bulkResult ? (
+                                <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autoroleBulkResult} getSectionRef={getSectionRef}>
+                                    <BulkAutoRoleResultSection result={bulkResult} roleNames={knownRoleNames} allianceNames={allianceNames} />
+                                </SectionAnchor>
+                            ) : null}
+                        </PageSection>
+                    </SectionAnchor>
 
-                    <GuildSettingsSubset
-                        title="AUTO_ROLE settings"
-                        settings={AUTO_ROLE_SETTING_KEYS}
-                        emptyMessage="No AUTO_ROLE settings are currently available for this guild."
-                        renderAs="section"
-                        showAvailabilitySummary={false}
-                    />
+                    <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.managedRoles} getSectionRef={getSectionRef}>
+                        <PageSection title="Alliance, city, and tax roles">
+                            {managedRolePermissionMode === "error" ? (
+                                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
+                                    {bulkAutorolePermission.error}
+                                </div>
+                            ) : null}
+                            {managedRolesQuery.isLoading ? (
+                                <div className="py-6"><Loading variant="ripple" /></div>
+                            ) : managedRolesQuery.error ? (
+                                <div className="text-sm text-destructive">Failed to load managed roles: {managedRolesQuery.error.message}</div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.managedAlliance} getSectionRef={getSectionRef}>
+                                        <ManagedRoleBlock
+                                            title="Alliance roles"
+                                            addForm={managedRoleCanWrite ? (
+                                                <ApiFormInputs
+                                                    endpoint={ADD_ALLIANCE_ROLE}
+                                                    label="Add alliance role"
+                                                    handle_response={handleManagedRolesResponse}
+                                                />
+                                            ) : managedRolePermissionMode === "readonly" ? <div className="text-sm text-muted-foreground">{managedRoleReadOnlyMessage}</div> : null}
+                                            emptyMessage="No alliance roles."
+                                            items={managedRoles?.alliance_roles ?? []}
+                                            getKey={getAllianceRoleKey}
+                                            getLabel={getAllianceRoleLabel}
+                                            getRemoveArgs={getAllianceRoleRemoveArgs}
+                                            roleNames={knownRoleNames}
+                                            removeEndpoint={REMOVE_ALLIANCE_ROLE}
+                                            canManage={managedRoleCanWrite}
+                                            onManagedRolesChanged={refreshManagedRoles}
+                                        />
+                                    </SectionAnchor>
+
+                                    <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.managedCity} getSectionRef={getSectionRef}>
+                                        <ManagedRoleBlock
+                                            title="City roles"
+                                            addForm={managedRoleCanWrite ? (
+                                                <ApiFormInputs
+                                                    endpoint={ADD_CITY_ROLE}
+                                                    label="Add city role"
+                                                    handle_response={handleManagedRolesResponse}
+                                                />
+                                            ) : managedRolePermissionMode === "readonly" ? <div className="text-sm text-muted-foreground">{managedRoleReadOnlyMessage}</div> : null}
+                                            emptyMessage="No city roles."
+                                            items={managedRoles?.city_roles ?? []}
+                                            getKey={getCityRoleKey}
+                                            getLabel={getCityRoleLabel}
+                                            getRemoveArgs={getCityRoleRemoveArgs}
+                                            roleNames={knownRoleNames}
+                                            removeEndpoint={REMOVE_CITY_ROLE}
+                                            canManage={managedRoleCanWrite}
+                                            onManagedRolesChanged={refreshManagedRoles}
+                                        />
+                                    </SectionAnchor>
+
+                                    <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.managedTax} getSectionRef={getSectionRef}>
+                                        <ManagedRoleBlock
+                                            title="Tax roles"
+                                            addForm={managedRoleCanWrite ? (
+                                                <ApiFormInputs
+                                                    endpoint={ADD_TAX_ROLE}
+                                                    label="Add tax role"
+                                                    handle_response={handleManagedRolesResponse}
+                                                />
+                                            ) : managedRolePermissionMode === "readonly" ? <div className="text-sm text-muted-foreground">{managedRoleReadOnlyMessage}</div> : null}
+                                            emptyMessage="No tax roles."
+                                            items={managedRoles?.tax_roles ?? []}
+                                            getKey={getTaxRoleKey}
+                                            getLabel={getTaxRoleLabel}
+                                            getRemoveArgs={getTaxRoleRemoveArgs}
+                                            roleNames={knownRoleNames}
+                                            removeEndpoint={REMOVE_TAX_ROLE}
+                                            canManage={managedRoleCanWrite}
+                                            onManagedRolesChanged={refreshManagedRoles}
+                                        />
+                                    </SectionAnchor>
+                                </div>
+                            )}
+                        </PageSection>
+                    </SectionAnchor>
+
+                    <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.settings} getSectionRef={getSectionRef}>
+                        <SettingsSubsetSection
+                            title="AUTO_ROLE settings"
+                            subset={autoRoleSettingsSubset}
+                            emptyMessage="No AUTO_ROLE settings are currently available for this guild."
+                            renderAs="section"
+                            showAvailabilitySummary={false}
+                            warning={settingsWarning}
+                            schemaErrorCount={normalizedSettings.schemaErrors.length}
+                            rowParseErrorCount={normalizedSettings.rowParseErrors.length}
+                            isLoading={settingsListQuery.isLoading}
+                            error={settingsListQuery.error}
+                            onRefreshAll={handleRefreshAutoRoleSettings}
+                            onRefreshSetting={handleRefreshAutoRoleSetting}
+                            onEdit={openAutoRoleSettingEditDialog}
+                            onShowHelp={openAutoRoleSettingHelpDialog}
+                            viewTableTo={viewTableTo}
+                            renderItem={renderAutoRoleSettingItem}
+                        />
+                    </SectionAnchor>
                 </div>
             </div>
         </div>

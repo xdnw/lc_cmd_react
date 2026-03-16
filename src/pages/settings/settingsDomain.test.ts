@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    deriveSettingsSubsetModel,
     SETTINGS_CATEGORY_ITEM_HEIGHT,
     SETTINGS_ROW_ITEM_HEIGHT,
     SETTINGS_SUBGROUP_ITEM_HEIGHT,
@@ -112,6 +113,32 @@ describe("flattenSettingsRows", () => {
 
         expect(flattened.map((item) => item.kind)).toEqual(["category", "setting"]);
         expect(flattened[0]).toMatchObject({ subgroupCount: 0, settingCount: 1 });
+    });
+});
+
+describe("deriveSettingsSubsetModel", () => {
+    it("keeps only present settings while reporting missing requested keys", () => {
+        const rows: SettingRow[] = [
+            createSettingRow({ settingKey: "AUTONICK", category: "Admin", subgroup: "Roles" }),
+            createSettingRow({ settingKey: "AUTOROLE_ALLIANCES", category: "Admin", subgroup: "Roles", isAllowed: false }),
+            createSettingRow({ settingKey: "WELCOME_TEXT", category: "Member", subgroup: "General" }),
+        ];
+
+        const subset = deriveSettingsSubsetModel(rows, [
+            "AUTONICK" as never,
+            "AUTOROLE_ALLIANCES" as never,
+            "AUTOROLE_TOP_X" as never,
+        ]);
+
+        expect(subset.presentRows.map((row) => row.settingKey)).toEqual([
+            "AUTONICK",
+            "AUTOROLE_ALLIANCES",
+        ]);
+        expect(subset.missingKeys).toEqual(["AUTOROLE_TOP_X"]);
+        expect(subset.flattenedItems.filter((item) => item.kind === "setting").map((item) => item.row.settingKey)).toEqual([
+            "AUTONICK",
+            "AUTOROLE_ALLIANCES",
+        ]);
     });
 });
 

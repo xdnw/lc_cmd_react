@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { ReactNode, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TABLE } from "../../lib/endpoints";
 import { Button } from "../../components/ui/button";
 import { CopyToClipboardTextArea } from "../../components/ui/copytoclipboard";
@@ -15,6 +15,8 @@ import { GoogleSheets } from "./TableWithExports";
 import { useDeepState } from "@/utils/StateUtil";
 import { QueryResult } from "@/lib/BulkQuery";
 import Loading from "@/components/ui/loading";
+import { renderEndpointFallback } from "@/components/api/bulkwrapper";
+import { ErrorBoundary } from "react-error-boundary";
 
 export type TableInfo = {
     data: (string | number | number[])[][],
@@ -278,19 +280,81 @@ function LoadTable({ type, selection, columns, sort, clientColumns, columnRender
     showErrorsProvided: (errors: WebTableError[]) => void,
     children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, rowClassName?: TableProps['rowClassName'], indexCellRenderer?: TableProps['indexCellRenderer'], indexColumnWidth?: TableProps['indexColumnWidth'], onRowsRendered?: TableProps['onRowsRendered']) => ReactNode
 }) {
+    const tableQuery = useMemo(() => {
+        return {
+            type,
+            selection_str: toSelAndModifierString(selection)!,
+            columns: Array.from(columns.keys()),
+        };
+    }, [type, selection, columns]);
+
+    const fallbackRender = useCallback(
+        (fallbackProps: { error: unknown; resetErrorBoundary: () => void }) =>
+            renderEndpointFallback({
+                ...fallbackProps,
+                endpoint: TABLE.endpoint.name,
+                query: tableQuery,
+            }),
+        [tableQuery]
+    );
+
+    const resetKey = useMemo(() => {
+        return `${type}|${tableQuery.selection_str}|${tableQuery.columns.join("|")}`;
+    }, [tableQuery.columns, tableQuery.selection_str, type]);
+
+    return (
+        <ErrorBoundary
+            fallbackRender={fallbackRender}
+            onError={console.error}
+            resetKeys={[resetKey]}
+        >
+            <Suspense fallback={<div className="flex min-h-40 items-center justify-center"><Loading variant="ripple" /></div>}>
+                <LoadTableContent
+                    type={type}
+                    selection={selection}
+                    columns={columns}
+                    sort={sort}
+                    clientColumns={clientColumns}
+                    columnRenderers={columnRenderers}
+                    rowClassName={rowClassName}
+                    indexCellRenderer={indexCellRenderer}
+                    indexColumnWidth={indexColumnWidth}
+                    onRowsRendered={onRowsRendered}
+                    onColumnsLoaded={onColumnsLoaded}
+                    showErrorsProvided={showErrorsProvided}
+                    children={children}
+                    tableQuery={tableQuery}
+                />
+            </Suspense>
+        </ErrorBoundary>
+    );
+}
+
+function LoadTableContent({ type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, showErrorsProvided, children, tableQuery }: {
+    type: string,
+    selection: { [key: string]: string },
+    columns: Map<string, string | null>,
+    sort: OrderIdx | OrderIdx[] | undefined,
+    clientColumns?: ClientColumnOverlay[],
+    columnRenderers?: TableProps['columnRenderers'],
+    rowClassName?: TableProps['rowClassName'],
+    indexCellRenderer?: TableProps['indexCellRenderer'],
+    indexColumnWidth?: TableProps['indexColumnWidth'],
+    onRowsRendered?: TableProps['onRowsRendered'],
+    onColumnsLoaded?: TableProps['onColumnsLoaded'],
+    showErrorsProvided: (errors: WebTableError[]) => void,
+    children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, rowClassName?: TableProps['rowClassName'], indexCellRenderer?: TableProps['indexCellRenderer'], indexColumnWidth?: TableProps['indexColumnWidth'], onRowsRendered?: TableProps['onRowsRendered']) => ReactNode,
+    tableQuery: { type: string; selection_str: string; columns: string[] },
+}) {
     const { showDialog } = useDialog();
 
     const queryOptions: UseSuspenseQueryOptions<QueryResult<WebTable>, Error, QueryResult<WebTable>, readonly unknown[]> = useMemo(() => {
         return {
-            ...suspenseQueryOptions(TABLE.endpoint, {
-                type: type!,
-                selection_str: toSelAndModifierString(selection)!,
-                columns: Array.from(columns.keys()),
-            }, undefined, 10),
+            ...suspenseQueryOptions(TABLE.endpoint, tableQuery, undefined, 10),
             // LoadTable is the eager/static mode, so the query must run on mount.
             enabled: true,
         }
-    }, [type, selection, columns]);
+    }, [tableQuery]);
     const { data: queryData } = useSuspenseQuery(queryOptions);
 
     // unused

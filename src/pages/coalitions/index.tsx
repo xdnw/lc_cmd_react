@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useSession } from "@/components/api/SessionContext";
 import { COMMAND_POPUP_OPEN_ATTR } from "@/components/cmd/commandKeyboard";
 import ConfirmCommandActionButton from "@/components/cmd/ConfirmCommandActionButton";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
+import SearchBar from "@/components/cmd/SearchBar";
+import { useSegmentedControlKeyboard, type SegmentedControlKeyBindings } from "@/components/cmd/segmentedControl";
 import { SearchMatchText } from "@/components/cmd/searchListPrimitives";
 import { useDialog } from "@/components/layout/DialogContext";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
+import usePageSearchListKeyboard, { getPageSearchShortcutLabel } from "@/components/layout/usePageSearchListKeyboard";
 import Badge from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -196,9 +199,36 @@ function CompactSegmentedControl<T extends string>({
     options: readonly CompactSegmentedOption<T>[];
     onChange: (value: T) => void;
 }) {
+    const values = useMemo(() => options.map((option) => option.value), [options]);
     const optionClickHandlers = useMemo(
         () => options.map((option) => () => onChange(option.value)),
         [onChange, options],
+    );
+    const resolveKey = useCallback((key: string): SegmentedControlKeyBindings<T> | null => {
+        switch (key) {
+            case "ArrowLeft":
+            case "ArrowUp":
+                return { selectPrevious: true };
+            case "ArrowRight":
+            case "ArrowDown":
+                return { selectNext: true };
+            case "Home":
+                return { selectFirst: true };
+            case "End":
+                return { selectLast: true };
+            default:
+                return null;
+        }
+    }, []);
+    const { registerButtonRef, handleOptionKeyDown } = useSegmentedControlKeyboard({
+        values,
+        value,
+        onSelect: (nextValue) => onChange(nextValue),
+        resolveKey,
+    });
+    const optionRefHandlers = useMemo(
+        () => options.map((_, index) => (node: HTMLButtonElement | null) => registerButtonRef(index, node)),
+        [options, registerButtonRef],
     );
 
     return (
@@ -212,11 +242,14 @@ function CompactSegmentedControl<T extends string>({
                 return (
                     <button
                         key={option.value}
+                        ref={optionRefHandlers[index]}
                         type="button"
                         role="radio"
                         aria-checked={isActive}
+                        tabIndex={isActive ? 0 : -1}
                         title={option.title ?? option.label}
                         onClick={optionClickHandlers[index]}
+                        onKeyDown={handleOptionKeyDown}
                         className={cn(
                             "inline-flex h-6 items-center justify-center rounded-sm px-2 text-[10px] font-medium leading-none transition-colors",
                             isActive
@@ -665,6 +698,9 @@ export default function CoalitionsPage() {
     const { session } = useSession();
     const queryClient = useQueryClient();
     const { showDialog } = useDialog();
+    const pageScopeRef = useRef<HTMLDivElement | null>(null);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const coalitionItemRefs = useRef<Record<string, HTMLElement | null>>({});
     const [query, setQuery] = useState("");
     const [memberVisibility, setMemberVisibility] = useState<CoalitionMemberVisibilityFilter>("all");
     const [copyScope, setCopyScope] = useState<CoalitionCopyScope>("visible");
@@ -672,6 +708,7 @@ export default function CoalitionsPage() {
     const [copyNameMode, setCopyNameMode] = useState<CoalitionCopyNameMode>("flat");
     const [copyFeedback, setCopyFeedback] = useState<CoalitionCopyFeedback | null>(null);
     const [selectedCoalitionKeys, setSelectedCoalitionKeys] = useState<Set<string>>(() => new Set());
+    const [activeCoalitionIndex, setActiveCoalitionIndex] = useState(0);
 
     useEffect(() => {
         if (copyFeedback?.tone !== "success") {
@@ -769,6 +806,18 @@ export default function CoalitionsPage() {
         });
     }, []);
 
+    const toggleCoalitionSelected = useCallback((coalitionKey: string) => {
+        setSelectedCoalitionKeys((current) => {
+            const next = new Set(current);
+            if (next.has(coalitionKey)) {
+                next.delete(coalitionKey);
+            } else {
+                next.add(coalitionKey);
+            }
+            return next;
+        });
+    }, []);
+
     const visibleCoalitionKeys = useMemo(() => coalitions.map((coalition) => coalition.key), [coalitions]);
 
     const allVisibleSelected = useMemo(() => {
@@ -809,6 +858,10 @@ export default function CoalitionsPage() {
     const onQueryChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         setQuery(event.target.value);
     }, []);
+    const handleQueryClear = useCallback(() => {
+        setQuery("");
+    }, []);
+    const coalitionsKeyboardResetKey = useMemo(() => `${query}\u0001${memberVisibility}`, [memberVisibility, query]);
 
     const openCreateCoalitionDialog = useCallback(() => {
         openCommandDialog({
@@ -910,6 +963,52 @@ export default function CoalitionsPage() {
         }
     }, [copyNameMode, copyQualifier, copyScope, copyTargets, memberVisibility]);
 
+    const setCoalitionItemRef = useCallback((coalitionKey: string, node: HTMLElement | null) => {
+        coalitionItemRefs.current[coalitionKey] = node;
+    }, []);
+    const coalitionRefHandlers = useMemo(
+        () => coalitions.map((coalition) => (node: HTMLElement | null) => setCoalitionItemRef(coalition.key, node)),
+        [coalitions, setCoalitionItemRef],
+    );
+
+    const scrollCoalitionIndexIntoView = useCallback((index: number) => {
+        const coalition = coalitions[index];
+        if (!coalition) {
+            return;
+        }
+
+        coalitionItemRefs.current[coalition.key]?.scrollIntoView({ block: "nearest" });
+    }, [coalitions]);
+
+    const getCoalitionKeyboardItemId = useCallback((coalition: CoalitionViewRecord, _index: number) => `coalition-option-${coalition.key}`, []);
+    const coalitionsKeyboardActions = useMemo(() => [
+        {
+            trigger: "enter" as const,
+            run: (coalition: CoalitionViewRecord) => openCoalitionDetails(coalition),
+        },
+        {
+            trigger: "shift-enter" as const,
+            run: (coalition: CoalitionViewRecord) => toggleCoalitionSelected(coalition.key),
+        },
+    ], [openCoalitionDetails, toggleCoalitionSelected]);
+
+    const coalitionsKeyboard = usePageSearchListKeyboard({
+        enabled: Boolean(session?.guild) && !listQuery.isLoading && !listQuery.error,
+        scopeRef: pageScopeRef,
+        searchRef: searchInputRef,
+        searchValue: query,
+        onSearchValueChange: setQuery,
+        onSearchClear: handleQueryClear,
+        items: coalitions,
+        activeIndex: activeCoalitionIndex,
+        onActiveIndexChange: setActiveCoalitionIndex,
+        getItemId: getCoalitionKeyboardItemId,
+        listboxLabel: "Coalitions results",
+        scrollToIndex: scrollCoalitionIndexIntoView,
+        resetActiveIndexKey: coalitionsKeyboardResetKey,
+        actions: coalitionsKeyboardActions,
+    });
+
     const pageHeaderConfig = useMemo<PageHeaderConfig | null>(() => {
         if (!session?.guild || listQuery.isLoading || listQuery.error) {
             return null;
@@ -928,11 +1027,16 @@ export default function CoalitionsPage() {
             content: (
                 <div className="space-y-1.5">
                     <div className="grid gap-2 xl:grid-cols-[minmax(16rem,1fr)_auto] xl:items-center">
-                        <Input
+                        <SearchBar
+                            ref={searchInputRef}
                             value={query}
                             onChange={onQueryChange}
-                            placeholder="Search coalitions, alliances, or guilds"
+                            onClear={handleQueryClear}
+                            onKeyDown={coalitionsKeyboard.onSearchKeyDown}
+                            placeholder={`Press ${getPageSearchShortcutLabel()} to search coalitions`}
                             className="h-8"
+                            hint="Arrow keys navigate, Enter opens, Shift+Enter toggles selection."
+                            inputProps={coalitionsKeyboard.searchInputProps}
                         />
                         <div className="flex flex-wrap items-center gap-1.5">
                             <CompactSegmentedControl
@@ -1024,6 +1128,9 @@ export default function CoalitionsPage() {
         listQuery.isFetching,
         listQuery.isLoading,
         memberVisibility,
+        coalitionsKeyboard.onSearchKeyDown,
+        coalitionsKeyboard.searchInputProps,
+        handleQueryClear,
         onQueryChange,
         openCoalitionSheetDialog,
         openCreateCoalitionDialog,
@@ -1056,7 +1163,7 @@ export default function CoalitionsPage() {
     }
 
     return (
-        <div className="pb-6">
+        <div ref={pageScopeRef} className="pb-6">
             <div className="w-full px-3 sm:px-4">
                 <div className="mx-auto max-w-6xl space-y-2">
                     {topPermissionErrors.length > 0 ? (
@@ -1067,16 +1174,22 @@ export default function CoalitionsPage() {
 
                     {coalitions.length > 0 ? (
                         <section className="overflow-hidden rounded-md border border-border/70 bg-background/70">
-                            <div className="divide-y divide-border/60">
-                                {coalitions.map((coalition) => (
-                                    <CoalitionRow
+                            <div {...coalitionsKeyboard.listProps} className="divide-y divide-border/60">
+                                {coalitions.map((coalition, index) => (
+                                    <div
                                         key={coalition.key}
-                                        coalition={coalition}
-                                        query={query}
-                                        isSelected={selectedCoalitionKeys.has(coalition.key)}
-                                        onManage={openCoalitionDetails}
-                                        onSetSelected={setCoalitionSelected}
-                                    />
+                                        ref={coalitionRefHandlers[index]}
+                                        {...coalitionsKeyboard.getItemProps(coalition, index)}
+                                        className={coalitionsKeyboard.activeIndex === index ? "bg-primary/5 ring-1 ring-inset ring-primary/35" : undefined}
+                                    >
+                                        <CoalitionRow
+                                            coalition={coalition}
+                                            query={query}
+                                            isSelected={selectedCoalitionKeys.has(coalition.key)}
+                                            onManage={openCoalitionDetails}
+                                            onSetSelected={setCoalitionSelected}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                         </section>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiFormInputs } from "@/components/api/apiform";
@@ -6,6 +6,7 @@ import { useSession } from "@/components/api/SessionContext";
 import ArgInput from "@/components/cmd/ArgInput";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import ConfirmCommandActionButton from "@/components/cmd/ConfirmCommandActionButton";
+import SearchBar from "@/components/cmd/SearchBar";
 import { useDialog } from "@/components/layout/DialogContext";
 import LocalSidebarModeTabs, { type LocalSidebarMode } from "@/components/layout/LocalSidebarModeTabs";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
@@ -16,6 +17,7 @@ import {
     type SidebarNavStatus,
 } from "@/components/layout/SidebarNav";
 import useDocumentSectionNavigation from "@/components/layout/useDocumentSectionNavigation";
+import usePageSearchListKeyboard, { getPageSearchShortcutLabel } from "@/components/layout/usePageSearchListKeyboard";
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1394,8 +1396,8 @@ function ResultSection({
     children: ReactNode;
 }) {
     return (
-        <div className="overflow-hidden rounded-xl border border-primary/15 bg-primary/[0.03] shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-primary/15 bg-primary/[0.05] px-2.5 py-2">
+        <div className="overflow-hidden rounded-xl border border-primary/15 bg-primary/3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-primary/15 bg-primary/5 px-2.5 py-2">
                 <div className="text-base font-semibold text-foreground">{title}</div>
                 {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
             </div>
@@ -1531,6 +1533,9 @@ export default function RoleManagementPage() {
     const { session } = useSession();
     const defaultSidebar = useDefaultPageSidebar();
     const { showDialog } = useDialog();
+    const aliasSectionScopeRef = useRef<HTMLDivElement | null>(null);
+    const aliasSearchRef = useRef<HTMLInputElement | null>(null);
+    const aliasRowRefs = useRef<Record<string, HTMLElement | null>>({});
     const [aliasSearch, setAliasSearch] = useState("");
     const [aliasFilterMode, setAliasFilterMode] = useState<AliasFilterMode>("all");
     const [sidebarMode, setSidebarMode] = useState<LocalSidebarMode>("local");
@@ -1538,6 +1543,7 @@ export default function RoleManagementPage() {
     const [bulkResult, setBulkResult] = useState<AutoRoleBulkResult | null>(null);
     const [runtimeRoleNames, setRuntimeRoleNames] = useState<Record<string, string>>({});
     const [settingsWarning, setSettingsWarning] = useState<string | null>(null);
+    const [activeAliasIndex, setActiveAliasIndex] = useState(0);
     const {
         hasGuild,
         listQuery: settingsListQuery,
@@ -1707,6 +1713,9 @@ export default function RoleManagementPage() {
     const handleAliasSearchChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         setAliasSearch(event.target.value);
     }, []);
+    const handleAliasSearchClear = useCallback(() => {
+        setAliasSearch("");
+    }, []);
 
     const handleAliasFilterChange = useCallback((value: string) => {
         if (value === "all" || value === "mapped" || value === "invalid") {
@@ -1751,6 +1760,58 @@ export default function RoleManagementPage() {
             />,
         );
     }, [refreshAliases, showDialog]);
+
+    const openAliasPrimaryAction = useCallback((entry: RoleAliasEntry) => {
+        if (!canManageAliases) {
+            return;
+        }
+
+        openAliasDialog({
+            title: `Map ${entry.roleName}`,
+            initialValues: {
+                locutusRole: entry.roleName,
+            },
+        });
+    }, [canManageAliases, openAliasDialog]);
+
+    const aliasKeyboardResetKey = useMemo(() => `${aliasSearch}\u0001${aliasFilterMode}`, [aliasFilterMode, aliasSearch]);
+    const setAliasRowRef = useCallback((rowKey: string, node: HTMLElement | null) => {
+        aliasRowRefs.current[rowKey] = node;
+    }, []);
+    const aliasRowRefHandlers = useMemo(
+        () => filteredAliasEntries.map((entry) => (node: HTMLElement | null) => setAliasRowRef(String(entry.ordinal), node)),
+        [filteredAliasEntries, setAliasRowRef],
+    );
+    const scrollAliasIndexIntoView = useCallback((index: number) => {
+        const entry = filteredAliasEntries[index];
+        if (!entry) {
+            return;
+        }
+
+        aliasRowRefs.current[String(entry.ordinal)]?.scrollIntoView({ block: "nearest" });
+    }, [filteredAliasEntries]);
+    const getAliasKeyboardItemId = useCallback((entry: RoleAliasEntry, _index: number) => `role-alias-option-${entry.ordinal}`, []);
+    const aliasKeyboardActions = useMemo(() => [{
+        trigger: "enter" as const,
+        isEnabled: () => canManageAliases,
+        run: (entry: RoleAliasEntry) => openAliasPrimaryAction(entry),
+    }], [canManageAliases, openAliasPrimaryAction]);
+    const aliasKeyboard = usePageSearchListKeyboard({
+        enabled: hasGuild && !aliasQuery.isLoading && !aliasQuery.error,
+        scopeRef: aliasSectionScopeRef,
+        searchRef: aliasSearchRef,
+        searchValue: aliasSearch,
+        onSearchValueChange: setAliasSearch,
+        onSearchClear: handleAliasSearchClear,
+        items: filteredAliasEntries,
+        activeIndex: activeAliasIndex,
+        onActiveIndexChange: setActiveAliasIndex,
+        getItemId: getAliasKeyboardItemId,
+        listboxLabel: "Role alias results",
+        scrollToIndex: scrollAliasIndexIntoView,
+        resetActiveIndexKey: aliasKeyboardResetKey,
+        actions: aliasKeyboardActions,
+    });
 
     const singleAutoroleAction = useEndpointAction({
         endpoint: AUTOROLE,
@@ -1936,51 +1997,64 @@ export default function RoleManagementPage() {
                     ) : null}
 
                     <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.aliases} getSectionRef={getSectionRef}>
-                        <PageSection
-                            title="Role aliases"
-                            actions={(
-                                <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
-                                    <Input
-                                        value={aliasSearch}
-                                        onChange={handleAliasSearchChange}
-                                        placeholder="Search aliases"
-                                        className="min-w-48 flex-1 lg:w-56 lg:flex-none"
-                                    />
-                                    <Tabs value={aliasFilterMode} onValueChange={handleAliasFilterChange} className="w-auto shrink-0">
-                                        <TabsList>
-                                            <TabsTrigger value="all">All</TabsTrigger>
-                                            <TabsTrigger value="mapped">Mapped</TabsTrigger>
-                                            <TabsTrigger value="invalid">Invalid</TabsTrigger>
-                                        </TabsList>
-                                    </Tabs>
-                                    <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={refreshAliases}>
-                                        Refresh aliases
-                                    </Button>
-                                </div>
-                            )}
-                        >
-                            {aliasQuery.isLoading ? (
-                                <div className="py-4"><Loading variant="ripple" /></div>
-                            ) : aliasQuery.error ? (
-                                <div className="text-sm text-destructive">Failed to load role aliases: {aliasQuery.error.message}</div>
-                            ) : filteredAliasEntries.length > 0 ? (
-                                <div className="space-y-2">
-                                    {filteredAliasEntries.map((entry) => (
-                                        <RoleAliasRow
-                                            key={entry.ordinal}
-                                            entry={entry}
-                                            roleNames={knownRoleNames}
-                                            allianceNames={allianceNames}
-                                            canEdit={canManageAliases}
-                                            onOpenAliasDialog={openAliasDialog}
-                                            onAliasesChanged={refreshAliases}
+                        <div ref={aliasSectionScopeRef}>
+                            <PageSection
+                                title="Role aliases"
+                                actions={(
+                                    <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
+                                        <SearchBar
+                                            ref={aliasSearchRef}
+                                            value={aliasSearch}
+                                            onChange={handleAliasSearchChange}
+                                            onClear={handleAliasSearchClear}
+                                            onKeyDown={aliasKeyboard.onSearchKeyDown}
+                                            placeholder={`Press ${getPageSearchShortcutLabel()} to search aliases`}
+                                            className="min-w-48 flex-1 lg:w-56 lg:flex-none"
+                                            hint="Arrow keys navigate, Enter adds or sets a mapping."
+                                            inputProps={aliasKeyboard.searchInputProps}
                                         />
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-sm text-muted-foreground">No alias rows match the current filters.</div>
-                            )}
-                        </PageSection>
+                                        <Tabs value={aliasFilterMode} onValueChange={handleAliasFilterChange} className="w-auto shrink-0">
+                                            <TabsList>
+                                                <TabsTrigger value="all">All</TabsTrigger>
+                                                <TabsTrigger value="mapped">Mapped</TabsTrigger>
+                                                <TabsTrigger value="invalid">Invalid</TabsTrigger>
+                                            </TabsList>
+                                        </Tabs>
+                                        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={refreshAliases}>
+                                            Refresh aliases
+                                        </Button>
+                                    </div>
+                                )}
+                            >
+                                {aliasQuery.isLoading ? (
+                                    <div className="py-4"><Loading variant="ripple" /></div>
+                                ) : aliasQuery.error ? (
+                                    <div className="text-sm text-destructive">Failed to load role aliases: {aliasQuery.error.message}</div>
+                                ) : filteredAliasEntries.length > 0 ? (
+                                    <div {...aliasKeyboard.listProps} className="space-y-2">
+                                        {filteredAliasEntries.map((entry, index) => (
+                                            <div
+                                                key={entry.ordinal}
+                                                ref={aliasRowRefHandlers[index]}
+                                                {...aliasKeyboard.getItemProps(entry, index)}
+                                                className={aliasKeyboard.activeIndex === index ? "rounded-md ring-1 ring-primary/35" : undefined}
+                                            >
+                                                <RoleAliasRow
+                                                    entry={entry}
+                                                    roleNames={knownRoleNames}
+                                                    allianceNames={allianceNames}
+                                                    canEdit={canManageAliases}
+                                                    onOpenAliasDialog={openAliasDialog}
+                                                    onAliasesChanged={refreshAliases}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-muted-foreground">No alias rows match the current filters.</div>
+                                )}
+                            </PageSection>
+                        </div>
                     </SectionAnchor>
 
                     <SectionAnchor sectionId={ROLE_SIDEBAR_SECTION_IDS.autorole} getSectionRef={getSectionRef}>

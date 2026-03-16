@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef, type ChangeEvent, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef, type ChangeEvent, type ComponentProps, type Dispatch, type KeyboardEventHandler, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { SquarePen } from "lucide-react";
 import { useLocation } from "react-router-dom";
@@ -7,6 +7,7 @@ import LocalSidebarModeTabs, { type LocalSidebarMode } from "@/components/layout
 import ContextPreservingLink from "@/components/layout/ContextPreservingLink";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import { useDefaultPageSidebar, usePageSidebar } from "@/components/layout/PageSidebarContext";
+import usePageSearchListKeyboard, { getPageSearchShortcutLabel } from "@/components/layout/usePageSearchListKeyboard";
 import {
     type SidebarNavConfig,
     type SidebarNavItem,
@@ -36,6 +37,8 @@ import { useGuildSettingsData } from "./useGuildSettingsData";
 import { useGuildSettingDialogs } from "./useGuildSettingDialogs";
 import LoginPickerPage from "../login_picker";
 
+type SearchBarInputProps = NonNullable<ComponentProps<typeof SearchBar>["inputProps"]>;
+
 function SettingsHeaderControls({
     browserState,
     counts,
@@ -43,6 +46,10 @@ function SettingsHeaderControls({
     schemaErrorCount,
     unsupportedIssues,
     viewTableTo,
+    searchRef,
+    searchInputProps,
+    onSearchKeyDown,
+    searchHint,
     onBrowserStateChange,
 }: {
     browserState: SettingsBrowserState;
@@ -51,6 +58,10 @@ function SettingsHeaderControls({
     schemaErrorCount: number;
     unsupportedIssues: UnsupportedInputIssue[];
     viewTableTo: string;
+    searchRef: RefObject<HTMLInputElement | null>;
+    searchInputProps: SearchBarInputProps;
+    onSearchKeyDown: KeyboardEventHandler<HTMLInputElement>;
+    searchHint: ReactNode;
     onBrowserStateChange: Dispatch<SetStateAction<SettingsBrowserState>>;
 }) {
     const updateState = useCallback((updater: (currentState: SettingsBrowserState) => SettingsBrowserState) => {
@@ -121,11 +132,15 @@ function SettingsHeaderControls({
         <div className="space-y-3">
             <div className="grid gap-2 lg:grid-cols-[minmax(18rem,32rem)_minmax(0,1fr)] lg:items-center">
                 <SearchBar
+                    ref={searchRef}
                     value={browserState.query}
                     onChange={handleSearchChange}
                     onClear={handleSearchClear}
-                    placeholder="Search settings"
+                    onKeyDown={onSearchKeyDown}
+                    placeholder={`Press ${getPageSearchShortcutLabel()} to search settings`}
                     className="h-7 border-border/70 bg-background px-2 pr-8 text-sm"
+                    hint={searchHint}
+                    inputProps={searchInputProps}
                 />
 
                 <div className="flex flex-wrap items-center gap-2 lg:justify-between">
@@ -348,6 +363,8 @@ function buildSettingsSidebarConfig({
 export default function SettingsPage() {
     const location = useLocation();
     const defaultSidebar = useDefaultPageSidebar();
+    const pageScopeRef = useRef<HTMLDivElement | null>(null);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
     const virtuosoRef = useRef<VirtuosoHandle | null>(null);
     const searchState = useMemo(() => parseSettingsPageSearchParams(new URLSearchParams(location.search)), [location.search]);
     const [browserState, setBrowserState] = useState<SettingsBrowserState>(() => searchState.browserState);
@@ -365,12 +382,21 @@ export default function SettingsPage() {
         refreshSingleSetting,
         viewTableTo,
     } = useGuildSettingsData();
-    const { openEditDialog, openHelpDialog } = useGuildSettingDialogs(refreshSingleSetting);
+    const { openEditDialog, openHelpDialog, openClearDialog } = useGuildSettingDialogs(refreshSingleSetting);
 
     const browserResult = useMemo(
         () => deriveSettingsBrowserRows(normalized.rows, browserState),
         [browserState, normalized.rows],
     );
+    const settingsKeyboardResetKey = useMemo(() => [
+        browserState.query,
+        browserState.availability,
+        browserState.invalid,
+        browserState.unsupported,
+        browserState.hasValue,
+        browserState.channelType,
+        browserState.sort,
+    ].join("\u0001"), [browserState.availability, browserState.channelType, browserState.hasValue, browserState.invalid, browserState.query, browserState.sort, browserState.unsupported]);
 
     useEffect(() => {
         if (!searchState.focusSettingKey) {
@@ -415,6 +441,61 @@ export default function SettingsPage() {
         () => getSettingsVisibleContext(browserResult.flattenedItems, activeIndex),
         [activeIndex, browserResult.flattenedItems],
     );
+
+    const handleSettingsSearchValueChange = useCallback((nextQuery: string) => {
+        setBrowserState((currentState) => ({
+            ...currentState,
+            query: nextQuery,
+            sort: nextQuery.trim() ? "relevance" : "category",
+        }));
+    }, []);
+
+    const handleSettingsSearchClear = useCallback(() => {
+        setBrowserState((currentState) => ({
+            ...currentState,
+            query: "",
+            sort: "category",
+        }));
+    }, []);
+
+    const getSettingsKeyboardItemId = useCallback((item: FlattenedSettingsItem, _index: number) => `settings-option-${item.key}`, []);
+    const settingsKeyboardActions = useMemo(() => [
+        {
+            trigger: "enter" as const,
+            isEnabled: (item: FlattenedSettingsItem) => item.kind === "setting" && item.row.flags.isAllowed,
+            run: (item: FlattenedSettingsItem) => {
+                if (item.kind === "setting") {
+                    openEditDialog(item.row);
+                }
+            },
+        },
+        {
+            trigger: "delete-empty-search" as const,
+            isEnabled: (item: FlattenedSettingsItem) => item.kind === "setting" && item.row.flags.isAllowed && item.row.value.hasValue,
+            run: (item: FlattenedSettingsItem) => {
+                if (item.kind === "setting") {
+                    openClearDialog(item.row);
+                }
+            },
+        },
+    ], [openClearDialog, openEditDialog]);
+
+    const settingsKeyboard = usePageSearchListKeyboard({
+        enabled: hasGuild && !listQuery.isLoading && !listQuery.error,
+        scopeRef: pageScopeRef,
+        searchRef: searchInputRef,
+        searchValue: browserState.query,
+        onSearchValueChange: handleSettingsSearchValueChange,
+        onSearchClear: handleSettingsSearchClear,
+        items: browserResult.flattenedItems,
+        activeIndex,
+        onActiveIndexChange: setVisibleIndex,
+        getItemId: getSettingsKeyboardItemId,
+        listboxLabel: "Guild settings results",
+        scrollToIndex: setPendingScrollIndex,
+        resetActiveIndexKey: settingsKeyboardResetKey,
+        actions: settingsKeyboardActions,
+    });
 
     const setVirtuosoInstance = useCallback((instance: VirtuosoHandle | null) => {
         virtuosoRef.current = instance;
@@ -570,6 +651,10 @@ export default function SettingsPage() {
                     schemaErrorCount={normalized.schemaErrors.length}
                     unsupportedIssues={normalized.unsupportedInputRows}
                     viewTableTo={viewTableTo}
+                    searchRef={searchInputRef}
+                    searchInputProps={settingsKeyboard.searchInputProps}
+                    onSearchKeyDown={settingsKeyboard.onSearchKeyDown}
+                    searchHint="Arrow keys navigate, Enter edits, Delete clears the active setting."
                     onBrowserStateChange={setBrowserState}
                 />
             ),
@@ -583,6 +668,8 @@ export default function SettingsPage() {
         normalized.schemaErrors.length,
         normalized.unsupportedInputRows,
         hasGuild,
+        settingsKeyboard.onSearchKeyDown,
+        settingsKeyboard.searchInputProps,
         viewTableTo,
     ]);
 
@@ -601,6 +688,15 @@ export default function SettingsPage() {
             onRefreshSetting={handleRefreshSetting}
         />
     ), [handleRefreshSetting, highlightedSettingKey, openEditDialog, openHelpDialog]);
+
+    const renderKeyboardFlattenedItem = useCallback((index: number, item: FlattenedSettingsItem) => (
+        <div
+            {...settingsKeyboard.getItemProps(item, index)}
+            className={index === settingsKeyboard.activeIndex ? "rounded-md ring-1 ring-primary/35 bg-primary/5" : undefined}
+        >
+            {renderFlattenedItem(index, item)}
+        </div>
+    ), [renderFlattenedItem, settingsKeyboard]);
 
     const onRefreshAll = useCallback(() => {
         setPerSettingWarning(null);
@@ -628,7 +724,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="pb-6">
+        <div ref={pageScopeRef} className="pb-6">
             <div className="w-full px-3 sm:px-4">
                 <div className="mx-auto max-w-6xl space-y-2">
                     {(normalized.schemaErrors.length > 0 || normalized.rowParseErrors.length > 0) && (
@@ -661,17 +757,19 @@ export default function SettingsPage() {
                     )}
 
                     {browserResult.flattenedItems.length > 0 ? (
-                        <Virtuoso
-                            ref={setVirtuosoInstance}
-                            useWindowScroll
-                            data={browserResult.flattenedItems}
-                            overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
-                            increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
-                            defaultItemHeight={SETTINGS_ROW_ITEM_HEIGHT}
-                            computeItemKey={getFlattenedItemKey}
-                            rangeChanged={handleVisibleRangeChanged}
-                            itemContent={renderFlattenedItem}
-                        />
+                        <div {...settingsKeyboard.listProps}>
+                            <Virtuoso
+                                ref={setVirtuosoInstance}
+                                useWindowScroll
+                                data={browserResult.flattenedItems}
+                                overscan={WINDOW_DYNAMIC_VIRTUOSO_OVERSCAN}
+                                increaseViewportBy={WINDOW_DYNAMIC_VIRTUOSO_VIEWPORT}
+                                defaultItemHeight={SETTINGS_ROW_ITEM_HEIGHT}
+                                computeItemKey={getFlattenedItemKey}
+                                rangeChanged={handleVisibleRangeChanged}
+                                itemContent={renderKeyboardFlattenedItem}
+                            />
+                        </div>
                     ) : (
                         <div className="text-sm text-muted-foreground">
                             {browserResult.counts.totalRows === 0

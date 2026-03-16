@@ -4,7 +4,35 @@ import { useDialog } from "@/components/layout/DialogContext";
 import MarkupRenderer from "@/components/ui/MarkupRenderer";
 
 import { hasVisibleSettingsSubgroup, type SettingRow } from "./settingsDomain";
+import SettingClearAction from "./components/SettingClearAction";
 import SettingEditDialog from "./components/SettingEditDialog";
+
+function SettingClearDialogContent({
+    row,
+    onRefreshSetting,
+}: {
+    row: SettingRow;
+    onRefreshSetting: (settingKey: string) => void;
+}) {
+    const handleClearSuccess = useCallback(() => {
+        onRefreshSetting(row.settingKey);
+    }, [onRefreshSetting, row.settingKey]);
+
+    return (
+        <div className="space-y-3 text-sm">
+            <p className="text-foreground/80">
+                Clear the current value for <span className="font-medium text-foreground">{row.settingKey}</span>?
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+                <SettingClearAction
+                    settingKey={row.settingKey}
+                    hasValue={row.value.hasValue}
+                    onSuccess={handleClearSuccess}
+                />
+            </div>
+        </div>
+    );
+}
 
 export function useGuildSettingDialogs(onRefreshSetting: (settingKey: string) => void) {
     const { showDialog } = useDialog();
@@ -50,8 +78,20 @@ export function useGuildSettingDialogs(onRefreshSetting: (settingKey: string) =>
         );
     }, [showDialog]);
 
+    const openClearDialog = useCallback((row: SettingRow) => {
+        if (!row.value.hasValue) {
+            return;
+        }
+
+        showDialog(
+            `Clear ${row.settingKey}`,
+            <SettingClearDialogContent row={row} onRefreshSetting={onRefreshSetting} />,
+        );
+    }, [onRefreshSetting, showDialog]);
+
     return {
         openEditDialog,
         openHelpDialog,
+        openClearDialog,
     };
 }

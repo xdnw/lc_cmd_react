@@ -1,1 +1,0 @@
-import{c as r,j as a}from"./index-2O7Vsc4h.js";import{p as l}from"./purify.es-Bpr8NNAP.js";function u(o){const t=r.c(4),{value:i}=o;let e;t[0]!==i?(e=l.sanitize(i??""),t[0]=i,t[1]=e):e=t[1];const n=e;let s;return t[2]!==n?(s=a.jsx("span",{dangerouslySetInnerHTML:{__html:n}}),t[2]=n,t[3]=s):s=t[3],s}export{u as default};

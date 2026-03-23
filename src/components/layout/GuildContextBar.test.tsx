@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WebSession } from "@/lib/apitypes";
-import GuildContextBar from "@/components/layout/GuildContextBar";
+import GuildContextBar, { GuildContextControls } from "@/components/layout/GuildContextBar";
 
 const { hasTokenMock, useSessionMock } = vi.hoisted(() => ({
   hasTokenMock: vi.fn(),
@@ -70,6 +70,14 @@ function renderBar() {
   );
 }
 
+function renderControls() {
+  return render(
+    <MemoryRouter>
+      <GuildContextControls />
+    </MemoryRouter>,
+  );
+}
+
 describe("GuildContextBar", () => {
   beforeEach(() => {
     hasTokenMock.mockReset();
@@ -130,5 +138,27 @@ describe("GuildContextBar", () => {
     expect(screen.getByRole("link", { name: /Alliance setup/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: /Link Discord/i })).toBeTruthy();
     expect(screen.queryByText("Ready")).toBeNull();
+  });
+
+  it("keeps hook order stable when auth visibility changes on the mounted controls", () => {
+    hasTokenMock.mockReturnValue(true);
+    mockSessionState({ session: buildSession() });
+
+    const { rerender, container } = renderControls();
+
+    expect(screen.getByRole("button", { name: /Refresh session/i })).toBeTruthy();
+
+    hasTokenMock.mockReturnValue(false);
+    mockSessionState({ session: null, isLoading: false, isFetching: false });
+
+    expect(() => {
+      rerender(
+        <MemoryRouter>
+          <GuildContextControls />
+        </MemoryRouter>,
+      );
+    }).not.toThrow();
+
+    expect(container.firstChild).toBeNull();
   });
 });

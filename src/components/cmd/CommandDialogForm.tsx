@@ -50,7 +50,6 @@ function buildCommandFooterHint(submitShortcutLabel: string, escapeHint?: string
 }
 
 const selectOutput = (state: CommandStoreShape) => state.output;
-const selectSetOutput = (state: CommandStoreShape) => state.setOutput;
 
 const CommandDialogFields = memo(function CommandDialogFields<P extends AnyCommandPath>({
     commandPath,
@@ -205,7 +204,7 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
     const [commandStore] = useState(() => createCommandStoreWithDef(initialValues));
     const submitButtonRef = useRef<HTMLButtonElement | null>(null);
     const neutralCommitRef = useRef<((query: string) => void) | null>(null);
-    const setOutput = commandStore(selectSetOutput);
+    const setOutput = commandStore.getState().setOutput;
     const output = useStoreWithEqualityFn(commandStore, selectOutput, deepEqual);
     const commandName = useMemo(() => CM.get(commandPath).name, [commandPath]);
     const commandPathString = useMemo(() => commandPath.join(" "), [commandPath]);

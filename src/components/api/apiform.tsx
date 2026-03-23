@@ -205,8 +205,7 @@ function ApiForm<T, A extends { [key: string]: string | string[] | undefined }, 
         </>
     }
 
-    const selectSetOutput = useCallback((state: { setOutput: (k: string, v: string) => void }) => state.setOutput, []);
-    const setOutputValue = commandStore(selectSetOutput);
+    const setOutputValue = commandStore.getState().setOutput;
 
     return <>
         {messageSection}

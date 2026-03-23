@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createStore } from 'zustand/vanilla';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { deepEqual } from '@/lib/utils';
@@ -70,24 +70,27 @@ interface DataStore<T> {
 }
 
 export const createDataStore = <T>() => {
-  return create<DataStore<T>>()((set) => ({
+  return createStore<DataStore<T>>()((set) => ({
     data: undefined,
     setData: (data) => set({ data }),
   }));
 };
 
 export const createDataStoreWithDef = <T>(default_data: T) => {
-  return create<DataStore<T>>()((set) => ({
+  return createStore<DataStore<T>>()((set) => ({
     data: default_data,
     setData: (data) => set({ data }),
   }));
 }
+
+// Keep Zustand stores as plain store APIs so React components opt into hooks explicitly.
+// React Compiler can mis-handle bound store calls hidden behind local variables.
 type CommandState = {
   output: Record<string, string | string[]>;
   setOutput: (key: string, value: string) => void;
 };
 export function createCommandStore() {
-  return create<CommandState>()(
+  return createStore<CommandState>()(
     subscribeWithSelector((set) => ({
       output: {},
       setOutput: (key, value) => set((state) => {
@@ -101,7 +104,7 @@ export function createCommandStore() {
 }
 
 export function createCommandStoreWithDef(default_values: { [key: string]: string | string[] }) {
-  return create<CommandState>()(
+  return createStore<CommandState>()(
     subscribeWithSelector((set) => ({
       output: { ...default_values },
       setOutput: (key, value) => set((state) => {

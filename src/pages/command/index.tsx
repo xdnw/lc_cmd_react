@@ -57,6 +57,7 @@ export default function CommandPage() {
         return nextValues;
     }, [queryParams]);
     const commandStore = useMemo(() => createCommandStoreWithDef(initialValues), [initialValues]);
+    const setOutput = commandStore.getState().setOutput;
     const commandArgs = useMemo(() => cmdObj?.getArguments() ?? [], [cmdObj]);
     const queryBreakdowns = useMemo(() => {
         const uniqueTypes = new Set(commandArgs.map((arg) => arg.arg.type));
@@ -174,7 +175,7 @@ export default function CommandPage() {
                 <CommandComponent key={cmdObj.name} command={cmdObj} filterArguments={alwaysTrue} initialValues={initialValues}
                     displayMode={displayMode}
                     forceMountAll={forceMountAll}
-                    setOutput={commandStore((state) => state.setOutput)}
+                    setOutput={setOutput}
                     ref={jumpState.commandRef}
                     jumpSearchMatches={jumpState.jumpMatches}
                     jumpSearchActiveArg={jumpState.jumpActiveArgName}

@@ -340,10 +340,6 @@ export function GuildContextControls() {
     [session?.guild_alliances, session?.guild_alliances_names],
   );
 
-  if (!tokenExists && !session) {
-    return null;
-  }
-
   const hasGuild = Boolean(session?.guild);
   const hasAlliances = allianceLabels.length > 0;
   const isRefreshing = isLoading || isFetching;
@@ -358,6 +354,11 @@ export function GuildContextControls() {
     () => buildContextActions({ hasGuild, hasAlliances, discordAction }),
     [discordAction, hasAlliances, hasGuild],
   );
+
+  // Keep hook order stable even when auth/session state flips during refresh or logout.
+  if (!tokenExists && !session) {
+    return null;
+  }
 
   if (isLoadingContext) {
     return (

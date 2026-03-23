@@ -1,8 +1,8 @@
 // Development Environment Configuration
 export default {
     'process.env.TEST': false,
-    'process.env.BACKEND_URL': 'http://localhost:8080/',
-    'process.env.API_URL': 'http://localhost:8080/api/',
+    'process.env.BACKEND_URL': 'http://localhost:80/',
+    'process.env.API_URL': 'http://localhost:80/api/',
     'process.env.EXTERNAL_URL': 'http://localhost:5173/',
     'process.env.APPLICATION': 'Locutus',
     'process.env.ADMIN_ID': '664156861033086987',

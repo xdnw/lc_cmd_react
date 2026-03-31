@@ -4,6 +4,7 @@ import type { AutoRoleBulkResult, WebAutoRoleRoles, WebRoleAliases } from "@/lib
 
 import {
     AUTO_ROLE_SETTING_KEYS,
+    LOCUTUS_ROLE_DESCRIPTIONS,
     LOCUTUS_ROLE_OPTIONS,
     buildRoleAliasEntries,
     formatAliasScopeLabel,
@@ -59,6 +60,7 @@ describe("rolesDomain", () => {
 
         expect(registeredEntry).toMatchObject({
             roleName: LOCUTUS_ROLE_OPTIONS[0],
+            roleDescription: LOCUTUS_ROLE_DESCRIPTIONS[0],
             mappingCount: 1,
             isInvalid: false,
         });
@@ -81,6 +83,7 @@ describe("rolesDomain", () => {
 
         expect(unknownEntry).toMatchObject({
             roleName: "Role #99",
+            roleDescription: "",
             isKnownRole: false,
         });
     });

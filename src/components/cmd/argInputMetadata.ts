@@ -121,12 +121,13 @@ export function buildStaticOptions(breakdown: TypeBreakdown): SelectOption[] | n
         return buildPlaceholderTypeOptions(breakdown);
     }
 
-    const options = breakdown.getOptionData().options;
+    const optionData = breakdown.getOptionData();
+    const options = optionData.options;
     if (!options) {
         return null;
     }
 
-    return toPlainSelectOptions(options);
+    return toPlainSelectOptions(options, optionData.subtext);
 }
 
 export function isPlaceholderExpressionType(breakdown: TypeBreakdown): boolean {

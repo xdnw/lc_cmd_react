@@ -43,6 +43,7 @@ export type IKeyData = {
 
 export type IOptionData = {
     options?: string[] | null;
+    subtext?: string[] | null;
     query?: boolean | null;
     completions?: boolean | null;
     guild?: boolean | null;
@@ -156,6 +157,7 @@ export class Argument {
 
 class OptionData {
     options: string[] | undefined;
+    subtext: string[] | undefined;
     query: boolean;
     completions: boolean;
     guild: boolean;
@@ -171,6 +173,7 @@ class OptionData {
     constructor(map: CommandMap, data: IOptionData, multi: boolean, typeKey: string, queryTypeKey: string = typeKey) {
         this.map = map;
         this.options = data.options || undefined;
+        this.subtext = data.subtext || undefined;
         this.query = data.query || false;
         this.completions = data.completions || false;
         this.guild = data.guild || false;
@@ -186,6 +189,7 @@ class OptionData {
     toConfig(): IOptionData {
         return {
             options: this.options || null,
+            subtext: this.subtext || null,
             query: this.query,
             completions: this.completions,
             guild: this.guild,
@@ -920,7 +924,7 @@ export class TypeBreakdown {
         }
 
         const fallbackTypeKey = getTypeLookupKeys(this.element, this.annotations)[0] ?? this.element;
-        this.optionData = new OptionData(this.map, { options: null, query: false, completions: false, guild: false, nation: false, user: false, custom: false }, false, fallbackTypeKey, exactTypeKey);
+        this.optionData = new OptionData(this.map, { options: null, subtext: null, query: false, completions: false, guild: false, nation: false, user: false, custom: false }, false, fallbackTypeKey, exactTypeKey);
         return this.optionData;
     }
 }

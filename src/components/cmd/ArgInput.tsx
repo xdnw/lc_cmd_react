@@ -76,7 +76,7 @@ function renderResolvedArgInput(resolution: ArgInputResolution, props: ArgProps 
       return <FontInput argName={argName} initialValue={currentValue} options={options.options ?? []} setOutputValue={setOutputValue} />;
 
     case "static-options":
-      return <ListComponentOptions argName={argName} options={options.options ?? []} isMulti={options.multi}
+      return <ListComponentOptions argName={argName} options={options.options ?? []} subtext={options.subtext} isMulti={options.multi}
         initialValue={currentValue} setOutputValue={setOutputValue} />;
 
     case "composite-query":

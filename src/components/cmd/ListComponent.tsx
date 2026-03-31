@@ -106,7 +106,12 @@ const DropdownItem = memo(function DropdownItem({
             {option.icon && (
                 <img src={option.icon} loading="lazy" alt="" className="w-4 h-4 mr-2 object-contain inline-block" />
             )}
-            <div className="min-w-0 flex-1 truncate">{option.label || option.value}</div>
+            <div className="min-w-0 flex-1">
+                <div className="truncate">{option.label || option.value}</div>
+                {option.subtext ? (
+                    <div className="truncate text-[11px] text-muted-foreground">{option.subtext}</div>
+                ) : null}
+            </div>
         </div>
     );
 });
@@ -127,14 +132,15 @@ export function ListComponentBreakdown({ breakdown, argName, isMulti, initialVal
     return <ListComponent argName={argName} options={labelled} isMulti={isMulti} initialValue={initialValue} setOutputValue={setOutputValue} />;
 }
 
-export function ListComponentOptions({ options, argName, isMulti, initialValue, setOutputValue }: {
+export function ListComponentOptions({ options, subtext, argName, isMulti, initialValue, setOutputValue }: {
     options: string[];
+    subtext?: string[];
     argName: string;
     isMulti: boolean;
     initialValue: string;
     setOutputValue: (name: string, value: string) => void;
 }) {
-    const labelled = useMemo(() => toPlainSelectOptions(options), [options]);
+    const labelled = useMemo(() => toPlainSelectOptions(options, subtext), [options, subtext]);
 
     return <ListComponent argName={argName} options={labelled} isMulti={isMulti} initialValue={initialValue} setOutputValue={setOutputValue} />;
 }
@@ -157,9 +163,10 @@ type SearchIndexEntry = {
     labelLower: string;
     valueLower: string;
     aliasLower: string[];
+    subtextLower: string;
 };
 
-const LIST_DROPDOWN_ROW_HEIGHT = 36;
+const LIST_DROPDOWN_ROW_HEIGHT = 52;
 const LIST_DROPDOWN_OVERSCAN = 6;
 const LIST_DROPDOWN_PAGE_SIZE = 8;
 const MULTI_SELECT_SHORTCUT_LABEL = "Ctrl+A or Cmd+A";
@@ -276,6 +283,7 @@ function useFilteredOptions({
             labelLower: (option.label || option.value).toLowerCase(),
             valueLower: option.value.toLowerCase(),
             aliasLower: (option.aliases ?? []).map((alias) => alias.toLowerCase()),
+            subtextLower: option.subtext?.toLowerCase() ?? "",
         }));
     }, [options, shouldBuildSearchIndex]);
 
@@ -292,10 +300,11 @@ function useFilteredOptions({
         const partialMatches: SelectOption[] = [];
 
         for (const entry of searchIndex) {
-            const { option, labelLower, valueLower, aliasLower } = entry;
+            const { option, labelLower, valueLower, aliasLower, subtextLower } = entry;
             const isMatch = labelLower.includes(normalizedSearchValue)
                 || valueLower.includes(normalizedSearchValue)
-                || aliasLower.some((alias) => alias.includes(normalizedSearchValue));
+                || aliasLower.some((alias) => alias.includes(normalizedSearchValue))
+                || subtextLower.includes(normalizedSearchValue);
 
             if (!isMatch) {
                 continue;

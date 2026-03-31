@@ -348,4 +348,31 @@ describe("ListComponent keyboard contract", () => {
     fireEvent.keyDown(input, { key: "PageUp" });
     expect(input.getAttribute("aria-activedescendant")).toBe(options[1]?.getAttribute("id") ?? "");
   });
+
+  it("renders and searches option subtext when present", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="role"
+        options={[
+          { label: "MEMBER", value: "MEMBER", subtext: "Verified member access" },
+          { label: "MILCOM", value: "MILCOM", subtext: "Alliance military command access" },
+        ]}
+        isMulti={false}
+        initialValue=""
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+
+    expect(screen.getByText("Verified member access")).not.toBeNull();
+
+    fireEvent.change(input, { target: { value: "military command" } });
+
+    expect(screen.getByRole("option", { name: /milcom/i })).not.toBeNull();
+    expect(screen.queryByRole("option", { name: /member/i })).toBeNull();
+  });
 });

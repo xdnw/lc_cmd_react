@@ -7,8 +7,12 @@ export type SelectOption = {
     icon?: string;
 };
 
-export function toPlainSelectOptions(values: readonly string[]): SelectOption[] {
-    return values.map((value) => ({ label: value, value }));
+export function toPlainSelectOptions(values: readonly string[], subtext?: readonly (string | null | undefined)[]): SelectOption[] {
+    return values.map((value, index) => ({
+        label: value,
+        value,
+        subtext: subtext?.[index]?.trim() || undefined,
+    }));
 }
 
 export type SelectMatchReason =

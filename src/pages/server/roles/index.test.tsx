@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SidebarNavConfig } from "@/components/layout/SidebarNav";
 import type { SettingRow } from "@/pages/settings/settingsDomain";
+import { LOCUTUS_ROLE_DESCRIPTIONS } from "./rolesDomain";
 
 import RoleManagementPage from "./index";
 
@@ -235,5 +236,15 @@ describe("RoleManagementPage sidebar", () => {
         expect(settingsSection?.level).toBe(0);
         expect(visibleSettingItem?.level).toBe(1);
         expect(visibleSettingItem?.status).toBe("disabled");
+    });
+
+    it("renders role alias descriptions as secondary text", () => {
+        render(
+            <MemoryRouter initialEntries={["/server/roles"]}>
+                <RoleManagementPage />
+            </MemoryRouter>,
+        );
+
+        expect(screen.getByText(LOCUTUS_ROLE_DESCRIPTIONS[0])).not.toBeNull();
     });
 });

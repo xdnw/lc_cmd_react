@@ -19,6 +19,10 @@ export const LOCUTUS_ROLE_OPTIONS = [
   ...((typeof rolesOptionConfig === "string" ? [] : rolesOptionConfig.options) ?? []),
 ] as const;
 
+export const LOCUTUS_ROLE_DESCRIPTIONS = [
+  ...((typeof rolesOptionConfig === "string" ? [] : rolesOptionConfig.subtext) ?? []),
+] as const;
+
 export const AUTO_ROLE_SETTING_KEYS = [
   "AUTONICK",
   "AUTOROLE_ALLIANCES",
@@ -41,6 +45,7 @@ export type RoleAliasMapping = {
 export type RoleAliasEntry = {
   ordinal: number;
   roleName: string;
+  roleDescription: string;
   isKnownRole: boolean;
   isInvalid: boolean;
   mappings: RoleAliasMapping[];
@@ -373,6 +378,10 @@ export function getLocutusRoleName(ordinal: number): string {
   return LOCUTUS_ROLE_OPTIONS[ordinal] ?? `Role #${ordinal}`;
 }
 
+export function getLocutusRoleDescription(ordinal: number): string {
+  return LOCUTUS_ROLE_DESCRIPTIONS[ordinal]?.trim() ?? "";
+}
+
 export function buildRoleAliasEntries(data?: WebRoleAliases | null): RoleAliasEntry[] {
   const mappingsByOrdinal = data?.mappings ?? {};
   const invalidOrdinals = new Set(data?.invalid_role_ordinals ?? []);
@@ -424,6 +433,7 @@ export function buildRoleAliasEntries(data?: WebRoleAliases | null): RoleAliasEn
       return {
         ordinal,
         roleName: getLocutusRoleName(ordinal),
+        roleDescription: getLocutusRoleDescription(ordinal),
         isKnownRole: ordinal >= 0 && ordinal < LOCUTUS_ROLE_OPTIONS.length,
         isInvalid: invalidOrdinals.has(ordinal),
         mappings,

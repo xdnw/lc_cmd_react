@@ -1142,9 +1142,14 @@ function RoleAliasRow({
             )}
         >
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                         <div className="text-sm font-semibold text-foreground">{entry.roleName}</div>
+                        {entry.roleDescription ? (
+                            <div className="min-w-0 text-xs leading-5 text-muted-foreground/85 lg:flex-1 lg:truncate" title={entry.roleDescription}>
+                                {entry.roleDescription}
+                            </div>
+                        ) : null}
                         {entry.isInvalid ? <Badge variant="destructive">Invalid</Badge> : null}
                     </div>
                     {entry.mappings.length > 0 ? (

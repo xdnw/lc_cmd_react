@@ -26,12 +26,12 @@ const KeyValueEntryRow = memo(function KeyValueEntryRow({
     return (
         <div
             className={cn(
-                "grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-border/60 bg-muted/10 px-2",
+                "grid min-w-0 grid-cols-[minmax(0,8rem)_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-border/60 bg-muted/10 px-2",
                 compact ? "py-1 text-xs" : "py-1.5 text-[13px]",
             )}
         >
             <div className="truncate text-[11px] font-medium text-muted-foreground">{item.key}</div>
-            <div className="break-all font-mono text-foreground/90">{item.value}</div>
+            <div className="min-w-0 wrap-break-word font-mono text-foreground/90">{item.value}</div>
             <Button
                 type="button"
                 onClick={handleRemoveClick}
@@ -39,7 +39,7 @@ const KeyValueEntryRow = memo(function KeyValueEntryRow({
                 size="sm"
                 tabIndex={removeButtonTabIndex}
                 aria-label={`Remove ${item.key}`}
-                className={compact ? "h-5 px-1.5 text-[10px]" : "h-5 px-1.5 text-[10px]"}
+                className="h-5 px-1.5 text-[10px]"
             >
                 Remove
             </Button>

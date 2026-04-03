@@ -191,17 +191,23 @@ const StaticMapRow = memo(function StaticMapRow(
     }, [mapKey, onValueChange]);
 
     return (
-        <div ref={rowRef} data-map-key={mapKey} className={cn("grid gap-2", compact ? "grid-cols-[minmax(0,7rem)_1fr] items-center" : "grid-cols-[minmax(0,9rem)_1fr] items-center")}>
+        <div
+            ref={rowRef}
+            data-map-key={mapKey}
+            className={cn("grid min-w-0 gap-2", compact ? "grid-cols-[minmax(0,7rem)_1fr] items-center" : "grid-cols-[minmax(0,9rem)_1fr] items-center")}
+        >
             <div className={cn("truncate text-[11px] font-medium text-muted-foreground", compact ? "pr-1" : "pr-2")}>{mapKey}</div>
-            <ArgInput
-                argName={`value-${mapKey}`}
-                breakdown={valueBreakdown}
-                min={undefined}
-                max={undefined}
-                initialValue={value}
-                displayMode={displayMode}
-                setOutputValue={handleValueChange}
-            />
+            <div className="min-w-0">
+                <ArgInput
+                    argName={`value-${mapKey}`}
+                    breakdown={valueBreakdown}
+                    min={undefined}
+                    max={undefined}
+                    initialValue={value}
+                    displayMode={displayMode}
+                    setOutputValue={handleValueChange}
+                />
+            </div>
         </div>
     );
 });
@@ -370,7 +376,7 @@ function StaticKeyMapInput(
     ) as Record<string, (node: HTMLDivElement | null) => void>;
 
     return (
-        <div className="space-y-2" onPasteCapture={handlePasteCapture} onKeyDownCapture={handleTypeaheadKeyDownCapture}>
+        <div className="min-w-0 space-y-2" onPasteCapture={handlePasteCapture} onKeyDownCapture={handleTypeaheadKeyDownCapture}>
             <div className="space-y-1.5">
                 {staticKeys.map((key) => (
                     <StaticMapRow
@@ -566,7 +572,7 @@ function DynamicMapInput(
     const { warningText, noteText } = useMemo(() => summarizeCollectionNotices(notices), [notices]);
 
     return (
-        <div className="space-y-2" onPasteCapture={handlePasteCapture}>
+        <div className="min-w-0 space-y-2" onPasteCapture={handlePasteCapture}>
             <div className="relative">
                 <KeyValueEntryList
                     items={toEntryItems(value)}

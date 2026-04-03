@@ -1,5 +1,6 @@
 import React, { startTransition, useCallback, useMemo, useRef, useState } from 'react';
 import CommandComponent from '../../components/cmd/CommandComponent'; // Import CommandComponent
+import { normalizeArgInitialValue } from '@/components/cmd/argInitialValueNormalization';
 import CommandStringPreview from '@/components/cmd/CommandStringPreview';
 import { CommandQueryRegistryProvider } from '@/components/cmd/CommandQueryRegistry';
 import { getCommandSubmitShortcutLabel } from '@/components/cmd/commandKeyboard';
@@ -56,9 +57,25 @@ export default function CommandPage() {
         delete nextValues.forceMountAll;
         return nextValues;
     }, [queryParams]);
-    const commandStore = useMemo(() => createCommandStoreWithDef(initialValues), [initialValues]);
-    const setOutput = commandStore.getState().setOutput;
     const commandArgs = useMemo(() => cmdObj?.getArguments() ?? [], [cmdObj]);
+    const normalizedInitialValues = useMemo(() => {
+        const argsByName = new Map(commandArgs.map((arg) => [arg.name, arg]));
+
+        return Object.entries(initialValues).reduce<Record<string, string>>((accumulator, [key, value]) => {
+            const arg = argsByName.get(key);
+            const normalizedValue = arg
+                ? normalizeArgInitialValue(arg.getTypeBreakdown(), value, { isOptional: arg.arg.optional })
+                : value;
+
+            if (normalizedValue) {
+                accumulator[key] = normalizedValue;
+            }
+
+            return accumulator;
+        }, {});
+    }, [commandArgs, initialValues]);
+    const commandStore = useMemo(() => createCommandStoreWithDef(normalizedInitialValues), [normalizedInitialValues]);
+    const setOutput = commandStore.getState().setOutput;
     const queryBreakdowns = useMemo(() => {
         const uniqueTypes = new Set(commandArgs.map((arg) => arg.arg.type));
         return Array.from(uniqueTypes, (type) => getTypeBreakdown(CM, type));
@@ -172,7 +189,7 @@ export default function CommandPage() {
                 <Button size="sm" variant={displayMode === "focus-pane" ? "default" : "outline"} onClick={setFocusPaneDisplayMode} tabIndex={-1}>Focus Pane</Button>
             </div>
             <CommandQueryRegistryProvider breakdowns={queryBreakdowns}>
-                <CommandComponent key={cmdObj.name} command={cmdObj} filterArguments={alwaysTrue} initialValues={initialValues}
+                <CommandComponent key={cmdObj.name} command={cmdObj} filterArguments={alwaysTrue} initialValues={normalizedInitialValues}
                     displayMode={displayMode}
                     forceMountAll={forceMountAll}
                     setOutput={setOutput}

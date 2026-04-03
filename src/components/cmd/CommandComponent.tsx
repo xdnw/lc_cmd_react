@@ -23,6 +23,7 @@ import ArgFieldShell from "./field/ArgFieldShell";
 import { focusPrimaryCommandTarget, getCommandEdgeArrowDirection, shouldAdvanceCommandField } from "./commandKeyboard";
 import { parseCommandStringDetailed } from "../../utils/CommandParser";
 import type { TypeBreakdown } from "@/utils/Command";
+import { normalizeArgInitialValue } from "./argInitialValueNormalization";
 import {
     applyCommandFieldStateUpdater,
     commandFieldStatesEqual,
@@ -147,6 +148,26 @@ function normalizeParsedCommandArgOutput(entry: CommandArgEntry | undefined, val
         return serializeBooleanValue(value, { mode: "boolean", optional: entry.arg.arg.optional });
     }
     return value;
+}
+
+function normalizeCommandInitialValues(
+    entries: readonly CommandArgEntry[],
+    initialValues: Record<string, string>,
+): Record<string, string> {
+    const entryByName = new Map(entries.map((entry) => [entry.arg.name, entry]));
+
+    return Object.entries(initialValues).reduce<Record<string, string>>((accumulator, [key, value]) => {
+        const entry = entryByName.get(key);
+        const normalizedValue = entry
+            ? normalizeArgInitialValue(entry.breakdown, value, { isOptional: entry.arg.arg.optional })
+            : value;
+
+        if (normalizedValue) {
+            accumulator[key] = normalizedValue;
+        }
+
+        return accumulator;
+    }, {});
 }
 
 function normalizeArgSearchText(text: string): string {
@@ -508,9 +529,10 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
     const pendingFocusedArgTimeoutRef = useRef<number | null>(null);
 
     const argEntries = useMemo(() => command.getArguments().filter(filterArguments).map((arg) => buildCommandArgEntry(command, arg)), [command, filterArguments]);
+    const normalizedInitialValues = useMemo(() => normalizeCommandInitialValues(argEntries, initialValues), [argEntries, initialValues]);
     const groupedArgs = useMemo(() => buildGroupedArgs(argEntries), [argEntries]);
     const virtualRows = useMemo(() => buildVirtualRows(groupedArgs), [groupedArgs]);
-    const initialValuesSignature = useMemo(() => serializeInitialValues(initialValues), [initialValues]);
+    const initialValuesSignature = useMemo(() => serializeInitialValues(normalizedInitialValues), [normalizedInitialValues]);
     const compact = isCompactMode(displayMode);
     const trackFocusedArg = displayMode === "focus-pane";
     const shouldVirtualize = virtualizationMode !== "off" && !forceMountAll && argEntries.length >= COMMAND_VIRTUALIZE_THRESHOLD;
@@ -534,10 +556,20 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
         setFieldStates((currentStates) => synchronizeFieldStates(
             currentStates,
             argEntries,
-            initialValues,
+            normalizedInitialValues,
             shouldReseedFromInitialValues,
         ));
-    }, [argEntries, initialValues, initialValuesSignature]);
+    }, [argEntries, initialValuesSignature, normalizedInitialValues]);
+
+    useEffect(() => {
+        const keys = new Set([...Object.keys(initialValues), ...Object.keys(normalizedInitialValues)]);
+        keys.forEach((key) => {
+            const normalizedValue = normalizedInitialValues[key] ?? "";
+            if ((initialValues[key] ?? "") !== normalizedValue) {
+                setOutput(key, normalizedValue);
+            }
+        });
+    }, [initialValues, normalizedInitialValues, setOutput]);
 
     useEffect(() => {
         setPrewarmedArgNames(new Set(argOrder.slice(0, COMMAND_INITIAL_PREWARM_ROWS)));
@@ -658,7 +690,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
 
     const updateFieldState = useCallback((argName: string, updater: CommandFieldStateUpdater) => {
         setFieldStates((currentStates) => {
-            const previousState = currentStates[argName] ?? createCommandFieldState(initialValues[argName] ?? "");
+            const previousState = currentStates[argName] ?? createCommandFieldState(normalizedInitialValues[argName] ?? "");
             const nextState = applyCommandFieldStateUpdater(previousState, updater);
             if (commandFieldStatesEqual(previousState, nextState)) {
                 return currentStates;
@@ -669,7 +701,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
                 [argName]: nextState,
             };
         });
-    }, [initialValues]);
+    }, [normalizedInitialValues]);
 
     const fieldStateUpdaters = useMemo<Record<string, (updater: CommandFieldStateUpdater) => void>>(() => {
         return argEntries.reduce<Record<string, (updater: CommandFieldStateUpdater) => void>>((accumulator, entry) => {
@@ -752,7 +784,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
             setFieldStates((currentStates) => {
                 const nextStates = { ...currentStates };
                 Object.entries(parsedValues).forEach(([key, value]) => {
-                    const previousState = nextStates[key] ?? createCommandFieldState(initialValues[key] ?? "");
+                    const previousState = nextStates[key] ?? createCommandFieldState(normalizedInitialValues[key] ?? "");
                     const normalizedValue = normalizeParsedCommandArgOutput(argEntryByName.get(key), value);
                     nextStates[key] = {
                         ...previousState,
@@ -773,7 +805,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
             event.stopPropagation();
             setCommandPasteError(formatCommandPasteError(command, parsed));
         }
-    }, [argEntryByName, command, initialValues, setOutput]);
+    }, [argEntryByName, command, normalizedInitialValues, setOutput]);
 
     const handleDismissCommandPasteError = useCallback(() => {
         setCommandPasteError("");
@@ -856,7 +888,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
     }, []);
 
     const renderArgRow = useCallback((entry: CommandArgEntry) => {
-        const fieldState = fieldStates[entry.arg.name] ?? createCommandFieldState(initialValues[entry.arg.name] ?? "");
+        const fieldState = fieldStates[entry.arg.name] ?? createCommandFieldState(normalizedInitialValues[entry.arg.name] ?? "");
         const setFieldState = fieldStateUpdaters[entry.arg.name];
         const prewarm = forceMountAll || prewarmedArgNames.has(entry.arg.name);
         const autoFocusOnMount = pendingFocusArgName === entry.arg.name;
@@ -881,7 +913,7 @@ const CommandComponent = memo(forwardRef<CommandComponentHandle, CommandProps>(f
                 jumpActive={jumpSearchActiveArg === entry.arg.name}
             />
         );
-    }, [compact, displayMode, fieldStateUpdaters, fieldStates, forceMountAll, handleFieldCommit, handleFieldOutput, handleFocusCapture, handlePendingFocusComplete, initialValues, jumpSearchActiveArg, jumpSearchMatches, pendingFocusArgName, prewarmedArgNames, trackFocusedArg]);
+    }, [compact, displayMode, fieldStateUpdaters, fieldStates, forceMountAll, handleFieldCommit, handleFieldOutput, handleFocusCapture, handlePendingFocusComplete, jumpSearchActiveArg, jumpSearchMatches, normalizedInitialValues, pendingFocusArgName, prewarmedArgNames, trackFocusedArg]);
 
     const computeVirtualItemKey = useCallback((_: number, item: CommandRowItem) => item.key, []);
 

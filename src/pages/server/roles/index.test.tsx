@@ -86,7 +86,6 @@ function createSettingRow(settingKey: string, overrides?: Partial<SettingRow>): 
         value: {
             displayText: settingKey,
             rawText: settingKey,
-            inputText: settingKey,
             hasValue: true,
             ...overrides?.value,
         },

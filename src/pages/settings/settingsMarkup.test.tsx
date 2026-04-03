@@ -40,7 +40,6 @@ function createSettingRow(overrides?: Partial<SettingRow>): SettingRow {
         value: {
             displayText: "#alerts",
             rawText: "#alerts",
-            inputText: "#alerts",
             hasValue: true,
             ...overrides?.value,
         },

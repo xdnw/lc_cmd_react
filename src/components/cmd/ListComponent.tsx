@@ -717,6 +717,14 @@ function SingleSelectListComponent({ argName, options, initialValue, setOutputVa
     const syncOutput = useCallback((selection: SelectOption | null) => {
         setOutputValue(argName, selection?.value ?? '');
     }, [argName, setOutputValue]);
+
+    useEffect(() => {
+        const normalizedValue = normalizedInitialSelection?.value ?? '';
+        if ((initialValue || '') !== normalizedValue) {
+            syncOutput(normalizedInitialSelection);
+        }
+    }, [initialValue, normalizedInitialSelection, syncOutput]);
+
     const allowDeferredFreeformCommit = allowCustomOption && !loadingOptions;
 
     const selectOption = useCallback((option: SelectOption | undefined, inputString?: string) => {
@@ -888,6 +896,14 @@ function MultiSelectListComponent({ argName, options, initialValue, setOutputVal
     const syncOutput = useCallback((selection: SelectOption[]) => {
         setOutputValue(argName, serializeSelection(selection, true));
     }, [argName, setOutputValue]);
+
+    useEffect(() => {
+        const normalizedValue = serializeSelection(normalizedInitialSelection, true);
+        if ((initialValue || '') !== normalizedValue) {
+            syncOutput(normalizedInitialSelection);
+        }
+    }, [initialValue, normalizedInitialSelection, syncOutput]);
+
     const allowDeferredFreeformCommit = allowCustomOption && !loadingOptions;
 
     const toggleOption = useCallback((option: SelectOption | undefined, inputString?: string) => {

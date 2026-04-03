@@ -14,6 +14,18 @@ import {
     parseSettingsPageSearchParams,
     type SettingRow,
 } from "./settingsDomain";
+import { CM, getTypeBreakdown } from "@/utils/Command";
+import { normalizeArgInitialValue } from "@/components/cmd/argInitialValueNormalization";
+
+function toIso88591DoubleBlob(values: number[]): string {
+    const bytes = new Uint8Array(values.length * 8);
+    const view = new DataView(bytes.buffer);
+    values.forEach((value, index) => {
+        view.setFloat64(index * 8, value, false);
+    });
+
+    return String.fromCharCode(...bytes);
+}
 
 function createSettingRow({
     settingKey,
@@ -50,7 +62,6 @@ function createSettingRow({
         value: {
             displayText: displayText ?? settingKey,
             rawText: displayText ?? settingKey,
-            inputText: displayText ?? settingKey,
             hasValue,
         },
         flags: {
@@ -253,6 +264,41 @@ describe("normalizeGuildSettingRows", () => {
 
         expect(result.rows[0]?.flags.isAllowed).toBe(false);
         expect(result.rows[0]?.flags.availabilityReason).toBe("Requires current guild to be the root server");
+    });
+
+    it("keeps raw setting text on the row and leaves input normalization to shared cmd helpers", () => {
+        const breakdown = getTypeBreakdown(CM, "Map<AttackType,Double>");
+        const keys = breakdown.child?.[0]?.getOptionData().options ?? [];
+        const binaryPayload = toIso88591DoubleBlob(keys.map((_, index) => {
+            if (index === 0) return 1.5;
+            if (index === 1) return 2.5;
+            if (index === 2) return 3.5;
+            return 0;
+        }));
+
+        const result = normalizeGuildSettingRows({
+            cells: [
+                [],
+                [
+                    "WARCHEST_PER_CITY",
+                    "Map<AttackType,Double>",
+                    "DEFAULT",
+                    "NONE",
+                    "Help text",
+                    "{GROUND=1.5,VICTORY=2.5,FORTIFY=3.5}",
+                    binaryPayload,
+                    false,
+                    false,
+                    true,
+                    null,
+                ],
+            ],
+            renderers: [],
+        } as never);
+
+        expect(result.rows[0]?.editor.initialValue).toBe(binaryPayload);
+        expect(result.rows[0]?.editor.initialValue).toBe(result.rows[0]?.value.rawText);
+        expect(normalizeArgInitialValue(breakdown, result.rows[0]?.editor.initialValue ?? "")).toBe(`{${keys[0]}=1.5,${keys[1]}=2.5,${keys[2]}=3.5}`);
     });
 });
 

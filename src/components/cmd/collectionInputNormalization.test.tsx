@@ -78,7 +78,7 @@ describe("collection input normalization", () => {
 
         fireEvent.paste(container.firstElementChild as HTMLElement, makeClipboardEventPayload("mOnEy=5*6"));
 
-        expect(setOutputValue).toHaveBeenLastCalledWith("resources", "MONEY=30");
+        expect(setOutputValue).toHaveBeenLastCalledWith("resources", "{MONEY=30}");
         expect(screen.queryByText("COAL")).toBeNull();
         expect(screen.queryByText("30")).not.toBeNull();
     });
@@ -98,7 +98,7 @@ describe("collection input normalization", () => {
         );
 
         fireEvent.paste(container.firstElementChild as HTMLElement, makeClipboardEventPayload("money=1,coal=2"));
-        expect(setOutputValue).toHaveBeenLastCalledWith("resources", "MONEY=1,COAL=2");
+        expect(setOutputValue).toHaveBeenLastCalledWith("resources", "{MONEY=1,COAL=2}");
     });
 
     it("replaces pasted set content instead of appending to existing values", () => {
@@ -182,11 +182,11 @@ describe("collection input normalization", () => {
 
         // set first key and verify output
         fireEvent.change(screen.getByLabelText(`value-${staticKeys[0]}`), { target: { value: "7" } });
-        expect(setOutputValue).toHaveBeenLastCalledWith("attacks", `${staticKeys[0]}=7`);
+        expect(setOutputValue).toHaveBeenLastCalledWith("attacks", `{${staticKeys[0]}=7}`);
 
         // now set second key as well; the two entries should be comma-separated
         fireEvent.change(screen.getByLabelText(`value-${staticKeys[1]}`), { target: { value: "9" } });
-        expect(setOutputValue).toHaveBeenLastCalledWith("attacks", `${staticKeys[0]}=7,${staticKeys[1]}=9`);
+        expect(setOutputValue).toHaveBeenLastCalledWith("attacks", `{${staticKeys[0]}=7,${staticKeys[1]}=9}`);
 
         // clearing all entries yields an empty string again
         fireEvent.change(screen.getByLabelText(`value-${staticKeys[0]}`), { target: { value: "" } });
@@ -212,7 +212,7 @@ describe("collection input normalization", () => {
 
         fireEvent.paste(container.firstElementChild as HTMLElement, makeClipboardEventPayload(`${staticKeys[0]}=5`));
 
-        expect(setOutputValue).toHaveBeenLastCalledWith("attacks", `${staticKeys[0]}=5`);
+        expect(setOutputValue).toHaveBeenLastCalledWith("attacks", `{${staticKeys[0]}=5}`);
         expect((screen.getByLabelText(`value-${staticKeys[0]}`) as HTMLInputElement).value).toBe("5");
         expect((screen.getByLabelText(`value-${staticKeys[1]}`) as HTMLInputElement).value).toBe("");
     });

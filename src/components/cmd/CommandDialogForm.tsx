@@ -1,6 +1,7 @@
 import CommandActionButton from "@/components/cmd/CommandActionButton";
 import CommandComponent, { type CommandComponentHandle } from "@/components/cmd/CommandComponent";
 import CommandStringPreview from "@/components/cmd/CommandStringPreview";
+import { normalizeArgInitialValue } from "@/components/cmd/argInitialValueNormalization";
 import { getCommandSubmitShortcutLabel } from "@/components/cmd/commandKeyboard";
 import { useCommandArgumentJump } from "@/components/cmd/useCommandArgumentJump";
 import { useCommandShellKeyboard } from "@/components/cmd/useCommandShellKeyboard";
@@ -83,7 +84,7 @@ const CommandDialogFields = memo(function CommandDialogFields<P extends AnyComma
         <>
             {description && <p className="text-sm text-muted-foreground">{description}</p>}
             {children ? (
-                <div className="rounded-md border border-border/40 p-2">
+                <div className="min-w-0 rounded-md border border-border/40 p-2">
                     {children({ output: initialValues, setOutput })}
                 </div>
             ) : (
@@ -156,16 +157,16 @@ function CommandDialogActions<P extends AnyCommandPath>({
 
     return (
         <div className={cn(
-            "flex gap-2",
+            "grid min-w-0 w-full gap-2",
             actionsLayout === "sticky"
-                ? "sticky bottom-0 z-20 -mx-2 border-t border-border/70 bg-background/96 px-2 pb-2 pt-2 backdrop-blur"
-                : "flex-wrap items-center",
+                ? "z-20 border-t border-border/70 bg-background/96 px-2 pb-2 pt-2 backdrop-blur sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
+                : "sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center",
         )}>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0">
                 <CommandStringPreview text={commandString} getText={getCommandText} />
-                <p className="mt-1 h-4 overflow-hidden text-[11px] text-muted-foreground">{buildCommandFooterHint(submitShortcutLabel, escapeHint)}</p>
+                <p className="mt-1 truncate text-[11px] text-muted-foreground">{buildCommandFooterHint(submitShortcutLabel, escapeHint)}</p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex items-center justify-end gap-2">
                 <CommandActionButton
                     buttonRef={submitButtonRef}
                     command={commandPath}
@@ -201,12 +202,29 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
     children,
     extraActions,
 }: CommandDialogFormProps<P>) {
-    const [commandStore] = useState(() => createCommandStoreWithDef(initialValues));
     const submitButtonRef = useRef<HTMLButtonElement | null>(null);
     const neutralCommitRef = useRef<((query: string) => void) | null>(null);
+    const command = useMemo(() => CM.get(commandPath), [commandPath]);
+    const normalizedInitialValues = useMemo(() => {
+        const argsByName = new Map(command.getArguments().map((arg) => [arg.name, arg]));
+
+        return Object.entries(initialValues).reduce<Record<string, string>>((accumulator, [key, value]) => {
+            const arg = argsByName.get(key);
+            const normalizedValue = arg
+                ? normalizeArgInitialValue(arg.getTypeBreakdown(), value, { isOptional: arg.arg.optional })
+                : value;
+
+            if (normalizedValue) {
+                accumulator[key] = normalizedValue;
+            }
+
+            return accumulator;
+        }, {});
+    }, [command, initialValues]);
+    const [commandStore] = useState(() => createCommandStoreWithDef(normalizedInitialValues));
     const setOutput = commandStore.getState().setOutput;
     const output = useStoreWithEqualityFn(commandStore, selectOutput, deepEqual);
-    const commandName = useMemo(() => CM.get(commandPath).name, [commandPath]);
+    const commandName = useMemo(() => command.name, [command]);
     const commandPathString = useMemo(() => commandPath.join(" "), [commandPath]);
     const submitShortcutLabel = useMemo(() => getCommandSubmitShortcutLabel(), []);
     const jumpEnabled = !children;
@@ -271,7 +289,7 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
                     ) : (
                         <CommandDialogFields
                             commandPath={commandPath}
-                            initialValues={initialValues}
+                            initialValues={normalizedInitialValues}
                             description={description}
                             displayMode={displayMode}
                             showCommandTitle={showCommandTitle}

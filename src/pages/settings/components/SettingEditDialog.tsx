@@ -1,9 +1,10 @@
 import ArgInput from "@/components/cmd/ArgInput";
+import { normalizeArgInitialValue } from "@/components/cmd/argInitialValueNormalization";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import Badge from "@/components/ui/badge";
 import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { Textarea } from "@/components/ui/textarea";
-import { useCallback, useMemo, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import type { ArgInputSupport } from "@/components/cmd/ArgInput";
 import type { TypeBreakdown } from "@/utils/Command";
 import type { SettingRow } from "../settingsDomain";
@@ -75,13 +76,25 @@ export default function SettingEditDialog({
     row: SettingRow;
     onRefreshSetting: (settingKey: string) => void;
 }) {
-    const [draftValue, setDraftValue] = useState(row.editor.initialValue);
+    const normalizedInitialValue = useMemo(() => {
+        if (!row.editor.inputSupport.supported || !row.editor.breakdown) {
+            return row.editor.initialValue;
+        }
+
+        return normalizeArgInitialValue(row.editor.breakdown, row.editor.initialValue);
+    }, [row.editor.breakdown, row.editor.initialValue, row.editor.inputSupport.supported]);
+
+    const [draftValue, setDraftValue] = useState(normalizedInitialValue);
+
+    useEffect(() => {
+        setDraftValue(normalizedInitialValue);
+    }, [normalizedInitialValue]);
 
     const initialValues = useMemo(() => {
         const base: Record<string, string> = { key: row.settingKey };
-        base.value = row.editor.initialValue;
+        base.value = normalizedInitialValue;
         return base;
-    }, [row.settingKey, row.editor.initialValue]);
+    }, [normalizedInitialValue, row.settingKey]);
 
     const handleRefreshSetting = useCallback(
         () => onRefreshSetting(row.settingKey),
@@ -137,7 +150,7 @@ export default function SettingEditDialog({
                         breakdown={row.editor.breakdown}
                         inputSupport={row.editor.inputSupport}
                         argType={row.metadata.argType}
-                        initialValue={row.editor.initialValue}
+                        initialValue={normalizedInitialValue}
                         value={draftValue}
                         setOutput={setOutput}
                     />

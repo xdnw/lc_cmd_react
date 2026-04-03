@@ -21,6 +21,44 @@ function buildOptions(count: number) {
 }
 
 describe("ListComponent keyboard contract", () => {
+  it("syncs a canonical single-select initial value back to the owner", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="nation"
+        options={[
+          { label: "Borg", value: "borg" },
+          { label: "Rose", value: "rose" },
+        ]}
+        isMulti={false}
+        initialValue="Borg"
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    expect(setOutputValue).toHaveBeenCalledWith("nation", "borg");
+  });
+
+  it("syncs a canonical multi-select initial value order back to the owner", () => {
+    const setOutputValue = vi.fn();
+
+    render(
+      <ListComponent
+        argName="nation"
+        options={[
+          { label: "Borg", value: "borg" },
+          { label: "Rose", value: "rose" },
+        ]}
+        isMulti
+        initialValue="Rose,Borg"
+        setOutputValue={setOutputValue}
+      />,
+    );
+
+    expect(setOutputValue).toHaveBeenCalledWith("nation", "rose,borg");
+  });
+
   it("toggles all selections with Ctrl+A in multiselect when the search input is empty", () => {
     const setOutputValue = vi.fn();
 

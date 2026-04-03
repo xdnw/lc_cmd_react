@@ -33,6 +33,7 @@ import LazyIcon from '@/components/ui/LazyIcon';
 import { OrderIdx } from './DataTable';
 import { deepEqual } from '@/lib/utils';
 import ArgInput from '@/components/cmd/ArgInput';
+import { normalizeArgInitialValue } from '@/components/cmd/argInitialValueNormalization';
 import TypedInput from '@/components/cmd/TypedInput';
 import type { ShowDialogFn } from '@/lib/dialog';
 
@@ -971,7 +972,6 @@ function LayoutConfigDialogContent({
         () => Object.fromEntries(Object.entries(config.variables).map(([key, value]) => [key, value.defaultValue])),
         [config.variables]
     );
-    const [values, setValues] = useState<Record<string, string>>(initialValues);
 
     const breakdownByVariable = useMemo(
         () => Object.fromEntries(
@@ -980,9 +980,19 @@ function LayoutConfigDialogContent({
         [config.variableInputs]
     );
 
+    const normalizedInitialValues = useMemo(() => {
+        return Object.entries(initialValues).reduce<Record<string, string>>((accumulator, [key, value]) => {
+            const breakdown = breakdownByVariable[key];
+            accumulator[key] = breakdown ? normalizeArgInitialValue(breakdown, value) : value;
+            return accumulator;
+        }, {});
+    }, [breakdownByVariable, initialValues]);
+
+    const [values, setValues] = useState<Record<string, string>>(normalizedInitialValues);
+
     useEffect(() => {
-        setValues(initialValues);
-    }, [initialValues]);
+        setValues(normalizedInitialValues);
+    }, [normalizedInitialValues]);
 
     const setOutputValue = useCallback((key: string, value: string) => {
         setValues((prev) => ({
@@ -1016,7 +1026,7 @@ function LayoutConfigDialogContent({
                                     breakdown={breakdown}
                                     min={input?.min}
                                     max={input?.max}
-                                    initialValue={values[variable] ?? variableDef.defaultValue}
+                                    initialValue={values[variable] ?? normalizedInitialValues[variable] ?? variableDef.defaultValue}
                                     setOutputValue={setOutputValue}
                                     displayMode="focus-pane"
                                 />

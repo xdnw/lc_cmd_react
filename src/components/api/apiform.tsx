@@ -9,6 +9,7 @@ import { CommonEndpoint, QueryResult } from "../../lib/BulkQuery";
 import { useDeepMemo } from "./bulkwrapper";
 import { Argument } from "@/utils/Command";
 import ArgInput from "../cmd/ArgInput";
+import { normalizeArgInitialValue } from "../cmd/argInitialValueNormalization";
 import { ArgDescComponent } from "../cmd/CommandComponent";
 import ArgFieldShell from "../cmd/field/ArgFieldShell";
 import { singleQueryOptions } from "@/lib/queries";
@@ -53,15 +54,26 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
     const { showDialog } = useDialog();
     const stableDefaults = useDeepMemo(default_values ?
         (Object.fromEntries(Object.entries(default_values).filter(([_, value]) => value !== undefined)) as { [k: string]: string | string[] }) : {});
+    const normalizedDefaults = useMemo(() => {
+        return Object.fromEntries(Object.entries(stableDefaults).flatMap(([key, value]) => {
+            const arg = endpoint.endpoint.args[key];
+            if (typeof value !== "string" || !arg) {
+                return [[key, value]];
+            }
+
+            const normalizedValue = normalizeArgInitialValue(arg.getTypeBreakdown(), value, { isOptional: arg.arg.optional });
+            return normalizedValue ? [[key, normalizedValue]] : [];
+        })) as { [k: string]: string | string[] };
+    }, [endpoint.endpoint.args, stableDefaults]);
     const required = useMemo(() => {
         const req: string[] = [];
         for (const [key, value] of Object.entries(endpoint.endpoint.args)) {
-            if (!value.arg.optional && !Object.prototype.hasOwnProperty.call(stableDefaults, key)) {
+            if (!value.arg.optional && !Object.prototype.hasOwnProperty.call(normalizedDefaults, key)) {
                 req.push(key);
             }
         }
         return req;
-    }, [endpoint.endpoint.args, stableDefaults]);
+    }, [endpoint.endpoint.args, normalizedDefaults]);
 
     // use handleError unless not defined, then use showDialog
     const errorFinal = useCallback((error: Error) => {
@@ -87,8 +99,8 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
         return argNamesToShow
             .map((name) => endpoint.endpoint.args[name])
             .filter(Boolean)
-            .filter((arg) => includeDefaultArguments || !Object.prototype.hasOwnProperty.call(stableDefaults, arg.name));
-    }, [argNamesToShow, endpoint.endpoint.args, stableDefaults, includeDefaultArguments]);
+            .filter((arg) => includeDefaultArguments || !Object.prototype.hasOwnProperty.call(normalizedDefaults, arg.name));
+    }, [argNamesToShow, endpoint.endpoint.args, normalizedDefaults, includeDefaultArguments]);
 
     // Then simplify renderFormInputs to use it
     const renderFormInputs = useCallback((props: { setOutputValue: (name: string, value: string) => void }) => {
@@ -101,8 +113,9 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
                 {filteredArgs.map((arg) => (
                     (() => {
                         const defaultValue = stableDefaults[arg.name];
+                        const normalizedDefaultValue = normalizedDefaults[arg.name];
                         const initialValue = typeof defaultValue === "string"
-                            ? defaultValue
+                            ? String(normalizedDefaultValue ?? defaultValue)
                             : Array.isArray(defaultValue)
                                 ? defaultValue.join(",")
                                 : "";
@@ -119,7 +132,7 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
                 <hr className="my-2" />
             </>
         );
-    }, [filteredArgs, stableDefaults]);
+    }, [filteredArgs, normalizedDefaults, stableDefaults]);
 
     return (
         <ApiForm
@@ -128,7 +141,7 @@ export function ApiFormInputs<T, A extends { [key: string]: string | string[] | 
             message={message}
             endpoint={endpoint}
             label={label}
-            default_values={stableDefaults}
+            default_values={normalizedDefaults}
             form_inputs={renderFormInputs}
             handle_error={errorFinal}
             handle_response={handle_response}

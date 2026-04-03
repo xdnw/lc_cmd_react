@@ -69,7 +69,7 @@ export default function SimpleDialog({ title, header, message, quote, showDialog
                         )}
                     </DialogHeader>
                     <div className={cn(
-                        "relative min-h-0 overflow-x-auto overflow-y-auto",
+                        "relative min-h-0 overflow-x-hidden overflow-y-auto",
                         isHtmlEditorFullscreenActive && "flex-1 overflow-hidden",
                     )}>
                         {quote ? (

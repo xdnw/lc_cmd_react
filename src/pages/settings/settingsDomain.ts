@@ -247,7 +247,6 @@ export type SettingMetadata = {
 export type SettingValue = {
     displayText: string;
     rawText: string;
-    inputText: string;
     hasValue: boolean;
 };
 
@@ -712,7 +711,6 @@ function buildSettingValue(
     return {
         displayText,
         rawText,
-        inputText: valueRawCell == null ? displayText : rawText,
         hasValue: valueRawCell != null || valueStringCell != null,
     };
 }
@@ -761,7 +759,7 @@ function buildSettingRow(
         editor: {
             breakdown,
             inputSupport,
-            initialValue: value.inputText,
+            initialValue: value.rawText || value.displayText,
         },
         rowParseErrors: parseErrors,
         rawRow: [...rawRow],

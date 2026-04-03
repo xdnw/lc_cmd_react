@@ -11,7 +11,7 @@ type DialogContextType = {
      * Show a dialog entry.
      * - `showDialog(title, message)` uses defaults.
      * - `showDialog(title, message, true)` preserves boolean quote compatibility.
-     * - `showDialog(title, message, { openInNewTab, focusNewTab, replaceActive, quote })`
+    * - `showDialog(title, message, { openInNewTab, focusNewTab, replaceActive, quote })`
      *   provides explicit tab/session behavior.
      */
     showDialog: ShowDialogFn;

@@ -1,6 +1,7 @@
 import { memo, useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type UIEvent } from "react";
 
 import ArgInput from "@/components/cmd/ArgInput";
+import { normalizeArgInitialValue } from "@/components/cmd/argInitialValueNormalization";
 import { ArgDescComponent } from "@/components/cmd/CommandComponent";
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -131,7 +132,11 @@ function filterCommandEntries(
 
 function buildInitialFieldStates(args: readonly Argument[]): Record<string, CommandFieldState> {
     return args.reduce<Record<string, CommandFieldState>>((accumulator, arg) => {
-        accumulator[arg.name] = createCommandFieldState(arg.arg.def ?? "");
+        accumulator[arg.name] = createCommandFieldState(normalizeArgInitialValue(
+            arg.getTypeBreakdown(),
+            arg.arg.def ?? "",
+            { isOptional: arg.arg.optional },
+        ));
         return accumulator;
     }, {});
 }

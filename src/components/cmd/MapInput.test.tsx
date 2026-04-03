@@ -161,7 +161,7 @@ describe("MapInput keyboard contract", () => {
     fireEvent.change(valueInput, { target: { value: "beta" } });
     fireEvent.keyDown(valueInput, { key: "Enter" });
 
-    expect(setOutputValue).toHaveBeenLastCalledWith("pairs", "alpha=beta");
+    expect(setOutputValue).toHaveBeenLastCalledWith("pairs", "{alpha=beta}");
   });
 
   it("removes the previous pair from an empty pending field and keeps remove buttons out of tab order", () => {

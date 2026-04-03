@@ -114,9 +114,18 @@ function createArg(name: string) {
 
 function createArgWithOptions(
   name: string,
-  options?: { element?: string; optional?: boolean },
+  options?: {
+    element?: string;
+    optional?: boolean;
+    breakdown?: { element: string; annotations: null; child: unknown[] | null; getOptionData?: () => { options?: string[] } };
+  },
 ) {
-  const getTypeBreakdownSpy = vi.fn(() => ({ element: options?.element ?? "String", annotations: null, child: null }));
+  const getTypeBreakdownSpy = vi.fn(() => options?.breakdown ?? ({
+    element: options?.element ?? "String",
+    annotations: null,
+    child: null,
+    getOptionData: () => ({}),
+  }));
   return {
     name,
     arg: { name, type: options?.element ?? "String", optional: options?.optional ?? false, group: undefined, desc: "" },
@@ -125,6 +134,16 @@ function createArgWithOptions(
     getTypeDesc: () => "",
     getTypeBreakdownSpy,
   };
+}
+
+function toIso88591DoubleBlob(values: number[]) {
+  const bytes = new Uint8Array(values.length * 8);
+  const view = new DataView(bytes.buffer);
+  values.forEach((value, index) => {
+    view.setFloat64(index * 8, value, false);
+  });
+
+  return String.fromCharCode(...bytes);
 }
 
 function createCommand(name: string, args: ReturnType<typeof createArgWithOptions>[]) {
@@ -323,6 +342,46 @@ describe("CommandComponent", () => {
 
     fireEvent.paste(getCommandRoot(), makeClipboardEventPayload("/optional-tristate state:False"));
     expect(setOutput).toHaveBeenLastCalledWith("state", "False");
+  });
+
+  it("normalizes structured initial values before seeding output", async () => {
+    const keyOptions = ["GROUND", "VICTORY", "FORTIFY"];
+    const keyBreakdown = {
+      element: "AttackType",
+      annotations: null,
+      child: null,
+      getOptionData: () => ({ options: keyOptions }),
+    };
+    const valueBreakdown = {
+      element: "Double",
+      annotations: null,
+      child: null,
+      getOptionData: () => ({}),
+    };
+    const arg = createArgWithOptions("warchest", {
+      element: "Map",
+      breakdown: {
+        element: "Map",
+        annotations: null,
+        child: [keyBreakdown, valueBreakdown],
+      },
+    });
+    const setOutput = vi.fn();
+
+    render(
+      <CommandComponent
+        command={createCommand("seed-normalization", [arg]) as never}
+        filterArguments={allowAllArguments}
+        initialValues={{ warchest: toIso88591DoubleBlob([1.5, 2.5, 3.5]) }}
+        displayMode="card"
+        virtualizationMode="off"
+        setOutput={setOutput}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(setOutput).toHaveBeenCalledWith("warchest", "{GROUND=1.5,VICTORY=2.5,FORTIFY=3.5}");
+    });
   });
 
   it("does not intercept paste into editable fields", () => {

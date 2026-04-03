@@ -42,9 +42,13 @@ export function parseSetString(input: string): string[] {
 }
 
 export function serializeMapEntries(entries: MapEntry[]): string {
-    return entries
+    if (entries.length === 0) {
+        return "";
+    }
+
+    return `{${entries
         .map((entry) => `${Object.keys(entry)[0]}=${Object.values(entry)[0]}`)
-        .join(",");
+        .join(",")}}`;
 }
 
 export const normalizeCollectionScalar = normalizeScalarInput;

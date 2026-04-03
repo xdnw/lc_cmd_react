@@ -364,6 +364,36 @@ describe("expressionAnalysis", () => {
         expect(analysis.suggestions.some((suggestion) => suggestion.insertText === "metric: TANK")).toBe(true);
     });
 
+    it("keeps predicate selector hints tied to the active argument", () => {
+        const optionSource = getExpressionCompletionSourceRefs("DBNation").find((source) => source.kind === "query-options");
+        expect(optionSource).toBeDefined();
+
+        const analysis = analyzeWithRegistry(
+            "TypedFunction<DBNation,Double>",
+            "{getAlliance().getAverage(filter:nation:Bo)}",
+            "{getAlliance().getAverage(filter:nation:Bo)}".indexOf("Bo") + 2,
+            {
+                [optionSource!.cacheKey]: {
+                    status: "ready",
+                    sourceKind: optionSource!.kind,
+                    typeLabel: "Nation",
+                    options: [
+                        { label: "Borg", value: "Borg" },
+                    ],
+                },
+                "placeholder:DBNation": {
+                    status: "ready",
+                    sourceKind: "placeholder",
+                    typeLabel: "Nation",
+                    options: [],
+                },
+            },
+        );
+
+        expect(analysis.hint?.title).toContain("filter: Predicate<DBNation>");
+        expect(analysis.hint?.detail).toContain("Current argument `filter`");
+    });
+
     it("recovers to the next argument after a completed scalar argument with trailing whitespace", () => {
         const analysis = analyzeWithRegistry(
             "Set<DBNation>",
@@ -374,10 +404,10 @@ describe("expressionAnalysis", () => {
 
         expect(analysis.suggestions.some((suggestion) => suggestion.label === "date")).toBe(true);
         expect(analysis.suggestions.every((suggestion) => suggestion.label !== "metric")).toBe(true);
-        expect(analysis.suggestions.some((suggestion) => suggestion.insertText === ", date: ")).toBe(true);
+        expect(analysis.suggestions.some((suggestion) => suggestion.insertText === "date: ")).toBe(true);
     });
 
-    it("recovers malformed next-argument text by replacing it with a comma-prefixed argument name", () => {
+    it("recovers malformed next-argument text by replacing it with a space-separated argument name", () => {
         const analysis = analyzeWithRegistry(
             "Set<DBNation>",
             "*,#getAlliance.getMetricAt(metric: TANK date)",
@@ -385,8 +415,22 @@ describe("expressionAnalysis", () => {
             {},
         );
 
-        expect(analysis.suggestions.some((suggestion) => suggestion.insertText === ", date: ")).toBe(true);
+        expect(analysis.suggestions.some((suggestion) => suggestion.insertText === "date: ")).toBe(true);
         expect(analysis.suggestions.every((suggestion) => suggestion.label !== "metric")).toBe(true);
+    });
+
+    it("suggests remaining argument names while editing selector-style argument prefixes", () => {
+        const value = "{getAverage(attribute:getScore filt)}";
+        const cursor = value.indexOf("filt") + "filt".length;
+        const analysis = analyzeWithRegistry(
+            "TypedFunction<DBAlliance,Double>",
+            value,
+            cursor,
+            {},
+        );
+
+        expect(analysis.suggestions.some((suggestion) => suggestion.insertText === "filter: ")).toBe(true);
+        expect(analysis.hint?.title.toLowerCase()).toContain("getaverage(filter:");
     });
 
     it("supports bracketed map-key completion in predicate expressions", () => {
@@ -634,7 +678,26 @@ describe("expressionAnalysis", () => {
         );
 
         expect(analysis.hint?.title.toLowerCase()).toContain("getmetricat");
-        expect(analysis.suggestions.some((suggestion) => suggestion.insertText === ", date: ")).toBe(true);
+        expect(analysis.suggestions.some((suggestion) => suggestion.insertText === "date: ")).toBe(true);
+    });
+
+    it("suggests root placeholder members inside typed function braces", () => {
+        const analysis = analyzeWithRegistry(
+            "TypedFunction<DBNation,Double>",
+            "{getSc",
+            "{getSc".length,
+            {
+                "placeholder:DBNation": {
+                    status: "ready",
+                    sourceKind: "placeholder",
+                    typeLabel: "Nation",
+                    options: [],
+                },
+            },
+        );
+
+        expect(analysis.suggestions.some((suggestion) => suggestion.label === "getscore")).toBe(true);
+        expect(analysis.hint?.title.toLowerCase()).toContain("getscore");
     });
 
     it("treats explicit nested predicate operands after arithmetic as root-member expressions", () => {

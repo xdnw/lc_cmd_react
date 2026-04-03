@@ -117,6 +117,25 @@ describe("coalitionsDomain", () => {
         expect(afterRename[0]?.name).toBe("New Banner");
     });
 
+    it("adds built-in coalition descriptions when a known coalition name matches", () => {
+        const coalitions = normalizeCoalitions({
+            coalitions: [
+                {
+                    name: "DNR",
+                    members: [],
+                },
+                {
+                    name: "Custom Desk",
+                    members: [],
+                },
+            ],
+        });
+
+        expect(coalitions.find((coalition) => coalition.name === "DNR")?.description)
+            .toBe("Alliances to inclide members and applicants in the Do Not Raid list");
+        expect(coalitions.find((coalition) => coalition.name === "Custom Desk")?.description).toBeUndefined();
+    });
+
     it("reports whether a member matched by name, id, or kind", () => {
         const guildMember = toCoalitionMemberRecord({
             id: COALITION_GUILD_ID_THRESHOLD + 25,

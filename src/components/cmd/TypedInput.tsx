@@ -17,10 +17,28 @@ interface TypedInputProps {
     placeholder: keyof typeof COMMANDS.placeholders;
     type: string;
     compact?: boolean;
+    simpleInsertDelimiter?: string;
     inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
     fieldState?: CommandFieldState;
     setFieldState?: (updater: CommandFieldStateUpdater) => void;
     setOutputValue: (name: string, value: string) => void;
+}
+
+function appendTypedInputValue(currentValue: string, insertedValue: string, delimiter: string): string {
+    if (!currentValue) {
+        return insertedValue;
+    }
+
+    if (!delimiter) {
+        return `${currentValue}${insertedValue}`;
+    }
+
+    const trimmedEnd = currentValue.replace(/[\s,\t]+$/, "");
+    if (!trimmedEnd) {
+        return insertedValue;
+    }
+
+    return `${trimmedEnd}${delimiter}${insertedValue}`;
 }
 
 export default function TypedInput({
@@ -31,6 +49,7 @@ export default function TypedInput({
     placeholder,
     type,
     compact,
+    simpleInsertDelimiter = "",
     inputProps,
     fieldState,
     setFieldState,
@@ -55,7 +74,8 @@ export default function TypedInput({
         [argName, filter, filterHelp, resetValidation, setDisplayValue, setOutputValue, setValidation]
     );
 
-    const handleInsertPlaceholder = useCallback((nextValue: string) => {
+    const handleInsertPlaceholder = useCallback((insertedValue: string) => {
+        const nextValue = appendTypedInputValue(value, insertedValue, simpleInsertDelimiter);
         setDisplayValue(nextValue);
         setOutputValue(argName, nextValue);
         if (!nextValue) {
@@ -64,7 +84,7 @@ export default function TypedInput({
         }
 
         setValidation(validateRegexInput(nextValue, filter, filterHelp));
-    }, [argName, filter, filterHelp, resetValidation, setDisplayValue, setOutputValue, setValidation]);
+    }, [argName, filter, filterHelp, resetValidation, setDisplayValue, setOutputValue, setValidation, simpleInsertDelimiter, value]);
 
     const openSimplePicker = useCallback(() => {
         setShowSimplePicker(true);

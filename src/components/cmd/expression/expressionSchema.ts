@@ -196,7 +196,7 @@ export function buildMemberInsert(member: ExpressionMember): { insertText: strin
         };
     }
 
-    const renderedArgs = member.arguments.map((arg) => `${arg.name}: `).join(", ");
+    const renderedArgs = member.arguments.map((arg) => `${arg.name}: `).join(" ");
     return {
         insertText: `${member.name}(${renderedArgs})`,
         caretOffset: member.name.length + 2,

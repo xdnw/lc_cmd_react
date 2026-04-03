@@ -1,5 +1,6 @@
 import { startTransition, useCallback, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSyncedState } from "@/utils/StateUtil";
@@ -15,7 +16,8 @@ import type { ExpressionValueSourceRegistry } from "./expression/expressionValue
 import type { ExpressionValueSourceRef } from "./expression/expressionSchema";
 import { getExpressionExample, getExpressionTypeSchema } from "./expression/expressionSchema";
 import { useExpressionValueSources } from "./expression/expressionValueFetcher";
-import { getPlaceholderExpressionDescriptor } from "./expression/expressionTypes";
+import { getPlaceholderExpressionDescriptor, type PlaceholderExpressionDescriptor } from "./expression/expressionTypes";
+import PlaceholderCommandPickerDialog from "./PlaceholderCommandPickerDialog";
 import PlaceholderSuggestionPanel, {
     buildPlaceholderSuggestionView,
     getPlaceholderSuggestionKey,
@@ -45,6 +47,48 @@ const HIDDEN_PANEL_STYLE: React.CSSProperties = {
 const PASSWORD_MANAGER_IGNORE_PROPS = {
     "data-bwignore": "true",
 } as const;
+
+function appendSimpleExpressionValue(currentValue: string, insertedValue: string, delimiter: string): string {
+    if (!currentValue) {
+        return insertedValue;
+    }
+
+    if (!delimiter) {
+        return `${currentValue}${insertedValue}`;
+    }
+
+    const trimmedEnd = currentValue.replace(/[\s,]+$/, "");
+    if (!trimmedEnd) {
+        return insertedValue;
+    }
+
+    return `${trimmedEnd}${delimiter}${insertedValue}`;
+}
+
+function toPredicateSimpleExpressionValue(placeholderValue: string): string {
+    if (placeholderValue.startsWith("{") && placeholderValue.endsWith("}")) {
+        return `#${placeholderValue.slice(1, -1)}`;
+    }
+
+    return placeholderValue;
+}
+
+function getSimpleInsertConfig(descriptor: PlaceholderExpressionDescriptor): {
+    delimiter: string;
+    transform: (placeholderValue: string) => string;
+} {
+    if (descriptor.kind === "predicate" || descriptor.kind === "set") {
+        return {
+            delimiter: ",",
+            transform: toPredicateSimpleExpressionValue,
+        };
+    }
+
+    return {
+        delimiter: "",
+        transform: (placeholderValue: string) => placeholderValue,
+    };
+}
 
 function isSuggestionAcceptKey(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter" && event.ctrlKey) {
@@ -145,6 +189,7 @@ export default function PlaceholderExpressionInput({
     const [hasFocusWithin, setHasFocusWithin] = useState(false);
     const [panelSearchValue, setPanelSearchValue] = useState("");
     const [hasPanelInteraction, setHasPanelInteraction] = useState((initialValue || "").trim().length > 0);
+    const [showSimplePicker, setShowSimplePicker] = useState(false);
     const [panelStyle, setPanelStyle] = useState<React.CSSProperties>(HIDDEN_PANEL_STYLE);
     const panelRafRef = useRef<number | null>(null);
     const pendingSelectionRef = useRef<number | null>(null);
@@ -215,6 +260,22 @@ export default function PlaceholderExpressionInput({
         }
         return `Example: ${getExpressionExample(descriptor, schema)}`;
     }, [descriptor, schema]);
+    const simplePickerValueType = useMemo(() => {
+        if (!descriptor) {
+            return "String";
+        }
+
+        if (descriptor.kind === "function-double") {
+            return "Double";
+        }
+
+        if (descriptor.kind === "predicate") {
+            return "Boolean";
+        }
+
+        return "String";
+    }, [descriptor]);
+    const canAddSimple = Boolean(descriptor);
 
     const sourceMessages = useMemo(() => {
         return collectSourceMessages(requiredSourceCacheKeys, sourceRegistry ?? EMPTY_REGISTRY);
@@ -291,6 +352,23 @@ export default function PlaceholderExpressionInput({
     const dismissWithFocus = useCallback(() => {
         dismissSuggestionPanel({ focusControl: true });
     }, [dismissSuggestionPanel]);
+
+    const handleInsertSimplePlaceholder = useCallback((placeholderValue: string) => {
+        if (!descriptor) {
+            return;
+        }
+
+        const insertConfig = getSimpleInsertConfig(descriptor);
+        const insertedValue = insertConfig.transform(placeholderValue);
+        const delimiter = insertConfig.delimiter;
+        const nextValue = appendSimpleExpressionValue(value, insertedValue, delimiter);
+        pendingSelectionRef.current = nextValue.length;
+        setValue(nextValue);
+        startTransition(() => {
+            setOutputValue(argName, nextValue);
+        });
+        updateCursor(nextValue.length);
+    }, [argName, descriptor, setOutputValue, setValue, updateCursor, value]);
 
     const showSuggestionPanel = shouldAnalyze && hasFocusWithin && hasPanelInteraction && (
         analysis.lazyOptionSource != null || analysis.suggestions.length > 0
@@ -490,6 +568,23 @@ export default function PlaceholderExpressionInput({
                 />
             </div>
 
+            {canAddSimple && descriptor && (
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 w-auto justify-between px-2 text-[11px]"
+                        onClick={() => setShowSimplePicker(true)}
+                    >
+                        Add simple
+                    </Button>
+                    <span className="text-[11px] text-muted-foreground">
+                        Browse placeholder paths and append them to this expression.
+                    </span>
+                </div>
+            )}
+
             {showSuggestionPanel && typeof document !== "undefined" && createPortal(
                 <div
                     ref={panelRef}
@@ -497,6 +592,12 @@ export default function PlaceholderExpressionInput({
                     className="pointer-events-auto overflow-hidden rounded-md border border-border/70 bg-popover shadow-xl"
                     {...{ [COMMAND_POPUP_OPEN_ATTR]: "true" }}
                 >
+                    {analysis.hint && (
+                        <div className="border-b border-border/70 px-3 py-2 text-[11px]">
+                            <div className="font-medium text-foreground">{analysis.hint.title}</div>
+                            {analysis.hint.detail && <div className="text-muted-foreground">{analysis.hint.detail}</div>}
+                        </div>
+                    )}
                     <div className="max-h-[inherit] overflow-y-auto">
                         <PlaceholderSuggestionPanel
                             view={suggestionView}
@@ -512,6 +613,16 @@ export default function PlaceholderExpressionInput({
                     </div>
                 </div>,
                 document.body,
+            )}
+
+            {descriptor && canAddSimple && (
+                <PlaceholderCommandPickerDialog
+                    open={showSimplePicker}
+                    onOpenChange={setShowSimplePicker}
+                    placeholderType={descriptor.rootType}
+                    valueType={simplePickerValueType}
+                    onInsert={handleInsertSimplePlaceholder}
+                />
             )}
 
             <div className={STATUS_SLOT_HEIGHT_CLASS}>

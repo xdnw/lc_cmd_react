@@ -261,7 +261,7 @@ describe("PlaceholderExpressionInput", () => {
     await focusExpressionInput(textarea);
 
     expect(screen.getByRole("option", { name: "Borg" })).toBeTruthy();
-    expect(screen.getByText(/Type to match Nation options/i)).toBeTruthy();
+    expect(screen.getAllByText(/Type to match Nation options/i).length).toBeGreaterThan(0);
 
     await clickSuggestion("Borg");
 
@@ -665,5 +665,80 @@ describe("PlaceholderExpressionInput", () => {
     });
 
     expect(setOutputValue).toHaveBeenLastCalledWith("value", "*,#score>#getCity(1).getRevenue()[MONEY]");
+  });
+
+  it("appends simple placeholders for typed functions without replacing existing text", async () => {
+    const setOutputValue = vi.fn();
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="prefix "
+        setOutputValue={setOutputValue}
+        breakdown={getTypeBreakdown(CM, "TypedFunction<DBNation,String>")}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /add simple/i }));
+    fireEvent.change(screen.getByPlaceholderText(/search placeholder path/i), {
+      target: { value: "getscore" },
+    });
+    fireEvent.click(screen.getByRole("option", { name: /getscore/i }));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("prefix {getscore}")).toBeTruthy();
+    });
+
+    expect(setOutputValue).toHaveBeenLastCalledWith("value", "prefix {getscore}");
+  });
+
+  it("appends simple placeholders to predicates using comma-separated filter syntax", async () => {
+    const setOutputValue = vi.fn();
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="#score>10"
+        setOutputValue={setOutputValue}
+        breakdown={getTypeBreakdown(CM, "Predicate<DBNation>")}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /add simple/i }));
+    fireEvent.change(screen.getByPlaceholderText(/search placeholder path/i), {
+      target: { value: "getscore" },
+    });
+    fireEvent.click(screen.getByRole("option", { name: /getscore/i }));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("#score>10,#getscore")).toBeTruthy();
+    });
+
+    expect(setOutputValue).toHaveBeenLastCalledWith("value", "#score>10,#getscore");
+  });
+
+  it("appends simple placeholders to sets using selector-style comma syntax", async () => {
+    const setOutputValue = vi.fn();
+
+    renderWithQueryClient(
+      <PlaceholderExpressionInput
+        argName="value"
+        initialValue="nation:Borg"
+        setOutputValue={setOutputValue}
+        breakdown={getTypeBreakdown(CM, "Set<DBNation>")}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /add simple/i }));
+    fireEvent.change(screen.getByPlaceholderText(/search placeholder path/i), {
+      target: { value: "getscore" },
+    });
+    fireEvent.click(screen.getByRole("option", { name: /getscore/i }));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("nation:Borg,#getscore")).toBeTruthy();
+    });
+
+    expect(setOutputValue).toHaveBeenLastCalledWith("value", "nation:Borg,#getscore");
   });
 });

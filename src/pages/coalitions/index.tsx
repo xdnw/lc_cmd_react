@@ -401,6 +401,11 @@ function CoalitionRow({
                     </span>
                     <span className="text-[11px] text-foreground/55">{summary}</span>
                 </div>
+                {coalition.description ? (
+                    <div className="text-xs leading-5 text-muted-foreground/85" title={coalition.description}>
+                        {coalition.description}
+                    </div>
+                ) : null}
                 <CoalitionMemberPreview members={coalition.visibleMembers} query={query} />
             </div>
 
@@ -628,6 +633,9 @@ function CoalitionDetailDialogContent({
 
             <div className="space-y-1 rounded-md border border-border/80 bg-background/80 px-2.5 py-2">
                 <div className="text-sm font-semibold text-foreground">{currentCoalitionName}</div>
+                {coalition.description ? (
+                    <div className="text-xs leading-5 text-foreground/75">{coalition.description}</div>
+                ) : null}
                 <div className="text-[11px] text-foreground/70">{modalSummary}</div>
             </div>
 

@@ -735,6 +735,7 @@ function AddCustomColumn({ handleAddColumn, type }: {
                 type="String"
                 setOutputValue={commitInputValue}
                 compact
+                simpleInsertDelimiter={"\t"}
                 inputProps={{
                     onKeyDown: handleTypedInputKeyDown,
                     onPaste: handleTypedInputPaste,

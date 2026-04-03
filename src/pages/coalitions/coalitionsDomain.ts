@@ -1,5 +1,6 @@
 import type { WebCoalitionMember, WebCoalitions } from "@/lib/apitypes.d.ts";
 import { getCanonicalQueryPrefix } from "@/components/cmd/queryOptionDataset";
+import { COMMANDS } from "@/lib/commands";
 import type { AnyCommandPath } from "@/utils/Command";
 
 export type CoalitionRenameCommandPath = ["coalitions", "rename"];
@@ -49,6 +50,7 @@ export type CoalitionMemberRecord = {
 export type CoalitionRecord = {
     key: string;
     name: string;
+    description?: string;
     members: CoalitionMemberRecord[];
     allianceMembers: CoalitionMemberRecord[];
     guildMembers: CoalitionMemberRecord[];
@@ -64,9 +66,37 @@ export type CoalitionViewRecord = CoalitionRecord & {
     visibleTotalMembers: number;
 };
 
+type CoalitionWithOptionalDescription = WebCoalitions["coalitions"][number] & {
+    description?: string;
+};
+
+const coalitionOptionConfig = COMMANDS.options.Coalition;
+const KNOWN_COALITION_DESCRIPTIONS = new Map<string, string>(
+    typeof coalitionOptionConfig === "string"
+        ? []
+        : coalitionOptionConfig.options.flatMap((option, index) => {
+            const name = option.trim();
+            const description = coalitionOptionConfig.subtext?.[index]?.trim() ?? "";
+            return name && description ? [[name.toLowerCase(), description] as const] : [];
+        }),
+);
+
 function normalizeCoalitionName(name: string | undefined): string {
     const normalized = name?.trim();
     return normalized || "Unnamed coalition";
+}
+
+function normalizeCoalitionDescription(description: string | undefined): string | undefined {
+    const normalized = description?.trim();
+    return normalized || undefined;
+}
+
+function getKnownCoalitionDescription(name: string): string | undefined {
+    return KNOWN_COALITION_DESCRIPTIONS.get(name.trim().toLowerCase());
+}
+
+function resolveCoalitionDescription(coalition: CoalitionWithOptionalDescription, normalizedName: string): string | undefined {
+    return normalizeCoalitionDescription(coalition.description) ?? getKnownCoalitionDescription(normalizedName);
 }
 
 function isPositiveFiniteNumber(value: number): boolean {
@@ -152,11 +182,12 @@ export function toCoalitionMemberRecord(member: WebCoalitionMember, index = 0): 
 }
 
 export function normalizeCoalitions(data: WebCoalitions | undefined): CoalitionRecord[] {
-    const coalitions = Array.isArray(data?.coalitions) ? data.coalitions : [];
+    const coalitions = Array.isArray(data?.coalitions) ? data.coalitions as CoalitionWithOptionalDescription[] : [];
 
     return coalitions
         .map((coalition, coalitionIndex) => {
             const name = normalizeCoalitionName(coalition.name);
+            const description = resolveCoalitionDescription(coalition, name);
             const members = Array.isArray(coalition.members)
                 ? coalition.members.map((member, memberIndex) => toCoalitionMemberRecord(member, memberIndex))
                 : [];
@@ -167,6 +198,7 @@ export function normalizeCoalitions(data: WebCoalitions | undefined): CoalitionR
             return {
                 key: `coalition:${coalitionIndex}`,
                 name,
+                description,
                 members,
                 allianceMembers,
                 guildMembers,

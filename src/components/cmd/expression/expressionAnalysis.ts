@@ -94,6 +94,12 @@ type TokenRange = {
     text: string;
 };
 
+type ArgumentSegment = {
+    from: number;
+    to: number;
+    text: string;
+};
+
 type RootTokenContext = {
     rawText: string;
     selectorText: string;
@@ -191,6 +197,143 @@ function splitTopLevel(text: string, separator: string): string[] {
 
     parts.push(text.slice(start));
     return parts;
+}
+
+function splitTopLevelArguments(text: string): ArgumentSegment[] {
+    const segments: ArgumentSegment[] = [];
+    let depthParen = 0;
+    let depthBrace = 0;
+    let depthBracket = 0;
+    let quoteChar: '"' | "'" | null = null;
+    let segmentStart: number | null = null;
+
+    const commit = (end: number) => {
+        if (segmentStart == null) {
+            return;
+        }
+
+        const segment = trimTokenRange(segmentStart, text.slice(segmentStart, end));
+        if (segment.text) {
+            segments.push(segment);
+        }
+        segmentStart = null;
+    };
+
+    for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+
+        if (quoteChar) {
+            if (char === quoteChar && text[index - 1] !== "\\") {
+                quoteChar = null;
+            }
+            continue;
+        }
+
+        const atTopLevel = depthParen === 0 && depthBrace === 0 && depthBracket === 0;
+        const currentSegmentText = segmentStart == null ? "" : text.slice(segmentStart, index);
+        const waitingForNamedValue = trimTokenText(currentSegmentText).endsWith(":");
+        if (atTopLevel && (char === "," || (/\s/.test(char) && !waitingForNamedValue))) {
+            commit(index);
+            continue;
+        }
+
+        if (segmentStart == null) {
+            segmentStart = index;
+        }
+
+        if (char === '"' || char === "'") {
+            quoteChar = char;
+            continue;
+        }
+
+        if (char === "(") depthParen += 1;
+        if (char === ")") depthParen = Math.max(0, depthParen - 1);
+        if (char === "{") depthBrace += 1;
+        if (char === "}") depthBrace = Math.max(0, depthBrace - 1);
+        if (char === "[") depthBracket += 1;
+        if (char === "]") depthBracket = Math.max(0, depthBracket - 1);
+    }
+
+    commit(text.length);
+    return segments;
+}
+
+function findTopLevelCharIndex(text: string, targetChar: string): number {
+    let depthParen = 0;
+    let depthBrace = 0;
+    let depthBracket = 0;
+    let quoteChar: '"' | "'" | null = null;
+
+    for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+
+        if (quoteChar) {
+            if (char === quoteChar && text[index - 1] !== "\\") {
+                quoteChar = null;
+            }
+            continue;
+        }
+
+        if (char === '"' || char === "'") {
+            quoteChar = char;
+            continue;
+        }
+
+        if (char === "(") {
+            depthParen += 1;
+            continue;
+        }
+        if (char === ")") {
+            depthParen = Math.max(0, depthParen - 1);
+            continue;
+        }
+        if (char === "{") {
+            depthBrace += 1;
+            continue;
+        }
+        if (char === "}") {
+            depthBrace = Math.max(0, depthBrace - 1);
+            continue;
+        }
+        if (char === "[") {
+            depthBracket += 1;
+            continue;
+        }
+        if (char === "]") {
+            depthBracket = Math.max(0, depthBracket - 1);
+            continue;
+        }
+
+        if (char === targetChar && depthParen === 0 && depthBrace === 0 && depthBracket === 0) {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
+function getNamedArgumentInfo(member: ExpressionMember, text: string): {
+    name?: string;
+    rawName?: string;
+    hasNamedSyntax: boolean;
+    valueFromOffset: number;
+} {
+    const colonIndex = findTopLevelCharIndex(text, ":");
+    if (colonIndex < 0) {
+        return {
+            hasNamedSyntax: false,
+            valueFromOffset: 0,
+        };
+    }
+
+    const rawName = text.slice(0, colonIndex).trim();
+    const matchedArg = member.arguments.find((arg) => arg.name === rawName);
+    return {
+        name: matchedArg?.name,
+        rawName,
+        hasNamedSyntax: true,
+        valueFromOffset: colonIndex + 1,
+    };
 }
 
 function trimTokenRange(baseFrom: number, rawText: string): TokenRange {
@@ -666,14 +809,11 @@ function isScalarArgumentBreakdown(breakdown: ExpressionArgument["breakdown"]): 
 
 function collectUsedArgumentNames(member: ExpressionMember, argsText: string): string[] {
     const used = new Set<string>();
-    const segments = splitTopLevel(argsText, ",").map((segment) => segment.trim()).filter(Boolean);
+    const segments = splitTopLevelArguments(argsText);
     segments.forEach((segment, index) => {
-        const colonIndex = segment.indexOf(":");
-        if (colonIndex >= 0) {
-            const name = segment.slice(0, colonIndex).trim();
-            if (member.arguments.some((arg) => arg.name === name)) {
-                used.add(name);
-            }
+        const namedInfo = getNamedArgumentInfo(member, segment.text);
+        if (namedInfo.hasNamedSyntax && namedInfo.name) {
+            used.add(namedInfo.name);
             return;
         }
 
@@ -683,39 +823,6 @@ function collectUsedArgumentNames(member: ExpressionMember, argsText: string): s
         }
     });
     return Array.from(used);
-}
-
-function getScalarArgumentSuffixContext(rawValue: string, cursorOffset: number): {
-    completedValueEnd: number;
-    replaceFromOffset: number;
-    replaceToOffset: number;
-    activeToken: string;
-} | null {
-    const leadingWhitespace = rawValue.match(/^\s*/)?.[0].length ?? 0;
-    let tokenEnd = leadingWhitespace;
-    while (tokenEnd < rawValue.length && !/\s/.test(rawValue[tokenEnd])) {
-        tokenEnd += 1;
-    }
-
-    if (tokenEnd <= leadingWhitespace) {
-        return null;
-    }
-
-    let gapEnd = tokenEnd;
-    while (gapEnd < rawValue.length && /\s/.test(rawValue[gapEnd])) {
-        gapEnd += 1;
-    }
-
-    if (gapEnd === tokenEnd || cursorOffset < tokenEnd) {
-        return null;
-    }
-
-    return {
-        completedValueEnd: tokenEnd,
-        replaceFromOffset: tokenEnd,
-        replaceToOffset: rawValue.length,
-        activeToken: rawValue.slice(gapEnd).trim(),
-    };
 }
 
 function getComparisonOperators(typeName: string): string[] {
@@ -767,71 +874,59 @@ function findPostExpressionContinuationContext(text: string, cursor: number): {
     };
 }
 
-function findCurrentArgumentSegment(text: string, openParen: number, cursor: number): { from: number; to: number; text: string; name?: string; valueFrom: number; index: number; hasNamedArguments: boolean } {
-    let depthParen = 0;
-    let depthBrace = 0;
-    let segmentFrom = openParen + 1;
-    let segmentTo = text.length;
-    let argumentIndex = 0;
-    let hasNamedArguments = false;
+function findCurrentArgumentSegment(
+    text: string,
+    openParen: number,
+    cursor: number,
+    member: ExpressionMember,
+): {
+    from: number;
+    to: number;
+    text: string;
+    name?: string;
+    rawName?: string;
+    hasNamedSyntax: boolean;
+    valueFrom: number;
+    index: number;
+    hasNamedArguments: boolean;
+} {
+    const closeParen = findMatchingClose(text, openParen, "(", ")");
+    const argsEnd = closeParen >= 0 ? closeParen : text.length;
+    const argsOffset = openParen + 1;
+    const argsText = text.slice(argsOffset, argsEnd);
+    const cursorOffset = Math.max(0, Math.min(cursor - argsOffset, argsText.length));
+    const segments = splitTopLevelArguments(argsText)
+        .map((segment, index) => ({
+            ...segment,
+            index,
+            ...getNamedArgumentInfo(member, segment.text),
+        }));
 
-    for (let index = openParen + 1; index < cursor; index += 1) {
-        const char = text[index];
-        if (char === "(") depthParen += 1;
-        if (char === ")") depthParen = Math.max(0, depthParen - 1);
-        if (char === "{") depthBrace += 1;
-        if (char === "}") depthBrace = Math.max(0, depthBrace - 1);
-        if (char === ":" && depthParen === 0 && depthBrace === 0) {
-            hasNamedArguments = true;
-        }
-        if (char === "," && depthParen === 0 && depthBrace === 0) {
-            segmentFrom = index + 1;
-            argumentIndex += 1;
-            hasNamedArguments = false;
-        }
-    }
-
-    depthParen = 0;
-    depthBrace = 0;
-    for (let index = cursor; index < text.length; index += 1) {
-        const char = text[index];
-        if (char === "(") depthParen += 1;
-        if (char === ")") {
-            if (depthParen === 0 && depthBrace === 0) {
-                segmentTo = index;
-                break;
-            }
-            depthParen = Math.max(0, depthParen - 1);
-        }
-        if (char === "{") depthBrace += 1;
-        if (char === "}") depthBrace = Math.max(0, depthBrace - 1);
-        if (char === "," && depthParen === 0 && depthBrace === 0) {
-            segmentTo = index;
-            break;
-        }
-    }
-
-    const segmentText = text.slice(segmentFrom, segmentTo);
-    const colonIndex = segmentText.indexOf(":");
-    if (colonIndex < 0) {
+    const activeSegment = segments.find((segment) => cursorOffset >= segment.from && cursorOffset <= segment.to);
+    if (activeSegment) {
         return {
-            from: segmentFrom,
-            to: segmentTo,
-            text: segmentText,
-            valueFrom: segmentFrom,
-            index: argumentIndex,
-            hasNamedArguments,
+            from: argsOffset + activeSegment.from,
+            to: argsOffset + activeSegment.to,
+            text: activeSegment.text,
+            name: activeSegment.name,
+            rawName: activeSegment.rawName,
+            hasNamedSyntax: activeSegment.hasNamedSyntax,
+            valueFrom: argsOffset + activeSegment.from + activeSegment.valueFromOffset,
+            index: activeSegment.index,
+            hasNamedArguments: segments.slice(0, activeSegment.index).some((segment) => Boolean(segment.name)),
         };
     }
 
+    const insertionIndex = segments.findIndex((segment) => cursorOffset < segment.from);
+    const index = insertionIndex >= 0 ? insertionIndex : segments.length;
     return {
-        from: segmentFrom,
-        to: segmentTo,
-        text: segmentText,
-        name: segmentText.slice(0, colonIndex).trim(),
-        valueFrom: segmentFrom + colonIndex + 1,
-        index: argumentIndex,
-        hasNamedArguments,
+        from: argsOffset + cursorOffset,
+        to: argsOffset + cursorOffset,
+        text: "",
+        hasNamedSyntax: false,
+        valueFrom: argsOffset + cursorOffset,
+        index,
+        hasNamedArguments: segments.slice(0, index).some((segment) => Boolean(segment.name)),
     };
 }
 
@@ -932,18 +1027,19 @@ function resolvePathExpression(rootType: string, text: string, allowPartialLastS
             }
 
             const argsText = rest.slice(1, closeParen);
-            const args = splitTopLevel(argsText, ",").map((arg) => arg.trim()).filter(Boolean);
+            const args = splitTopLevelArguments(argsText);
             const usedArguments = new Set<string>();
             for (const [argIndex, arg] of args.entries()) {
-                const colonIndex = arg.indexOf(":");
-                const argName = colonIndex >= 0 ? arg.slice(0, colonIndex).trim() : undefined;
-                const argValue = colonIndex >= 0 ? arg.slice(colonIndex + 1).trim() : arg.trim();
-                const argDef = argName
-                    ? member.arguments.find((candidate) => candidate.name === argName)
+                const namedInfo = getNamedArgumentInfo(member, arg.text);
+                const argValue = namedInfo.hasNamedSyntax && namedInfo.name
+                    ? arg.text.slice(namedInfo.valueFromOffset).trim()
+                    : arg.text.trim();
+                const argDef = namedInfo.hasNamedSyntax && namedInfo.name
+                    ? member.arguments.find((candidate) => candidate.name === namedInfo.name)
                     : member.arguments[argIndex];
                 if (!argDef) {
-                    errors.push(argName
-                        ? `Unknown argument \`${argName}\` for ${member.name}`
+                    errors.push(namedInfo.hasNamedSyntax && namedInfo.rawName
+                        ? `Unknown argument \`${namedInfo.rawName}\` for ${member.name}`
                         : `Unknown positional argument ${argIndex + 1} for ${member.name}`);
                     continue;
                 }
@@ -1308,18 +1404,18 @@ function parseArgumentContext(
     }
     const member = memberLookup.member;
 
-    const currentArg = findCurrentArgumentSegment(text, call.openParen, cursor);
-    const namedArg = currentArg.name
-        ? member.arguments.find((arg) => arg.name === currentArg.name)
+    const currentArg = findCurrentArgumentSegment(text, call.openParen, cursor, member);
+    const namedArg = currentArg.hasNamedSyntax
+        ? (currentArg.name ? member.arguments.find((arg) => arg.name === currentArg.name) : undefined)
         : member.arguments[currentArg.index];
     const errors = [...resolveExpressionType(rootType, text, true).errors];
-    if (currentArg.name && !namedArg) {
-        errors.push(`Unknown argument \`${currentArg.name}\` for ${member.name}`);
+    if (currentArg.hasNamedSyntax && !namedArg) {
+        errors.push(`Unknown argument \`${currentArg.rawName ?? currentArg.text.trim()}\` for ${member.name}`);
         return createContext({
             mode: "function-argument",
             rootType,
             receiverType: ownerType,
-            activeToken: currentArg.text.trim(),
+            activeToken: currentArg.rawName ?? currentArg.text.trim(),
             replaceFrom: currentArg.from,
             replaceTo: currentArg.to,
             activeMember: member,
@@ -1348,25 +1444,9 @@ function parseArgumentContext(
     const receiverType = valueBreakdown.child?.[0]?.element ?? valueBreakdown.element;
     const shouldInsertNamedArgument = !currentArg.name && (currentArg.index === 0 || currentArg.hasNamedArguments);
     const argumentInsertPrefix = shouldInsertNamedArgument ? `${namedArg.name}: ` : undefined;
-
-    if (currentArg.name && isScalarArgumentBreakdown(valueBreakdown)) {
-        const suffixContext = getScalarArgumentSuffixContext(rawValue, Math.max(0, cursor - currentArg.valueFrom));
-        if (suffixContext) {
-            return createContext({
-                mode: "function-argument",
-                rootType,
-                receiverType: ownerType,
-                activeToken: suffixContext.activeToken,
-                replaceFrom: currentArg.valueFrom + suffixContext.replaceFromOffset,
-                replaceTo: currentArg.valueFrom + suffixContext.replaceToOffset,
-                activeMember: member,
-                requiredSources: [],
-                structuralErrors: Array.from(new Set(errors)),
-                suggestionInsertPrefix: ", ",
-                usedArgumentNames: collectUsedArgumentNames(member, text.slice(call.openParen + 1, currentArg.valueFrom + suffixContext.completedValueEnd)),
-            });
-        }
-    }
+    const usedArgumentNames = shouldInsertNamedArgument
+        ? collectUsedArgumentNames(member, text.slice(call.openParen + 1, currentArg.from))
+        : undefined;
 
     const trimmedValueRange = rawValue.trim().length > 0
         ? trimTokenRange(valueOffset, rawValue)
@@ -1383,32 +1463,32 @@ function parseArgumentContext(
             : valueOffset + valueSpan.to;
 
     if (valueBreakdown.element === "Predicate") {
-        const trimmedRawValue = trimTokenRange(0, rawValue);
+        const trimmedRawValue = trimTokenRange(currentArg.valueFrom, rawValue);
         if (trimmedRawValue.text.startsWith("#")) {
             const predicateContext = parsePredicateExpressionContext(
                 receiverType,
                 trimmedRawValue,
-                Math.max(0, cursor - currentArg.valueFrom),
+                cursor,
             );
             return createContext({
                 ...predicateContext,
                 replaceFrom: argumentInsertPrefix
                     ? currentArg.from
-                    : currentArg.valueFrom + predicateContext.replaceFrom,
+                    : predicateContext.replaceFrom,
                 replaceTo: argumentInsertPrefix
                     ? currentArg.to
-                    : currentArg.valueFrom + predicateContext.replaceTo,
+                    : predicateContext.replaceTo,
                 activeMember: member,
                 activeArgument: namedArg,
                 structuralErrors: Array.from(new Set([...errors, ...predicateContext.structuralErrors])),
                 argumentInsertPrefix,
+                usedArgumentNames,
             });
         }
 
         const receiverSources = getExpressionCompletionSourceRefs(receiverType);
         const nestedSchema = getExpressionTypeSchema(receiverType);
-        const token = trimTokenRange(0, valueText);
-        const rootToken = parseRootTokenContext(token, Math.max(0, cursor - valueOffset - valueSpan.from), nestedSchema?.selectors ?? []);
+    const rootToken = parseRootTokenContext(trimmedRawValue, cursor, nestedSchema?.selectors ?? []);
         const placeholderSource = receiverSources.find((source) => source.kind === "placeholder");
 
         if (rootToken.cursorArea === "filter" && rootToken.filterRange) {
@@ -1426,6 +1506,7 @@ function parseArgumentContext(
                 activeSourceRef: placeholderSource,
                 rootTokenContext: rootToken,
                 argumentInsertPrefix,
+                usedArgumentNames,
             });
         }
 
@@ -1443,19 +1524,21 @@ function parseArgumentContext(
             activeSourceRef: getRootActiveSourceRef(rootToken, receiverSources) ?? placeholderSource ?? receiverSources[0],
             rootTokenContext: rootToken,
             argumentInsertPrefix,
+            usedArgumentNames,
         });
     }
 
     if (valueBreakdown.element === "TypedFunction" && valueBreakdown.child?.[0]) {
-        const nestedContext = parseValueExpressionContext(receiverType, valueText, Math.max(0, cursor - valueOffset - valueSpan.from));
+        const nestedContext = parseValueExpressionContext(receiverType, rawValue, Math.max(0, cursor - currentArg.valueFrom));
         return createContext({
-            ...shiftContextOffsets(nestedContext, valueOffset + valueSpan.from),
+            ...shiftContextOffsets(nestedContext, currentArg.valueFrom),
             mode: "function-argument",
             rootType,
             activeMember: member,
             activeArgument: namedArg,
             structuralErrors: Array.from(new Set([...errors, ...nestedContext.structuralErrors])),
             argumentInsertPrefix,
+            usedArgumentNames,
         });
     }
 
@@ -1472,6 +1555,7 @@ function parseArgumentContext(
         structuralErrors: Array.from(new Set(errors)),
         activeSourceRef: namedArg.valueSourceRef,
         argumentInsertPrefix,
+        usedArgumentNames,
     });
 }
 
@@ -1645,7 +1729,7 @@ function formatMemberSignature(member: ExpressionMember): string {
         return member.name;
     }
 
-    return `${member.name}(${member.arguments.map((arg) => `${arg.name}: ${arg.type}${arg.optional ? "?" : ""}`).join(", ")})`;
+    return `${member.name}(${member.arguments.map((arg) => `${arg.name}: ${arg.type}${arg.optional ? "?" : ""}`).join(" ")})`;
 }
 
 function getPreferredMemberInsertName(member: ExpressionMember, token: string): string {
@@ -1944,6 +2028,35 @@ function toArgumentSuggestions(
         }));
 }
 
+function getContextArgumentSuggestions(context: ExpressionCursorContext): ExpressionSuggestion[] {
+    if (context.mode !== "function-argument" || !context.activeMember || !context.argumentInsertPrefix) {
+        return [];
+    }
+
+    return applyClosingBraceSuffix(
+        applySuggestionPrefix(
+            toArgumentSuggestions(
+                context.activeMember,
+                context.activeToken,
+                context.replaceFrom,
+                context.replaceTo,
+                context.usedArgumentNames,
+            ),
+            context.suggestionInsertPrefix,
+            context.suggestionLabelPrefix,
+        ),
+        context.needsClosingBrace,
+    );
+}
+
+function mergeUniqueSuggestions(...lists: ExpressionSuggestion[][]): ExpressionSuggestion[] {
+    const deduped = new Map<string, ExpressionSuggestion>();
+    lists.flat().forEach((suggestion) => {
+        deduped.set(`${suggestion.kind}:${suggestion.insertText}`, suggestion);
+    });
+    return Array.from(deduped.values());
+}
+
 function applySuggestionPrefix(
     suggestions: ExpressionSuggestion[],
     insertPrefix?: string,
@@ -2181,12 +2294,23 @@ function buildRootHint(
     const rootToken = context.rootTokenContext;
     const isFilterFieldContext = context.mode === "predicate-filter-field"
         || (context.activeArgument?.breakdown.element === "Predicate" && context.activeToken.startsWith("#"));
+    const activeArgumentLabel = context.activeArgument
+        ? `${context.activeArgument.name}: ${context.activeArgument.type}${context.activeArgument.optional ? "?" : ""}`
+        : undefined;
+    const withArgumentDetail = (detail: string): string => {
+        if (!context.activeArgument) {
+            return detail;
+        }
+
+        const argDetail = context.activeArgument.description || `Current argument \`${context.activeArgument.name}\` expects ${context.activeArgument.type}.`;
+        return `${argDetail} ${detail}`.trim();
+    };
 
     if (isFilterFieldContext) {
         const field = schema?.filterFields.find((candidate) => candidate.key === context.activeToken.toLowerCase());
         return {
-            title: field?.memberName ?? `${context.receiverType} filter`,
-            detail: field?.description ?? "Use a known filter field to match nations.",
+            title: activeArgumentLabel ?? field?.memberName ?? `${context.receiverType} filter`,
+            detail: withArgumentDetail(field?.description ?? "Use a known filter field to match nations."),
             meta: buildHintMeta(context, "filter"),
         };
     }
@@ -2199,10 +2323,10 @@ function buildRootHint(
     if (rootToken?.matchedSelector && rootToken.cursorArea === "value") {
         const selectorDetail = rootToken.matchedSelector.description || "Recognized selector.";
         return {
-            title: exactOptionMatch?.option?.label ?? `${rootToken.matchedSelector.insertText} value`,
+            title: exactOptionMatch?.option?.label ?? activeArgumentLabel ?? `${rootToken.matchedSelector.insertText} value`,
             detail: exactOptionMatch?.option
-                ? `${selectorDetail}${selectorDetail ? " | " : ""}Matched ${entry?.typeLabel ?? context.receiverType} option.`
-                : `${rootToken.matchedSelector.description || "Recognized selector."} ${entry?.options.length ? `Type to match ${entry.typeLabel} options.` : "No loaded options matched yet."}`,
+                ? withArgumentDetail(`${selectorDetail}${selectorDetail ? " | " : ""}Matched ${entry?.typeLabel ?? context.receiverType} option.`)
+                : withArgumentDetail(`${rootToken.matchedSelector.description || "Recognized selector."} ${entry?.options.length ? `Type to match ${entry.typeLabel} options.` : "No loaded options matched yet."}`),
             meta: buildHintMeta(context, `${rootToken.matchedSelector.insertText} -> ${entry?.sourceKind ?? "selector"}`),
         };
     }
@@ -2210,40 +2334,40 @@ function buildRootHint(
     if (exactOptionMatch?.option) {
         return {
             title: exactOptionMatch.option.label || exactOptionMatch.option.value,
-            detail: `Recognized ${entry?.typeLabel ?? context.receiverType} option${exactOptionMatch.reason ? ` via ${exactOptionMatch.reason}` : ""}.`,
+            detail: withArgumentDetail(`Recognized ${entry?.typeLabel ?? context.receiverType} option${exactOptionMatch.reason ? ` via ${exactOptionMatch.reason}` : ""}.`),
             meta: buildHintMeta(context, entry?.sourceKind ?? "option"),
         };
     }
 
     if (rootToken?.matchedSelector) {
         return {
-            title: rootToken.matchedSelector.insertText,
-            detail: rootToken.matchedSelector.description || "Recognized selector prefix.",
+            title: activeArgumentLabel ?? rootToken.matchedSelector.insertText,
+            detail: withArgumentDetail(rootToken.matchedSelector.description || "Recognized selector prefix."),
             meta: buildHintMeta(context, placeholderSource?.kind ?? "selector"),
         };
     }
 
     if (rootToken?.partialSelector && isStructuralSelector(rootToken.partialSelector)) {
         return {
-            title: `${context.receiverType} selector`,
-            detail: `Continue typing a known selector such as ${rootToken.partialSelector.insertText}.`,
+            title: activeArgumentLabel ?? `${context.receiverType} selector`,
+            detail: withArgumentDetail(`Continue typing a known selector such as ${rootToken.partialSelector.insertText}.`),
             meta: buildHintMeta(context, placeholderSource?.kind ?? "selector"),
         };
     }
 
     if (entry?.options.length && context.activeToken && hasOptionCandidates) {
         return {
-            title: entry.typeLabel,
-            detail: `Type to match a ${entry.typeLabel} option by value, label, or alias.`,
+            title: activeArgumentLabel ?? entry.typeLabel,
+            detail: withArgumentDetail(`Type to match a ${entry.typeLabel} option by value, label, or alias.`),
             meta: buildHintMeta(context, entry.sourceKind),
         };
     }
 
     return {
-        title: `${context.receiverType} selector`,
-        detail: context.activeToken
+        title: activeArgumentLabel ?? `${context.receiverType} selector`,
+        detail: withArgumentDetail(context.activeToken
             ? "Unrecognized selector or option. Backend may still accept raw selectors, but no known selector or loaded option matched this token."
-            : "Start with a selector prefix or a known option value.",
+            : "Start with a selector prefix or a known option value."),
         meta: buildHintMeta(context, placeholderSource?.kind ?? entry?.sourceKind ?? "selector"),
     };
 }
@@ -2339,21 +2463,25 @@ function finalizeValueContext(
         context.suggestionInsertPrefix,
         context.suggestionLabelPrefix,
     );
+    const argumentSuggestions = getContextArgumentSuggestions(context);
     const completedSuggestions = lazyOptionSource
         ? prefixedSuggestions
         : applyClosingBraceSuffix(prefixedSuggestions, context.needsClosingBrace);
-    const validationErrors = validateArgumentValue(context, entry, completedSuggestions);
+    const allSuggestions = argumentSuggestions.length === 0
+        ? completedSuggestions
+        : mergeUniqueSuggestions(argumentSuggestions, completedSuggestions);
+    const validationErrors = validateArgumentValue(context, entry, allSuggestions);
     const standaloneValueErrors = (!context.activeArgument || context.mode === "predicate-rhs") && source?.kind !== "placeholder"
-        ? validateStandaloneValue(context.receiverType, context.activeToken, entry, completedSuggestions)
+        ? validateStandaloneValue(context.receiverType, context.activeToken, entry, allSuggestions)
         : [];
     const nextErrors = [...errors, ...validationErrors, ...standaloneValueErrors];
 
-    if (source?.kind === "placeholder" && context.activeToken && completedSuggestions.length === 0) {
+    if (source?.kind === "placeholder" && context.activeToken && allSuggestions.length === 0) {
         nextErrors.push(`Unknown member \`${context.activeToken}\` on ${context.receiverType}`);
     }
 
     return {
-        suggestions: completedSuggestions,
+        suggestions: allSuggestions,
         lazyOptionSource,
         hint: buildMemberHint(context, source, schema, entry),
         errors: Array.from(new Set(nextErrors)),
@@ -2387,13 +2515,26 @@ function buildRootAnalysis(
     schema: ExpressionTypeSchema | null,
     rootOptionEntry: ExpressionValueSourceRegistryEntry | undefined,
     errors: string[],
+    source?: ExpressionValueSourceRef,
+    entry?: ExpressionValueSourceRegistryEntry,
 ): ExpressionAnalysis {
-    const suggestions = toRootSuggestions(context, schema, rootOptionEntry);
+    const rootSuggestions = toRootSuggestions(context, schema, rootOptionEntry);
+    const argumentSuggestions = getContextArgumentSuggestions(context);
+    const suggestions = argumentSuggestions.length === 0
+        ? rootSuggestions
+        : mergeUniqueSuggestions(argumentSuggestions, rootSuggestions);
     const lazyOptionSource = getRootLazyOptionSource(context, rootOptionEntry);
+    const shouldFavorArgumentHint = argumentSuggestions.length > 0 && (
+        rootSuggestions.length === 0
+        || !context.activeToken
+        || argumentSuggestions.some((suggestion) => normalizeIdentifier(suggestion.label).startsWith(normalizeIdentifier(context.activeToken)))
+    );
     return {
         suggestions,
         lazyOptionSource,
-        hint: buildRootHint(context, schema, rootOptionEntry, suggestions, lazyOptionSource),
+        hint: shouldFavorArgumentHint
+            ? buildMemberHint(context, source, schema, entry)
+            : buildRootHint(context, schema, rootOptionEntry, suggestions, lazyOptionSource),
         errors,
     };
 }
@@ -2441,7 +2582,7 @@ export function analyzeParsedExpression(
     }
 
     if (context.mode === "set-root" || context.mode === "predicate-root" || context.mode === "predicate-filter-field") {
-        return buildRootAnalysis(context, schema, rootOptionEntry, errors);
+        return buildRootAnalysis(context, schema, rootOptionEntry, errors, source, entry);
     }
 
     if (context.mode === "predicate-operator") {
@@ -2484,25 +2625,12 @@ export function analyzeParsedExpression(
     }
 
     if (isSelectorArgument && context.rootTokenContext) {
-        return buildRootAnalysis(context, schema, rootOptionEntry, errors);
+        return buildRootAnalysis(context, schema, rootOptionEntry, errors, source, entry);
     }
 
     if (context.mode === "function-argument" && context.activeMember && !context.activeArgument) {
         return {
-            suggestions: applyClosingBraceSuffix(
-                applySuggestionPrefix(
-                    toArgumentSuggestions(
-                        context.activeMember,
-                        context.activeToken,
-                        context.replaceFrom,
-                        context.replaceTo,
-                        context.usedArgumentNames,
-                    ),
-                    context.suggestionInsertPrefix,
-                    context.suggestionLabelPrefix,
-                ),
-                context.needsClosingBrace,
-            ),
+            suggestions: getContextArgumentSuggestions(context),
             hint: buildMemberHint(context, source, schema, entry),
             errors,
         };

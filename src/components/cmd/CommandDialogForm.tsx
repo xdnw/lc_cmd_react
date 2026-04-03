@@ -159,7 +159,7 @@ function CommandDialogActions<P extends AnyCommandPath>({
         <div className={cn(
             "grid min-w-0 w-full gap-2",
             actionsLayout === "sticky"
-                ? "z-20 border-t border-border/70 bg-background/96 px-2 pb-2 pt-2 backdrop-blur sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
+                ? "sticky bottom-0 z-20 border-t border-border/70 bg-background/96 px-2 pb-2 pt-2 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.55)] backdrop-blur sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
                 : "sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center",
         )}>
             <div className="min-w-0">

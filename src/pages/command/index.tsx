@@ -249,10 +249,14 @@ export function OutputValuesDisplay({
 
     return (
         <div className="relative">
-            <CommandStringPreview text={commandString} getText={getText} className="mb-1" />
-            <p className="mb-1 h-4 overflow-hidden text-[11px] text-muted-foreground">{footerHint}</p>
-            <Button ref={buttonRef} variant="default" size="sm" onClick={runCommandCallback} tabIndex={-1} disabled={isPending}>{`Run (${submitShortcutLabel})`}</Button>
-            <Button variant="outline" size="sm" className="ms-1" onClick={clearOutput} tabIndex={-1}>Clear</Button>
+            <div className="sticky bottom-0 z-20 border-t border-border/70 bg-background/96 px-2 pb-2 pt-2 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.55)] backdrop-blur">
+                <CommandStringPreview text={commandString} getText={getText} className="mb-1" />
+                <p className="mb-1 h-4 overflow-hidden text-[11px] text-muted-foreground">{footerHint}</p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <Button ref={buttonRef} variant="default" size="sm" onClick={runCommandCallback} tabIndex={-1} disabled={isPending}>{`Run (${submitShortcutLabel})`}</Button>
+                    <Button variant="outline" size="sm" onClick={clearOutput} tabIndex={-1}>Clear</Button>
+                </div>
+            </div>
             <div ref={responseRef}></div>
         </div>
     );

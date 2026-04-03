@@ -51,7 +51,7 @@ export default function ArgFieldShell({
     return (
         <div
             className={cn(
-                "group/arg-field relative rounded-md border bg-background transition-colors duration-150 hover:border-border focus-within:z-30 focus-within:border-primary/55 focus-within:ring-1 focus-within:ring-primary/25 shadow-[0_1px_0_rgba(0,0,0,0.03)]",
+                "group/arg-field relative rounded-md border bg-muted/15 transition-colors duration-150 hover:border-border focus-within:z-30 focus-within:border-primary/55 focus-within:ring-1 focus-within:ring-primary/25 shadow-[inset_0_1px_3px_rgba(0,0,0,0.06)]",
                 isOptional ? "border-dashed border-border/70 border-l-[3px] border-l-sky-500/45" : "border-solid border-border/90 border-l-[3px] border-l-primary/35",
                 isFocusPane && (isOptional
                     ? "bg-muted/10"

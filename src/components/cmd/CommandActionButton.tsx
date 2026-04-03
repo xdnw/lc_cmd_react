@@ -109,7 +109,7 @@ export default function CommandActionButton<P extends AnyCommandPath>({
         <>
             <Button
                 ref={buttonRef}
-                variant="outline"
+                variant="default"
                 size="sm"
                 className={cn("relative", classes)}
                 disabled={disabled || isPending}

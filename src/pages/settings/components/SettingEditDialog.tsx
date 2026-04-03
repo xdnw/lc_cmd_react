@@ -131,7 +131,9 @@ export default function SettingEditDialog({
                         <MarkupRenderer content={row.metadata.helpFull || row.metadata.helpShort} />
                     </div>
 
-                    <SettingArgInputContent
+                    <div className="border-t border-border/60 pt-3">
+                        <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">New value</div>
+                        <SettingArgInputContent
                         breakdown={row.editor.breakdown}
                         inputSupport={row.editor.inputSupport}
                         argType={row.metadata.argType}
@@ -139,6 +141,7 @@ export default function SettingEditDialog({
                         value={draftValue}
                         setOutput={setOutput}
                     />
+                    </div>
                     <div className="space-y-3 border-t border-border/60 pt-3">
                         {row.value.hasValue ? (
                             <>

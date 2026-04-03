@@ -234,7 +234,7 @@ export function OutputValuesDisplay({
         <div className="relative">
             <CommandStringPreview text={commandString} getText={getText} className="mb-1" />
             <p className="mb-1 h-4 overflow-hidden text-[11px] text-muted-foreground">{footerHint}</p>
-            <Button ref={buttonRef} variant="outline" size="sm" onClick={runCommandCallback} tabIndex={-1} disabled={isPending}>{`Run (${submitShortcutLabel})`}</Button>
+            <Button ref={buttonRef} variant="default" size="sm" onClick={runCommandCallback} tabIndex={-1} disabled={isPending}>{`Run (${submitShortcutLabel})`}</Button>
             <Button variant="outline" size="sm" className="ms-1" onClick={clearOutput} tabIndex={-1}>Clear</Button>
             <div ref={responseRef}></div>
         </div>

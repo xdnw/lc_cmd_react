@@ -43,19 +43,9 @@ export function useGuildSettingDialogs(onRefreshSetting: (settingKey: string) =>
             <SettingEditDialog row={row} onRefreshSetting={onRefreshSetting} />,
             {
                 header: (
-                    <div className="space-y-1 pr-8">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 pr-8">
                         <div className="wrap-break-word text-base font-semibold tracking-tight text-foreground">{row.settingKey}</div>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                            <span>{row.metadata.category}</span>
-                            {hasVisibleSettingsSubgroup(row.metadata.subgroup) ? (
-                                <>
-                                    <span aria-hidden="true">/</span>
-                                    <span>{row.metadata.subgroup}</span>
-                                </>
-                            ) : null}
-                            <span aria-hidden="true">/</span>
-                            <span>{row.metadata.argType}</span>
-                        </div>
+                        <span className="text-[11px] text-muted-foreground">{row.metadata.argType}</span>
                     </div>
                 ),
             },

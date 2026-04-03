@@ -82,24 +82,24 @@ const CommandDialogFields = memo(function CommandDialogFields<P extends AnyComma
     return (
         <>
             {description && <p className="text-sm text-muted-foreground">{description}</p>}
-            <div className="rounded border border-border p-2">
-                {children ? (
-                    children({ output: initialValues, setOutput })
-                ) : (
-                    <CommandComponent
-                        ref={commandRef}
-                        command={command}
-                        filterArguments={alwaysShowArgument}
-                        initialValues={initialValues}
-                        setOutput={setOutput}
-                        displayMode={displayMode}
-                        showTitle={showCommandTitle}
-                        autoFocusFirstField={autoFocusFirstField}
-                        jumpSearchMatches={jumpSearchMatches}
-                        jumpSearchActiveArg={jumpSearchActiveArg}
-                    />
-                )}
-            </div>
+            {children ? (
+                <div className="rounded-md border border-border/40 p-2">
+                    {children({ output: initialValues, setOutput })}
+                </div>
+            ) : (
+                <CommandComponent
+                    ref={commandRef}
+                    command={command}
+                    filterArguments={alwaysShowArgument}
+                    initialValues={initialValues}
+                    setOutput={setOutput}
+                    displayMode={displayMode}
+                    showTitle={showCommandTitle}
+                    autoFocusFirstField={autoFocusFirstField}
+                    jumpSearchMatches={jumpSearchMatches}
+                    jumpSearchActiveArg={jumpSearchActiveArg}
+                />
+            )}
         </>
     );
 });
@@ -260,7 +260,7 @@ export default function CommandDialogForm<P extends AnyCommandPath>({
                     {children ? (
                         <>
                             {description && <p className="text-sm text-muted-foreground">{description}</p>}
-                            <div className="rounded border border-border p-2">
+                            <div className="rounded-md border border-border/40 p-2">
                                 <CommandDialogChildrenOutput
                                     commandStore={commandStore}
                                     children={children}

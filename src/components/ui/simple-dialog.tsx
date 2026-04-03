@@ -49,23 +49,28 @@ export default function SimpleDialog({ title, header, message, quote, showDialog
             <DialogContent className={cn(
                 isHtmlEditorFullscreenActive && "left-0 top-0 flex h-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 p-0 sm:rounded-none",
             )}>
-                <DialogHeader className={cn(
-                    "overflow-x-auto overflow-y-auto",
+                <div className={cn(
+                    "flex flex-col",
                     isHtmlEditorFullscreenActive
-                        ? "min-h-0 flex-1 space-y-0 overflow-hidden p-0"
-                        : "max-h-[75vh] pr-8",
+                        ? "min-h-0 flex-1 gap-0 overflow-hidden"
+                        : "max-h-[75vh] gap-2",
                 )}>
-                    {header ? (
-                        <>
-                            <DialogTitle className="sr-only">{title}</DialogTitle>
-                            <div className={cn(isHtmlEditorFullscreenActive && "sr-only")}>{header}</div>
-                        </>
-                    ) : (
-                        <DialogTitle className={cn(isHtmlEditorFullscreenActive && "sr-only")}>{title}</DialogTitle>
-                    )}
+                    <DialogHeader className={cn(
+                        "shrink-0 overflow-x-auto pr-8",
+                        isHtmlEditorFullscreenActive && "space-y-0 p-0",
+                    )}>
+                        {header ? (
+                            <>
+                                <DialogTitle className="sr-only">{title}</DialogTitle>
+                                <div className={cn(isHtmlEditorFullscreenActive && "sr-only")}>{header}</div>
+                            </>
+                        ) : (
+                            <DialogTitle className={cn(isHtmlEditorFullscreenActive && "sr-only")}>{title}</DialogTitle>
+                        )}
+                    </DialogHeader>
                     <div className={cn(
-                        "relative overflow-x-auto",
-                        isHtmlEditorFullscreenActive && "min-h-0 flex-1 overflow-hidden",
+                        "relative min-h-0 overflow-x-auto overflow-y-auto",
+                        isHtmlEditorFullscreenActive && "flex-1 overflow-hidden",
                     )}>
                         {quote ? (
                             <>
@@ -75,7 +80,7 @@ export default function SimpleDialog({ title, header, message, quote, showDialog
                             message
                         )}
                     </div>
-                </DialogHeader>
+                </div>
             </DialogContent>
         </Dialog>
     );

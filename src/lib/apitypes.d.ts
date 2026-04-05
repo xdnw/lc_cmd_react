@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-03-15 21:16:22.
+// Generated using typescript-generator version 3.2.1263 on 2026-04-05 14:44:43.
 
 export interface WebError {
     error: string;
@@ -22,40 +22,68 @@ export interface DiscordRole {
     color: number;
 }
 
-export interface NationTaxInfo {
+export interface TaxExpenseBracket {
+    taxId: number;
+    bracket?: WebTaxBracket;
+    nationCount: number;
+    income: number[];
+    expense: number[];
+}
+
+export interface TaxExpenseBracketMembers {
+    taxId: number;
+    nationIds: number[];
+}
+
+export interface TaxExpenseNationDetail {
+    taxId: number;
+    nationId: number;
+    currentTaxId?: number;
+    depositCount: number;
+    transactionCount: number;
+    income: number[];
+    expense: number[];
+}
+
+export interface TaxExpenseTime {
+    timestamps: number[];
+    categories: TaxExpenseTimeCategory[];
+    total: TaxExpenseTimeBracket;
+    brackets: TaxExpenseTimeBracket[];
+}
+
+export interface TaxExpenseTimeBracket {
+    taxId: number;
+    bracket?: WebTaxBracket;
+    nationCount: number;
+    overallByCategory: number[][];
+}
+
+export interface TaxExpenseTimeCategory {
     name: string;
-    id: number;
-    cities: number;
-    off: number;
-    def: number;
-    vm_turns: number;
-    active_m: number;
-    color: NationColor;
-    city_turns: number;
-    project_turns: number;
-    num_projects: number;
-    project_slots: number;
-    mmr_unit: number[];
-    mmr_build: number[];
-    avg_infra: number;
-    avg_land: number;
+    expense: boolean;
+}
+
+export interface TaxExpenseTimeResources {
+    byResourceByCategory: { [index: string]: number[][] };
+}
+
+export interface TaxExpenseTransactionRow {
+    txId: number;
+    txDatetime: number;
+    display: string;
+}
+
+export interface TaxExpenseTransactions {
+    taxId: number;
+    nationId: number;
+    transactions: TaxExpenseTransactionRow[];
 }
 
 export interface SetGuild {
     id: string;
     name: string;
     icon: string;
-}
-
-export interface TaxExpenseBracket {
-    transactionsByNation: { [index: string]: WebTransaction[] };
-    bracket: WebTaxBracket;
-    bracketToNationDepositCount: { [index: string]: number };
-    income: number[];
-    nations: NationTaxInfo[];
-    incomeByNation: { [index: string]: number[] };
-    expense: number[];
-    expensesByNation: { [index: string]: number[] };
 }
 
 export interface TradePriceByDayJson {
@@ -167,6 +195,7 @@ export interface WebOptions {
     text?: string[];
     subtext?: string[];
     color?: string[];
+    size: number;
 }
 
 export interface WebSession {
@@ -249,18 +278,6 @@ export interface WebTargets {
     self: WebTarget;
 }
 
-export interface WebTransaction {
-    tx_id: number;
-    tx_datetime: number;
-    sender_id: number;
-    sender_type: number;
-    receiver_id: number;
-    receiver_type: number;
-    banker_nation: number;
-    note: string;
-    resources: number[];
-}
-
 export interface WebTransferResult {
     status: string;
     status_msg: string;
@@ -285,11 +302,10 @@ export interface WebWarFinder {
 }
 
 export interface TaxExpenses {
+    total: TaxExpenseBracket;
     brackets: TaxExpenseBracket[];
     alliances: number[];
-    requireGrant: boolean;
-    requireExpiry: boolean;
-    requireTagged: boolean;
+    taxRecordCount: number;
 }
 
 export interface WebPermission {
@@ -457,6 +473,8 @@ export interface WebCoalitions {
 export interface WebRoleAliases {
     mappings: { [index: string]: { [index: string]: number } };
     invalid_role_ordinals: number[];
+    allows_alliance: number[];
+    requiresSettings: { [index: string]: number };
     discord_role_names: { [index: string]: string };
 }
 
@@ -629,8 +647,6 @@ export type UnmaskedReason = "NOT_REGISTERED" | "NOT_IN_ALLIANCE" | "APPLICANT" 
 export type GuildSettingCategory = "DEFAULT" | "FOREIGN_AFFAIRS" | "WAR_ALERTS" | "BEIGE_ALERTS" | "ORBIS_ALERTS" | "WAR_ROOM" | "BANK_ACCESS" | "BANK_CONVERSION" | "BANK_OFFSHORE" | "BANK_GRANTS" | "BANK_INFO" | "TAX" | "AUDIT" | "SELF_ROLE" | "AUTO_ROLE" | "REWARD" | "RECRUIT" | "INTERVIEW" | "BOUNTY" | "TRADE" | "ARTIFICIAL_INTELLIGENCE";
 
 export type GuildSettingSubgroup = "NONE" | "DEFENSIVE_WARS" | "OFFENSIVE_WARS" | "BEIGE_VIOLATIONS" | "ENEMY_ALERT" | "EXODUS_ALERT" | "ALLIANCE_GROUND_ALERT" | "MEMBER_WITHDRAWAL" | "BANK_LIMITS" | "GRANT_TEMPLATE_LIMIT" | "DEPOSIT_DISPLAY" | "GRANT_REQUESTS" | "TAX_SELF_ASSIGN" | "TAX_AUTO_ASSIGN" | "AUTO_AUDITS" | "MANUAL_AUDITS" | "SELF_ROLE" | "ROLE_SERVER_SYNC" | "ALLIANCE_ROLE" | "NATION_CREATION" | "ALLIANCE_APPLICATION";
-
-export type NationColor = "AQUA" | "BEIGE" | "BLACK" | "BLUE" | "BROWN" | "GRAY" | "GREEN" | "LIME" | "MAROON" | "OLIVE" | "ORANGE" | "PINK" | "PURPLE" | "RED" | "WHITE" | "YELLOW" | "MINT" | "LAVENDER" | "TURQUOISE" | "GOLD";
 
 export type TimeFormat = "NUMERIC" | "DECIMAL_ROUNDED" | "SI_UNIT" | "TURN_TO_DATE" | "DAYS_TO_DATE" | "MILLIS_TO_DATE" | "SECONDS_TO_DATE";
 

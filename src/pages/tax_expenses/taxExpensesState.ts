@@ -1,5 +1,5 @@
 import type { CommonEndpoint } from "@/lib/BulkQuery";
-import type { ResourceType, TaxExpenseTimeCategory, TimeFormat, WebGraph, WebTaxBracket } from "@/lib/apitypes";
+import type { ResourceType, TaxExpenseTimeCategory, TimeFormat, WebGraph, WebTable, WebTaxBracket } from "@/lib/apitypes";
 import { TAX_EXPENSE, TAX_EXPENSE_BY_TIME, TAX_EXPENSE_BY_TIME_BRACKET, TAX_EXPENSE_BY_TIME_RESOURCES } from "@/lib/endpoints";
 import { parseSearchParamStringRecord, writeSearchParamStringRecord, type SearchParamStringSpec } from "@/lib/searchParams";
 import { parseTimestampMs } from "@/lib/temporal";
@@ -28,11 +28,26 @@ type EndpointArgs<TEndpoint> = TEndpoint extends CommonEndpoint<unknown, infer A
 type TaxExpenseByTimeEndpointArgs = EndpointArgs<typeof TAX_EXPENSE_BY_TIME>;
 
 export type TaxExpenseChartMode = "cumulative" | "moving-average";
+export type TaxExpenseDisplayMode = "value" | "raw";
 export type TaxExpenseSummaryFilters = EndpointArgs<typeof TAX_EXPENSE>;
 export type TaxExpenseTimeQueryFilters = Omit<TaxExpenseByTimeEndpointArgs, "datasetId">;
 export type TaxExpenseTimeFilters = TaxExpenseTimeQueryFilters & {
   chartMode: TaxExpenseChartMode;
   movingAverageWindow: number;
+};
+
+export type TaxExpenseResourcePriceMap = Partial<Record<ResourceType, number>>;
+
+export type TaxExpenseNationMeta = {
+  nationId: number;
+  nationMarkup: string;
+  allianceMarkup: string;
+  cities: number | null;
+  freeProjectSlots: number | null;
+  projectSlots: number | null;
+  builtProjects: number | null;
+  color: string;
+  score: number | null;
 };
 
 export const TAX_EXPENSE_RESOURCE_TYPES: readonly ResourceType[] = [
@@ -67,6 +82,20 @@ export const TAX_EXPENSE_RESOURCE_LABELS: Record<ResourceType, string> = {
   ALUMINUM: "Aluminum",
 };
 
+export const TAX_EXPENSE_NATION_TABLE_COLUMNS = [
+  "{getid}",
+  "{getmarkdownurl}",
+  "{getallianceurlmarkup}",
+  "{getcities}",
+  "{getfreeprojectslots}",
+  "{projectslots}",
+  "{getnumprojects}",
+  "{getcolor}",
+  "{getscore}",
+] as const;
+
+export const TAX_EXPENSE_RESOURCE_PRICE_COLUMNS = ["{getname}", "{getmarketvalue}"] as const;
+
 const SUMMARY_FILTER_PARAM_SPEC: SearchParamStringSpec<TaxExpenseSummaryFilters> = {
   start: { defaultValue: TAX_EXPENSE_DEFAULT_START, omitWhen: isDefaultTaxExpenseStart },
   end: {},
@@ -96,6 +125,10 @@ export const TAX_EXPENSE_TIME_DEFAULT_FILTERS: TaxExpenseTimeFilters = {
 
 const TAX_EXPENSE_TURN_LIKE_MAX = 1_000_000;
 const TAX_EXPENSE_SECOND_LIKE_MAX = 100_000_000_000;
+const TAX_EXPENSE_DATE_ONLY_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+});
 const TAX_EXPENSE_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
   month: "2-digit",
@@ -134,6 +167,29 @@ function normalizeChartMode(value: string | null): TaxExpenseChartMode {
 
 function isDefaultTaxExpenseStart(value: string): boolean {
   return value.trim() === TAX_EXPENSE_DEFAULT_START;
+}
+
+function trimTrailingZeros(value: string): string {
+  return value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+}
+
+function parseNumericCellValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const parsed = Number(value.trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readTableRows(table?: WebTable | null): unknown[][] {
+  return Array.isArray(table?.cells)
+    ? table.cells.slice(1).filter((row): row is unknown[] => Array.isArray(row))
+    : [];
 }
 
 export function parseTaxExpenseSummaryFilters(searchParams: URLSearchParams): TaxExpenseSummaryFilters {
@@ -300,28 +356,132 @@ export function formatSignedResourceAmount(value: number): string {
   return `${prefix}${formatResourceAmount(Math.abs(value))}`;
 }
 
+export function formatMonetaryAmount(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "$0";
+  }
+
+  const prefix = value < 0 ? "-" : "";
+  return `${prefix}$${formatResourceAmount(Math.abs(value))}`;
+}
+
 export type TaxExpenseResourceBreakdownRow = {
   key: string;
   resource: ResourceType;
   label: string;
   displayValue: string;
   value: number;
+  rawValue: number;
+  moneyValue: number;
 };
 
-function trimTrailingZeros(value: string): string {
-  return value.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+export function buildEntitySelection(ids: readonly number[]): string {
+  return ids.join(",");
 }
 
-export function getResourceBreakdownRows(values: readonly number[]): TaxExpenseResourceBreakdownRow[] {
-  return TAX_EXPENSE_RESOURCE_TYPES.map((resource, index) => ({
-    key: resource,
-    resource,
-    label: TAX_EXPENSE_RESOURCE_LABELS[resource],
-    displayValue: formatResourceAmount(values[index] ?? 0),
-    value: values[index] ?? 0,
-  }))
-    .filter((entry) => entry.value !== 0)
+export function buildResourceTypeSelection(resources: readonly ResourceType[] = TAX_EXPENSE_RESOURCE_TYPES): string {
+  return resources.join(",");
+}
+
+export function parseTaxExpenseNationTable(table?: WebTable | null): Record<number, TaxExpenseNationMeta> {
+  return readTableRows(table).reduce<Record<number, TaxExpenseNationMeta>>((lookup, row) => {
+    const nationId = parseNumericCellValue(row[0]);
+    if (nationId === null) {
+      return lookup;
+    }
+
+    lookup[nationId] = {
+      nationId,
+      nationMarkup: typeof row[1] === "string" ? row[1] : `[Nation #${nationId}](https://politicsandwar.com/nation/id=${nationId})`,
+      allianceMarkup: typeof row[2] === "string" ? row[2] : "",
+      cities: parseNumericCellValue(row[3]),
+      freeProjectSlots: parseNumericCellValue(row[4]),
+      projectSlots: parseNumericCellValue(row[5]),
+      builtProjects: parseNumericCellValue(row[6]),
+      color: typeof row[7] === "string" ? row[7] : String(row[7] ?? "-"),
+      score: parseNumericCellValue(row[8]),
+    };
+    return lookup;
+  }, {});
+}
+
+export function parseTaxExpenseResourcePrices(table?: WebTable | null): TaxExpenseResourcePriceMap {
+  return readTableRows(table).reduce<TaxExpenseResourcePriceMap>((lookup, row) => {
+    const resource = typeof row[0] === "string" ? row[0].trim().toUpperCase() as ResourceType : null;
+    const value = parseNumericCellValue(row[1]);
+    if (!resource || value === null || !TAX_EXPENSE_RESOURCE_TYPES.includes(resource)) {
+      return lookup;
+    }
+
+    lookup[resource] = value;
+    return lookup;
+  }, { MONEY: 1 });
+}
+
+export function getResourceMoneyValueForType(
+  resource: ResourceType,
+  amount: number,
+  priceMap?: TaxExpenseResourcePriceMap,
+): number {
+  if (!Number.isFinite(amount) || amount === 0) {
+    return 0;
+  }
+
+  const price = priceMap?.[resource] ?? (resource === "MONEY" ? 1 : null);
+  if (price === null || !Number.isFinite(price)) {
+    return amount;
+  }
+
+  return amount * price;
+}
+
+export function getResourceMoneyValue(values: readonly number[], priceMap?: TaxExpenseResourcePriceMap): number {
+  return TAX_EXPENSE_RESOURCE_TYPES.reduce((total, resource, index) => {
+    return total + getResourceMoneyValueForType(resource, values[index] ?? 0, priceMap);
+  }, 0);
+}
+
+export function getResourceBreakdownRows(
+  values: readonly number[],
+  options?: {
+    displayMode?: TaxExpenseDisplayMode;
+    priceMap?: TaxExpenseResourcePriceMap;
+  },
+): TaxExpenseResourceBreakdownRow[] {
+  const displayMode = options?.displayMode ?? "raw";
+
+  return TAX_EXPENSE_RESOURCE_TYPES.map((resource, index) => {
+    const rawValue = values[index] ?? 0;
+    const moneyValue = getResourceMoneyValueForType(resource, rawValue, options?.priceMap);
+    return {
+      key: resource,
+      resource,
+      label: TAX_EXPENSE_RESOURCE_LABELS[resource],
+      displayValue: displayMode === "value" ? formatMonetaryAmount(moneyValue) : formatResourceAmount(rawValue),
+      value: displayMode === "value" ? moneyValue : rawValue,
+      rawValue,
+      moneyValue,
+    };
+  })
+    .filter((entry) => entry.rawValue !== 0)
     .sort((left, right) => Math.abs(right.value) - Math.abs(left.value) || left.label.localeCompare(right.label));
+}
+
+export function formatTransactionResources(
+  resources: readonly number[],
+  displayMode: TaxExpenseDisplayMode,
+  priceMap?: TaxExpenseResourcePriceMap,
+): string {
+  if (displayMode === "value") {
+    return formatMonetaryAmount(getResourceMoneyValue(resources, priceMap));
+  }
+
+  const rows = getResourceBreakdownRows(resources, { displayMode: "raw", priceMap });
+  if (rows.length === 0) {
+    return "0";
+  }
+
+  return rows.map((row) => `${row.label} ${row.displayValue}`).join(", ");
 }
 
 export function subtractResourceArrays(left: readonly number[], right: readonly number[]): number[] {
@@ -424,6 +584,15 @@ export function formatTaxExpenseTimestamp(value: number, timeFormat?: TimeFormat
   return `${dateLabel} ${timeLabel}`;
 }
 
+export function formatTaxExpenseAxisDate(value: number, timeFormat?: TimeFormat): string {
+  const timestampMs = normalizeTaxExpenseTimestampMs(value, timeFormat);
+  if (timestampMs === null) {
+    return "N/A";
+  }
+
+  return TAX_EXPENSE_DATE_ONLY_FORMATTER.format(new Date(timestampMs));
+}
+
 export function applySeriesTransform(series: readonly number[][], mode: TaxExpenseChartMode, movingAverageWindow: number): number[][] {
   if (mode === "cumulative") {
     return series.map((values) => {
@@ -458,13 +627,14 @@ export function buildTaxExpenseTimeGraph(params: {
   series: readonly number[][];
   mode: TaxExpenseChartMode;
   movingAverageWindow: number;
+  yLabel?: string;
 }): WebGraph {
   const transformedSeries = applySeriesTransform(params.series, params.mode, params.movingAverageWindow);
   const timeFormat = detectTaxExpenseTimeFormat(params.timestamps);
   return {
     title: params.title,
     x: "Timestamp",
-    y: "Resources",
+    y: params.yLabel ?? "Resources",
     type: "LINE",
     time_format: timeFormat,
     number_format: "SI_UNIT",

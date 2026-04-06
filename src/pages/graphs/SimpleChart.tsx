@@ -53,6 +53,19 @@ interface ChartProps {
     minHeight?: string;
     maxHeight?: string;
     classes?: string;
+    xTickLabelFormatter?: (params: {
+        axisValue: number;
+        graphValue: number | string | undefined;
+        defaultLabel: string;
+        graph: WebGraph;
+    }) => string;
+    tooltipTitleFormatter?: (params: {
+        axisValue: number;
+        dataIndex: number;
+        graphValue: number | string | undefined;
+        defaultLabel: string;
+        graph: WebGraph;
+    }) => string;
 }
 
 // --- Utility Functions ---
@@ -224,7 +237,9 @@ const SimpleChart = memo(({
     hideDots,
     minHeight,
     maxHeight,
-    classes
+    classes,
+    xTickLabelFormatter,
+    tooltipTitleFormatter,
 }: ChartProps) => {
 
     // Ref avoids React re-renders during high-frequency mouse hover events
@@ -348,11 +363,28 @@ const SimpleChart = memo(({
 
         const yCallback = getNumberFormatCallback(numberFormat);
         const xTickCallback = (tickValue: string | number) => {
-            if (typeof tickValue === 'number') {
-                return timeFormatFunc(tickValue);
+            const axisValue = typeof tickValue === 'number' ? tickValue : Number(tickValue);
+            const dataIndex = Number.isFinite(axisValue) ? Math.round(axisValue) : -1;
+            const graphValue = dataIndex >= 0 ? graph.data[0][dataIndex] : undefined;
+            const defaultLabel = typeof tickValue === 'number'
+                ? timeFormatFunc(tickValue)
+                : Number.isFinite(axisValue)
+                    ? timeFormatFunc(axisValue)
+                    : String(tickValue);
+
+            if (xTickLabelFormatter && Number.isFinite(axisValue)) {
+                return xTickLabelFormatter({
+                    axisValue,
+                    graphValue,
+                    defaultLabel,
+                    graph,
+                });
             }
-            const parsed = Number(tickValue);
-            return Number.isFinite(parsed) ? timeFormatFunc(parsed) : String(tickValue);
+
+            if (typeof tickValue === 'number') {
+                return defaultLabel;
+            }
+            return Number.isFinite(axisValue) ? defaultLabel : String(tickValue);
         };
         const yTickCallback = (tickValue: string | number) => {
             if (typeof tickValue === 'number') {
@@ -383,8 +415,8 @@ const SimpleChart = memo(({
                         callback: xTickCallback,
                         autoSkip: true,
                         maxTicksLimit: 50,
-                        minRotation: 45,
-                        maxRotation: 45,
+                        minRotation: xTickLabelFormatter ? 0 : 45,
+                        maxRotation: xTickLabelFormatter ? 0 : 45,
                         sampleSize: 10,
                         display: !hideLegend,
                     },
@@ -419,7 +451,21 @@ const SimpleChart = memo(({
                         title: function (context: TooltipItem<keyof ChartTypeRegistry>[]) {
                             const x = context[0].parsed.x;
                             const xValue = typeof x === 'number' ? x : Number(x ?? 0);
-                            return timeFormatFunc(Number.isFinite(xValue) ? xValue : 0);
+                            const dataIndex = context[0].dataIndex;
+                            const graphValue = dataIndex >= 0 ? graph.data[0][dataIndex] : undefined;
+                            const defaultLabel = timeFormatFunc(Number.isFinite(xValue) ? xValue : 0);
+
+                            if (tooltipTitleFormatter && Number.isFinite(xValue)) {
+                                return tooltipTitleFormatter({
+                                    axisValue: xValue,
+                                    dataIndex,
+                                    graphValue,
+                                    defaultLabel,
+                                    graph,
+                                });
+                            }
+
+                            return defaultLabel;
                         }
                     }
                 },
@@ -433,7 +479,7 @@ const SimpleChart = memo(({
         };
 
         return { chartData: parsedChartData, chartOptions: parsedChartOptions };
-    }, [graph, type, theme, hideLegend, hideDots, aspectRatio, onHover]);
+    }, [aspectRatio, graph, hideDots, hideLegend, onHover, theme, tooltipTitleFormatter, type, xTickLabelFormatter]);
 
     const canvasStyle: React.CSSProperties = useMemo(() => ({
         display: 'inline-block',

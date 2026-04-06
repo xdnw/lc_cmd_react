@@ -1,9 +1,11 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 
+import { useDialog } from "@/components/layout/DialogContext";
 import type { ParsedTransactionNote } from "@/lib/transactionNotes";
 import { cn } from "@/lib/utils";
 
 import Badge from "./badge";
+import { Button } from "./button";
 
 type TransactionNoteNationLookup = Record<number, { label: string; url?: string }>;
 
@@ -24,21 +26,45 @@ export const TransactionNoteBadges = memo(function TransactionNoteBadges({
   note,
   nationLookup,
   className,
+  maxVisibleBadges,
 }: {
   note: ParsedTransactionNote;
   nationLookup?: TransactionNoteNationLookup;
   className?: string;
+  maxVisibleBadges?: number;
 }) {
+  const { showDialog } = useDialog();
+
   if (note.badges.length === 0) {
     return <span className={cn("text-xs text-muted-foreground", className)}>-</span>;
   }
 
+  const visibleBadges = typeof maxVisibleBadges === "number"
+    ? note.badges.slice(0, maxVisibleBadges)
+    : note.badges;
+  const hiddenCount = Math.max(0, note.badges.length - visibleBadges.length);
+
+  const openOverflowDialog = useCallback(() => {
+    showDialog(
+      "Transaction note",
+      <TransactionNoteBadges note={note} nationLookup={nationLookup} className="gap-1.5" />,
+      {
+        openInNewTab: true,
+        focusNewTab: true,
+        replaceActive: false,
+      },
+    );
+  }, [nationLookup, note, showDialog]);
+
   return (
     <div className={cn("flex flex-wrap gap-1", className)}>
-      {note.badges.map((badge, index) => {
+      {visibleBadges.map((badge, index) => {
         const resolvedNation = typeof badge.nationId === "number" ? nationLookup?.[badge.nationId] : undefined;
         const valueText = resolvedNation?.label ?? badge.value;
         const linkUrl = resolvedNation?.url;
+        const hideLabel = badge.key === "banker" && Boolean(valueText);
+        const badgeLabel = hideLabel ? valueText ?? badge.label : badge.label;
+        const badgeValue = hideLabel ? null : valueText;
         return (
           <Badge
             key={`${badge.key}-${badge.rawValue ?? ""}-${index}`}
@@ -46,10 +72,10 @@ export const TransactionNoteBadges = memo(function TransactionNoteBadges({
             className={cn("max-w-full border px-1.5 py-0 text-[10px] leading-4", getToneClassName(badge.tone))}
           >
             <span className="truncate" title={badge.title}>
-              {badge.label}
+              {badgeLabel}
+              {badgeValue ? ":" : null}
             </span>
-            {valueText ? <span className="text-[10px] opacity-70">:</span> : null}
-            {valueText ? (
+            {badgeValue ? (
               linkUrl ? (
                 <a
                   href={linkUrl}
@@ -58,15 +84,26 @@ export const TransactionNoteBadges = memo(function TransactionNoteBadges({
                   className="max-w-48 truncate underline-offset-2 hover:underline"
                   title={badge.title}
                 >
-                  {valueText}
+                  {badgeValue}
                 </a>
               ) : (
-                <span className="max-w-48 truncate" title={badge.title}>{valueText}</span>
+                <span className="max-w-48 truncate" title={badge.title}>{badgeValue}</span>
               )
             ) : null}
           </Badge>
         );
       })}
+      {hiddenCount > 0 ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-4 rounded-sm border-dashed px-1.5 py-0 text-[10px] leading-4"
+          onClick={openOverflowDialog}
+        >
+          +{hiddenCount}
+        </Button>
+      ) : null}
     </div>
   );
 });

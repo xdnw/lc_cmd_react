@@ -82,6 +82,7 @@ interface ReactDataGridTableProps {
   sort?: OrderIdx | OrderIdx[];
   searchSet: Set<number>;
   rowClassName?: (row: JSONValue[], rowIdx: number) => string | undefined;
+  showIndexColumn?: boolean;
   indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode;
   indexColumnWidth?: number;
   onRowsRendered?: (rows: JSONValue[][]) => void;
@@ -99,6 +100,7 @@ export function DataTable({
   sort,
   searchSet,
   rowClassName,
+  showIndexColumn = true,
   indexCellRenderer,
   indexColumnWidth,
   onRowsRendered,
@@ -156,23 +158,25 @@ export function DataTable({
   // Create column definitions for DataGrid
   const gridColumns: Column<JSONValue[]>[] = useMemo(() => {
     const gridCols: Column<JSONValue[]>[] = [];
-    gridCols.push({
-      key: "index", name: "#", width: columnsInfo.length === 0 ? undefined : (indexColumnWidth ?? 36), sortable: false,
-      cellClass: cn("ps-1", columnsInfo.length === 0 ? "w-full" : undefined),
-      headerCellClass: "ps-1 text-foreground bg-muted",
-      renderCell:
-        (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
-          const rowIndex = props.rowIdx + 1;
-          if (indexCellRenderer) {
-            return indexCellRenderer({
-              row: props.row,
-              rowIdx: props.rowIdx,
-              rowNumber: rowIndex,
-            });
-          }
-          return String(rowIndex)
-        },
-    });
+    if (showIndexColumn) {
+      gridCols.push({
+        key: "index", name: "#", width: columnsInfo.length === 0 ? undefined : (indexColumnWidth ?? 36), sortable: false,
+        cellClass: cn("ps-1", columnsInfo.length === 0 ? "w-full" : undefined),
+        headerCellClass: "ps-1 text-foreground bg-muted",
+        renderCell:
+          (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
+            const rowIndex = props.rowIdx + 1;
+            if (indexCellRenderer) {
+              return indexCellRenderer({
+                row: props.row,
+                rowIdx: props.rowIdx,
+                rowNumber: rowIndex,
+              });
+            }
+            return String(rowIndex)
+          },
+      });
+    }
 
     visibleColumnsInfo.forEach((colInfo, colIndex) => {
       const dataIndex = colInfo.index;
@@ -236,7 +240,7 @@ export function DataTable({
     }
 
     return gridCols;
-  }, [visibleColumnsInfo, isMobile, hiddenColumnsInfo, columnsInfo.length, indexCellRenderer, indexColumnWidth]);
+  }, [visibleColumnsInfo, isMobile, hiddenColumnsInfo, columnsInfo.length, indexCellRenderer, indexColumnWidth, showIndexColumn]);
 
   const noRowsFallback = useMemo(() => {
     return <div className="flex items-center justify-center h-full text-xl text-center bg-background text-foreground w-full cursor-default">No data to display</div>;

@@ -10,6 +10,7 @@ export function PreparedDataTable({
   data,
   sort,
   showExports = true,
+  showIndexColumn = true,
   highlightedRowIndexes,
   rowClassName,
   indexCellRenderer,
@@ -20,6 +21,7 @@ export function PreparedDataTable({
   data: JSONValue[][];
   sort?: OrderIdx | OrderIdx[];
   showExports?: boolean;
+  showIndexColumn?: boolean;
   highlightedRowIndexes?: ReadonlySet<number> | readonly number[];
   rowClassName?: (row: JSONValue[], rowIdx: number) => string | undefined;
   indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode;
@@ -57,6 +59,7 @@ export function PreparedDataTable({
       sort={sortState}
       searchSet={searchSet}
       rowClassName={rowClassName}
+      showIndexColumn={showIndexColumn}
       indexCellRenderer={indexCellRenderer}
       indexColumnWidth={indexColumnWidth}
       onRowsRendered={onRowsRendered}

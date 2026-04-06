@@ -1,14 +1,13 @@
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
 import { EndpointFilterPanel } from "@/components/api/EndpointFilterPanel";
 import { useSession } from "@/components/api/SessionContext";
 import { useSearchParamFilterDraft } from "@/components/api/useSearchParamFilterDraft";
+import CommandDialogButton from "@/components/cmd/CommandDialogButton";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import { FilterBadgeRow } from "@/components/ui/FilterBadgeRow";
-import MarkupRenderer from "@/components/ui/MarkupRenderer";
 import { ResourceBreakdownPanel } from "@/components/ui/ResourceBreakdownPanel";
 import { TransactionNoteBadges } from "@/components/ui/TransactionNoteBadges";
 import { BlockCopyButton } from "@/components/ui/block-copy-button";
@@ -22,9 +21,12 @@ import { TABLE, TAX_EXPENSE, TAX_EXPENSE_BRACKET_ROWS, TAX_EXPENSE_NATION } from
 import type { JSONValue } from "@/lib/internaltypes";
 import { collectTransactionNoteNationIds, parseTransactionNote, type ParsedTransactionNote } from "@/lib/transactionNotes";
 import { bulkQueryOptions } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 import LoginPickerPage from "@/pages/login_picker";
 import { PreparedDataTable } from "@/pages/custom_table/PreparedDataTable";
 import type { ConfigColumns } from "@/pages/custom_table/DataTable";
+import PlaceholderTableDialogButton from "@/pages/custom_table/PlaceholderTableDialogButton";
+import type { TableUrlColumnInput } from "@/pages/custom_table/table_util";
 
 import { TaxExpenseValueStrip } from "./TaxExpenseValueStrip";
 import {
@@ -39,7 +41,6 @@ import {
   buildSummaryFilterBadges,
   buildSummaryFilterSignature,
   buildSummaryNationArgs,
-  formatAllianceBadge,
   formatBracketMeta,
   formatBracketTitle,
   formatCountLabel,
@@ -100,6 +101,47 @@ const COLOR_RENDERER = getRenderer("color") ?? {
   display: (value: unknown) => String(value ?? "-"),
 };
 
+const CITY_COST_COMMAND: ["city", "cost"] = ["city", "cost"];
+const INFRA_COST_COMMAND: ["infra", "cost"] = ["infra", "cost"];
+const LAND_COST_COMMAND: ["land", "cost"] = ["land", "cost"];
+
+const INLINE_DIALOG_BUTTON_CLASS_NAME = "h-5 rounded-sm px-1.5 text-[11px] font-medium";
+
+function formatMetricNumber(value: number | null | undefined, maximumFractionDigits = 0): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "-";
+  }
+
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  });
+}
+
+function toCommandNumberString(value: number | null | undefined): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return String(Math.max(0, Math.round(value)));
+}
+
+function formatProjectProgress(meta: Pick<TaxExpenseNationMeta, "builtProjects" | "projectSlots">): string | null {
+  if (meta.builtProjects === null || meta.projectSlots === null) {
+    return null;
+  }
+
+  return `${meta.builtProjects}/${meta.projectSlots}`;
+}
+
+function buildProjectTableColumns(nationId: number): readonly TableUrlColumnInput[] {
+  return [
+    ["{name}", "Project"],
+    [`{has(${nationId})}`, "Has"],
+    [`{canbuild(${nationId})}`, "Can Build"],
+  ];
+}
+
 function buildNationUrl(nationId: number): string {
   return `https://politicsandwar.com/nation/id=${nationId}`;
 }
@@ -120,30 +162,6 @@ function extractMarkupLabel(markup: string | null | undefined, fallback: string)
     .replace(/[*_`~]/g, "")
     .trim();
   return stripped || fallback;
-}
-
-function BreakdownToggleButton({
-  open,
-  onClick,
-  label,
-}: {
-  open: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <Button
-      type="button"
-      size="iconSm"
-      variant="outline"
-      className="shrink-0"
-      onClick={onClick}
-      aria-label={`${open ? "Hide" : "Show"} ${label}`}
-      title={`${open ? "Hide" : "Show"} ${label}`}
-    >
-      {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-    </Button>
-  );
 }
 
 function TransactionResourceList({ resources }: { resources: readonly number[] }) {
@@ -238,6 +256,136 @@ function BreakdownPanelCard({
   );
 }
 
+function CityCostButton({
+  cities,
+  children,
+  className,
+}: {
+  cities: number | null | undefined;
+  children: ReactNode;
+  className?: string;
+}) {
+  if (typeof cities !== "number" || cities <= 0) {
+    return <span className={cn("text-muted-foreground", className)}>-</span>;
+  }
+
+  return (
+    <CommandDialogButton
+      title={`City Cost: ${cities} -> ${cities + 1}`}
+      commandPath={CITY_COST_COMMAND}
+      initialValues={{
+        currentCity: String(cities),
+        maxCity: String(cities + 1),
+      }}
+      description="Review the next city cost with the current city count prefilled."
+      variant="outline"
+      size="sm"
+      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, className)}
+    >
+      {children}
+    </CommandDialogButton>
+  );
+}
+
+function InfraCostButton({
+  avgInfra,
+  cities,
+  children,
+  className,
+}: {
+  avgInfra: number | null | undefined;
+  cities: number | null | undefined;
+  children: ReactNode;
+  className?: string;
+}) {
+  const currentInfra = toCommandNumberString(avgInfra);
+  if (!currentInfra) {
+    return <span className={cn("text-muted-foreground", className)}>-</span>;
+  }
+
+  return (
+    <CommandDialogButton
+      title="Infra Cost"
+      commandPath={INFRA_COST_COMMAND}
+      initialValues={{
+        currentInfra,
+        maxInfra: currentInfra,
+        ...(typeof cities === "number" && cities > 0 ? { cities: String(cities) } : {}),
+      }}
+      description="Current average infra is prefilled so you can price the next target quickly."
+      variant="outline"
+      size="sm"
+      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, className)}
+    >
+      {children}
+    </CommandDialogButton>
+  );
+}
+
+function LandCostButton({
+  avgLand,
+  cities,
+  children,
+  className,
+}: {
+  avgLand: number | null | undefined;
+  cities: number | null | undefined;
+  children: ReactNode;
+  className?: string;
+}) {
+  const currentLand = toCommandNumberString(avgLand);
+  if (!currentLand) {
+    return <span className={cn("text-muted-foreground", className)}>-</span>;
+  }
+
+  return (
+    <CommandDialogButton
+      title="Land Cost"
+      commandPath={LAND_COST_COMMAND}
+      initialValues={{
+        currentLand,
+        maxLand: currentLand,
+        ...(typeof cities === "number" && cities > 0 ? { cities: String(cities) } : {}),
+      }}
+      description="Current average land is prefilled so you can price the next target quickly."
+      variant="outline"
+      size="sm"
+      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, className)}
+    >
+      {children}
+    </CommandDialogButton>
+  );
+}
+
+function ProjectsButton({
+  nationId,
+  children,
+  className,
+}: {
+  nationId: number;
+  children: ReactNode;
+  className?: string;
+}) {
+  if (nationId <= 0) {
+    return <span className={cn("text-muted-foreground", className)}>-</span>;
+  }
+
+  return (
+    <PlaceholderTableDialogButton
+      title="Projects"
+      typeName="Project"
+      selection="*"
+      columns={buildProjectTableColumns(nationId)}
+      sort={{ idx: 0, dir: "asc" }}
+      variant="outline"
+      size="sm"
+      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, className)}
+    >
+      {children}
+    </PlaceholderTableDialogButton>
+  );
+}
+
 function NationButtonCell({
   inspectionState,
   nationMarkup,
@@ -259,9 +407,9 @@ function NationButtonCell({
   return (
     <Button
       type="button"
-      variant="link"
+      variant="outline"
       size="sm"
-      className="h-auto justify-start px-0 py-0 text-left text-xs font-semibold"
+      className="h-6 justify-start px-2 text-left text-xs font-semibold"
       onClick={handleClick}
       disabled={nationId <= 0}
     >
@@ -329,10 +477,7 @@ function TaxExpenseNationDialog({
 
     return detail.transactions.map((transaction) => [
       transaction.txDatetime,
-      transaction.senderName,
-      transaction.receiverName,
       transaction.noteSummary,
-      transaction.txId,
       getResourceMoneyValue(transaction.resources, resourcePrices),
     ] as JSONValue[]);
   }, [detail, resourcePrices]);
@@ -349,44 +494,26 @@ function TaxExpenseNationDialog({
       },
     },
     {
-      title: "From",
-      index: 1,
-      sortable: true,
-      editable: false,
-      draggable: false,
-      width: 170,
-      cellClassName: "whitespace-pre-wrap",
-    },
-    {
-      title: "To",
-      index: 2,
-      sortable: true,
-      editable: false,
-      draggable: false,
-      width: 170,
-      cellClassName: "whitespace-pre-wrap",
-    },
-    {
       title: "Note",
-      index: 3,
+      index: 1,
       sortable: false,
       editable: false,
       draggable: false,
-      width: 260,
+      width: 320,
       render: {
         display: (_value, context) => {
           const note = context ? parsedNotes[context.rowIdx] : null;
-          return note ? <TransactionNoteBadges note={note} nationLookup={noteNationLookup} /> : "-";
+          return note ? <TransactionNoteBadges note={note} nationLookup={noteNationLookup} maxVisibleBadges={3} /> : "-";
         },
       },
     },
     {
       title: "Resources",
-      index: 4,
+      index: 2,
       sortable: false,
       editable: false,
       draggable: false,
-      width: 340,
+      width: 320,
       render: {
         display: (_value, context) => {
           const transaction = context ? detail?.transactions[context.rowIdx] : undefined;
@@ -396,7 +523,7 @@ function TaxExpenseNationDialog({
     },
     {
       title: "Value",
-      index: 5,
+      index: 2,
       sortable: true,
       editable: false,
       draggable: false,
@@ -423,17 +550,24 @@ function TaxExpenseNationDialog({
         <DialogContent className="max-w-6xl gap-3 sm:max-h-[85vh]">
           <DialogHeader className="space-y-2">
             <DialogTitle className="text-left text-lg font-semibold tracking-tight">{nationTitle}</DialogTitle>
+            {sectionTitle && sectionTitle !== "Total" ? (
+              <div className="text-left text-xs text-muted-foreground">{sectionTitle}</div>
+            ) : null}
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="outline">{sectionTitle}</Badge>
-              {inspection.nationMeta?.allianceMarkup ? (
-                <div className="rounded-sm border border-border/70 bg-muted/15 px-1.5 py-0 text-[11px] leading-5 text-foreground/85">
-                  <MarkupRenderer content={inspection.nationMeta.allianceMarkup} disableLinkTabStops />
-                </div>
+              <CityCostButton cities={inspection.nationMeta?.cities}>
+                cities:{formatMetricNumber(inspection.nationMeta?.cities)}
+              </CityCostButton>
+              {inspection.nationMeta ? (
+                <ProjectsButton nationId={inspection.nationId}>
+                  project:{formatProjectProgress(inspection.nationMeta) ?? "-"}
+                </ProjectsButton>
               ) : null}
-              {inspection.nationMeta?.cities !== null && inspection.nationMeta?.cities !== undefined ? <Badge variant="outline">{inspection.nationMeta.cities} cities</Badge> : null}
-              {inspection.nationMeta?.freeProjectSlots !== null && inspection.nationMeta?.freeProjectSlots !== undefined ? <Badge variant="outline">{inspection.nationMeta.freeProjectSlots} free proj</Badge> : null}
-              {inspection.nationMeta?.projectSlots !== null && inspection.nationMeta?.projectSlots !== undefined ? <Badge variant="outline">{inspection.nationMeta.projectSlots} proj slots</Badge> : null}
-              {inspection.nationMeta?.builtProjects !== null && inspection.nationMeta?.builtProjects !== undefined ? <Badge variant="outline">{inspection.nationMeta.builtProjects} built proj</Badge> : null}
+              <InfraCostButton avgInfra={inspection.nationMeta?.avgInfra} cities={inspection.nationMeta?.cities}>
+                infra:{formatMetricNumber(inspection.nationMeta?.avgInfra, 1)}
+              </InfraCostButton>
+              <LandCostButton avgLand={inspection.nationMeta?.avgLand} cities={inspection.nationMeta?.cities}>
+                land:{formatMetricNumber(inspection.nationMeta?.avgLand, 1)}
+              </LandCostButton>
               {inspection.nationMeta?.score !== null && inspection.nationMeta?.score !== undefined ? <Badge variant="outline">Score {inspection.nationMeta.score.toLocaleString()}</Badge> : null}
               {inspection.nationMeta?.color ? (
                 <div className="inline-flex items-center gap-1 rounded-sm border border-border/70 bg-muted/15 px-1.5 py-0 text-[11px] leading-5 text-foreground/85">
@@ -485,8 +619,8 @@ function TaxExpenseNationDialog({
                   <PreparedDataTable
                     columnsInfo={transactionColumns}
                     data={transactionTableData}
-                    indexColumnWidth={44}
                     showExports={false}
+                    showIndexColumn={false}
                   />
                 )}
               </section>
@@ -543,7 +677,10 @@ function NationTable({
       meta?.nationMarkup ?? `[Nation #${row.nationId}](${buildNationUrl(row.nationId)})`,
       row.currentTaxId ?? null,
       meta?.cities ?? null,
-      meta?.freeProjectSlots ?? null,
+      meta?.builtProjects ?? null,
+      meta?.projectSlots ?? null,
+      meta?.avgInfra ?? null,
+      meta?.avgLand ?? null,
       meta?.color ?? "-",
       row.incomeValue ?? null,
       row.expenseValue ?? null,
@@ -602,25 +739,79 @@ function NationTable({
         sortable: true,
         editable: false,
         draggable: false,
-        width: 70,
+        width: 84,
         render: {
-          display: (value) => typeof value === "number" ? String(value) : "-",
+          display: (_value, context) => {
+            const row = context ? rows[context.rowIdx] : undefined;
+            const meta = row ? nationLookup[row.nationId] : undefined;
+            return <CityCostButton cities={meta?.cities}>{formatMetricNumber(meta?.cities)}</CityCostButton>;
+          },
         },
       },
       {
-        title: "Free Proj",
+        title: "Projects",
         index: 4,
         sortable: true,
         editable: false,
         draggable: false,
-        width: 86,
+        width: 96,
         render: {
-          display: (value) => typeof value === "number" ? String(value) : "-",
+          display: (_value, context) => {
+            const row = context ? rows[context.rowIdx] : undefined;
+            const meta = row ? nationLookup[row.nationId] : undefined;
+            if (!row || !meta) {
+              return "-";
+            }
+
+            return (
+              <ProjectsButton nationId={row.nationId}>
+                {formatProjectProgress(meta) ?? "-"}
+              </ProjectsButton>
+            );
+          },
+        },
+      },
+      {
+        title: "Infra",
+        index: 6,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 96,
+        render: {
+          display: (_value, context) => {
+            const row = context ? rows[context.rowIdx] : undefined;
+            const meta = row ? nationLookup[row.nationId] : undefined;
+            return (
+              <InfraCostButton avgInfra={meta?.avgInfra} cities={meta?.cities}>
+                {formatMetricNumber(meta?.avgInfra, 1)}
+              </InfraCostButton>
+            );
+          },
+        },
+      },
+      {
+        title: "Land",
+        index: 7,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 96,
+        render: {
+          display: (_value, context) => {
+            const row = context ? rows[context.rowIdx] : undefined;
+            const meta = row ? nationLookup[row.nationId] : undefined;
+            return (
+              <LandCostButton avgLand={meta?.avgLand} cities={meta?.cities}>
+                {formatMetricNumber(meta?.avgLand, 1)}
+              </LandCostButton>
+            );
+          },
         },
       },
       {
         title: "Color",
-        index: 5,
+        index: 8,
         sortable: true,
         editable: false,
         draggable: false,
@@ -633,7 +824,7 @@ function NationTable({
       nextColumns.push(
         {
           title: "Income",
-          index: 6,
+          index: 9,
           sortable: true,
           editable: false,
           draggable: false,
@@ -645,7 +836,7 @@ function NationTable({
         },
         {
           title: "Expense",
-          index: 7,
+          index: 10,
           sortable: true,
           editable: false,
           draggable: false,
@@ -660,7 +851,7 @@ function NationTable({
 
     nextColumns.push({
       title: "Net",
-      index: 8,
+      index: 11,
       sortable: true,
       editable: false,
       draggable: false,
@@ -706,7 +897,7 @@ function NationTable({
       columnsInfo={columns}
       data={tableData}
       highlightedRowIndexes={highlightedRows}
-      indexColumnWidth={44}
+      showIndexColumn={false}
     />
   );
 }
@@ -747,21 +938,26 @@ function SummaryPanel({
   return (
     <section className="border border-border/60 bg-background/40">
       <div className="space-y-2 px-3 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <BreakdownToggleButton open={breakdownOpen} onClick={handleToggleBreakdown} label="breakdown" />
+        <div className="flex flex-wrap items-start gap-2">
           <Button size="sm" variant="outline" onClick={handleToggleSection} disabled={section.nationCount === 0}>
             {isOpen ? "Hide nations" : "Show nations"}
           </Button>
-          <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
-          <Badge variant="outline">{formatCountLabel(section.nationCount, "nation")}</Badge>
-          {section.taxId !== TAX_EXPENSE_TOTAL_TAX_ID ? <Badge variant="outline">#{section.taxId}</Badge> : null}
-          {meta ? <Badge variant="outline">{meta}</Badge> : null}
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
+              <Badge variant="outline">{formatCountLabel(section.nationCount, "nation")}</Badge>
+              {section.taxId !== TAX_EXPENSE_TOTAL_TAX_ID ? <Badge variant="outline">#{section.taxId}</Badge> : null}
+              {meta ? <Badge variant="outline">{meta}</Badge> : null}
+            </div>
+            <TaxExpenseValueStrip
+              incomeValue={section.incomeValue}
+              expenseValue={section.expenseValue}
+              netValue={section.netValue}
+              onToggleBreakdown={handleToggleBreakdown}
+              breakdownOpen={breakdownOpen}
+            />
+          </div>
         </div>
-        <TaxExpenseValueStrip
-          incomeValue={section.incomeValue}
-          expenseValue={section.expenseValue}
-          netValue={section.netValue}
-        />
       </div>
 
       {breakdownOpen ? (
@@ -883,22 +1079,7 @@ export default function TaxExpensesPage() {
   }, [summaryData]);
 
   const filterBadges = useMemo(() => buildSummaryFilterBadges(filters), [filters]);
-  const headerSummary = useMemo(() => {
-    if (!summaryData) {
-      return <FilterBadgeRow badges={filterBadges} />;
-    }
-
-    return (
-      <div className="flex flex-wrap items-center gap-1.5">
-        {summaryData.alliances.map((allianceId) => (
-          <Badge key={allianceId} variant="outline">{formatAllianceBadge(allianceId)}</Badge>
-        ))}
-        {filterBadges.map((badge) => (
-          <Badge key={badge} variant="outline">{badge}</Badge>
-        ))}
-      </div>
-    );
-  }, [filterBadges, summaryData]);
+  const headerSummary = useMemo(() => <FilterBadgeRow badges={filterBadges} />, [filterBadges]);
 
   const pageHeaderConfig = useMemo<PageHeaderConfig>(() => ({
     sticky: true,

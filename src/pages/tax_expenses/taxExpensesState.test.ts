@@ -12,6 +12,8 @@ import {
   formatBracketMeta,
   formatBracketTitle,
   formatResourceCopyMap,
+  formatTaxExpenseResourceLabel,
+  parseTaxExpenseNationTable,
   parseTaxExpenseSummaryFilters,
   parseTaxExpenseTimeFilters,
   writeTaxExpenseSummaryFilters,
@@ -144,5 +146,50 @@ describe("taxExpensesState", () => {
 
   it("formats raw resource copy maps without zero-value entries", () => {
     expect(formatResourceCopyMap([1234, 0, 5678.5])).toBe("{money=1234,food=5678.5}");
+  });
+
+  it("adds the configured resource emoji to display labels", () => {
+    expect(formatTaxExpenseResourceLabel("STEEL")).toBe("⚙️ Steel");
+    expect(formatTaxExpenseResourceLabel("MONEY")).toBe("💵 Money");
+    expect(formatTaxExpenseResourceLabel("CREDITS")).toBe("Credits");
+  });
+
+  it("parses expanded nation table metadata including avg infra and avg land", () => {
+    expect(parseTaxExpenseNationTable({
+      cells: [
+        [
+          "id",
+          "nation",
+          "alliance",
+          "cities",
+          "freeProjectSlots",
+          "projectSlots",
+          "builtProjects",
+          "avgInfra",
+          "avgLand",
+          "color",
+          "score",
+        ],
+        [
+          "42",
+          "[Example](https://politicsandwar.com/nation/id=42)",
+          "[Alliance](https://politicsandwar.com/alliance/id=9)",
+          "12",
+          "1",
+          "6",
+          "5",
+          "1,850.5",
+          "2,345.75",
+          "blue",
+          "1,234.56",
+        ],
+      ],
+    } as never)).toEqual({
+      42: expect.objectContaining({
+        avgInfra: 1850.5,
+        avgLand: 2345.75,
+        score: 1234.56,
+      }),
+    });
   });
 });

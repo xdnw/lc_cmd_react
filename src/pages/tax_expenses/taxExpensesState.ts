@@ -46,6 +46,8 @@ export type TaxExpenseNationMeta = {
   freeProjectSlots: number | null;
   projectSlots: number | null;
   builtProjects: number | null;
+  avgInfra: number | null;
+  avgLand: number | null;
   color: string;
   score: number | null;
 };
@@ -82,6 +84,21 @@ export const TAX_EXPENSE_RESOURCE_LABELS: Record<ResourceType, string> = {
   ALUMINUM: "Aluminum",
 };
 
+export const TAX_EXPENSE_RESOURCE_EMOJIS: Partial<Record<ResourceType, string>> = {
+  MONEY: "💵",
+  FOOD: "🌾",
+  COAL: "🪨",
+  OIL: "🛢️",
+  URANIUM: "☢️",
+  LEAD: "⚫",
+  IRON: "🟤",
+  BAUXITE: "🟠",
+  GASOLINE: "⛽",
+  MUNITIONS: "🧨",
+  STEEL: "⚙️",
+  ALUMINUM: "🥫",
+};
+
 const TAX_EXPENSE_RESOURCE_COPY_KEYS: Record<ResourceType, string> = {
   MONEY: "money",
   CREDITS: "credits",
@@ -106,6 +123,8 @@ export const TAX_EXPENSE_NATION_TABLE_COLUMNS = [
   "{getfreeprojectslots}",
   "{projectslots}",
   "{getnumprojects}",
+  "{getavg_infra}",
+  "{getavgland}",
   "{getcolor}",
   "{getscore}",
 ] as const;
@@ -198,8 +217,14 @@ function parseNumericCellValue(value: unknown): number | null {
     return null;
   }
 
-  const parsed = Number(value.trim());
+  const parsed = Number(value.trim().replace(/,/g, ""));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function formatTaxExpenseResourceLabel(resource: ResourceType): string {
+  const emoji = TAX_EXPENSE_RESOURCE_EMOJIS[resource];
+  const label = TAX_EXPENSE_RESOURCE_LABELS[resource];
+  return emoji ? `${emoji} ${label}` : label;
 }
 
 function readTableRows(table?: WebTable | null): unknown[][] {
@@ -430,8 +455,10 @@ export function parseTaxExpenseNationTable(table?: WebTable | null): Record<numb
       freeProjectSlots: parseNumericCellValue(row[4]),
       projectSlots: parseNumericCellValue(row[5]),
       builtProjects: parseNumericCellValue(row[6]),
-      color: typeof row[7] === "string" ? row[7] : String(row[7] ?? "-"),
-      score: parseNumericCellValue(row[8]),
+      avgInfra: parseNumericCellValue(row[7]),
+      avgLand: parseNumericCellValue(row[8]),
+      color: typeof row[9] === "string" ? row[9] : String(row[9] ?? "-"),
+      score: parseNumericCellValue(row[10]),
     };
     return lookup;
   }, {});
@@ -488,7 +515,7 @@ export function getResourceBreakdownRows(
     return {
       key: resource,
       resource,
-      label: TAX_EXPENSE_RESOURCE_LABELS[resource],
+      label: formatTaxExpenseResourceLabel(resource),
       displayValue: displayMode === "value" ? formatMonetaryAmount(moneyValue) : formatResourceAmount(rawValue),
       value: displayMode === "value" ? moneyValue : rawValue,
       rawValue,

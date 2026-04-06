@@ -491,16 +491,17 @@ export function simpleSimilarity(input: string,
   inputFreq: { [key: string]: number },
   inputWordFreq: Set<string>,
   cmd: BaseCommand): number {
-  const command = cmd.name.toLowerCase();
-  if (command.includes(input)) {
-    if (command.startsWith(input)) {
+  const commandLeaf = cmd.name.toLowerCase();
+  const commandPath = cmd.getPathString().toLowerCase();
+  if (commandLeaf.includes(input) || commandPath.includes(input)) {
+    if (commandLeaf.startsWith(input) || commandPath.startsWith(input)) {
       return 5;
     }
     return 4;
   }
   let inputIndex = 0;
-  for (let i = 0; i < command.length; i++) {
-    if (command[i] === input[inputIndex]) {
+  for (let i = 0; i < commandPath.length; i++) {
+    if (commandPath[i] === input[inputIndex]) {
       inputIndex++;
       if (inputIndex === input.length) {
         return 2;

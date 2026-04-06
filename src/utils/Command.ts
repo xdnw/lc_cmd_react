@@ -307,16 +307,23 @@ export class BaseCommand {
     }
 
     getCharFrequency(): { [key: string]: number } {
-        if (this.charFreq == null) this.charFreq = getCharFrequency(this.name);
+        if (this.charFreq == null) this.charFreq = getCharFrequency(this.getPathString().toLowerCase());
         return this.charFreq;
     }
 
     getWordFrequency(): Set<string> {
         if (this.descWordFreq == null) {
             this.descWordFreq = new Set();
-            if (this.command.desc) { // Handle potentially undefined desc
-                this.command.desc.split(" ").forEach((word) => {
+            this.getPathString().split(/\s+/).forEach((word) => {
+                if (word) {
                     this.descWordFreq!.add(word.toLowerCase());
+                }
+            });
+            if (this.command.desc) { // Handle potentially undefined desc
+                this.command.desc.split(/[\s_]+/).forEach((word) => {
+                    if (word) {
+                        this.descWordFreq!.add(word.toLowerCase());
+                    }
                 });
             }
             for (const arg of this.getArguments()) {

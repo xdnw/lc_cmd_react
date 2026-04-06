@@ -15,9 +15,11 @@ vi.mock("@/components/ui/copytoclipboard", () => ({
 import CmdList from "./CmdList";
 
 function createCommand(path: string, description: string) {
-  const words = new Set(path.toLowerCase().split(/\s+/).filter(Boolean));
+  const pathWords = path.toLowerCase().split(/\s+/).filter(Boolean);
+  const words = new Set(pathWords);
+  description.toLowerCase().split(/[\s_]+/).filter(Boolean).forEach((word) => words.add(word));
   return {
-    name: path,
+    name: pathWords[pathWords.length - 1] ?? path,
     command: { annotations: {}, viewable: true },
     getPathString: () => path,
     getDescShort: () => description,
@@ -28,6 +30,33 @@ function createCommand(path: string, description: string) {
 }
 
 describe("CmdList keyboard navigation", () => {
+  it("matches multi-word queries against the full command path", () => {
+    render(
+      <CmdList
+        commands={[
+          createCommand("grant cost", "Estimate grant costs"),
+          createCommand("grant city", "Send a city grant"),
+          createCommand("who", "Lookup a nation"),
+        ] as never[]}
+        prefix="/"
+        initialState={{
+          query: "grant cost",
+          showFilters: false,
+          filters: {
+            triFilters: {},
+            hasArgs: "0",
+            rolesAny: "",
+            requiredArgs: "",
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("grant cost")).toBeTruthy();
+    expect(screen.queryByText("grant city")).toBeNull();
+    expect(screen.queryByText(/No commands match the current search/i)).toBeNull();
+  });
+
   it("keeps focus on launcher search while arrow keys change the active result", () => {
     render(
       <CmdList

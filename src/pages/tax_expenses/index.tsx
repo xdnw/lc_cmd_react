@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
@@ -9,13 +9,19 @@ import { useSearchParamFilterDraft } from "@/components/api/useSearchParamFilter
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import { FilterBadgeRow } from "@/components/ui/FilterBadgeRow";
 import MarkupRenderer from "@/components/ui/MarkupRenderer";
+import { ResourceBreakdownPanel } from "@/components/ui/ResourceBreakdownPanel";
+import { TransactionNoteBadges } from "@/components/ui/TransactionNoteBadges";
+import { BlockCopyButton } from "@/components/ui/block-copy-button";
 import Badge from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import Loading from "@/components/ui/loading";
+import { getRenderer } from "@/components/ui/renderers";
+import type { TaxExpenseBracket, WebTable } from "@/lib/apitypes";
 import { TABLE, TAX_EXPENSE, TAX_EXPENSE_BRACKET_ROWS, TAX_EXPENSE_NATION } from "@/lib/endpoints";
 import type { JSONValue } from "@/lib/internaltypes";
+import { collectTransactionNoteNationIds, parseTransactionNote, type ParsedTransactionNote } from "@/lib/transactionNotes";
 import { bulkQueryOptions } from "@/lib/queries";
-import type { TaxExpenseBracket, WebTable } from "@/lib/apitypes";
 import LoginPickerPage from "@/pages/login_picker";
 import { PreparedDataTable } from "@/pages/custom_table/PreparedDataTable";
 import type { ConfigColumns } from "@/pages/custom_table/DataTable";
@@ -38,9 +44,10 @@ import {
   formatBracketTitle,
   formatCountLabel,
   formatMonetaryAmount,
+  formatResourceCopyMap,
   formatTaxExpenseTimestamp,
-  formatTransactionResources,
   getResourceBreakdownRows,
+  getResourceMoneyValue,
   parseTaxExpenseNationTable,
   parseTaxExpenseResourcePrices,
   parseTaxExpenseSummaryFilters,
@@ -48,7 +55,6 @@ import {
   writeTaxExpenseSummaryFilters,
   type TaxExpenseDisplayMode,
   type TaxExpenseNationMeta,
-  type TaxExpenseResourceBreakdownRow,
   type TaxExpenseResourcePriceMap,
   type TaxExpenseSummaryFilters,
 } from "./taxExpensesState";
@@ -64,6 +70,22 @@ type SummarySection = {
   expense: number[];
 };
 
+type TaxExpenseBracketRowLike = {
+  nationId: number;
+  currentTaxId?: number;
+  netValue: number;
+  incomeValue?: number;
+  expenseValue?: number;
+};
+
+type NationInspectionState = {
+  datasetId: number;
+  taxId: number;
+  bracket?: TaxExpenseBracket["bracket"];
+  nationId: number;
+  nationMeta: TaxExpenseNationMeta | null;
+};
+
 const SUMMARY_FILTER_FIELDS = [
   "start",
   "end",
@@ -74,250 +96,71 @@ const SUMMARY_FILTER_FIELDS = [
   "includeDeposits",
 ] as const satisfies readonly (keyof TaxExpenseSummaryFilters)[];
 
-const TRANSACTION_TABLE_COLUMNS: ConfigColumns[] = [
-  {
-    title: "Time",
-    index: 0,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 126,
-    render: {
-      display: (value) => formatTaxExpenseTimestamp(Number(value ?? 0)),
-    },
-  },
-  {
-    title: "Route",
-    index: 1,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 210,
-    cellClassName: "whitespace-pre-wrap",
-  },
-  {
-    title: "Note",
-    index: 2,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 180,
-    cellClassName: "whitespace-pre-wrap",
-  },
-  {
-    index: 3,
-    title: "Resources",
-    sortable: false,
-    editable: false,
-    draggable: false,
-    width: 132,
-    cellClassName: "whitespace-pre-wrap font-mono",
-  },
-];
+const COLOR_RENDERER = getRenderer("color") ?? {
+  display: (value: unknown) => String(value ?? "-"),
+};
 
-const BRACKET_ROW_COLUMNS: ConfigColumns[] = [
-  {
-    title: "Nation",
-    index: 0,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 190,
-    render: {
-      display: (value) => <MarkupRenderer content={String(value ?? "")} disableLinkTabStops />,
-    },
-  },
-  {
-    title: "AA",
-    index: 1,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 120,
-    render: {
-      display: (value) => value ? <MarkupRenderer content={String(value)} disableLinkTabStops /> : "-",
-    },
-  },
-  {
-    title: "Tax ID",
-    index: 2,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 82,
-    render: {
-      display: (value) => typeof value === "number" ? `#${value}` : "-",
-    },
-  },
-  {
-    title: "Cities",
-    index: 3,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 70,
-    render: {
-      display: (value) => typeof value === "number" ? String(value) : "-",
-    },
-  },
-  {
-    title: "Free Proj",
-    index: 4,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 86,
-    render: {
-      display: (value) => typeof value === "number" ? String(value) : "-",
-    },
-  },
-  {
-    title: "Color",
-    index: 5,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 84,
-    render: {
-      display: (value) => String(value ?? "-"),
-    },
-  },
-  {
-    title: "Net",
-    index: 6,
-    sortable: true,
-    editable: false,
-    draggable: false,
-    width: 110,
-    render: {
-      display: (value) => formatMonetaryAmount(Number(value ?? 0)),
-    },
-    cellClassName: "font-mono",
-  },
-];
-
-function formatTransactionRoute(transaction: {
-  senderName: string;
-  receiverName: string;
-  bankerNationName?: string | null;
-}): string {
-  const route = `${transaction.senderName} -> ${transaction.receiverName}`;
-  if (!transaction.bankerNationName) {
-    return route;
-  }
-  return `${route}\nBanker ${transaction.bankerNationName}`;
+function buildNationUrl(nationId: number): string {
+  return `https://politicsandwar.com/nation/id=${nationId}`;
 }
 
-function NationSelectCell({
-  nationId,
-  isSelected,
-  onSelect,
-}: {
-  nationId: number;
-  isSelected: boolean;
-  onSelect: (nationId: number) => void;
-}) {
-  const handleClick = useCallback(() => {
-    onSelect(nationId);
-  }, [nationId, onSelect]);
+function extractMarkupLabel(markup: string | null | undefined, fallback: string): string {
+  const trimmed = markup?.trim();
+  if (!trimmed) {
+    return fallback;
+  }
 
+  const exactMarkdownLink = trimmed.match(/^\[([^\]]+)\]\([^)]+\)$/);
+  if (exactMarkdownLink?.[1]) {
+    return exactMarkdownLink[1].trim();
+  }
+
+  const stripped = trimmed
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[*_`~]/g, "")
+    .trim();
+  return stripped || fallback;
+}
+
+function BreakdownToggleButton({
+  open,
+  onClick,
+  label,
+}: {
+  open: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
     <Button
       type="button"
-      size="sm"
-      variant={isSelected ? "default" : "outline"}
-      className="h-6 px-2 text-[10px]"
-      onClick={handleClick}
-      disabled={nationId <= 0}
-      aria-pressed={isSelected}
+      size="iconSm"
+      variant="outline"
+      className="shrink-0"
+      onClick={onClick}
+      aria-label={`${open ? "Hide" : "Show"} ${label}`}
+      title={`${open ? "Hide" : "Show"} ${label}`}
     >
-      Inspect
+      {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
     </Button>
   );
 }
 
-function DisplayModeToggle({
-  displayMode,
-  onChange,
-  valueEnabled,
-}: {
-  displayMode: TaxExpenseDisplayMode;
-  onChange: (next: TaxExpenseDisplayMode) => void;
-  valueEnabled: boolean;
-}) {
-  const handleValueClick = useCallback(() => {
-    onChange("value");
-  }, [onChange]);
-  const handleRawClick = useCallback(() => {
-    onChange("raw");
-  }, [onChange]);
+function TransactionResourceList({ resources }: { resources: readonly number[] }) {
+  const rows = useMemo(() => getResourceBreakdownRows(resources, { displayMode: "raw" }), [resources]);
+
+  if (rows.length === 0) {
+    return <span className="text-xs text-muted-foreground">0</span>;
+  }
 
   return (
-    <div className="inline-flex items-center gap-1 rounded-sm border border-border/60 bg-background/70 p-1 text-[11px]">
-      <button
-        type="button"
-        className={`rounded-sm px-2 py-1 ${displayMode === "value" ? "bg-foreground text-background" : "text-muted-foreground"}`}
-        onClick={handleValueClick}
-        disabled={!valueEnabled}
-      >
-        Value
-      </button>
-      <button
-        type="button"
-        className={`rounded-sm px-2 py-1 ${displayMode === "raw" ? "bg-foreground text-background" : "text-muted-foreground"}`}
-        onClick={handleRawClick}
-      >
-        Raw
-      </button>
-    </div>
-  );
-}
-
-function BreakdownColumn({
-  title,
-  rows,
-  tone,
-}: {
-  title: string;
-  rows: readonly TaxExpenseResourceBreakdownRow[];
-  tone: "income" | "expense" | "net";
-}) {
-  const valueClass = tone === "income"
-    ? "text-emerald-700 dark:text-emerald-300"
-    : tone === "expense"
-      ? "text-rose-700 dark:text-rose-300"
-      : "text-foreground";
-  const barClass = tone === "income"
-    ? "bg-emerald-500/15"
-    : tone === "expense"
-      ? "bg-rose-500/15"
-      : "bg-sky-500/12";
-  const maxMagnitude = rows.reduce((currentMax, row) => Math.max(currentMax, Math.abs(row.value)), 0);
-
-  return (
-    <div className="border border-border/50 bg-background/35 px-2 py-2">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</h3>
-        <span className="text-[10px] text-muted-foreground">{rows.length === 0 ? "No movement" : `${rows.length} rows`}</span>
-      </div>
-      {rows.length === 0 ? (
-        <div className="text-xs text-muted-foreground">No movement.</div>
-      ) : (
-        <div className="space-y-1.5">
-          {rows.map((row) => {
-            const width = maxMagnitude > 0 ? Math.max((Math.abs(row.value) / maxMagnitude) * 100, 10) : 0;
-            return (
-              <div key={row.key} className="relative overflow-hidden border border-border/40 px-2 py-1.5 text-xs">
-                <div className={`pointer-events-none absolute inset-y-0 left-0 ${barClass}`} style={{ width: `${width}%` }} />
-                <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                  <span className="truncate text-foreground">{row.label}</span>
-                  <span className={`font-mono tabular-nums ${valueClass}`}>{row.displayValue}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+    <div className="flex flex-wrap gap-1">
+      {rows.map((row) => (
+        <Badge key={row.key} variant="outline" className="border-border/70 bg-muted/15 px-1.5 py-0 text-[10px] leading-4">
+          <span className="truncate">{row.label}</span>
+          <span className="font-mono text-[10px] tabular-nums">{row.displayValue}</span>
+        </Badge>
+      ))}
     </div>
   );
 }
@@ -334,40 +177,347 @@ function BreakdownGrid({
   resourcePrices?: TaxExpenseResourcePriceMap;
 }) {
   const net = useMemo(() => subtractResourceArrays(income, expense), [expense, income]);
-  const incomeRows = useMemo(() => getResourceBreakdownRows(income, { displayMode, priceMap: resourcePrices }), [displayMode, income, resourcePrices]);
-  const expenseRows = useMemo(() => getResourceBreakdownRows(expense, { displayMode, priceMap: resourcePrices }), [displayMode, expense, resourcePrices]);
-  const netRows = useMemo(() => getResourceBreakdownRows(net, { displayMode, priceMap: resourcePrices }), [displayMode, net, resourcePrices]);
+  const panels = useMemo(() => [
+    {
+      title: "Income",
+      tone: "income" as const,
+      values: income,
+      entries: getResourceBreakdownRows(income, { displayMode, priceMap: resourcePrices }),
+    },
+    {
+      title: "Expense",
+      tone: "expense" as const,
+      values: expense,
+      entries: getResourceBreakdownRows(expense, { displayMode, priceMap: resourcePrices }),
+    },
+    {
+      title: "Net",
+      tone: "net" as const,
+      values: net,
+      entries: getResourceBreakdownRows(net, { displayMode, priceMap: resourcePrices }),
+    },
+  ], [displayMode, expense, income, net, resourcePrices]);
 
   return (
-    <div className="grid gap-2 lg:grid-cols-3">
-      <BreakdownColumn title="Income" rows={incomeRows} tone="income" />
-      <BreakdownColumn title="Expense" rows={expenseRows} tone="expense" />
-      <BreakdownColumn title="Net" rows={netRows} tone="net" />
+    <div className="grid gap-2 xl:grid-cols-3">
+      {panels.map((panel) => (
+        <BreakdownPanelCard
+          key={panel.title}
+          title={panel.title}
+          entries={panel.entries}
+          tone={panel.tone}
+          values={panel.values}
+        />
+      ))}
     </div>
+  );
+}
+
+function BreakdownPanelCard({
+  title,
+  entries,
+  tone,
+  values,
+}: {
+  title: string;
+  entries: ReturnType<typeof getResourceBreakdownRows>;
+  tone: "income" | "expense" | "net";
+  values: readonly number[];
+}) {
+  const getCopyText = useCallback(() => formatResourceCopyMap(values), [values]);
+
+  return (
+    <ResourceBreakdownPanel
+      title={title}
+      entries={entries}
+      tone={tone}
+      compact
+      showEntryCount={false}
+      headerActions={<BlockCopyButton getText={getCopyText} />}
+    />
+  );
+}
+
+function NationButtonCell({
+  inspectionState,
+  nationMarkup,
+  onOpenNation,
+}: {
+  inspectionState: NationInspectionState;
+  nationMarkup: string;
+  onOpenNation: (next: NationInspectionState) => void;
+}) {
+  const nationId = inspectionState.nationId;
+  const label = useMemo(
+    () => extractMarkupLabel(nationMarkup, `Nation #${nationId}`),
+    [nationId, nationMarkup],
+  );
+  const handleClick = useCallback(() => {
+    onOpenNation(inspectionState);
+  }, [inspectionState, onOpenNation]);
+
+  return (
+    <Button
+      type="button"
+      variant="link"
+      size="sm"
+      className="h-auto justify-start px-0 py-0 text-left text-xs font-semibold"
+      onClick={handleClick}
+      disabled={nationId <= 0}
+    >
+      {label}
+    </Button>
+  );
+}
+
+function TaxExpenseNationDialog({
+  inspection,
+  onClose,
+  displayMode,
+  resourcePrices,
+}: {
+  inspection: NationInspectionState | null;
+  onClose: () => void;
+  displayMode: TaxExpenseDisplayMode;
+  resourcePrices?: TaxExpenseResourcePriceMap;
+}) {
+  const open = inspection !== null;
+  const detailQuery = useQuery({
+    ...bulkQueryOptions(
+      TAX_EXPENSE_NATION.endpoint,
+      buildSummaryNationArgs(inspection?.datasetId ?? 0, inspection?.taxId ?? 0, inspection?.nationId ?? 0),
+    ),
+    enabled: Boolean(open && inspection && inspection.nationId > 0),
+  });
+  const detail = detailQuery.data?.data;
+  const parsedNotes = useMemo<ParsedTransactionNote[]>(() => {
+    if (!detail) {
+      return [];
+    }
+    return detail.transactions.map((transaction) => parseTransactionNote(transaction.noteSummary, { compact: true }));
+  }, [detail]);
+  const noteNationIds = useMemo(() => collectTransactionNoteNationIds(parsedNotes), [parsedNotes]);
+  const noteNationSelection = useMemo(() => buildEntitySelection(noteNationIds), [noteNationIds]);
+  const noteNationQuery = useQuery({
+    ...bulkQueryOptions(TABLE.endpoint, {
+      type: "DBNation",
+      selection_str: noteNationSelection,
+      columns: [...TAX_EXPENSE_NATION_TABLE_COLUMNS],
+    }),
+    enabled: noteNationIds.length > 0,
+  });
+  const noteNationMetaLookup = useMemo(
+    () => parseTaxExpenseNationTable(noteNationQuery.data?.data as WebTable | null | undefined),
+    [noteNationQuery.data?.data],
+  );
+  const noteNationLookup = useMemo(
+    () => Object.fromEntries(
+      noteNationIds.map((nationId) => [
+        nationId,
+        {
+          label: extractMarkupLabel(noteNationMetaLookup[nationId]?.nationMarkup, `Nation #${nationId}`),
+          url: buildNationUrl(nationId),
+        },
+      ]),
+    ),
+    [noteNationIds, noteNationMetaLookup],
+  );
+  const transactionTableData = useMemo<JSONValue[][]>(() => {
+    if (!detail) {
+      return [];
+    }
+
+    return detail.transactions.map((transaction) => [
+      transaction.txDatetime,
+      transaction.senderName,
+      transaction.receiverName,
+      transaction.noteSummary,
+      transaction.txId,
+      getResourceMoneyValue(transaction.resources, resourcePrices),
+    ] as JSONValue[]);
+  }, [detail, resourcePrices]);
+  const transactionColumns = useMemo<ConfigColumns[]>(() => [
+    {
+      title: "Time",
+      index: 0,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 128,
+      render: {
+        display: (value) => formatTaxExpenseTimestamp(Number(value ?? 0)),
+      },
+    },
+    {
+      title: "From",
+      index: 1,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 170,
+      cellClassName: "whitespace-pre-wrap",
+    },
+    {
+      title: "To",
+      index: 2,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 170,
+      cellClassName: "whitespace-pre-wrap",
+    },
+    {
+      title: "Note",
+      index: 3,
+      sortable: false,
+      editable: false,
+      draggable: false,
+      width: 260,
+      render: {
+        display: (_value, context) => {
+          const note = context ? parsedNotes[context.rowIdx] : null;
+          return note ? <TransactionNoteBadges note={note} nationLookup={noteNationLookup} /> : "-";
+        },
+      },
+    },
+    {
+      title: "Resources",
+      index: 4,
+      sortable: false,
+      editable: false,
+      draggable: false,
+      width: 340,
+      render: {
+        display: (_value, context) => {
+          const transaction = context ? detail?.transactions[context.rowIdx] : undefined;
+          return transaction ? <TransactionResourceList resources={transaction.resources} /> : "-";
+        },
+      },
+    },
+    {
+      title: "Value",
+      index: 5,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 112,
+      render: {
+        display: (value) => formatMonetaryAmount(Number(value ?? 0)),
+      },
+      cellClassName: "font-mono",
+    },
+  ], [detail?.transactions, noteNationLookup, parsedNotes]);
+  const nationTitle = inspection
+    ? extractMarkupLabel(inspection.nationMeta?.nationMarkup, `Nation #${inspection.nationId}`)
+    : "Nation";
+  const sectionTitle = inspection ? formatBracketTitle(inspection.taxId, inspection.bracket) : "";
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      onClose();
+    }
+  }, [onClose]);
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {inspection ? (
+        <DialogContent className="max-w-6xl gap-3 sm:max-h-[85vh]">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-left text-lg font-semibold tracking-tight">{nationTitle}</DialogTitle>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline">{sectionTitle}</Badge>
+              {inspection.nationMeta?.allianceMarkup ? (
+                <div className="rounded-sm border border-border/70 bg-muted/15 px-1.5 py-0 text-[11px] leading-5 text-foreground/85">
+                  <MarkupRenderer content={inspection.nationMeta.allianceMarkup} disableLinkTabStops />
+                </div>
+              ) : null}
+              {inspection.nationMeta?.cities !== null && inspection.nationMeta?.cities !== undefined ? <Badge variant="outline">{inspection.nationMeta.cities} cities</Badge> : null}
+              {inspection.nationMeta?.freeProjectSlots !== null && inspection.nationMeta?.freeProjectSlots !== undefined ? <Badge variant="outline">{inspection.nationMeta.freeProjectSlots} free proj</Badge> : null}
+              {inspection.nationMeta?.projectSlots !== null && inspection.nationMeta?.projectSlots !== undefined ? <Badge variant="outline">{inspection.nationMeta.projectSlots} proj slots</Badge> : null}
+              {inspection.nationMeta?.builtProjects !== null && inspection.nationMeta?.builtProjects !== undefined ? <Badge variant="outline">{inspection.nationMeta.builtProjects} built proj</Badge> : null}
+              {inspection.nationMeta?.score !== null && inspection.nationMeta?.score !== undefined ? <Badge variant="outline">Score {inspection.nationMeta.score.toLocaleString()}</Badge> : null}
+              {inspection.nationMeta?.color ? (
+                <div className="inline-flex items-center gap-1 rounded-sm border border-border/70 bg-muted/15 px-1.5 py-0 text-[11px] leading-5 text-foreground/85">
+                  <span className="shrink-0">{COLOR_RENDERER.display(inspection.nationMeta.color)}</span>
+                  <span>{inspection.nationMeta.color}</span>
+                </div>
+              ) : null}
+              {typeof detail?.currentTaxId === "number" ? <Badge variant="outline">Tax #{detail.currentTaxId}</Badge> : null}
+              {typeof detail?.depositCount === "number" ? <Badge variant="outline">{formatCountLabel(detail.depositCount, "deposit record")}</Badge> : null}
+              {typeof detail?.transactionCount === "number" ? <Badge variant="outline">{formatCountLabel(detail.transactionCount, "transaction")}</Badge> : null}
+            </div>
+          </DialogHeader>
+
+          {detailQuery.isLoading ? (
+            <div className="py-8">
+              <Loading variant="ripple" />
+            </div>
+          ) : detailQuery.error || !detail ? (
+            <div className="border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              Failed to load nation detail.
+            </div>
+          ) : (
+            <div className="space-y-3 overflow-y-auto pr-1">
+              <section className="space-y-2 border border-border/60 bg-background/35 px-3 py-3">
+                <TaxExpenseValueStrip
+                  incomeValue={detail.incomeValue}
+                  expenseValue={detail.expenseValue}
+                  netValue={detail.netValue}
+                />
+                <BreakdownGrid
+                  income={detail.income}
+                  expense={detail.expense}
+                  displayMode={displayMode}
+                  resourcePrices={resourcePrices}
+                />
+                <div className="text-[11px] text-muted-foreground">
+                  {displayMode === "value" ? "Breakdown uses current market prices, while the copy buttons preserve raw resource amounts." : "Breakdown shows raw resource amounts."}
+                </div>
+              </section>
+
+              <section className="border border-border/60 bg-background/35 px-3 py-3">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-semibold tracking-tight text-foreground">Transactions</h3>
+                  <span className="text-[11px] text-muted-foreground">Actual resource amounts plus converted value.</span>
+                </div>
+                {transactionTableData.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No transactions in this window.</div>
+                ) : (
+                  <PreparedDataTable
+                    columnsInfo={transactionColumns}
+                    data={transactionTableData}
+                    indexColumnWidth={44}
+                    showExports={false}
+                  />
+                )}
+              </section>
+            </div>
+          )}
+        </DialogContent>
+      ) : null}
+    </Dialog>
   );
 }
 
 function NationTable({
   datasetId,
-  taxId,
-  nationCount,
-  displayMode,
-  resourcePrices,
+  section,
+  inspection,
+  onInspectNation,
 }: {
   datasetId: number;
-  taxId: number;
-  nationCount: number;
-  displayMode: TaxExpenseDisplayMode;
-  resourcePrices?: TaxExpenseResourcePriceMap;
+  section: SummarySection;
+  inspection: NationInspectionState | null;
+  onInspectNation: (next: NationInspectionState) => void;
 }) {
-  const [selectedNationId, setSelectedNationId] = useState<number | null>(null);
-  const detailSectionRef = useRef<HTMLDivElement | null>(null);
   const rowsQuery = useQuery({
-    ...bulkQueryOptions(TAX_EXPENSE_BRACKET_ROWS.endpoint, buildSummaryBracketArgs(datasetId, taxId)),
-    enabled: nationCount > 0,
+    ...bulkQueryOptions(TAX_EXPENSE_BRACKET_ROWS.endpoint, buildSummaryBracketArgs(datasetId, section.taxId)),
+    enabled: section.nationCount > 0,
   });
 
-  const rows = useMemo(() => rowsQuery.data?.data?.rows ?? [], [rowsQuery.data?.data?.rows]);
+  const rows = useMemo(
+    () => (rowsQuery.data?.data?.rows ?? []) as TaxExpenseBracketRowLike[],
+    [rowsQuery.data?.data?.rows],
+  );
   const nationSelection = useMemo(() => buildEntitySelection(rows.map((row) => row.nationId)), [rows]);
   const nationInfoQuery = useQuery({
     ...bulkQueryOptions(TABLE.endpoint, {
@@ -381,47 +531,159 @@ function NationTable({
     () => parseTaxExpenseNationTable(nationInfoQuery.data?.data as WebTable | null | undefined),
     [nationInfoQuery.data?.data],
   );
-  const selectedNationMeta = selectedNationId === null ? null : nationLookup[selectedNationId] ?? null;
-  const handleNationSelect = useCallback((nationId: number) => {
-    setSelectedNationId(nationId);
-  }, []);
+  const includeTaxIdColumn = section.taxId === TAX_EXPENSE_TOTAL_TAX_ID;
+  const hasIncomeExpenseColumns = useMemo(
+    () => rows.some((row) => typeof row.incomeValue === "number" || typeof row.expenseValue === "number"),
+    [rows],
+  );
   const tableData = useMemo<JSONValue[][]>(() => rows.map((row) => {
     const meta = nationLookup[row.nationId];
     return [
-      meta?.nationMarkup ?? `[Nation #${row.nationId}](https://politicsandwar.com/nation/id=${row.nationId})`,
-      meta?.allianceMarkup ?? "",
+      row.nationId,
+      meta?.nationMarkup ?? `[Nation #${row.nationId}](${buildNationUrl(row.nationId)})`,
       row.currentTaxId ?? null,
       meta?.cities ?? null,
       meta?.freeProjectSlots ?? null,
       meta?.color ?? "-",
+      row.incomeValue ?? null,
+      row.expenseValue ?? null,
       row.netValue,
     ] as JSONValue[];
   }), [nationLookup, rows]);
-  const selectedNationRowIndex = useMemo(() => selectedNationId === null
-    ? -1
-    : rows.findIndex((row) => row.nationId === selectedNationId), [rows, selectedNationId]);
-  const highlightedRows = useMemo(() => selectedNationRowIndex >= 0 ? [selectedNationRowIndex] : [], [selectedNationRowIndex]);
-  const renderIndexCell = useCallback(({ rowIdx }: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => {
-    const nationId = rows[rowIdx]?.nationId ?? 0;
-    return (
-      <NationSelectCell
-        nationId={nationId}
-        isSelected={nationId > 0 && nationId === selectedNationId}
-        onSelect={handleNationSelect}
-      />
-    );
-  }, [handleNationSelect, rows, selectedNationId]);
+  const columns = useMemo<ConfigColumns[]>(() => {
+    const nextColumns: ConfigColumns[] = [
+      {
+        title: "Nation",
+        index: 1,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 220,
+        render: {
+          display: (value, context) => {
+            const row = context ? rows[context.rowIdx] : undefined;
+            const nationId = row?.nationId ?? 0;
+            return (
+              <NationButtonCell
+                inspectionState={{
+                  datasetId,
+                  taxId: section.taxId,
+                  bracket: section.bracket,
+                  nationId,
+                  nationMeta: nationLookup[nationId] ?? null,
+                }}
+                nationMarkup={String(value ?? "")}
+                onOpenNation={onInspectNation}
+              />
+            );
+          },
+        },
+      },
+    ];
 
-  useEffect(() => {
-    setSelectedNationId(null);
-  }, [datasetId, taxId]);
-
-  useEffect(() => {
-    if (selectedNationId === null) {
-      return;
+    if (includeTaxIdColumn) {
+      nextColumns.push({
+        title: "Tax ID",
+        index: 2,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 82,
+        render: {
+          display: (value) => typeof value === "number" ? `#${value}` : "-",
+        },
+      });
     }
-    detailSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [selectedNationId]);
+
+    nextColumns.push(
+      {
+        title: "Cities",
+        index: 3,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 70,
+        render: {
+          display: (value) => typeof value === "number" ? String(value) : "-",
+        },
+      },
+      {
+        title: "Free Proj",
+        index: 4,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 86,
+        render: {
+          display: (value) => typeof value === "number" ? String(value) : "-",
+        },
+      },
+      {
+        title: "Color",
+        index: 5,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 74,
+        render: COLOR_RENDERER,
+      },
+    );
+
+    if (hasIncomeExpenseColumns) {
+      nextColumns.push(
+        {
+          title: "Income",
+          index: 6,
+          sortable: true,
+          editable: false,
+          draggable: false,
+          width: 110,
+          render: {
+            display: (value) => typeof value === "number" ? formatMonetaryAmount(value) : "-",
+          },
+          cellClassName: "font-mono",
+        },
+        {
+          title: "Expense",
+          index: 7,
+          sortable: true,
+          editable: false,
+          draggable: false,
+          width: 110,
+          render: {
+            display: (value) => typeof value === "number" ? formatMonetaryAmount(value) : "-",
+          },
+          cellClassName: "font-mono",
+        },
+      );
+    }
+
+    nextColumns.push({
+      title: "Net",
+      index: 8,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 110,
+      render: {
+        display: (value) => formatMonetaryAmount(Number(value ?? 0)),
+      },
+      cellClassName: "font-mono",
+    });
+
+    return nextColumns;
+  }, [datasetId, hasIncomeExpenseColumns, includeTaxIdColumn, nationLookup, onInspectNation, rows, section.bracket, section.taxId]);
+  const highlightedRows = useMemo(
+    () => inspection && inspection.taxId === section.taxId
+      ? rows.reduce<number[]>((matches, row, rowIdx) => {
+        if (row.nationId === inspection.nationId) {
+          matches.push(rowIdx);
+        }
+        return matches;
+      }, [])
+      : [],
+    [inspection, rows, section.taxId],
+  );
 
   if (rowsQuery.isLoading) {
     return (
@@ -440,138 +702,12 @@ function NationTable({
   }
 
   return (
-    <div className="space-y-3">
-      <PreparedDataTable
-        columnsInfo={BRACKET_ROW_COLUMNS}
-        data={tableData}
-        highlightedRowIndexes={highlightedRows}
-        indexCellRenderer={renderIndexCell}
-        indexColumnWidth={82}
-      />
-      <div ref={detailSectionRef}>
-        <NationDetailSection
-          datasetId={datasetId}
-          taxId={taxId}
-          nationId={selectedNationId}
-          nationMeta={selectedNationMeta}
-          displayMode={displayMode}
-          resourcePrices={resourcePrices}
-        />
-      </div>
-    </div>
-  );
-}
-
-function NationDetailSection({
-  datasetId,
-  nationId,
-  nationMeta,
-  taxId,
-  displayMode,
-  resourcePrices,
-}: {
-  datasetId: number;
-  nationId: number | null;
-  nationMeta: TaxExpenseNationMeta | null;
-  taxId: number;
-  displayMode: TaxExpenseDisplayMode;
-  resourcePrices?: TaxExpenseResourcePriceMap;
-}) {
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
-  const nationQuery = useQuery({
-    ...bulkQueryOptions(TAX_EXPENSE_NATION.endpoint, buildSummaryNationArgs(datasetId, taxId, nationId ?? 0)),
-    enabled: (nationId ?? 0) > 0,
-  });
-  const detail = nationQuery.data?.data;
-  const handleToggleBreakdown = useCallback(() => {
-    setBreakdownOpen((current) => !current);
-  }, []);
-  const transactionTableData = useMemo<JSONValue[][]>(() => {
-    if (!detail) {
-      return [];
-    }
-
-    return detail.transactions.map((transaction) => [
-      transaction.txDatetime,
-      formatTransactionRoute(transaction),
-      transaction.noteSummary,
-      formatTransactionResources(transaction.resources, displayMode, resourcePrices),
-    ] as JSONValue[]);
-  }, [detail, displayMode, resourcePrices]);
-
-  useEffect(() => {
-    setBreakdownOpen(false);
-  }, [nationId]);
-
-  if ((nationId ?? 0) <= 0) {
-    return (
-      <div className="border border-dashed border-border/70 bg-background/30 px-3 py-3 text-sm text-muted-foreground">
-        Select a nation row to inspect its tax-expense detail and transactions.
-      </div>
-    );
-  }
-
-  if (nationQuery.isLoading) {
-    return (
-      <div className="border border-border/60 bg-background/35 px-3 py-4">
-        <Loading variant="ripple" />
-      </div>
-    );
-  }
-
-  if (nationQuery.error || !detail) {
-    return <div className="text-sm text-destructive">Failed to load nation detail.</div>;
-  }
-  return (
-    <section className="border border-border/60 bg-background/35">
-      <div className="space-y-2 px-3 py-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <div className="min-w-0 text-sm font-semibold text-foreground">
-            <MarkupRenderer content={nationMeta?.nationMarkup ?? `[Nation #${nationId}](https://politicsandwar.com/nation/id=${nationId})`} disableLinkTabStops />
-          </div>
-          {typeof detail.currentTaxId === "number" ? <Badge variant="outline">Tax #{detail.currentTaxId}</Badge> : null}
-          {nationMeta?.cities !== null && nationMeta?.cities !== undefined ? <Badge variant="outline">{nationMeta.cities} cities</Badge> : null}
-          {nationMeta?.freeProjectSlots !== null && nationMeta?.freeProjectSlots !== undefined ? <Badge variant="outline">{nationMeta.freeProjectSlots} free proj</Badge> : null}
-          {nationMeta?.color ? <Badge variant="outline">{nationMeta.color}</Badge> : null}
-          <Badge variant="outline">{formatCountLabel(detail.depositCount, "deposit record")}</Badge>
-          <Badge variant="outline">{formatCountLabel(detail.transactionCount, "transaction")}</Badge>
-        </div>
-        <TaxExpenseValueStrip
-          incomeValue={detail.incomeValue}
-          expenseValue={detail.expenseValue}
-          netValue={detail.netValue}
-          onToggleBreakdown={handleToggleBreakdown}
-          breakdownOpen={breakdownOpen}
-        />
-      </div>
-      {breakdownOpen ? (
-        <div className="border-t border-border/50 px-3 py-3">
-          <BreakdownGrid
-            income={detail.income}
-            expense={detail.expense}
-            displayMode={displayMode}
-            resourcePrices={resourcePrices}
-          />
-          <div className="mt-2 text-[11px] text-muted-foreground">
-            {displayMode === "value" ? "Breakdown uses current market prices." : "Breakdown shows raw resource amounts."}
-          </div>
-        </div>
-      ) : null}
-      <div className="border-t border-border/50 px-3 py-3">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-semibold tracking-tight text-foreground">Transactions</h3>
-        </div>
-        {transactionTableData.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No transactions in this window.</div>
-        ) : (
-          <PreparedDataTable
-            columnsInfo={TRANSACTION_TABLE_COLUMNS}
-            data={transactionTableData}
-            indexColumnWidth={44}
-          />
-        )}
-      </div>
-    </section>
+    <PreparedDataTable
+      columnsInfo={columns}
+      data={tableData}
+      highlightedRowIndexes={highlightedRows}
+      indexColumnWidth={44}
+    />
   );
 }
 
@@ -582,6 +718,8 @@ function SummaryPanel({
   toggleSection,
   displayMode,
   resourcePrices,
+  inspection,
+  onInspectNation,
 }: {
   datasetId: number;
   section: SummarySection;
@@ -589,11 +727,13 @@ function SummaryPanel({
   toggleSection: (taxId: number) => void;
   displayMode: TaxExpenseDisplayMode;
   resourcePrices?: TaxExpenseResourcePriceMap;
+  inspection: NationInspectionState | null;
+  onInspectNation: (next: NationInspectionState) => void;
 }) {
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const title = formatBracketTitle(section.taxId, section.bracket);
   const meta = formatBracketMeta(section.bracket);
-  const handleToggle = useCallback(() => {
+  const handleToggleSection = useCallback(() => {
     toggleSection(section.taxId);
   }, [section.taxId, toggleSection]);
   const handleToggleBreakdown = useCallback(() => {
@@ -606,29 +746,24 @@ function SummaryPanel({
 
   return (
     <section className="border border-border/60 bg-background/40">
-      <div className="flex flex-col gap-2 px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
-            {section.taxId !== TAX_EXPENSE_TOTAL_TAX_ID ? <Badge variant="outline">#{section.taxId}</Badge> : null}
-            <Badge variant="outline">{formatCountLabel(section.nationCount, "nation")}</Badge>
-            {meta ? <Badge variant="outline">{meta}</Badge> : null}
-          </div>
-          <TaxExpenseValueStrip
-            incomeValue={section.incomeValue}
-            expenseValue={section.expenseValue}
-            netValue={section.netValue}
-            onToggleBreakdown={handleToggleBreakdown}
-            breakdownOpen={breakdownOpen}
-          />
-        </div>
-        <div className="flex shrink-0 items-center justify-end">
-          <Button size="sm" variant="outline" onClick={handleToggle} disabled={section.nationCount === 0}>
-            {isOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            {isOpen ? "Hide nations" : `Nations (${section.nationCount.toLocaleString()})`}
+      <div className="space-y-2 px-3 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <BreakdownToggleButton open={breakdownOpen} onClick={handleToggleBreakdown} label="breakdown" />
+          <Button size="sm" variant="outline" onClick={handleToggleSection} disabled={section.nationCount === 0}>
+            {isOpen ? "Hide nations" : "Show nations"}
           </Button>
+          <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
+          <Badge variant="outline">{formatCountLabel(section.nationCount, "nation")}</Badge>
+          {section.taxId !== TAX_EXPENSE_TOTAL_TAX_ID ? <Badge variant="outline">#{section.taxId}</Badge> : null}
+          {meta ? <Badge variant="outline">{meta}</Badge> : null}
         </div>
+        <TaxExpenseValueStrip
+          incomeValue={section.incomeValue}
+          expenseValue={section.expenseValue}
+          netValue={section.netValue}
+        />
       </div>
+
       {breakdownOpen ? (
         <div className="border-t border-border/50 px-3 py-3">
           <BreakdownGrid
@@ -638,10 +773,11 @@ function SummaryPanel({
             resourcePrices={resourcePrices}
           />
           <div className="mt-2 text-[11px] text-muted-foreground">
-            {displayMode === "value" ? "Breakdown uses current market prices." : "Breakdown shows raw resource amounts."}
+            {displayMode === "value" ? "Breakdown uses current market prices, while the copy buttons preserve raw resource amounts." : "Breakdown shows raw resource amounts."}
           </div>
         </div>
       ) : null}
+
       {isOpen ? (
         <div className="border-t border-border/50 px-3 py-3">
           {section.nationCount === 0 ? (
@@ -649,10 +785,9 @@ function SummaryPanel({
           ) : (
             <NationTable
               datasetId={datasetId}
-              taxId={section.taxId}
-              nationCount={section.nationCount}
-              displayMode={displayMode}
-              resourcePrices={resourcePrices}
+              section={section}
+              inspection={inspection}
+              onInspectNation={onInspectNation}
             />
           )}
         </div>
@@ -666,6 +801,7 @@ export default function TaxExpensesPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [displayMode, setDisplayMode] = useState<TaxExpenseDisplayMode>("value");
+  const [inspection, setInspection] = useState<NationInspectionState | null>(null);
   const filters = useMemo(() => parseTaxExpenseSummaryFilters(searchParams), [searchParams]);
   const filtersSignature = useMemo(() => buildSummaryFilterSignature(filters), [filters]);
   const [openSectionIds, setOpenSectionIds] = useState<Set<number>>(() => new Set<number>());
@@ -686,6 +822,7 @@ export default function TaxExpensesPage() {
 
   useEffect(() => {
     setOpenSectionIds(new Set<number>());
+    setInspection(null);
     queryClient.removeQueries({ queryKey: [TAX_EXPENSE_BRACKET_ROWS.endpoint.name] });
     queryClient.removeQueries({ queryKey: [TAX_EXPENSE_NATION.endpoint.name] });
   }, [filtersSignature, queryClient]);
@@ -804,58 +941,92 @@ export default function TaxExpensesPage() {
       return next;
     });
   }, []);
+  const handleInspectNation = useCallback((next: NationInspectionState) => {
+    setInspection(next);
+  }, []);
+  const handleCloseInspection = useCallback(() => {
+    setInspection(null);
+  }, []);
+  const handleSetValueDisplayMode = useCallback(() => {
+    setDisplayMode("value");
+  }, []);
+  const handleSetRawDisplayMode = useCallback(() => {
+    setDisplayMode("raw");
+  }, []);
 
   if (!session?.guild) {
     return <LoginPickerPage />;
   }
 
   return (
-    <div className="pb-8">
-      <div className="mx-auto w-full max-w-6xl px-3 sm:px-4">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border border-border/60 bg-background/35 px-3 py-2">
-          <div className="text-[11px] text-muted-foreground">
-            {effectiveDisplayMode === "value"
-              ? "Breakdowns use current market prices."
-              : resourcePricesQuery.isLoading
-                ? "Loading resource prices. Raw amounts shown until prices arrive."
-                : resourcePricesQuery.error
-                  ? "Resource prices failed to load. Raw amounts shown."
-                  : "Breakdowns show raw resource amounts."}
+    <>
+      <div className="pb-8">
+        <div className="mx-auto w-full max-w-6xl px-3 sm:px-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border border-border/60 bg-background/35 px-3 py-2">
+            <div className="text-[11px] text-muted-foreground">
+              {effectiveDisplayMode === "value"
+                ? "Breakdowns use current market prices. Copy buttons always preserve raw resource amounts."
+                : resourcePricesQuery.isLoading
+                  ? "Loading resource prices. Raw amounts shown until prices arrive."
+                  : resourcePricesQuery.error
+                    ? "Resource prices failed to load. Raw amounts shown."
+                    : "Breakdowns show raw resource amounts."}
+            </div>
+            <div className="inline-flex items-center gap-1 rounded-sm border border-border/60 bg-background/70 p-1 text-[11px]">
+              <button
+                type="button"
+                className={`rounded-sm px-2 py-1 ${effectiveDisplayMode === "value" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+                onClick={handleSetValueDisplayMode}
+                disabled={!resourcePricesQuery.data?.data}
+              >
+                Value
+              </button>
+              <button
+                type="button"
+                className={`rounded-sm px-2 py-1 ${effectiveDisplayMode === "raw" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+                onClick={handleSetRawDisplayMode}
+              >
+                Raw
+              </button>
+            </div>
           </div>
-          <DisplayModeToggle
-            displayMode={effectiveDisplayMode}
-            onChange={setDisplayMode}
-            valueEnabled={Boolean(resourcePricesQuery.data?.data)}
-          />
+          {summaryQuery.isLoading ? (
+            <div className="py-10">
+              <Loading variant="ripple" />
+            </div>
+          ) : summaryQuery.error || !summaryData ? (
+            <div className="border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              Failed to load tax expenses.
+            </div>
+          ) : sections.length === 0 ? (
+            <div className="border border-border/70 bg-background/40 px-4 py-6 text-sm text-muted-foreground">
+              No tax expense data matched the current filter set.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sections.map((section) => (
+                <SummaryPanel
+                  key={`section-${section.taxId}`}
+                  datasetId={Number(summaryData.datasetId)}
+                  section={section}
+                  isOpen={openSectionIds.has(section.taxId)}
+                  toggleSection={toggleSection}
+                  displayMode={effectiveDisplayMode}
+                  resourcePrices={resourcePrices}
+                  inspection={inspection}
+                  onInspectNation={handleInspectNation}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        {summaryQuery.isLoading ? (
-          <div className="py-10">
-            <Loading variant="ripple" />
-          </div>
-        ) : summaryQuery.error || !summaryData ? (
-          <div className="border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            Failed to load tax expenses.
-          </div>
-        ) : sections.length === 0 ? (
-          <div className="border border-border/70 bg-background/40 px-4 py-6 text-sm text-muted-foreground">
-            No tax expense data matched the current filter set.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {sections.map((section) => (
-              <SummaryPanel
-                key={`section-${section.taxId}`}
-                datasetId={Number(summaryData.datasetId)}
-                section={section}
-                isOpen={openSectionIds.has(section.taxId)}
-                toggleSection={toggleSection}
-                displayMode={effectiveDisplayMode}
-                resourcePrices={resourcePrices}
-              />
-            ))}
-          </div>
-        )}
       </div>
-    </div>
+      <TaxExpenseNationDialog
+        inspection={inspection}
+        onClose={handleCloseInspection}
+        displayMode={effectiveDisplayMode}
+        resourcePrices={resourcePrices}
+      />
+    </>
   );
 }

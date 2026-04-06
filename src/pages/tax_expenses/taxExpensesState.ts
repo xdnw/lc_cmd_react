@@ -82,6 +82,22 @@ export const TAX_EXPENSE_RESOURCE_LABELS: Record<ResourceType, string> = {
   ALUMINUM: "Aluminum",
 };
 
+const TAX_EXPENSE_RESOURCE_COPY_KEYS: Record<ResourceType, string> = {
+  MONEY: "money",
+  CREDITS: "credits",
+  FOOD: "food",
+  COAL: "coal",
+  OIL: "oil",
+  URANIUM: "uranium",
+  LEAD: "lead",
+  IRON: "iron",
+  BAUXITE: "bauxite",
+  GASOLINE: "gasoline",
+  MUNITIONS: "munitions",
+  STEEL: "steel",
+  ALUMINUM: "aluminum",
+};
+
 export const TAX_EXPENSE_NATION_TABLE_COLUMNS = [
   "{getid}",
   "{getmarkdownurl}",
@@ -354,6 +370,22 @@ export function formatSignedResourceAmount(value: number): string {
 
   const prefix = value > 0 ? "+" : "-";
   return `${prefix}${formatResourceAmount(Math.abs(value))}`;
+}
+
+export function formatResourceCopyMap(values: readonly number[]): string {
+  const entries = TAX_EXPENSE_RESOURCE_TYPES.flatMap((resource, index) => {
+    const value = values[index] ?? 0;
+    if (!Number.isFinite(value) || value === 0) {
+      return [];
+    }
+
+    const normalizedValue = Number.isInteger(value)
+      ? String(value)
+      : trimTrailingZeros(value.toFixed(2));
+    return [`${TAX_EXPENSE_RESOURCE_COPY_KEYS[resource]}=${normalizedValue}`];
+  });
+
+  return `{${entries.join(",")}}`;
 }
 
 export function formatMonetaryAmount(value: number): string {

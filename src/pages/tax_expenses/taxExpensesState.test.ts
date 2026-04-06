@@ -11,6 +11,7 @@ import {
   detectTaxExpenseTimeFormat,
   formatBracketMeta,
   formatBracketTitle,
+  formatResourceCopyMap,
   parseTaxExpenseSummaryFilters,
   parseTaxExpenseTimeFilters,
   writeTaxExpenseSummaryFilters,
@@ -139,5 +140,9 @@ describe("taxExpensesState", () => {
     })).toEqual(expect.objectContaining({
       time_format: "TURN_TO_DATE",
     }));
+  });
+
+  it("formats raw resource copy maps without zero-value entries", () => {
+    expect(formatResourceCopyMap([1234, 0, 5678.5])).toBe("{money=1234,food=5678.5}");
   });
 });

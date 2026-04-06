@@ -1,47 +1,19 @@
-import React, { useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { getRenderer } from "../../components/ui/renderers";
-import { ConfigColumns, DataTable, OrderIdx } from "./DataTable";
-import { DataGridHandle } from "react-data-grid";
-import { JSONValue } from "@/lib/internaltypes";
+import type { ConfigColumns, OrderIdx } from "./DataTable";
+
+import { PreparedDataTable } from "./PreparedDataTable";
 
 export function TableWith2DData({ columns, data, renderers, sort }: { columns: string[], data: (string | number | number[] | boolean)[][], renderers?: (string | undefined)[], sort?: OrderIdx | OrderIdx[] }) {
-    const table = useRef<DataGridHandle>(null);
-
-    const visibleColumns = useMemo(() => Array.from(Array(columns.length).keys()), [columns]);
-    const searchSet = useMemo(() => new Set<number>(), []);
-
-    // const sortFinal = useMemo<OrderIdx | OrderIdx[]>(() => sort ?? { idx: 0, dir: "asc" }, [sort]);
-    // const columnsInfo = useMemo(() => columns.map((col, index) => ({
-    //     title: col,
-    //     index: index,
-    //     render: renderers && renderers[index] ? getRenderer(renderers[index] as string) : undefined
-    // })), [columns, renderers]);
-
-    const [dataState, setDataState] = useState(data);
-    const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>(
+    const columnsInfo = useMemo<ConfigColumns[]>(() => (
         columns.map((col, index) => ({
             title: col,
-            index: index,
-            render: renderers && renderers[index] ? getRenderer(renderers[index] as string) : undefined
+            index,
+            render: renderers?.[index] ? getRenderer(renderers[index] as string) : undefined,
         }))
-    );
+    ), [columns, renderers]);
 
-    const [sortState, setSortState] = useState<OrderIdx | OrderIdx[] | undefined>(sort);
-
-    return useMemo(() => (
-        <DataTable
-            table={table}
-            data={dataState}
-            columnsInfo={columnsInfo}
-            sort={sortState}
-            searchSet={searchSet}
-            visibleColumns={visibleColumns}
-            setColumns={setColumnsInfo}
-            setData={setDataState as (data: JSONValue[][]) => void}
-            setSort={setSortState}
-            showExports={true}
-        />
-    ), [dataState, columnsInfo, sortState, searchSet, visibleColumns, table]);
+    return <PreparedDataTable columnsInfo={columnsInfo} data={data} sort={sort} />;
 }
 
 // export function MyTable({ table, data, columnsInfo, sort, searchSet, visibleColumns }:

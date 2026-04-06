@@ -39,6 +39,13 @@ describe("appRoutes shared header metadata", () => {
     expect(tabs.find((tab) => tab.active)?.to).toBe("/coalitions");
   });
 
+  it("builds economy tabs from visible economy routes", () => {
+    const tabs = buildSectionHeaderTabs(routeConfigs, "/tax_expenses/by_time");
+
+    expect(tabs.map((tab) => tab.label)).toEqual(["Ledger", "Tax Expenses", "By Time"]);
+    expect(tabs.find((tab) => tab.active)?.to).toBe("/tax_expenses/by_time");
+  });
+
   it("keeps the settings route in the recent-page cache", () => {
     expect(resolveAppRouteConfig(routeConfigs, "/settings")?.cachePolicy).toEqual(
       expect.objectContaining({ mode: "recent" }),
@@ -69,6 +76,8 @@ describe("appRoutes shared header metadata", () => {
       "Announcements",
       "Holdings",
       "Ledger",
+      "Tax Expenses",
+      "By Time",
       "Raid Finder",
       "Tables",
       "Conflicts",

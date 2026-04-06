@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-04-05 14:44:43.
+// Generated using typescript-generator version 3.2.1263 on 2026-04-06 04:41:48.
 
 export interface WebError {
     error: string;
@@ -26,37 +26,63 @@ export interface TaxExpenseBracket {
     taxId: number;
     bracket?: WebTaxBracket;
     nationCount: number;
+    incomeValue: number;
+    expenseValue: number;
+    netValue: number;
     income: number[];
     expense: number[];
 }
 
-export interface TaxExpenseBracketMembers {
-    taxId: number;
-    nationIds: number[];
+export interface TaxExpenseBracketRow {
+    nationId: number;
+    currentTaxId?: number;
+    netValue: number;
 }
 
-export interface TaxExpenseNationDetail {
+export interface TaxExpenseBracketRows {
+    taxId: number;
+    rows: TaxExpenseBracketRow[];
+}
+
+export interface TaxExpenseNation {
     taxId: number;
     nationId: number;
     currentTaxId?: number;
     depositCount: number;
     transactionCount: number;
+    incomeValue: number;
+    expenseValue: number;
+    netValue: number;
     income: number[];
     expense: number[];
+    transactions: TaxExpenseTransactionRow[];
 }
 
 export interface TaxExpenseTime {
+    datasetId: number;
     timestamps: number[];
     categories: TaxExpenseTimeCategory[];
     total: TaxExpenseTimeBracket;
-    brackets: TaxExpenseTimeBracket[];
+    brackets: TaxExpenseTimeBracketSummary[];
 }
 
 export interface TaxExpenseTimeBracket {
     taxId: number;
     bracket?: WebTaxBracket;
     nationCount: number;
+    incomeValue: number;
+    expenseValue: number;
+    netValue: number;
     overallByCategory: number[][];
+}
+
+export interface TaxExpenseTimeBracketSummary {
+    taxId: number;
+    bracket?: WebTaxBracket;
+    nationCount: number;
+    incomeValue: number;
+    expenseValue: number;
+    netValue: number;
 }
 
 export interface TaxExpenseTimeCategory {
@@ -71,13 +97,16 @@ export interface TaxExpenseTimeResources {
 export interface TaxExpenseTransactionRow {
     txId: number;
     txDatetime: number;
-    display: string;
-}
-
-export interface TaxExpenseTransactions {
-    taxId: number;
-    nationId: number;
-    transactions: TaxExpenseTransactionRow[];
+    noteSummary: string;
+    senderId: number;
+    senderType: number;
+    senderName: string;
+    receiverId: number;
+    receiverType: number;
+    receiverName: string;
+    bankerNationId: number;
+    bankerNationName?: string;
+    resources: number[];
 }
 
 export interface SetGuild {
@@ -302,6 +331,7 @@ export interface WebWarFinder {
 }
 
 export interface TaxExpenses {
+    datasetId: number;
     total: TaxExpenseBracket;
     brackets: TaxExpenseBracket[];
     alliances: number[];

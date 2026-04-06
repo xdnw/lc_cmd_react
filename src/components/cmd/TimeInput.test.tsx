@@ -32,26 +32,35 @@ describe("TimeInput", () => {
     expect(screen.getByTitle(/pick a local date\/time/i).getAttribute(COMMAND_SINGLE_LINE_ENTRY_ATTR)).toBe("true");
   });
 
-  it("uses a non-tabbable picker button that reopens the picker from the input", () => {
+  it("uses a non-tabbable picker button and opens the clicked input picker", () => {
     render(
-      <TimeInput
-        argName="time"
-        initialValue=""
-        setOutputValue={vi.fn()}
-      />,
+      <div>
+        <TimeInput
+          argName="start"
+          initialValue=""
+          setOutputValue={vi.fn()}
+        />
+        <TimeInput
+          argName="end"
+          initialValue=""
+          setOutputValue={vi.fn()}
+        />
+      </div>,
     );
 
-    const input = screen.getByTitle(/pick a local date\/time/i) as HTMLInputElement & { showPicker?: () => void };
-    const showPicker = vi.fn();
-    input.showPicker = showPicker;
+    const inputs = screen.getAllByTitle(/pick a local date\/time/i) as Array<HTMLInputElement & { showPicker?: () => void }>;
+    const firstShowPicker = vi.fn();
+    const secondShowPicker = vi.fn();
+    inputs[0].showPicker = firstShowPicker;
+    inputs[1].showPicker = secondShowPicker;
 
-    const button = screen.getByRole("button", { name: /open date\/time picker/i });
-    expect(button.tabIndex).toBe(-1);
+    const buttons = screen.getAllByRole("button", { name: /open date\/time picker/i });
+    expect(buttons[1].tabIndex).toBe(-1);
 
-    fireEvent.mouseDown(button);
-    fireEvent.click(button);
+    fireEvent.mouseDown(buttons[1]);
+    fireEvent.click(buttons[1]);
 
-    expect(document.activeElement).toBe(input);
-    expect(showPicker).toHaveBeenCalledTimes(1);
+    expect(firstShowPicker).not.toHaveBeenCalled();
+    expect(secondShowPicker).toHaveBeenCalledTimes(1);
   });
 });

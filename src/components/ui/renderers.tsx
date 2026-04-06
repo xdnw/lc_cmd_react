@@ -18,6 +18,7 @@ export const RENDERERS: { [key: string]: ObjectColumnRender | undefined } = {
     time: { display: time },
     time_ms: { display: time_ms },
     diff_ms: { display: diff_ms },
+    duration_min: { display: duration_min },
     normal: { display: autoMarkdown },
     text: undefined,
     json: { display: json },
@@ -65,6 +66,13 @@ export function duration_day(days: number): string {
 export function duration_ms(ms: number): string {
     if (ms === null || ms === undefined) return "N/A";
     const seconds = ms / 1000;
+    if (seconds == 0) return '0s';
+    return formatDuration(seconds, 3);
+}
+
+export function duration_min(minutes: number): string {
+    if (minutes === null || minutes === undefined) return "N/A";
+    const seconds = minutes * 60;
     if (seconds == 0) return '0s';
     return formatDuration(seconds, 3);
 }

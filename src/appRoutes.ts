@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { matchPath } from "react-router-dom";
 
 import { CMD_BROWSER_SEARCH_PARAM_KEYS } from "@/components/cmd/cmdBrowserState";
+import { TAX_EXPENSE_ROUTE_SEARCH_PARAMS } from "@/pages/tax_expenses/taxExpensesState";
 
 export type AppNavSection = "Home" | "Member" | "Economy" | "War" | "Stats" | "Server" | "Commands";
 export type AppRouteSearchParamInput = string | readonly string[] | null | undefined;
@@ -620,6 +621,34 @@ export const routeConfigs: AppRouteConfig[] = [
     element: () => import("./pages/records"),
     protected: true,
     cachePolicy: RECENT_PAGE_CACHE_POLICY,
+    shell: {
+      section: "Economy",
+    },
+  }),
+  defineRoute("/tax_expenses", {
+    label: "Tax Expenses",
+    navigation: {
+      sidebarLabel: "Tax Expenses",
+      requireGuild: true,
+      preserveSearchParams: TAX_EXPENSE_ROUTE_SEARCH_PARAMS,
+    },
+    element: () => import("@/pages/tax_expenses"),
+    cachePolicy: RECENT_PAGE_CACHE_POLICY,
+    protected: true,
+    shell: {
+      section: "Economy",
+    },
+  }),
+  defineRoute("/tax_expenses/by_time", {
+    label: "Tax Expenses By Time",
+    navigation: {
+      sidebarLabel: "By Time",
+      requireGuild: true,
+      preserveSearchParams: TAX_EXPENSE_ROUTE_SEARCH_PARAMS,
+    },
+    element: () => import("@/pages/tax_expenses/byTime"),
+    cachePolicy: RECENT_PAGE_CACHE_POLICY,
+    protected: true,
     shell: {
       section: "Economy",
     },

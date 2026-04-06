@@ -46,6 +46,8 @@ describe("rolesDomain", () => {
                 "99": { "0": 909 },
             },
             invalid_role_ordinals: [3],
+            allows_alliance: [],
+            requiresSettings: {},
             discord_role_names: {
                 "101": "Registered",
                 "303": "Milcom",
@@ -95,6 +97,8 @@ describe("rolesDomain", () => {
                 "5": { "321": 505, "0": 506 },
             },
             invalid_role_ordinals: [5],
+            allows_alliance: [],
+            requiresSettings: {},
             discord_role_names: {},
         } satisfies WebRoleAliases);
 

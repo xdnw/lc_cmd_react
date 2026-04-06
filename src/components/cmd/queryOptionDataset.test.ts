@@ -15,6 +15,7 @@ function createOptions(): WebOptions {
         text: ["Borg", "Aurora"],
         key_string: ["7", "11"],
         subtext: ["Leader | Alpha", "Leader | Borealis"],
+        size: 2,
     };
 }
 
@@ -36,6 +37,7 @@ describe("queryOptionDataset", () => {
             text: ["Borg"],
             key_string: ["7"],
             subtext: ["Borg | Leader: Alex | Alliance: Rose"],
+            size: 1,
         });
 
         expect(options[0].subtext).toBe("Leader: Alex | Alliance: Rose");
@@ -64,6 +66,7 @@ describe("queryOptionDataset", () => {
         const [cityOption] = buildQuerySelectOptions("DBCity", {
             text: ["City 9988"],
             key_string: ["9988"],
+            size: 1,
         });
         expect(toCompositeCanonicalOption("DBCity", cityOption)).toMatchObject({
             label: "City 9988",
@@ -90,6 +93,7 @@ describe("queryOptionDataset", () => {
         const options = buildQuerySelectOptions("Role", {
             text: ["drone"],
             key_string: ["672263980193939469"],
+            size: 1,
         });
 
         expect(options[0].aliases).toContain("<@&672263980193939469>");
@@ -98,6 +102,7 @@ describe("queryOptionDataset", () => {
         const dataset = buildQueryOptionDataset("TextChannel", {
             text: ["intel"],
             key_string: ["672310912090243092"],
+            size: 1,
         });
 
         expect(searchQueryOptionDataset("<#672310912090243092>", dataset, 20)).toMatchObject({
@@ -111,6 +116,7 @@ describe("queryOptionDataset", () => {
         const allianceOptions = buildQuerySelectOptions("DBAlliance", {
             text: ["Cataclysm"],
             key_string: ["AA:7413"],
+            size: 1,
         });
         expect(allianceOptions[0].aliases).toContain("alliance/id=7413");
         expect(allianceOptions[0].aliases).toContain("https://politicsandwar.com/alliance/id=7413");
@@ -118,6 +124,7 @@ describe("queryOptionDataset", () => {
         const taxOptions = buildQuerySelectOptions("TaxBracket", {
             text: ["Bracket 26171"],
             key_string: ["26171"],
+            size: 1,
         });
         expect(taxOptions[0].aliases).toContain("tax_id=26171");
         expect(taxOptions[0].aliases).toContain("https://politicsandwar.com/index.php?id=15&tax_id=26171");
@@ -125,6 +132,7 @@ describe("queryOptionDataset", () => {
         const warOptions = buildQuerySelectOptions("DBWar", {
             text: ["War 1234"],
             key_string: ["1234"],
+            size: 1,
         });
         expect(warOptions[0].aliases).toContain("war=1234");
         expect(warOptions[0].aliases).toContain("https://politicsandwar.com/nation/war/timeline/war=1234");
@@ -132,6 +140,7 @@ describe("queryOptionDataset", () => {
         const cityDataset = buildQueryOptionDataset("DBCity", {
             text: ["City 9988"],
             key_string: ["9988"],
+            size: 1,
         });
         expect(searchQueryOptionDataset("city/id=9988", cityDataset, 20)).toMatchObject({
             hasAnyMatch: true,

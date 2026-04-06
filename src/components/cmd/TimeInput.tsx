@@ -70,12 +70,18 @@ export default function TimeInput({
       return;
     }
 
-    input.focus({ preventScroll: true });
-
     const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
     if (typeof pickerInput.showPicker === "function") {
-      pickerInput.showPicker();
+      try {
+        // Let the browser keep the picker attached to this input without an extra focus hop.
+        pickerInput.showPicker();
+        return;
+      } catch {
+        // Fall back to focusing the field when showPicker is unavailable or rejected.
+      }
     }
+
+    input.focus({ preventScroll: true });
   }, []);
 
   return (

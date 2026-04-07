@@ -20,7 +20,6 @@ import { getRenderer } from "@/components/ui/renderers";
 import type { TaxExpenseBracket, WebTable } from "@/lib/apitypes";
 import { TABLE, TAX_EXPENSE, TAX_EXPENSE_BRACKET_ROWS, TAX_EXPENSE_NATION } from "@/lib/endpoints";
 import type { JSONValue } from "@/lib/internaltypes";
-import { collectTransactionNoteNationIds, parseTransactionNote, type ParsedTransactionNote } from "@/lib/transactionNotes";
 import { bulkQueryOptions } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import LoginPickerPage from "@/pages/login_picker";
@@ -497,38 +496,6 @@ function TaxExpenseNationDialog({
     enabled: Boolean(open && inspection && inspection.nationId > 0),
   });
   const detail = detailQuery.data?.data;
-  const parsedNotes = useMemo<ParsedTransactionNote[]>(() => {
-    if (!detail) {
-      return [];
-    }
-    return detail.transactions.map((transaction) => parseTransactionNote(transaction.note, { compact: true }));
-  }, [detail]);
-  const noteNationIds = useMemo(() => collectTransactionNoteNationIds(parsedNotes), [parsedNotes]);
-  const noteNationSelection = useMemo(() => buildEntitySelection(noteNationIds), [noteNationIds]);
-  const noteNationQuery = useQuery({
-    ...bulkQueryOptions(TABLE.endpoint, {
-      type: "DBNation",
-      selection_str: noteNationSelection,
-      columns: [...TAX_EXPENSE_NATION_TABLE_COLUMNS],
-    }),
-    enabled: noteNationIds.length > 0,
-  });
-  const noteNationMetaLookup = useMemo(
-    () => parseTaxExpenseNationTable(noteNationQuery.data?.data as WebTable | null | undefined),
-    [noteNationQuery.data?.data],
-  );
-  const noteNationLookup = useMemo(
-    () => Object.fromEntries(
-      noteNationIds.map((nationId) => [
-        nationId,
-        {
-          label: extractMarkupLabel(noteNationMetaLookup[nationId]?.nationMarkup, `Nation #${nationId}`),
-          url: buildNationUrl(nationId),
-        },
-      ]),
-    ),
-    [noteNationIds, noteNationMetaLookup],
-  );
   const transactionTableData = useMemo<JSONValue[][]>(() => {
     if (!detail) {
       return [];
@@ -536,10 +503,10 @@ function TaxExpenseNationDialog({
 
     return detail.transactions.map((transaction, index) => [
       transaction.txDatetime,
-      parsedNotes[index]?.raw ?? "",
+      transaction.note,
       getResourceMoneyValue(transaction.resources, resourcePrices),
     ] as JSONValue[]);
-  }, [detail, parsedNotes, resourcePrices]);
+  }, [detail, resourcePrices]);
   const transactionColumns = useMemo<ConfigColumns[]>(() => [
     {
       title: "Time",
@@ -561,8 +528,8 @@ function TaxExpenseNationDialog({
       width: 320,
       render: {
         display: (_value, context) => {
-          const note = context ? parsedNotes[context.rowIdx] : null;
-          return note ? <TransactionNoteBadges note={note} nationLookup={noteNationLookup} maxVisibleBadges={3} /> : "-";
+          const transaction = context ? detail?.transactions[context.rowIdx] : undefined;
+          return transaction ? <TransactionNoteBadges note={transaction.note} maxVisibleBadges={3} /> : "-";
         },
       },
     },
@@ -592,7 +559,7 @@ function TaxExpenseNationDialog({
       },
       cellClassName: "font-mono",
     },
-  ], [detail?.transactions, noteNationLookup, parsedNotes]);
+  ], [detail?.transactions]);
   const nationTitle = inspection
     ? extractMarkupLabel(inspection.nationMeta?.nationMarkup, `Nation #${inspection.nationId}`)
     : "Nation";

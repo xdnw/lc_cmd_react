@@ -1,7 +1,7 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 
 import { useDialog } from "@/components/layout/DialogContext";
-import type { ParsedTransactionNote } from "@/lib/transactionNotes";
+import { parseTransactionNote, type ParsedTransactionNote, type TransactionNoteInput } from "@/lib/transactionNotes";
 import { cn } from "@/lib/utils";
 
 import Badge from "./badge";
@@ -22,39 +22,47 @@ function getToneClassName(tone: ParsedTransactionNote["badges"][number]["tone"])
   return "border-border/70 bg-muted/25 text-foreground/85";
 }
 
+function isParsedTransactionNote(note: ParsedTransactionNote | TransactionNoteInput): note is ParsedTransactionNote {
+  return typeof note === "object" && note !== null && "raw" in note && "badges" in note;
+}
+
 export const TransactionNoteBadges = memo(function TransactionNoteBadges({
   note,
   nationLookup,
   className,
   maxVisibleBadges,
 }: {
-  note: ParsedTransactionNote;
+  note: ParsedTransactionNote | TransactionNoteInput;
   nationLookup?: TransactionNoteNationLookup;
   className?: string;
   maxVisibleBadges?: number;
 }) {
   const { showDialog } = useDialog();
+  const parsedNote = useMemo(
+    () => (isParsedTransactionNote(note) ? note : parseTransactionNote(note, { compact: true })),
+    [note],
+  );
 
-  if (note.badges.length === 0) {
+  if (parsedNote.badges.length === 0) {
     return <span className={cn("text-xs text-muted-foreground", className)}>-</span>;
   }
 
   const visibleBadges = typeof maxVisibleBadges === "number"
-    ? note.badges.slice(0, maxVisibleBadges)
-    : note.badges;
-  const hiddenCount = Math.max(0, note.badges.length - visibleBadges.length);
+    ? parsedNote.badges.slice(0, maxVisibleBadges)
+    : parsedNote.badges;
+  const hiddenCount = Math.max(0, parsedNote.badges.length - visibleBadges.length);
 
   const openOverflowDialog = useCallback(() => {
     showDialog(
       "Transaction note",
-      <TransactionNoteBadges note={note} nationLookup={nationLookup} className="gap-1.5" />,
+      <TransactionNoteBadges note={parsedNote} nationLookup={nationLookup} className="gap-1.5" />,
       {
         openInNewTab: true,
         focusNewTab: true,
         replaceActive: false,
       },
     );
-  }, [nationLookup, note, showDialog]);
+  }, [nationLookup, parsedNote, showDialog]);
 
   return (
     <div className={cn("flex flex-wrap gap-1", className)}>

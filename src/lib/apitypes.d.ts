@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-04-07 16:55:06.
+// Generated using typescript-generator version 3.2.1263 on 2026-04-08 01:54:00.
 
 export interface WebError {
     error: string;
@@ -102,7 +102,6 @@ export interface TaxExpenseTransactionRow {
     note: any;
     senderId: number;
     senderType: number;
-    senderName: string;
     receiverId: number;
     receiverType: number;
     bankerNationId: number;

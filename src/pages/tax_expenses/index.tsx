@@ -1170,7 +1170,6 @@ export default function TaxExpensesPage() {
   const headerSummary = useMemo(() => <FilterBadgeRow badges={filterBadges} />, [filterBadges]);
 
   const pageHeaderConfig = useMemo<PageHeaderConfig>(() => ({
-    sticky: true,
     title: (
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">Tax expenses</h1>

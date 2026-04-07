@@ -45,7 +45,6 @@ function PageScaffold({
                     {activeSidebar ? <SidebarNav mode="mobile" config={activeSidebar} /> : null}
                     <SectionHeader
                         tabs={sectionTabs}
-                        sticky={activeHeader?.sticky}
                         title={activeHeader?.title}
                         summary={activeHeader?.summary}
                         actions={activeHeader?.actions}

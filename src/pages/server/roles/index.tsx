@@ -1861,7 +1861,6 @@ export default function RoleManagementPage() {
         }
 
         return {
-            sticky: true,
             title: <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">Role management</h1>,
         } satisfies PageHeaderConfig;
     }, [session?.guild]);

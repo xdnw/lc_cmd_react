@@ -16,7 +16,6 @@ const defaultHeader: PageHeaderConfig = {
 
 const settingsHeader: PageHeaderConfig = {
   title: "Settings header",
-  sticky: true,
 };
 
 function HeaderProbe() {
@@ -24,7 +23,6 @@ function HeaderProbe() {
   return (
     <div>
       <div data-testid="header-title">{typeof activeHeader?.title === "string" ? activeHeader.title : "none"}</div>
-      <div data-testid="header-sticky">{activeHeader?.sticky ? "sticky" : "static"}</div>
     </div>
   );
 }
@@ -70,14 +68,12 @@ describe("PageHeaderProvider", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("header-title").textContent).toBe("Settings header");
-      expect(screen.getByTestId("header-sticky").textContent).toBe("sticky");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Go to balance" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("header-title").textContent).toBe("Default header");
-      expect(screen.getByTestId("header-sticky").textContent).toBe("static");
     });
   });
 });

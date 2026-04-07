@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useSt
 import { useLocation } from "react-router-dom";
 
 export interface PageHeaderConfig {
-  sticky?: boolean;
   title?: ReactNode;
   summary?: ReactNode;
   actions?: ReactNode;

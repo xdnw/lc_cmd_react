@@ -39,7 +39,6 @@ function renderSummary(summary: ReactNode): ReactNode {
 
 export interface SectionHeaderProps {
   tabs?: readonly AppSectionHeaderTab[];
-  sticky?: boolean;
   title?: ReactNode;
   summary?: ReactNode;
   actions?: ReactNode;
@@ -49,7 +48,6 @@ export interface SectionHeaderProps {
 
 export default function SectionHeader({
   tabs = [],
-  sticky = false,
   title,
   summary,
   actions,
@@ -68,7 +66,6 @@ export default function SectionHeader({
     <header
       className={cn(
         "rounded-xl border border-border/70 bg-card/90 px-3 py-3 shadow-sm backdrop-blur supports-backdrop-filter:bg-card/75",
-        sticky ? "sticky top-2 z-20" : undefined,
         className,
       )}
     >

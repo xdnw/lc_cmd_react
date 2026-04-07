@@ -12,6 +12,7 @@ import { JSONValue } from "@/lib/internaltypes";
 import { sortData } from "./sort";
 import { cn } from "@/lib/utils";
 import { ExportTable } from "./TableWithExports";
+import SelectionCellButton from "./actions/SelectionCellButton";
 
 // Types
 export type OrderIdx = {
@@ -51,12 +52,44 @@ export interface ObjectColumnRender<T = JSONValue> {
   options?: string[];
 }
 
+function formatTableCellText(value: JSONValue): string {
+  if (value === null) {
+    return "-";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function TableTextCell({ text }: { text: string }) {
+  return (
+    <span className="block overflow-hidden text-ellipsis whitespace-nowrap" title={text}>
+      {text}
+    </span>
+  );
+}
+
 export function renderTableCellValue(value: JSONValue, context: RenderContext): ReactNode {
   const renderer = context.column.render?.display;
   if (renderer) {
-    return renderer(value, context);
+    const rendered = renderer(value, context);
+    if (typeof rendered === "string" || typeof rendered === "number") {
+      return <TableTextCell text={String(rendered)} />;
+    }
+    return rendered;
   }
-  return String(value);
+  return <TableTextCell text={formatTableCellText(value)} />;
 }
 
 export type ClientColumnOverlay = {
@@ -75,6 +108,48 @@ export type ClientColumnOverlay = {
   headerCellClassName?: string;
 };
 
+export type TableRowSelectionId = number | string;
+
+export type TableRowSelection<IdT extends TableRowSelectionId = TableRowSelectionId> = {
+  getRowId: (row: JSONValue[], rowIdx: number) => IdT | null | undefined;
+  selectedIds: ReadonlySet<IdT>;
+  onSelectedIdsChange: (selectedIds: Set<IdT>) => void;
+  onVisibleIdsChange?: (ids: IdT[]) => void;
+  getLabel?: (id: IdT, rowIdx: number) => string;
+  selectedRowClassName?: string;
+  showRowNumber?: boolean;
+  debugTagPrefix?: string;
+};
+
+function SelectionIndexCell({
+  rowId,
+  rowIdx,
+  rowNumber,
+  rowSelection,
+  onToggleRowSelection,
+}: {
+  rowId: TableRowSelectionId;
+  rowIdx: number;
+  rowNumber: number;
+  rowSelection: TableRowSelection;
+  onToggleRowSelection: (id: TableRowSelectionId, rowIdx: number, shiftKey: boolean) => void;
+}) {
+  const handleToggle = useCallback((toggledId: number | string, shiftKey: boolean) => {
+    onToggleRowSelection(toggledId, rowIdx, shiftKey);
+  }, [onToggleRowSelection, rowIdx]);
+
+  return (
+    <SelectionCellButton
+      id={rowId}
+      isSelected={rowSelection.selectedIds.has(rowId)}
+      onToggle={handleToggle}
+      label={rowSelection.getLabel?.(rowId, rowIdx) ?? `Toggle selection for ${rowId}`}
+      debugTag={rowSelection.debugTagPrefix ? `${rowSelection.debugTagPrefix}-${rowId}` : undefined}
+      rowNumber={rowSelection.showRowNumber === false ? undefined : rowNumber}
+    />
+  );
+}
+
 interface ReactDataGridTableProps {
   table: React.RefObject<DataGridHandle | null>;
   columnsInfo: ConfigColumns[];
@@ -86,6 +161,7 @@ interface ReactDataGridTableProps {
   indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode;
   indexColumnWidth?: number;
   onRowsRendered?: (rows: JSONValue[][]) => void;
+  rowSelection?: TableRowSelection;
   visibleColumns?: number[];
   setColumns: (columns: ConfigColumns[]) => void;
   setData: (data: JSONValue[][]) => void;
@@ -104,6 +180,7 @@ export function DataTable({
   indexCellRenderer,
   indexColumnWidth,
   onRowsRendered,
+  rowSelection,
   visibleColumns, // TODO
   setColumns,
   setData,
@@ -155,6 +232,61 @@ export function DataTable({
     onRowsRendered?.(data);
   }, [data, onRowsRendered]);
 
+  const [lastSelectedRowIdx, setLastSelectedRowIdx] = useState<number | null>(null);
+
+  const selectableRowIds = useMemo(
+    () => rowSelection
+      ? data.map((row, rowIdx) => rowSelection.getRowId(row, rowIdx))
+      : [],
+    [data, rowSelection],
+  );
+
+  const visibleSelectableRowIds = useMemo(() => {
+    if (!rowSelection) {
+      return [] as TableRowSelectionId[];
+    }
+
+    return selectableRowIds.filter((id): id is TableRowSelectionId => id !== null && id !== undefined);
+  }, [rowSelection, selectableRowIds]);
+
+  useEffect(() => {
+    if (!rowSelection?.onVisibleIdsChange) {
+      return;
+    }
+
+    rowSelection.onVisibleIdsChange(visibleSelectableRowIds);
+  }, [rowSelection, visibleSelectableRowIds]);
+
+  const handleSelectionToggle = useCallback((id: TableRowSelectionId, rowIdx: number, shiftKey: boolean) => {
+    if (!rowSelection) {
+      return;
+    }
+
+    const shouldSelect = !rowSelection.selectedIds.has(id);
+    const nextSelectedIds = new Set(rowSelection.selectedIds);
+
+    if (shiftKey && lastSelectedRowIdx !== null && visibleSelectableRowIds.length > 0) {
+      const start = Math.max(0, Math.min(lastSelectedRowIdx, rowIdx));
+      const end = Math.min(visibleSelectableRowIds.length - 1, Math.max(lastSelectedRowIdx, rowIdx));
+      const rangeIds = visibleSelectableRowIds.slice(start, end + 1);
+
+      rangeIds.forEach((rangeId) => {
+        if (shouldSelect) {
+          nextSelectedIds.add(rangeId);
+        } else {
+          nextSelectedIds.delete(rangeId);
+        }
+      });
+    } else if (shouldSelect) {
+      nextSelectedIds.add(id);
+    } else {
+      nextSelectedIds.delete(id);
+    }
+
+    rowSelection.onSelectedIdsChange(nextSelectedIds);
+    setLastSelectedRowIdx(rowIdx);
+  }, [lastSelectedRowIdx, rowSelection, visibleSelectableRowIds]);
+
   // Create column definitions for DataGrid
   const gridColumns: Column<JSONValue[]>[] = useMemo(() => {
     const gridCols: Column<JSONValue[]>[] = [];
@@ -166,6 +298,8 @@ export function DataTable({
         renderCell:
           (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
             const rowIndex = props.rowIdx + 1;
+            const rowId = rowSelection?.getRowId(props.row, props.rowIdx);
+
             if (indexCellRenderer) {
               return indexCellRenderer({
                 row: props.row,
@@ -173,6 +307,19 @@ export function DataTable({
                 rowNumber: rowIndex,
               });
             }
+
+            if (rowSelection && rowId !== null && rowId !== undefined) {
+              return (
+                <SelectionIndexCell
+                  rowId={rowId}
+                  rowIdx={props.rowIdx}
+                  rowNumber={rowIndex}
+                  rowSelection={rowSelection}
+                  onToggleRowSelection={handleSelectionToggle}
+                />
+              );
+            }
+
             return String(rowIndex)
           },
       });
@@ -190,18 +337,15 @@ export function DataTable({
         width: colInfo.width ?? undefined,
         minWidth: Math.max(60, Math.min(180, colInfo.title.length * 9 + 30)),
         maxWidth: 800,
-        cellClass: cn("px-1 whitespace-normal break-words overflow-hidden", colInfo.cellClassName),
+        cellClass: cn("px-1 overflow-hidden", colInfo.cellClassName),
         headerCellClass: cn("px-1 text-foreground bg-muted text-xs", colInfo.headerCellClassName),
-        renderCell: renderer ? (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
+        renderCell: (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
           const value = props.row[dataIndex];
           return renderTableCellValue(value, {
             row: props.row,
             rowIdx: props.rowIdx,
             column: colInfo,
           });
-        } : (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
-          const value = props.row[dataIndex];
-          return String(value);
         },
         renderEditCell: colInfo.editable === false ? undefined : renderTextEditor,
         editable: colInfo.editable ?? true,
@@ -240,7 +384,7 @@ export function DataTable({
     }
 
     return gridCols;
-  }, [visibleColumnsInfo, isMobile, hiddenColumnsInfo, columnsInfo.length, indexCellRenderer, indexColumnWidth, showIndexColumn]);
+  }, [visibleColumnsInfo, isMobile, hiddenColumnsInfo, columnsInfo.length, handleSelectionToggle, indexCellRenderer, indexColumnWidth, rowSelection, showIndexColumn]);
 
   const noRowsFallback = useMemo(() => {
     return <div className="flex items-center justify-center h-full text-xl text-center bg-background text-foreground w-full cursor-default">No data to display</div>;
@@ -323,13 +467,16 @@ export function DataTable({
   // todo use the above even/odd
   const rowClass = useCallback((row: JSONValue[], rowIdx: number) => {
     const isSelected = searchSet.has(rowIdx);
+    const rowId = rowSelection?.getRowId(row, rowIdx);
+    const isRowSelected = rowId !== null && rowId !== undefined && rowSelection?.selectedIds.has(rowId);
     const customRowClass = rowClassName?.(row, rowIdx);
     return cn(
       rowIdx % 2 === 0 ? evenClass : oddClass,
       isSelected ? "bg-blue-100 dark:bg-blue-700" : "",
+      isRowSelected ? (rowSelection?.selectedRowClassName ?? "bg-blue-100/80 dark:bg-blue-900/30") : "",
       customRowClass
     );
-  }, [searchSet, evenClass, oddClass, rowClassName]);
+  }, [searchSet, rowSelection, evenClass, oddClass, rowClassName]);
 
   const dataGrid = useMemo(() => {
     return <div className="border border-border rounded-md overflow-x-auto overflow-y-hidden text-xs bg-background">
@@ -344,7 +491,7 @@ export function DataTable({
         onSortColumnsChange={handleSort}
         onColumnsReorder={onColumnsReorder}
         rowClass={rowClass}
-        rowHeight={24}
+        rowHeight={28}
         renderers={{ noRowsFallback }}
         enableVirtualization={true}
         onRowsChange={setData}

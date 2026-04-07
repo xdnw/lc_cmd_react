@@ -10,9 +10,9 @@ export default function SelectionCellButton({
     debugTag,
     rowNumber,
 }: {
-    id: number;
+    id: number | string;
     isSelected: boolean;
-    onToggle: (id: number, shiftKey: boolean) => void;
+    onToggle: (id: number | string, shiftKey: boolean) => void;
     label?: string;
     debugTag?: string;
     rowNumber?: number;

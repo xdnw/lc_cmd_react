@@ -53,7 +53,7 @@ function TemporaryConflictSelectButton({
     selected: boolean;
     onToggle: (rowKey: string, rowIdx: number, shiftKey: boolean) => void;
 }) {
-    const onCheckboxToggle = useCallback((_id: number, shiftKey: boolean) => {
+    const onCheckboxToggle = useCallback((_id: number | string, shiftKey: boolean) => {
         onToggle(rowKey, rowIdx, shiftKey);
     }, [onToggle, rowIdx, rowKey]);
 

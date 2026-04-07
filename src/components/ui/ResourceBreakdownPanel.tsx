@@ -84,7 +84,7 @@ export function ResourceBreakdownPanel({
       "overflow-hidden rounded-md border border-border/50 bg-background/70",
       className,
     )}>
-      <div className={cn("flex items-center justify-between gap-2 border-b border-border/40 bg-muted/10", compact ? "px-2 py-1.5" : "px-3 py-2") }>
+      <div className={cn("flex items-center justify-between gap-2 border-b border-border/40 bg-muted/10", compact ? "px-1.5 py-1" : "px-3 py-2") }>
         <h3 className={cn("font-semibold uppercase tracking-[0.16em]", compact ? "text-[10px]" : "text-[11px]", titlePalette.title)}>{title}</h3>
         <div className="flex items-center gap-1">
           {showEntryCount ? (
@@ -96,12 +96,12 @@ export function ResourceBreakdownPanel({
       {entries.length === 0 ? (
         <div className={cn(
           "rounded-md border border-dashed border-border/60 text-muted-foreground",
-          compact ? "m-1.5 px-2 py-2 text-xs" : "m-2 px-3 py-4 text-sm",
+          compact ? "m-1 px-1.5 py-1.5 text-[11px]" : "m-2 px-3 py-4 text-sm",
         )}>
           {emptyLabel}
         </div>
       ) : (
-        <div className={cn(compact ? "space-y-1 p-1.5" : "space-y-1.5 p-2") }>
+        <div className={cn(compact ? "space-y-0.5 p-1" : "space-y-1.5 p-2") }>
           {entries.map((entry) => {
             const palette = getEntryTone(tone, entry.value);
             const width = maxMagnitude > 0 && entry.value !== 0 ? Math.max((Math.abs(entry.value) / maxMagnitude) * 100, 10) : 0;
@@ -109,7 +109,7 @@ export function ResourceBreakdownPanel({
             return (
               <div key={entry.key} className={cn(
                 "relative overflow-hidden rounded-sm border",
-                compact ? "px-2 py-1" : "px-2.5 py-1.5",
+                compact ? "px-1.5 py-0.5" : "px-2.5 py-1.5",
                 palette.row,
               )}>
                 {width > 0 ? (
@@ -122,7 +122,7 @@ export function ResourceBreakdownPanel({
                     style={{ width: `${width}%` }}
                   />
                 ) : null}
-                <div className={cn("relative grid grid-cols-[minmax(0,1fr)_auto] items-center", compact ? "gap-2" : "gap-3") }>
+                <div className={cn("relative grid grid-cols-[minmax(0,1fr)_auto] items-center", compact ? "gap-1.5" : "gap-3") }>
                   <span className={cn("truncate text-foreground", compact ? "text-[11px]" : "text-sm")}>{entry.label}</span>
                   <span className={cn("font-mono tabular-nums", compact ? "text-[11px]" : "text-sm", palette.value)}>{entry.displayValue}</span>
                 </div>

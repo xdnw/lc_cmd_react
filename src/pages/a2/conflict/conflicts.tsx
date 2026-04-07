@@ -52,7 +52,7 @@ function ConflictSelectButton({
     selected: boolean;
     onToggle: (id: number, rowIdx: number, shiftKey: boolean) => void;
 }) {
-    const onCheckboxToggle = useCallback((_id: number, shiftKey: boolean) => {
+    const onCheckboxToggle = useCallback((_id: number | string, shiftKey: boolean) => {
         onToggle(id, rowIdx, shiftKey);
     }, [id, onToggle, rowIdx]);
 

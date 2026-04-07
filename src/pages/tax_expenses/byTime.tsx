@@ -34,8 +34,10 @@ import {
   formatBracketMeta,
   formatBracketTitle,
   formatCountLabel,
+  formatTaxExpenseResourceLabel,
   formatTaxExpenseAxisDate,
   formatTaxExpenseTimestamp,
+  getTaxExpenseResourceByOrdinal,
   parseTaxExpenseResourcePrices,
   parseTaxExpenseTimeFilters,
   writeTaxExpenseTimeFilters,
@@ -45,7 +47,7 @@ import {
   type TaxExpenseTimeFilters,
 } from "./taxExpensesState";
 
-const TIME_FILTER_FIELDS = ["start", "end", "nationFilter", "dontRequireTagged"] as const satisfies readonly (keyof TaxExpenseTimeFilters)[];
+const TIME_FILTER_FIELDS = ["start", "end", "nationFilter", "dontRequireGrant", "dontRequireTagged", "dontRequireExpiry", "includeDeposits"] as const satisfies readonly (keyof TaxExpenseTimeFilters)[];
 
 function buildSeriesLabels(categories: readonly TaxExpenseTimeCategory[]): TaxExpenseTimeCategory[] {
   return categories.map((category) => ({
@@ -273,7 +275,7 @@ function ResourceChartBlock({
   xTickLabelFormatter,
   tooltipTitleFormatter,
 }: {
-  resource: string;
+  resource: ResourceType;
   series: readonly number[][];
   timestamps: readonly number[];
   categories: readonly TaxExpenseTimeCategory[];
@@ -284,7 +286,7 @@ function ResourceChartBlock({
   xTickLabelFormatter: ReturnType<typeof useCompactTimeFormatters>["xTickLabelFormatter"];
   tooltipTitleFormatter: ReturnType<typeof useCompactTimeFormatters>["tooltipTitleFormatter"];
 }) {
-  const price = resourcePrices?.[resource as ResourceType] ?? (resource === "MONEY" ? 1 : 1);
+  const price = resourcePrices?.[resource] ?? (resource === "MONEY" ? 1 : 1);
   const displaySeries = useMemo(
     () => displayMode === "value" ? scaleSeries(series, price) : series.map((values) => [...values]),
     [displayMode, price, series],
@@ -302,7 +304,7 @@ function ResourceChartBlock({
   return (
     <div className="border border-border/50 bg-background/30 px-2 py-2">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-foreground">{resource}</h3>
+        <h3 className="text-sm font-medium text-foreground">{formatTaxExpenseResourceLabel(resource)}</h3>
         <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{displayMode === "value" ? "Value" : "Raw"}</span>
       </div>
       <div className="h-52 min-h-52">
@@ -338,7 +340,7 @@ function ResourceDrilldown({
 }: {
   open: boolean;
   onToggle: () => void;
-  resourceData?: Record<string, number[][]>;
+  resourceData?: readonly (readonly number[][])[];
   isLoading: boolean;
   hasError: boolean;
   timestamps: readonly number[];
@@ -351,6 +353,17 @@ function ResourceDrilldown({
   tooltipTitleFormatter: ReturnType<typeof useCompactTimeFormatters>["tooltipTitleFormatter"];
 }) {
   const labelledCategories = useMemo(() => buildSeriesLabels(categories), [categories]);
+  const resourceEntries = useMemo(() => {
+    if (!resourceData) {
+      return [];
+    }
+
+    return resourceData.flatMap((resourceSeries, ordinal) => {
+      const resource = getTaxExpenseResourceByOrdinal(ordinal);
+      const hasValues = resourceSeries.some((series) => series.some((value) => value !== 0));
+      return resource && hasValues ? [{ resource, series: resourceSeries }] : [];
+    });
+  }, [resourceData]);
 
   return (
     <section className="border border-border/60 bg-background/40">
@@ -370,15 +383,15 @@ function ResourceDrilldown({
             <Loading variant="ripple" />
           ) : hasError ? (
             <div className="text-sm text-destructive">Failed to load resource drilldown.</div>
-          ) : !resourceData ? (
+          ) : resourceEntries.length === 0 ? (
             <div className="text-sm text-muted-foreground">No resource drilldown data available.</div>
           ) : (
             <div className="grid gap-2 lg:grid-cols-2">
-              {Object.entries(resourceData).map(([resource, resourceSeries]) => (
+              {resourceEntries.map(({ resource, series }) => (
                 <ResourceChartBlock
                   key={resource}
                   resource={resource}
-                  series={resourceSeries}
+                  series={series}
                   timestamps={timestamps}
                   categories={labelledCategories}
                   mode={mode}
@@ -458,8 +471,11 @@ export default function TaxExpensesByTimePage() {
     start: draftFilters.start,
     end: draftFilters.end,
     nationFilter: draftFilters.nationFilter,
+    dontRequireGrant: draftFilters.dontRequireGrant,
     dontRequireTagged: draftFilters.dontRequireTagged,
-  }), [draftFilters.dontRequireTagged, draftFilters.end, draftFilters.nationFilter, draftFilters.start]);
+    dontRequireExpiry: draftFilters.dontRequireExpiry,
+    includeDeposits: draftFilters.includeDeposits,
+  }), [draftFilters.dontRequireExpiry, draftFilters.dontRequireGrant, draftFilters.dontRequireTagged, draftFilters.end, draftFilters.includeDeposits, draftFilters.nationFilter, draftFilters.start]);
 
   const handleChartModeChange = useCallback((chartMode: TaxExpenseChartMode) => {
     setDraftFilters((current) => ({ ...current, chartMode }));
@@ -609,7 +625,7 @@ export default function TaxExpensesByTimePage() {
             <ResourceDrilldown
               open={resourceOpen}
               onToggle={handleToggleResourceOpen}
-              resourceData={(resourceQuery.data?.data as TaxExpenseTimeResources | undefined)?.byResourceByCategory}
+              resourceData={(resourceQuery.data?.data as TaxExpenseTimeResources | undefined)?.byResourceOrdinalByCategory}
               isLoading={resourceQuery.isLoading}
               hasError={Boolean(resourceQuery.error)}
               timestamps={timeData.timestamps}

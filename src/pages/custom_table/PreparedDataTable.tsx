@@ -3,7 +3,7 @@ import type { DataGridHandle } from "react-data-grid";
 
 import type { JSONValue } from "@/lib/internaltypes";
 
-import { DataTable, type ConfigColumns, type OrderIdx } from "./DataTable";
+import { DataTable, type ConfigColumns, type OrderIdx, type TableRowSelection } from "./DataTable";
 
 export function PreparedDataTable({
   columnsInfo,
@@ -16,6 +16,7 @@ export function PreparedDataTable({
   indexCellRenderer,
   indexColumnWidth,
   onRowsRendered,
+  rowSelection,
 }: {
   columnsInfo: ConfigColumns[];
   data: JSONValue[][];
@@ -27,6 +28,7 @@ export function PreparedDataTable({
   indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode;
   indexColumnWidth?: number;
   onRowsRendered?: (rows: JSONValue[][]) => void;
+  rowSelection?: TableRowSelection;
 }) {
   const table = useRef<DataGridHandle>(null);
   const [dataState, setDataState] = useState(data);
@@ -63,6 +65,7 @@ export function PreparedDataTable({
       indexCellRenderer={indexCellRenderer}
       indexColumnWidth={indexColumnWidth}
       onRowsRendered={onRowsRendered}
+      rowSelection={rowSelection}
       visibleColumns={visibleColumns}
       setColumns={setColumnsState}
       setData={setDataState}

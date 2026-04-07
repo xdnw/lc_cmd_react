@@ -8,7 +8,7 @@ import type { WebTable } from "@/lib/apitypes";
 import { TABLE } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
 import { PreparedDataTable } from "@/pages/custom_table/PreparedDataTable";
-import type { OrderIdx } from "@/pages/custom_table/DataTable";
+import type { ClientColumnOverlay, ObjectColumnRender, OrderIdx } from "@/pages/custom_table/DataTable";
 import { createTableInfo, toColumnMap, type TableUrlColumnInput, type PlaceholderType } from "@/pages/custom_table/table_util";
 
 const DEFAULT_DIALOG_OPTIONS: ShowDialogArg = {
@@ -23,12 +23,18 @@ function PlaceholderTableDialogContent({
   columns,
   sort,
   showIndexColumn,
+  columnRenderers,
+  clientColumns,
+  hiddenColumns,
 }: {
   type: PlaceholderType;
   selection: string;
   columns: readonly TableUrlColumnInput[];
   sort?: OrderIdx | OrderIdx[];
   showIndexColumn: boolean;
+  columnRenderers?: Record<string, string | ObjectColumnRender>;
+  clientColumns?: ClientColumnOverlay[];
+  hiddenColumns?: readonly string[];
 }) {
   const queryArgs = useMemo(() => ({
     type,
@@ -47,8 +53,17 @@ function PlaceholderTableDialogContent({
       return null;
     }
 
-    return createTableInfo(table, sort, toColumnMap(columns));
-  }, [columns, sort, tableQuery.data?.data]);
+    const info = createTableInfo(table, sort, toColumnMap(columns), clientColumns ?? [], columnRenderers);
+    if (!hiddenColumns?.length) {
+      return info;
+    }
+
+    const hiddenColumnKeys = new Set(hiddenColumns.map((column) => column.toLowerCase().trim()));
+    return {
+      ...info,
+      columnsInfo: info.columnsInfo.filter((column) => !hiddenColumnKeys.has((column.key ?? "").toLowerCase().trim())),
+    };
+  }, [clientColumns, columnRenderers, columns, hiddenColumns, sort, tableQuery.data?.data]);
 
   if (tableQuery.isLoading) {
     return (
@@ -85,6 +100,9 @@ type PlaceholderTableDialogButtonProps = Omit<ButtonProps, "children"> & {
   sort?: OrderIdx | OrderIdx[];
   dialogOptions?: ShowDialogArg;
   showIndexColumn?: boolean;
+  columnRenderers?: Record<string, string | ObjectColumnRender>;
+  clientColumns?: ClientColumnOverlay[];
+  hiddenColumns?: readonly string[];
   children: ButtonProps["children"];
 };
 
@@ -96,6 +114,9 @@ export default function PlaceholderTableDialogButton({
   sort,
   dialogOptions = DEFAULT_DIALOG_OPTIONS,
   showIndexColumn = false,
+  columnRenderers,
+  clientColumns,
+  hiddenColumns,
   children,
   type = "button",
   onClick,
@@ -116,10 +137,13 @@ export default function PlaceholderTableDialogButton({
         columns={columns}
         sort={sort}
         showIndexColumn={showIndexColumn}
+        columnRenderers={columnRenderers}
+        clientColumns={clientColumns}
+        hiddenColumns={hiddenColumns}
       />,
       dialogOptions,
     );
-  }, [columns, dialogOptions, onClick, selection, showDialog, showIndexColumn, sort, title, typeName]);
+  }, [clientColumns, columnRenderers, columns, dialogOptions, hiddenColumns, onClick, selection, showDialog, showIndexColumn, sort, title, typeName]);
 
   return (
     <Button

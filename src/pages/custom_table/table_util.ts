@@ -77,6 +77,7 @@ export function createTableInfo(
         return {
             title: formatColName(col),
             index: index,
+            key: columnKeys[index],
             // Explicit client renderer overrides backend renderer metadata when provided.
             render: overrideRenderer ?? backendRenderer,
         };

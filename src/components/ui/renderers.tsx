@@ -7,6 +7,7 @@ import { ObjectColumnRender } from "@/pages/custom_table/DataTable.js";
 import { JSONValue } from "@/lib/internaltypes.js";
 import { Link } from "react-router-dom";
 import { LAYOUT_RENDERER_DISPLAYS } from "@/lib/layoutRenderers";
+import { formatResourceMapText } from "./resourceMap";
 
 const LazySimpleChart = lazy(() => import("../../pages/graphs/SimpleChart.js"));
 const LazySanitizedHtml = lazy(() => import("./SanitizedHtml"));
@@ -29,6 +30,7 @@ export const RENDERERS: { [key: string]: ObjectColumnRender | undefined } = {
     percent: { display: percent },
     duration_ms: { display: duration_ms },
     numeric_map: { display: numericMap },
+    resource_map: { display: resourceMap },
     turn_to_date: { display: formatTurnsToDate },
     ...Object.fromEntries(
         Object.entries(LAYOUT_RENDERER_DISPLAYS).map(([id, display]) => [id, { display }]),
@@ -196,4 +198,8 @@ export function numericMap(value: { [key: string]: number } | string): string {
         return `${k}:${commafy((v))}`;
     });
     return `{${entries.join(",")}}`;
+}
+
+export function resourceMap(value: JSONValue): string {
+    return formatResourceMapText(value);
 }

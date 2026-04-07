@@ -19,9 +19,35 @@ export type ParsedTransactionNote = {
   badges: ParsedTransactionNoteBadge[];
 };
 
+const NOTE_TEXT_DECODER = new TextDecoder();
 const NOTE_TAG_PATTERN = /(^|\s)(#[^=\s]+)(?:=([^\s]+))?/g;
 const COMPACT_VALUELESS_KEYS = new Set(["grant", "deposit", "tax", "loan", "upkeep"]);
 const LOW_SIGNAL_VALUES = /^(?:alliance_id|guild_id|tx_id|transaction_id|true|false|null)$/i;
+
+function toTransactionNoteBytes(note: string | readonly number[] | Uint8Array | null | undefined): Uint8Array | null {
+  if (note == null) {
+    return null;
+  }
+
+  if (note instanceof Uint8Array) {
+    return note;
+  }
+
+  if (Array.isArray(note)) {
+    return Uint8Array.from(note);
+  }
+
+  return null;
+}
+
+export function decodeTransactionNoteText(note: string | readonly number[] | Uint8Array | null | undefined): string {
+  if (typeof note === "string") {
+    return note;
+  }
+
+  const bytes = toTransactionNoteBytes(note);
+  return bytes ? NOTE_TEXT_DECODER.decode(bytes) : "";
+}
 
 function trimNoteWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
@@ -185,8 +211,8 @@ function extractResidualText(note: string): string[] {
     .map((part) => (part.length > 28 ? `${part.slice(0, 28)}...` : part));
 }
 
-export function parseTransactionNote(note: string | null | undefined, options?: { compact?: boolean; nowMs?: number }): ParsedTransactionNote {
-  const raw = trimNoteWhitespace(note ?? "");
+export function parseTransactionNote(note: string | readonly number[] | Uint8Array | null | undefined, options?: { compact?: boolean; nowMs?: number }): ParsedTransactionNote {
+  const raw = trimNoteWhitespace(decodeTransactionNoteText(note));
   if (raw.length === 0) {
     return { raw: "", badges: [] };
   }

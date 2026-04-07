@@ -9,6 +9,7 @@ import CommandDialogButton from "@/components/cmd/CommandDialogButton";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import { FilterBadgeRow } from "@/components/ui/FilterBadgeRow";
 import { ResourceBreakdownPanel } from "@/components/ui/ResourceBreakdownPanel";
+import { ResourceMapText, createCopyableResourceMapRenderer } from "@/components/ui/resourceMap";
 import { TransactionNoteBadges } from "@/components/ui/TransactionNoteBadges";
 import { BlockCopyButton } from "@/components/ui/block-copy-button";
 import Badge from "@/components/ui/badge";
@@ -24,14 +25,16 @@ import { bulkQueryOptions } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import LoginPickerPage from "@/pages/login_picker";
 import { PreparedDataTable } from "@/pages/custom_table/PreparedDataTable";
-import type { ConfigColumns } from "@/pages/custom_table/DataTable";
+import type { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, TableRowSelection, TableRowSelectionId } from "@/pages/custom_table/DataTable";
 import PlaceholderTableDialogButton from "@/pages/custom_table/PlaceholderTableDialogButton";
 import type { TableUrlColumnInput } from "@/pages/custom_table/table_util";
+import { useIdSelection } from "@/utils/useIdSelection";
 
 import { TaxExpenseValueStrip } from "./TaxExpenseValueStrip";
 import {
   TAX_EXPENSE_NATION_TABLE_COLUMNS,
   TAX_EXPENSE_RESOURCE_PRICE_COLUMNS,
+  TAX_EXPENSE_RESOURCE_TYPES,
   TAX_EXPENSE_SUMMARY_DEFAULT_FILTERS,
   TAX_EXPENSE_TOTAL_TAX_ID,
   buildEntitySelection,
@@ -87,6 +90,21 @@ type NationInspectionState = {
   nationMeta: TaxExpenseNationMeta | null;
 };
 
+const NATION_TABLE_INDEX = {
+  nationId: 0,
+  nationMarkup: 1,
+  currentTaxId: 2,
+  cities: 3,
+  builtProjects: 4,
+  projectSlots: 5,
+  avgInfra: 6,
+  avgLand: 7,
+  color: 8,
+  incomeValue: 9,
+  expenseValue: 10,
+  netValue: 11,
+} as const;
+
 const SUMMARY_FILTER_FIELDS = [
   "start",
   "end",
@@ -102,10 +120,22 @@ const COLOR_RENDERER = getRenderer("color") ?? {
 };
 
 const CITY_COST_COMMAND: ["city", "cost"] = ["city", "cost"];
-const INFRA_COST_COMMAND: ["infra", "cost"] = ["infra", "cost"];
-const LAND_COST_COMMAND: ["land", "cost"] = ["land", "cost"];
+const GRANT_COST_COMMAND: ["grant", "cost"] = ["grant", "cost"];
 
-const INLINE_DIALOG_BUTTON_CLASS_NAME = "h-5 rounded-sm px-1.5 text-[11px] font-medium";
+const INLINE_DIALOG_BUTTON_CLASS_NAME = "h-5 max-w-full rounded-sm px-1.5 text-[11px] font-medium whitespace-nowrap";
+const PROJECT_COST_COLUMN_KEY = "{cost}";
+const PROJECT_MARKET_VALUE_COLUMN_KEY = "{getmarketvalue}";
+const TAX_EXPENSE_RESOURCE_COPY_KEYS = TAX_EXPENSE_RESOURCE_TYPES.map((resource) => resource.toLowerCase());
+
+const NATION_CITY_TABLE_COLUMNS: readonly TableUrlColumnInput[] = [
+  ["{getmarkdownurl}", "City"],
+  ["{getinfra}", "Infra"],
+  ["{getland}", "Land"],
+  ["{getagedays}", "Age"],
+  ["{getnumbuildings}", "Buildings"],
+  ["{getmmr}", "MMR"],
+  ["{tojson}", "Build JSON"],
+];
 
 function formatMetricNumber(value: number | null | undefined, maximumFractionDigits = 0): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -118,12 +148,9 @@ function formatMetricNumber(value: number | null | undefined, maximumFractionDig
   });
 }
 
-function toCommandNumberString(value: number | null | undefined): string | null {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return null;
-  }
-
-  return String(Math.max(0, Math.round(value)));
+function getRowNumberValue(row: JSONValue[] | undefined, index: number): number | null {
+  const value = row?.[index];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function formatProjectProgress(meta: Pick<TaxExpenseNationMeta, "builtProjects" | "projectSlots">): string | null {
@@ -139,7 +166,18 @@ function buildProjectTableColumns(nationId: number): readonly TableUrlColumnInpu
     ["{name}", "Project"],
     [`{has(${nationId})}`, "Has"],
     [`{canbuild(${nationId})}`, "Can Build"],
+    [PROJECT_COST_COLUMN_KEY, "Raw Cost"],
+    [PROJECT_MARKET_VALUE_COLUMN_KEY, "Market Value"],
   ];
+}
+
+function buildProjectCostRenderer(rawCostIndex: number): ObjectColumnRender {
+  return createCopyableResourceMapRenderer({
+    getButtonLabel: (value) => <span className="block overflow-hidden text-ellipsis whitespace-nowrap font-mono">{formatMonetaryAmount(Number(value ?? 0))}</span>,
+    getCopySource: (_value, context) => context?.row[rawCostIndex] as JSONValue | null | undefined,
+    getTitle: (copyText, value) => `${formatMonetaryAmount(Number(value ?? 0))}\n${copyText}\nClick to copy the raw resource map.`,
+    className: cn(INLINE_DIALOG_BUTTON_CLASS_NAME, "font-mono"),
+  });
 }
 
 function buildNationUrl(nationId: number): string {
@@ -165,22 +203,7 @@ function extractMarkupLabel(markup: string | null | undefined, fallback: string)
 }
 
 function TransactionResourceList({ resources }: { resources: readonly number[] }) {
-  const rows = useMemo(() => getResourceBreakdownRows(resources, { displayMode: "raw" }), [resources]);
-
-  if (rows.length === 0) {
-    return <span className="text-xs text-muted-foreground">0</span>;
-  }
-
-  return (
-    <div className="flex flex-wrap gap-1">
-      {rows.map((row) => (
-        <Badge key={row.key} variant="outline" className="border-border/70 bg-muted/15 px-1.5 py-0 text-[10px] leading-4">
-          <span className="truncate">{row.label}</span>
-          <span className="font-mono text-[10px] tabular-nums">{row.displayValue}</span>
-        </Badge>
-      ))}
-    </div>
-  );
+  return <ResourceMapText value={resources as unknown as JSONValue} className="text-[11px]" resourceKeys={TAX_EXPENSE_RESOURCE_COPY_KEYS} />;
 }
 
 function BreakdownGrid({
@@ -217,7 +240,7 @@ function BreakdownGrid({
   ], [displayMode, expense, income, net, resourcePrices]);
 
   return (
-    <div className="grid gap-2 xl:grid-cols-3">
+    <div className="grid gap-1.5 xl:grid-cols-3">
       {panels.map((panel) => (
         <BreakdownPanelCard
           key={panel.title}
@@ -256,6 +279,63 @@ function BreakdownPanelCard({
   );
 }
 
+function TaxExpenseBreakdownSection({
+  incomeValue,
+  expenseValue,
+  netValue,
+  income,
+  expense,
+  displayMode,
+  resourcePrices,
+  resetKey,
+  breakdownContainerClassName,
+}: {
+  incomeValue: number;
+  expenseValue: number;
+  netValue: number;
+  income: readonly number[];
+  expense: readonly number[];
+  displayMode: TaxExpenseDisplayMode;
+  resourcePrices?: TaxExpenseResourcePriceMap;
+  resetKey: string | number;
+  breakdownContainerClassName?: string;
+}) {
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const handleToggleBreakdown = useCallback(() => {
+    setBreakdownOpen((current) => !current);
+  }, []);
+
+  useEffect(() => {
+    setBreakdownOpen(false);
+  }, [resetKey]);
+
+  return (
+    <>
+      <TaxExpenseValueStrip
+        incomeValue={incomeValue}
+        expenseValue={expenseValue}
+        netValue={netValue}
+        onToggleBreakdown={handleToggleBreakdown}
+        breakdownOpen={breakdownOpen}
+      />
+
+      {breakdownOpen ? (
+        <div className={cn("border-t border-border/50 px-3 py-2", breakdownContainerClassName)}>
+          <BreakdownGrid
+            income={income}
+            expense={expense}
+            displayMode={displayMode}
+            resourcePrices={resourcePrices}
+          />
+          <div className="mt-1.5 text-[10px] text-muted-foreground">
+            {displayMode === "value" ? "Breakdown uses current market prices, while the copy buttons preserve raw resource amounts." : "Breakdown shows raw resource amounts."}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function CityCostButton({
   cities,
   children,
@@ -280,80 +360,41 @@ function CityCostButton({
       description="Review the next city cost with the current city count prefilled."
       variant="outline"
       size="sm"
-      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, className)}
+      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, "overflow-hidden", className)}
     >
-      {children}
+      <span className="block overflow-hidden text-ellipsis whitespace-nowrap" title={String(children)}>{children}</span>
     </CommandDialogButton>
   );
 }
 
-function InfraCostButton({
-  avgInfra,
-  cities,
+function NationCityTableButton({
+  nationId,
+  title,
   children,
   className,
 }: {
-  avgInfra: number | null | undefined;
-  cities: number | null | undefined;
+  nationId: number;
+  title: string;
   children: ReactNode;
   className?: string;
 }) {
-  const currentInfra = toCommandNumberString(avgInfra);
-  if (!currentInfra) {
+  if (nationId <= 0) {
     return <span className={cn("text-muted-foreground", className)}>-</span>;
   }
 
   return (
-    <CommandDialogButton
-      title="Infra Cost"
-      commandPath={INFRA_COST_COMMAND}
-      initialValues={{
-        currentInfra,
-        maxInfra: currentInfra,
-        ...(typeof cities === "number" && cities > 0 ? { cities: String(cities) } : {}),
-      }}
-      description="Current average infra is prefilled so you can price the next target quickly."
+    <PlaceholderTableDialogButton
+      title={title}
+      typeName="DBCity"
+      selection={`nation:${nationId}`}
+      columns={NATION_CITY_TABLE_COLUMNS}
+      sort={{ idx: 1, dir: "desc" }}
       variant="outline"
       size="sm"
-      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, className)}
+      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, "overflow-hidden", className)}
     >
-      {children}
-    </CommandDialogButton>
-  );
-}
-
-function LandCostButton({
-  avgLand,
-  cities,
-  children,
-  className,
-}: {
-  avgLand: number | null | undefined;
-  cities: number | null | undefined;
-  children: ReactNode;
-  className?: string;
-}) {
-  const currentLand = toCommandNumberString(avgLand);
-  if (!currentLand) {
-    return <span className={cn("text-muted-foreground", className)}>-</span>;
-  }
-
-  return (
-    <CommandDialogButton
-      title="Land Cost"
-      commandPath={LAND_COST_COMMAND}
-      initialValues={{
-        currentLand,
-        maxLand: currentLand,
-        ...(typeof cities === "number" && cities > 0 ? { cities: String(cities) } : {}),
-      }}
-      description="Current average land is prefilled so you can price the next target quickly."
-      variant="outline"
-      size="sm"
-      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, className)}
-    >
-      {children}
-    </CommandDialogButton>
+      <span className="block overflow-hidden text-ellipsis whitespace-nowrap" title={String(children)}>{children}</span>
+    </PlaceholderTableDialogButton>
   );
 }
 
@@ -366,6 +407,21 @@ function ProjectsButton({
   children: ReactNode;
   className?: string;
 }) {
+  const projectCostRenderer = useMemo(() => buildProjectCostRenderer(3), []);
+  const projectClientColumns = useMemo<ClientColumnOverlay[]>(() => [
+    {
+      id: "project-cost",
+      title: "Cost",
+      value: (row) => row[4] ?? null,
+      render: projectCostRenderer,
+      sortable: true,
+      exportable: false,
+      editable: false,
+      draggable: false,
+      width: 116,
+    },
+  ], [projectCostRenderer]);
+
   if (nationId <= 0) {
     return <span className={cn("text-muted-foreground", className)}>-</span>;
   }
@@ -376,12 +432,14 @@ function ProjectsButton({
       typeName="Project"
       selection="*"
       columns={buildProjectTableColumns(nationId)}
+      clientColumns={projectClientColumns}
+      hiddenColumns={[PROJECT_COST_COLUMN_KEY, PROJECT_MARKET_VALUE_COLUMN_KEY]}
       sort={{ idx: 0, dir: "asc" }}
       variant="outline"
       size="sm"
-      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, className)}
+      className={cn(INLINE_DIALOG_BUTTON_CLASS_NAME, "overflow-hidden", className)}
     >
-      {children}
+      <span className="block overflow-hidden text-ellipsis whitespace-nowrap" title={String(children)}>{children}</span>
     </PlaceholderTableDialogButton>
   );
 }
@@ -409,11 +467,12 @@ function NationButtonCell({
       type="button"
       variant="outline"
       size="sm"
-      className="h-6 justify-start px-2 text-left text-xs font-semibold"
+      className="h-6 max-w-full justify-start overflow-hidden px-2 text-left text-xs font-semibold whitespace-nowrap"
       onClick={handleClick}
       disabled={nationId <= 0}
+      title={label}
     >
-      {label}
+      <span className="block overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
     </Button>
   );
 }
@@ -442,7 +501,7 @@ function TaxExpenseNationDialog({
     if (!detail) {
       return [];
     }
-    return detail.transactions.map((transaction) => parseTransactionNote(transaction.noteSummary, { compact: true }));
+    return detail.transactions.map((transaction) => parseTransactionNote(transaction.note, { compact: true }));
   }, [detail]);
   const noteNationIds = useMemo(() => collectTransactionNoteNationIds(parsedNotes), [parsedNotes]);
   const noteNationSelection = useMemo(() => buildEntitySelection(noteNationIds), [noteNationIds]);
@@ -475,12 +534,12 @@ function TaxExpenseNationDialog({
       return [];
     }
 
-    return detail.transactions.map((transaction) => [
+    return detail.transactions.map((transaction, index) => [
       transaction.txDatetime,
-      transaction.noteSummary,
+      parsedNotes[index]?.raw ?? "",
       getResourceMoneyValue(transaction.resources, resourcePrices),
     ] as JSONValue[]);
-  }, [detail, resourcePrices]);
+  }, [detail, parsedNotes, resourcePrices]);
   const transactionColumns = useMemo<ConfigColumns[]>(() => [
     {
       title: "Time",
@@ -562,12 +621,12 @@ function TaxExpenseNationDialog({
                   project:{formatProjectProgress(inspection.nationMeta) ?? "-"}
                 </ProjectsButton>
               ) : null}
-              <InfraCostButton avgInfra={inspection.nationMeta?.avgInfra} cities={inspection.nationMeta?.cities}>
+              <NationCityTableButton nationId={inspection.nationId} title="Nation Cities">
                 infra:{formatMetricNumber(inspection.nationMeta?.avgInfra, 1)}
-              </InfraCostButton>
-              <LandCostButton avgLand={inspection.nationMeta?.avgLand} cities={inspection.nationMeta?.cities}>
+              </NationCityTableButton>
+              <NationCityTableButton nationId={inspection.nationId} title="Nation Cities">
                 land:{formatMetricNumber(inspection.nationMeta?.avgLand, 1)}
-              </LandCostButton>
+              </NationCityTableButton>
               {inspection.nationMeta?.score !== null && inspection.nationMeta?.score !== undefined ? <Badge variant="outline">Score {inspection.nationMeta.score.toLocaleString()}</Badge> : null}
               {inspection.nationMeta?.color ? (
                 <div className="inline-flex items-center gap-1 rounded-sm border border-border/70 bg-muted/15 px-1.5 py-0 text-[11px] leading-5 text-foreground/85">
@@ -592,20 +651,17 @@ function TaxExpenseNationDialog({
           ) : (
             <div className="space-y-3 overflow-y-auto pr-1">
               <section className="space-y-2 border border-border/60 bg-background/35 px-3 py-3">
-                <TaxExpenseValueStrip
+                <TaxExpenseBreakdownSection
                   incomeValue={detail.incomeValue}
                   expenseValue={detail.expenseValue}
                   netValue={detail.netValue}
-                />
-                <BreakdownGrid
                   income={detail.income}
                   expense={detail.expense}
                   displayMode={displayMode}
                   resourcePrices={resourcePrices}
+                  resetKey={`${inspection.taxId}:${inspection.nationId}`}
+                  breakdownContainerClassName="px-0 pb-0"
                 />
-                <div className="text-[11px] text-muted-foreground">
-                  {displayMode === "value" ? "Breakdown uses current market prices, while the copy buttons preserve raw resource amounts." : "Breakdown shows raw resource amounts."}
-                </div>
               </section>
 
               <section className="border border-border/60 bg-background/35 px-3 py-3">
@@ -637,11 +693,13 @@ function NationTable({
   section,
   inspection,
   onInspectNation,
+  resourcePrices,
 }: {
   datasetId: number;
   section: SummarySection;
   inspection: NationInspectionState | null;
   onInspectNation: (next: NationInspectionState) => void;
+  resourcePrices?: TaxExpenseResourcePriceMap;
 }) {
   const rowsQuery = useQuery({
     ...bulkQueryOptions(TAX_EXPENSE_BRACKET_ROWS.endpoint, buildSummaryBracketArgs(datasetId, section.taxId)),
@@ -665,10 +723,27 @@ function NationTable({
     () => parseTaxExpenseNationTable(nationInfoQuery.data?.data as WebTable | null | undefined),
     [nationInfoQuery.data?.data],
   );
+  const selected = useIdSelection<number>();
+  const {
+    addMany: addSelectedNationIds,
+    clear: clearSelectedNationIds,
+    count: selectedNationCount,
+    selectedIds,
+    setSelectedIds,
+  } = selected;
+  const [visibleNationIds, setVisibleNationIds] = useState<number[]>([]);
   const includeTaxIdColumn = section.taxId === TAX_EXPENSE_TOTAL_TAX_ID;
   const hasIncomeExpenseColumns = useMemo(
     () => rows.some((row) => typeof row.incomeValue === "number" || typeof row.expenseValue === "number"),
     [rows],
+  );
+  const selectedNationIds = useMemo(
+    () => Array.from(selectedIds).sort((left, right) => left - right),
+    [selectedIds],
+  );
+  const selectedNationSelection = useMemo(
+    () => buildEntitySelection(selectedNationIds),
+    [selectedNationIds],
   );
   const tableData = useMemo<JSONValue[][]>(() => rows.map((row) => {
     const meta = nationLookup[row.nationId];
@@ -687,6 +762,53 @@ function NationTable({
       row.netValue,
     ] as JSONValue[];
   }), [nationLookup, rows]);
+
+  useEffect(() => {
+    const availableNationIds = new Set(rows.map((row) => row.nationId));
+    setSelectedIds((current) => {
+      let changed = false;
+      const next = new Set<number>();
+
+      current.forEach((nationId) => {
+        if (availableNationIds.has(nationId)) {
+          next.add(nationId);
+        } else {
+          changed = true;
+        }
+      });
+
+      return changed ? next : current;
+    });
+  }, [rows, setSelectedIds]);
+
+  const rowSelection = useMemo<TableRowSelection>(() => ({
+    getRowId: (row: JSONValue[]) => {
+      return getRowNumberValue(row, NATION_TABLE_INDEX.nationId);
+    },
+    selectedIds,
+    onSelectedIdsChange: (nextSelectedIds: Set<TableRowSelectionId>) => {
+      setSelectedIds(new Set(Array.from(nextSelectedIds).filter((nationId): nationId is number => typeof nationId === "number")));
+    },
+    onVisibleIdsChange: (nextVisibleIds: TableRowSelectionId[]) => {
+      setVisibleNationIds(nextVisibleIds.filter((nationId): nationId is number => typeof nationId === "number"));
+    },
+    getLabel: (nationId) => typeof nationId === "number" && selectedIds.has(nationId) ? `Deselect nation ${nationId}` : `Select nation ${nationId}`,
+    debugTagPrefix: "tax-expense-nation-select",
+  }), [selectedIds, setSelectedIds]);
+  const handleSelectVisible = useCallback(() => {
+    addSelectedNationIds(visibleNationIds);
+  }, [addSelectedNationIds, visibleNationIds]);
+  const inspectedNationId = inspection && inspection.taxId === section.taxId
+    ? inspection.nationId
+    : null;
+  const highlightedRowClassName = useCallback((row: JSONValue[]) => {
+    const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId);
+    if (nationId === null || inspectedNationId === null || nationId !== inspectedNationId) {
+      return undefined;
+    }
+
+    return "bg-blue-100/90 dark:bg-blue-800/30";
+  }, [inspectedNationId]);
   const columns = useMemo<ConfigColumns[]>(() => {
     const nextColumns: ConfigColumns[] = [
       {
@@ -698,8 +820,8 @@ function NationTable({
         width: 220,
         render: {
           display: (value, context) => {
-            const row = context ? rows[context.rowIdx] : undefined;
-            const nationId = row?.nationId ?? 0;
+            const row = context?.row;
+            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId) ?? 0;
             return (
               <NationButtonCell
                 inspectionState={{
@@ -709,7 +831,7 @@ function NationTable({
                   nationId,
                   nationMeta: nationLookup[nationId] ?? null,
                 }}
-                nationMarkup={String(value ?? "")}
+                nationMarkup={typeof value === "string" ? value : ""}
                 onOpenNation={onInspectNation}
               />
             );
@@ -741,10 +863,11 @@ function NationTable({
         draggable: false,
         width: 84,
         render: {
-          display: (_value, context) => {
-            const row = context ? rows[context.rowIdx] : undefined;
-            const meta = row ? nationLookup[row.nationId] : undefined;
-            return <CityCostButton cities={meta?.cities}>{formatMetricNumber(meta?.cities)}</CityCostButton>;
+          display: (value, context) => {
+            const row = context?.row;
+            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId) ?? 0;
+            const cities = typeof value === "number" ? value : getRowNumberValue(row, NATION_TABLE_INDEX.cities);
+            return <CityCostButton cities={cities} className="w-full justify-start" key={`city-${nationId}`}>{formatMetricNumber(cities)}</CityCostButton>;
           },
         },
       },
@@ -757,15 +880,17 @@ function NationTable({
         width: 96,
         render: {
           display: (_value, context) => {
-            const row = context ? rows[context.rowIdx] : undefined;
-            const meta = row ? nationLookup[row.nationId] : undefined;
-            if (!row || !meta) {
+            const row = context?.row;
+            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId);
+            const builtProjects = getRowNumberValue(row, NATION_TABLE_INDEX.builtProjects);
+            const projectSlots = getRowNumberValue(row, NATION_TABLE_INDEX.projectSlots);
+            if (nationId === null) {
               return "-";
             }
 
             return (
-              <ProjectsButton nationId={row.nationId}>
-                {formatProjectProgress(meta) ?? "-"}
+              <ProjectsButton nationId={nationId} className="w-full justify-start">
+                {formatProjectProgress({ builtProjects, projectSlots }) ?? "-"}
               </ProjectsButton>
             );
           },
@@ -779,13 +904,14 @@ function NationTable({
         draggable: false,
         width: 96,
         render: {
-          display: (_value, context) => {
-            const row = context ? rows[context.rowIdx] : undefined;
-            const meta = row ? nationLookup[row.nationId] : undefined;
+          display: (value, context) => {
+            const row = context?.row;
+            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId) ?? 0;
+            const avgInfra = typeof value === "number" ? value : getRowNumberValue(row, NATION_TABLE_INDEX.avgInfra);
             return (
-              <InfraCostButton avgInfra={meta?.avgInfra} cities={meta?.cities}>
-                {formatMetricNumber(meta?.avgInfra, 1)}
-              </InfraCostButton>
+              <NationCityTableButton nationId={nationId} title="Nation Cities" className="w-full justify-start">
+                {formatMetricNumber(avgInfra, 1)}
+              </NationCityTableButton>
             );
           },
         },
@@ -798,13 +924,14 @@ function NationTable({
         draggable: false,
         width: 96,
         render: {
-          display: (_value, context) => {
-            const row = context ? rows[context.rowIdx] : undefined;
-            const meta = row ? nationLookup[row.nationId] : undefined;
+          display: (value, context) => {
+            const row = context?.row;
+            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId) ?? 0;
+            const avgLand = typeof value === "number" ? value : getRowNumberValue(row, NATION_TABLE_INDEX.avgLand);
             return (
-              <LandCostButton avgLand={meta?.avgLand} cities={meta?.cities}>
-                {formatMetricNumber(meta?.avgLand, 1)}
-              </LandCostButton>
+              <NationCityTableButton nationId={nationId} title="Nation Cities" className="w-full justify-start">
+                {formatMetricNumber(avgLand, 1)}
+              </NationCityTableButton>
             );
           },
         },
@@ -863,18 +990,7 @@ function NationTable({
     });
 
     return nextColumns;
-  }, [datasetId, hasIncomeExpenseColumns, includeTaxIdColumn, nationLookup, onInspectNation, rows, section.bracket, section.taxId]);
-  const highlightedRows = useMemo(
-    () => inspection && inspection.taxId === section.taxId
-      ? rows.reduce<number[]>((matches, row, rowIdx) => {
-        if (row.nationId === inspection.nationId) {
-          matches.push(rowIdx);
-        }
-        return matches;
-      }, [])
-      : [],
-    [inspection, rows, section.taxId],
-  );
+  }, [datasetId, hasIncomeExpenseColumns, includeTaxIdColumn, nationLookup, onInspectNation, section.bracket, section.taxId]);
 
   if (rowsQuery.isLoading) {
     return (
@@ -893,12 +1009,37 @@ function NationTable({
   }
 
   return (
-    <PreparedDataTable
-      columnsInfo={columns}
-      data={tableData}
-      highlightedRowIndexes={highlightedRows}
-      showIndexColumn={false}
-    />
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <CommandDialogButton
+          title="Grant Cost"
+          commandPath={GRANT_COST_COMMAND}
+          initialValues={{ receivers: selectedNationSelection }}
+          description="Selected nations are prefilled so you can estimate city, infra, land, and project grant costs together."
+          variant="outline"
+          size="sm"
+          className="h-7"
+          disabled={selectedNationCount === 0}
+        >
+          Grant cost{selectedNationCount > 0 ? ` (${selectedNationCount})` : ""}
+        </CommandDialogButton>
+        <Button variant="outline" size="sm" className="h-7" onClick={handleSelectVisible} disabled={visibleNationIds.length === 0}>
+          Select visible
+        </Button>
+        <Button variant="outline" size="sm" className="h-7" onClick={clearSelectedNationIds} disabled={selectedNationCount === 0}>
+          Clear selected
+        </Button>
+        {selectedNationCount > 0 ? <Badge variant="outline">{formatCountLabel(selectedNationCount, "nation")} selected</Badge> : null}
+      </div>
+      <PreparedDataTable
+        columnsInfo={columns}
+        data={tableData}
+        rowClassName={highlightedRowClassName}
+        showIndexColumn
+        indexColumnWidth={68}
+        rowSelection={rowSelection}
+      />
+    </div>
   );
 }
 
@@ -921,61 +1062,40 @@ function SummaryPanel({
   inspection: NationInspectionState | null;
   onInspectNation: (next: NationInspectionState) => void;
 }) {
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
   const title = formatBracketTitle(section.taxId, section.bracket);
   const meta = formatBracketMeta(section.bracket);
   const handleToggleSection = useCallback(() => {
     toggleSection(section.taxId);
   }, [section.taxId, toggleSection]);
-  const handleToggleBreakdown = useCallback(() => {
-    setBreakdownOpen((current) => !current);
-  }, []);
-
-  useEffect(() => {
-    setBreakdownOpen(false);
-  }, [section.taxId]);
 
   return (
     <section className="border border-border/60 bg-background/40">
-      <div className="space-y-2 px-3 py-3">
-        <div className="flex flex-wrap items-start gap-2">
+      <div className="space-y-1.5 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
+            <Badge variant="outline">{formatCountLabel(section.nationCount, "nation")}</Badge>
+            {section.taxId !== TAX_EXPENSE_TOTAL_TAX_ID ? <Badge variant="outline">#{section.taxId}</Badge> : null}
+            {meta ? <Badge variant="outline">{meta}</Badge> : null}
+          </div>
           <Button size="sm" variant="outline" onClick={handleToggleSection} disabled={section.nationCount === 0}>
             {isOpen ? "Hide nations" : "Show nations"}
           </Button>
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
-              <Badge variant="outline">{formatCountLabel(section.nationCount, "nation")}</Badge>
-              {section.taxId !== TAX_EXPENSE_TOTAL_TAX_ID ? <Badge variant="outline">#{section.taxId}</Badge> : null}
-              {meta ? <Badge variant="outline">{meta}</Badge> : null}
-            </div>
-            <TaxExpenseValueStrip
-              incomeValue={section.incomeValue}
-              expenseValue={section.expenseValue}
-              netValue={section.netValue}
-              onToggleBreakdown={handleToggleBreakdown}
-              breakdownOpen={breakdownOpen}
-            />
-          </div>
         </div>
+        <TaxExpenseBreakdownSection
+          incomeValue={section.incomeValue}
+          expenseValue={section.expenseValue}
+          netValue={section.netValue}
+          income={section.income}
+          expense={section.expense}
+          displayMode={displayMode}
+          resourcePrices={resourcePrices}
+          resetKey={section.taxId}
+        />
       </div>
 
-      {breakdownOpen ? (
-        <div className="border-t border-border/50 px-3 py-3">
-          <BreakdownGrid
-            income={section.income}
-            expense={section.expense}
-            displayMode={displayMode}
-            resourcePrices={resourcePrices}
-          />
-          <div className="mt-2 text-[11px] text-muted-foreground">
-            {displayMode === "value" ? "Breakdown uses current market prices, while the copy buttons preserve raw resource amounts." : "Breakdown shows raw resource amounts."}
-          </div>
-        </div>
-      ) : null}
-
       {isOpen ? (
-        <div className="border-t border-border/50 px-3 py-3">
+        <div className="border-t border-border/50 px-3 py-2">
           {section.nationCount === 0 ? (
             <div className="text-sm text-muted-foreground">No nations matched this bracket for the current filters.</div>
           ) : (
@@ -984,6 +1104,7 @@ function SummaryPanel({
               section={section}
               inspection={inspection}
               onInspectNation={onInspectNation}
+              resourcePrices={resourcePrices}
             />
           )}
         </div>

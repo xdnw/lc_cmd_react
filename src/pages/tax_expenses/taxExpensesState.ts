@@ -145,7 +145,10 @@ const TIME_FILTER_PARAM_SPEC: SearchParamStringSpec<TaxExpenseTimeQueryFilters> 
   start: { defaultValue: TAX_EXPENSE_DEFAULT_START, omitWhen: isDefaultTaxExpenseStart },
   end: {},
   nationFilter: { key: "nationList", aliases: ["nationFilter"] },
+  dontRequireGrant: {},
   dontRequireTagged: {},
+  dontRequireExpiry: {},
+  includeDeposits: {},
 };
 
 export const TAX_EXPENSE_SUMMARY_DEFAULT_FILTERS: TaxExpenseSummaryFilters = {
@@ -257,7 +260,10 @@ export function writeTaxExpenseTimeFilters(searchParams: URLSearchParams, filter
     start: filters.start,
     end: filters.end,
     nationFilter: filters.nationFilter,
+    dontRequireGrant: filters.dontRequireGrant,
     dontRequireTagged: filters.dontRequireTagged,
+    dontRequireExpiry: filters.dontRequireExpiry,
+    includeDeposits: filters.includeDeposits,
   }, TIME_FILTER_PARAM_SPEC);
 
   if (filters.chartMode === "cumulative") {
@@ -298,7 +304,10 @@ export function buildTimeEndpointArgs(filters: TaxExpenseTimeFilters) {
     start: filters.start,
     end: filters.end,
     nationFilter: filters.nationFilter,
+    dontRequireGrant: filters.dontRequireGrant,
     dontRequireTagged: filters.dontRequireTagged,
+    dontRequireExpiry: filters.dontRequireExpiry,
+    includeDeposits: filters.includeDeposits,
   });
 }
 
@@ -353,8 +362,17 @@ export function buildTimeFilterBadges(filters: TaxExpenseTimeFilters): string[] 
   if (filters.nationFilter) {
     badges.push(`Scope ${filters.nationFilter}`);
   }
+  if (parseBooleanParam(filters.dontRequireGrant)) {
+    badges.push("Ignore grant gate");
+  }
   if (parseBooleanParam(filters.dontRequireTagged)) {
     badges.push("Ignore tagged gate");
+  }
+  if (parseBooleanParam(filters.dontRequireExpiry)) {
+    badges.push("Ignore expiry gate");
+  }
+  if (parseBooleanParam(filters.includeDeposits)) {
+    badges.push("Include deposits");
   }
   if (filters.chartMode === "moving-average") {
     badges.push(filters.movingAverageWindow > 1 ? `Moving avg ${filters.movingAverageWindow}` : "Moving avg");
@@ -475,6 +493,10 @@ export function parseTaxExpenseResourcePrices(table?: WebTable | null): TaxExpen
     lookup[resource] = value;
     return lookup;
   }, { MONEY: 1 });
+}
+
+export function getTaxExpenseResourceByOrdinal(ordinal: number): ResourceType | null {
+  return TAX_EXPENSE_RESOURCE_TYPES[ordinal] ?? null;
 }
 
 export function getResourceMoneyValueForType(

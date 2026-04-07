@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { collectTransactionNoteNationIds, parseTransactionNote } from "./transactionNotes";
+import { collectTransactionNoteNationIds, decodeTransactionNoteText, parseTransactionNote } from "./transactionNotes";
 
 describe("transactionNotes", () => {
   it("compacts known tax transaction tags into concise badges", () => {
@@ -33,5 +33,15 @@ describe("transactionNotes", () => {
     ];
 
     expect(collectTransactionNoteNationIds(notes)).toEqual([1234, 9876]);
+  });
+
+  it("decodes byte notes before parsing badges", () => {
+    const noteBytes = Array.from(new TextEncoder().encode("#banker=1234 manual transfer"));
+
+    expect(decodeTransactionNoteText(noteBytes)).toBe("#banker=1234 manual transfer");
+    expect(parseTransactionNote(noteBytes, { compact: true, nowMs: 0 }).badges.map((badge) => badge.displayLabel)).toEqual([
+      "banker:1234",
+      "manual transfer",
+    ]);
   });
 });

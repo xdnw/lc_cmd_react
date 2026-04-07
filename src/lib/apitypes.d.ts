@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-04-06 04:41:48.
+// Generated using typescript-generator version 3.2.1263 on 2026-04-07 16:55:06.
 
 export interface WebError {
     error: string;
@@ -36,6 +36,8 @@ export interface TaxExpenseBracket {
 export interface TaxExpenseBracketRow {
     nationId: number;
     currentTaxId?: number;
+    incomeValue: number;
+    expenseValue: number;
     netValue: number;
 }
 
@@ -91,21 +93,19 @@ export interface TaxExpenseTimeCategory {
 }
 
 export interface TaxExpenseTimeResources {
-    byResourceByCategory: { [index: string]: number[][] };
+    byResourceOrdinalByCategory: number[][][];
 }
 
 export interface TaxExpenseTransactionRow {
     txId: number;
     txDatetime: number;
-    noteSummary: string;
+    note: any;
     senderId: number;
     senderType: number;
     senderName: string;
     receiverId: number;
     receiverType: number;
-    receiverName: string;
     bankerNationId: number;
-    bankerNationName?: string;
     resources: number[];
 }
 

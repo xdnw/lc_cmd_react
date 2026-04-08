@@ -2,25 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useSession } from "@/components/api/SessionContext";
-import { COMMAND_POPUP_OPEN_ATTR } from "@/components/cmd/commandKeyboard";
 import ConfirmCommandActionButton from "@/components/cmd/ConfirmCommandActionButton";
 import CommandDialogForm from "@/components/cmd/CommandDialogForm";
 import SearchBar from "@/components/cmd/SearchBar";
-import { useSegmentedControlKeyboard, type SegmentedControlKeyBindings } from "@/components/cmd/segmentedControl";
 import { SearchMatchText } from "@/components/cmd/searchListPrimitives";
 import { useDialog } from "@/components/layout/DialogContext";
 import { usePageHeader, type PageHeaderConfig } from "@/components/layout/PageHeaderContext";
 import usePageSearchListKeyboard, { getPageSearchShortcutLabel } from "@/components/layout/usePageSearchListKeyboard";
 import Badge from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { CompactSegmentedControl, type CompactSegmentedOption } from "@/components/ui/compact-segmented-control";
 import { Input } from "@/components/ui/input";
-import LazyIcon from "@/components/ui/LazyIcon";
 import Loading from "@/components/ui/loading";
 import type { WebCoalitions } from "@/lib/apitypes.d.ts";
 import { LIST_COALITIONS } from "@/lib/endpoints";
@@ -29,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { usePermission } from "@/utils/PermUtil";
 
 import LoginPickerPage from "../login_picker";
+import CoalitionCopyDialog from "./CoalitionCopyDialog";
 import {
     COALITION_COMMANDS,
     COALITION_LIST_QUERY_ARGS,
@@ -39,7 +32,6 @@ import {
     normalizeCoalitions,
     type CoalitionCommandPath,
     type CoalitionMemberRecord,
-    type CoalitionMemberTokenValue,
     type CoalitionViewRecord,
 } from "./coalitionsDomain";
 
@@ -56,22 +48,6 @@ type CommandDialogOptions = {
 };
 
 type CoalitionMemberVisibilityFilter = "active" | "all" | "deleted";
-type CoalitionCopyMode = "ids" | "names";
-type CoalitionCopyScope = "visible" | "selected";
-type CoalitionCopyNameMode = "flat" | "named";
-type CoalitionCopyFeedbackTone = "success" | "warning" | "error";
-
-type CoalitionCopyFeedback = {
-    tone: CoalitionCopyFeedbackTone;
-    message: string;
-};
-
-type CompactSegmentedOption<T extends string> = {
-    value: T;
-    label: string;
-    activeClassName?: string;
-    title?: string;
-};
 
 const MEMBER_VISIBILITY_OPTIONS: readonly CompactSegmentedOption<CoalitionMemberVisibilityFilter>[] = [
     {
@@ -92,56 +68,6 @@ const MEMBER_VISIBILITY_OPTIONS: readonly CompactSegmentedOption<CoalitionMember
         title: "Show deleted members only",
         activeClassName: "border-rose-500/40 bg-rose-500/15 text-rose-800 dark:text-rose-200",
     },
-] as const;
-
-const COPY_SCOPE_OPTIONS: readonly CompactSegmentedOption<CoalitionCopyScope>[] = [
-    {
-        value: "visible",
-        label: "Visible",
-        title: "Copy all shown coalitions",
-        activeClassName: "border-sky-500/40 bg-sky-500/15 text-sky-800 dark:text-sky-200",
-    },
-    {
-        value: "selected",
-        label: "Selected",
-        title: "Copy only selected coalitions",
-        activeClassName: "border-emerald-500/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200",
-    },
-] as const;
-
-const COPY_QUALIFIER_OPTIONS: readonly CompactSegmentedOption<"qualified" | "plain">[] = [
-    {
-        value: "qualified",
-        label: "Qualified",
-        title: "Copy with canonical prefixes",
-        activeClassName: "border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-200",
-    },
-    {
-        value: "plain",
-        label: "Plain",
-        title: "Copy without prefixes",
-        activeClassName: "border-stone-500/30 bg-stone-500/10 text-stone-800 dark:text-stone-200",
-    },
-] as const;
-
-const COPY_NAME_OPTIONS: readonly CompactSegmentedOption<CoalitionCopyNameMode>[] = [
-    {
-        value: "flat",
-        label: "Flat",
-        title: "Copy a flat merged list without coalition names",
-        activeClassName: "border-stone-500/30 bg-stone-500/10 text-stone-800 dark:text-stone-200",
-    },
-    {
-        value: "named",
-        label: "Named",
-        title: "Prefix each copied coalition with its name",
-        activeClassName: "border-indigo-500/40 bg-indigo-500/15 text-indigo-800 dark:text-indigo-200",
-    },
-] as const;
-
-const COPY_MENU_OPTIONS: readonly { value: CoalitionCopyMode; label: string }[] = [
-    { value: "ids", label: "Copy ids" },
-    { value: "names", label: "Copy names" },
 ] as const;
 
 function useOpenCoalitionCommandDialog(onSuccess: () => void) {
@@ -166,139 +92,6 @@ function useOpenCoalitionCommandDialog(onSuccess: () => void) {
             },
         );
     }, [onSuccess, showDialog]);
-}
-
-function getCopyTokenValue(mode: CoalitionCopyMode): Exclude<CoalitionMemberTokenValue, "canonical"> {
-    return mode === "ids" ? "id" : "name";
-}
-
-function getMemberVisibilityLabel(visibility: CoalitionMemberVisibilityFilter): string {
-    switch (visibility) {
-        case "active":
-            return "live members";
-        case "deleted":
-            return "deleted members";
-        case "all":
-        default:
-            return "all members";
-    }
-}
-
-function formatPlural(count: number, singular: string, plural = `${singular}s`): string {
-    return `${count} ${count === 1 ? singular : plural}`;
-}
-
-function CompactSegmentedControl<T extends string>({
-    ariaLabel,
-    value,
-    options,
-    onChange,
-}: {
-    ariaLabel: string;
-    value: T;
-    options: readonly CompactSegmentedOption<T>[];
-    onChange: (value: T) => void;
-}) {
-    const values = useMemo(() => options.map((option) => option.value), [options]);
-    const optionClickHandlers = useMemo(
-        () => options.map((option) => () => onChange(option.value)),
-        [onChange, options],
-    );
-    const resolveKey = useCallback((key: string): SegmentedControlKeyBindings<T> | null => {
-        switch (key) {
-            case "ArrowLeft":
-            case "ArrowUp":
-                return { selectPrevious: true };
-            case "ArrowRight":
-            case "ArrowDown":
-                return { selectNext: true };
-            case "Home":
-                return { selectFirst: true };
-            case "End":
-                return { selectLast: true };
-            default:
-                return null;
-        }
-    }, []);
-    const { registerButtonRef, handleOptionKeyDown } = useSegmentedControlKeyboard({
-        values,
-        value,
-        onSelect: (nextValue) => onChange(nextValue),
-        resolveKey,
-    });
-    const optionRefHandlers = useMemo(
-        () => options.map((_, index) => (node: HTMLButtonElement | null) => registerButtonRef(index, node)),
-        [options, registerButtonRef],
-    );
-
-    return (
-        <div
-            role="radiogroup"
-            aria-label={ariaLabel}
-            className="inline-flex items-center gap-0.5 rounded-md border border-border/80 bg-muted/25 p-0.5"
-        >
-            {options.map((option, index) => {
-                const isActive = option.value === value;
-                return (
-                    <button
-                        key={option.value}
-                        ref={optionRefHandlers[index]}
-                        type="button"
-                        role="radio"
-                        aria-checked={isActive}
-                        tabIndex={isActive ? 0 : -1}
-                        title={option.title ?? option.label}
-                        onClick={optionClickHandlers[index]}
-                        onKeyDown={handleOptionKeyDown}
-                        className={cn(
-                            "inline-flex h-6 items-center justify-center rounded-sm px-2 text-[10px] font-medium leading-none transition-colors",
-                            isActive
-                                ? cn("border border-border/70 bg-background text-foreground shadow-xs", option.activeClassName)
-                                : "text-foreground/70 hover:bg-background hover:text-foreground",
-                        )}
-                    >
-                        {option.label}
-                    </button>
-                );
-            })}
-        </div>
-    );
-}
-
-function CoalitionCopyMenu({
-    disabled,
-    onCopy,
-}: {
-    disabled?: boolean;
-    onCopy: (mode: CoalitionCopyMode) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const copyHandlers = useMemo(
-        () => COPY_MENU_OPTIONS.map((option) => () => onCopy(option.value)),
-        [onCopy],
-    );
-
-    return (
-        <div {...{ [COMMAND_POPUP_OPEN_ATTR]: open ? "true" : "false" }}>
-            <DropdownMenu open={open} onOpenChange={setOpen}>
-                <DropdownMenuTrigger
-                    disabled={disabled}
-                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-6 gap-1 rounded-md px-2 text-[11px]")}
-                >
-                    <LazyIcon name="Copy" size={13} className="shrink-0" />
-                    <span>Copy</span>
-                    <LazyIcon name="ChevronDown" size={13} className="shrink-0 opacity-60" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-32">
-                    {COPY_MENU_OPTIONS.map((option, index) => (
-                        <DropdownMenuItem key={option.value} onClick={copyHandlers[index]}>
-                            {option.label}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
-    );
 }
 
 function CoalitionMemberPreviewBadge({
@@ -358,12 +151,14 @@ function CoalitionRow({
     coalition,
     query,
     isSelected,
+    onCopy,
     onManage,
     onSetSelected,
 }: {
     coalition: CoalitionViewRecord;
     query: string;
     isSelected: boolean;
+    onCopy: (coalition: CoalitionViewRecord) => void;
     onManage: (coalition: CoalitionViewRecord) => void;
     onSetSelected: (coalitionKey: string, nextSelected: boolean) => void;
 }) {
@@ -384,6 +179,10 @@ function CoalitionRow({
     const onManageClick = useCallback(() => {
         onManage(coalition);
     }, [coalition, onManage]);
+
+    const onCopyClick = useCallback(() => {
+        onCopy(coalition);
+    }, [coalition, onCopy]);
 
     const onSelectionChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         onSetSelected(coalition.key, event.target.checked);
@@ -410,6 +209,9 @@ function CoalitionRow({
             </div>
 
             <div className="flex items-start gap-2">
+                <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-[11px]" onClick={onCopyClick}>
+                    Copy
+                </Button>
                 <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-[11px]" onClick={onManageClick}>
                     Manage
                 </Button>
@@ -711,26 +513,9 @@ export default function CoalitionsPage() {
     const coalitionItemRefs = useRef<Record<string, HTMLElement | null>>({});
     const [query, setQuery] = useState("");
     const [memberVisibility, setMemberVisibility] = useState<CoalitionMemberVisibilityFilter>("all");
-    const [copyScope, setCopyScope] = useState<CoalitionCopyScope>("visible");
-    const [copyQualifier, setCopyQualifier] = useState<"qualified" | "plain">("qualified");
-    const [copyNameMode, setCopyNameMode] = useState<CoalitionCopyNameMode>("flat");
-    const [copyFeedback, setCopyFeedback] = useState<CoalitionCopyFeedback | null>(null);
     const [selectedCoalitionKeys, setSelectedCoalitionKeys] = useState<Set<string>>(() => new Set());
     const [activeCoalitionIndex, setActiveCoalitionIndex] = useState(0);
-
-    useEffect(() => {
-        if (copyFeedback?.tone !== "success") {
-            return undefined;
-        }
-
-        const timeoutId = globalThis.setTimeout(() => {
-            setCopyFeedback((current) => current?.tone === "success" ? null : current);
-        }, 2500);
-
-        return () => {
-            globalThis.clearTimeout(timeoutId);
-        };
-    }, [copyFeedback]);
+    const [copyDialogCoalition, setCopyDialogCoalition] = useState<CoalitionViewRecord | null>(null);
 
     const listQuery = useQuery({
         ...bulkQueryOptions(LIST_COALITIONS.endpoint, COALITION_LIST_QUERY_ARGS),
@@ -776,10 +561,6 @@ export default function CoalitionsPage() {
     const selectedVisibleCoalitions = useMemo(() => {
         return coalitions.filter((coalition) => selectedCoalitionKeys.has(coalition.key));
     }, [coalitions, selectedCoalitionKeys]);
-
-    const copyTargets = useMemo(() => {
-        return copyScope === "selected" ? selectedVisibleCoalitions : coalitions;
-    }, [coalitions, copyScope, selectedVisibleCoalitions]);
 
     const totals = useMemo(() => {
         return {
@@ -863,6 +644,16 @@ export default function CoalitionsPage() {
         );
     }, [refreshCoalitions, showDialog]);
 
+    const openCoalitionCopyDialog = useCallback((coalition: CoalitionViewRecord) => {
+        setCopyDialogCoalition(coalition);
+    }, []);
+
+    const handleCopyDialogOpenChange = useCallback((nextOpen: boolean) => {
+        if (!nextOpen) {
+            setCopyDialogCoalition(null);
+        }
+    }, []);
+
     const onQueryChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         setQuery(event.target.value);
     }, []);
@@ -894,82 +685,6 @@ export default function CoalitionsPage() {
             description: "Generate a sheet of this guild's coalitions.",
         });
     }, [openCommandDialog]);
-
-    const handleCopyCoalitions = useCallback(async (mode: CoalitionCopyMode) => {
-        if (copyTargets.length === 0) {
-            setCopyFeedback({
-                tone: "warning",
-                message: copyScope === "selected"
-                    ? "Select at least one shown coalition before copying."
-                    : "No shown coalitions are available to copy.",
-            });
-            return;
-        }
-
-        const tokenValue = getCopyTokenValue(mode);
-        const qualified = copyQualifier === "qualified";
-        const includeNames = copyNameMode === "named";
-        const rows = copyTargets.map((coalition) => {
-            const rawTokens = coalition.visibleMembers
-                .map((member) => formatCoalitionMemberToken(member, { value: tokenValue, qualified }))
-                .filter(Boolean);
-
-            return {
-                coalitionName: coalition.name,
-                tokens: Array.from(new Set(rawTokens)),
-                skippedCount: coalition.visibleMembers.length - rawTokens.length,
-            };
-        });
-        const copyableRows = rows.filter((row) => row.tokens.length > 0);
-        const skippedTotal = rows.reduce((sum, row) => sum + row.skippedCount, 0);
-
-        if (copyableRows.length === 0) {
-            setCopyFeedback({
-                tone: "warning",
-                message: mode === "ids"
-                    ? `No safe ids are available for ${getMemberVisibilityLabel(memberVisibility)}.`
-                    : `No names are available for ${getMemberVisibilityLabel(memberVisibility)}.`,
-            });
-            return;
-        }
-
-        if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
-            setCopyFeedback({
-                tone: "error",
-                message: "Clipboard access is unavailable in this browser context.",
-            });
-            return;
-        }
-
-        const output = includeNames
-            ? copyableRows.map((row) => `${row.coalitionName}: ${row.tokens.join(", ")}`).join("\n")
-            : Array.from(new Set(copyableRows.flatMap((row) => row.tokens))).join(", ");
-        const copiedTokenCount = includeNames
-            ? copyableRows.reduce((sum, row) => sum + row.tokens.length, 0)
-            : Array.from(new Set(copyableRows.flatMap((row) => row.tokens))).length;
-
-        try {
-            await navigator.clipboard.writeText(output);
-            if (skippedTotal > 0) {
-                setCopyFeedback({
-                    tone: "warning",
-                    message: `Copied with skips. ${formatPlural(skippedTotal, "member")} had no ${mode === "ids" ? "safe id" : "copyable name"}.`,
-                });
-                return;
-            }
-
-            setCopyFeedback({
-                tone: "success",
-                message: `Copied ${formatPlural(copiedTokenCount, mode === "ids" ? "id" : "name")} from ${formatPlural(copyableRows.length, "coalition")}.`,
-            });
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            setCopyFeedback({
-                tone: "error",
-                message: `Copy failed: ${message}`,
-            });
-        }
-    }, [copyNameMode, copyQualifier, copyScope, copyTargets, memberVisibility]);
 
     const setCoalitionItemRef = useCallback((coalitionKey: string, node: HTMLElement | null) => {
         coalitionItemRefs.current[coalitionKey] = node;
@@ -1052,24 +767,6 @@ export default function CoalitionsPage() {
                                 options={MEMBER_VISIBILITY_OPTIONS}
                                 onChange={setMemberVisibility}
                             />
-                            <CompactSegmentedControl
-                                ariaLabel="Copy target scope"
-                                value={copyScope}
-                                options={COPY_SCOPE_OPTIONS}
-                                onChange={setCopyScope}
-                            />
-                            <CompactSegmentedControl
-                                ariaLabel="Copy formatting"
-                                value={copyQualifier}
-                                options={COPY_QUALIFIER_OPTIONS}
-                                onChange={setCopyQualifier}
-                            />
-                            <CompactSegmentedControl
-                                ariaLabel="Coalition name in copy output"
-                                value={copyNameMode}
-                                options={COPY_NAME_OPTIONS}
-                                onChange={setCopyNameMode}
-                            />
                             <Button
                                 type="button"
                                 variant="outline"
@@ -1080,22 +777,9 @@ export default function CoalitionsPage() {
                             >
                                 {allVisibleSelected ? "Clear shown" : "Select shown"}
                             </Button>
-                            <CoalitionCopyMenu disabled={copyTargets.length === 0} onCopy={handleCopyCoalitions} />
                             {listQuery.isFetching ? <span className="text-[11px] text-muted-foreground">Refreshing...</span> : null}
                         </div>
                     </div>
-                    {copyFeedback ? (
-                        <div
-                            className={cn(
-                                "rounded-md border px-2 py-1 text-[11px]",
-                                copyFeedback.tone === "success" && "border-emerald-500/35 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200",
-                                copyFeedback.tone === "warning" && "border-amber-500/35 bg-amber-500/10 text-amber-950 dark:text-amber-200",
-                                copyFeedback.tone === "error" && "border-destructive/35 bg-destructive/10 text-destructive",
-                            )}
-                        >
-                            {copyFeedback.message}
-                        </div>
-                    ) : null}
                 </div>
             ),
             actions: (
@@ -1125,12 +809,6 @@ export default function CoalitionsPage() {
         canCreate,
         canExportSheet,
         canGenerate,
-        copyFeedback,
-        copyNameMode,
-        copyQualifier,
-        copyScope,
-        copyTargets.length,
-        handleCopyCoalitions,
         listQuery.error,
         listQuery.isFetching,
         listQuery.isLoading,
@@ -1193,6 +871,7 @@ export default function CoalitionsPage() {
                                             coalition={coalition}
                                             query={query}
                                             isSelected={selectedCoalitionKeys.has(coalition.key)}
+                                            onCopy={openCoalitionCopyDialog}
                                             onManage={openCoalitionDetails}
                                             onSetSelected={setCoalitionSelected}
                                         />
@@ -1209,6 +888,15 @@ export default function CoalitionsPage() {
                     )}
                 </div>
             </div>
+
+            <CoalitionCopyDialog
+                open={copyDialogCoalition !== null}
+                coalition={copyDialogCoalition}
+                allCoalitions={coalitions}
+                selectedCoalitions={selectedVisibleCoalitions}
+                memberVisibility={memberVisibility}
+                onOpenChange={handleCopyDialogOpenChange}
+            />
         </div>
     );
 }

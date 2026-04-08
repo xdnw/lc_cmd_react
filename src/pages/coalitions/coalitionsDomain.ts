@@ -23,6 +23,22 @@ export const COALITION_COMMANDS = {
 export type CoalitionCommandPath = (typeof COALITION_COMMANDS)[keyof typeof COALITION_COMMANDS];
 export type CoalitionMemberKind = "alliance" | "guild";
 export type CoalitionMemberTokenValue = "canonical" | "id" | "name";
+export type CoalitionCopyMode = "ids" | "names";
+export type CoalitionCopyNameMode = "flat" | "named";
+
+export type CoalitionCopyRow = {
+    coalitionName: string;
+    tokens: string[];
+    skippedCount: number;
+};
+
+export type CoalitionCopyOutput = {
+    rows: CoalitionCopyRow[];
+    output: string;
+    tokenCount: number;
+    coalitionCount: number;
+    skippedCount: number;
+};
 
 export function coerceCoalitionCommandPath(path: CoalitionCommandPath): AnyCommandPath {
     return path as unknown as AnyCommandPath;
@@ -70,15 +86,42 @@ type CoalitionWithOptionalDescription = WebCoalitions["coalitions"][number] & {
     description?: string;
 };
 
+type KnownCoalitionDefault = {
+    name: string;
+    description?: string;
+};
+
 const coalitionOptionConfig = COMMANDS.options.Coalition;
-const KNOWN_COALITION_DESCRIPTIONS = new Map<string, string>(
+const KNOWN_COALITION_DEFAULTS = Object.freeze(
     typeof coalitionOptionConfig === "string"
         ? []
-        : coalitionOptionConfig.options.flatMap((option, index) => {
+        : Array.from(coalitionOptionConfig.options.reduce((defaults, option, index) => {
             const name = option.trim();
-            const description = coalitionOptionConfig.subtext?.[index]?.trim() ?? "";
-            return name && description ? [[name.toLowerCase(), description] as const] : [];
-        }),
+            if (!name) {
+                return defaults;
+            }
+
+            const key = name.toLowerCase();
+            const description = normalizeCoalitionDescription(coalitionOptionConfig.subtext?.[index]);
+            const existing = defaults.get(key);
+
+            if (!existing) {
+                defaults.set(key, { name, description });
+                return defaults;
+            }
+
+            if (description && !existing.description) {
+                defaults.set(key, { ...existing, description });
+            }
+
+            return defaults;
+        }, new Map<string, KnownCoalitionDefault>()).values()),
+);
+const KNOWN_COALITION_DEFAULT_NAMES = new Set(KNOWN_COALITION_DEFAULTS.map((coalition) => coalition.name.toLowerCase()));
+const KNOWN_COALITION_DESCRIPTIONS = new Map<string, string>(
+    KNOWN_COALITION_DEFAULTS.flatMap((coalition) => {
+        return coalition.description ? [[coalition.name.toLowerCase(), coalition.description] as const] : [];
+    }),
 );
 
 function normalizeCoalitionName(name: string | undefined): string {
@@ -93,6 +136,10 @@ function normalizeCoalitionDescription(description: string | undefined): string 
 
 function getKnownCoalitionDescription(name: string): string | undefined {
     return KNOWN_COALITION_DESCRIPTIONS.get(name.trim().toLowerCase());
+}
+
+function isKnownCoalitionDefaultName(name: string): boolean {
+    return KNOWN_COALITION_DEFAULT_NAMES.has(name.trim().toLowerCase());
 }
 
 function resolveCoalitionDescription(coalition: CoalitionWithOptionalDescription, normalizedName: string): string | undefined {
@@ -182,9 +229,12 @@ export function toCoalitionMemberRecord(member: WebCoalitionMember, index = 0): 
 }
 
 export function normalizeCoalitions(data: WebCoalitions | undefined): CoalitionRecord[] {
-    const coalitions = Array.isArray(data?.coalitions) ? data.coalitions as CoalitionWithOptionalDescription[] : [];
+    const coalitions = Array.isArray(data?.coalitions) ? data.coalitions as CoalitionWithOptionalDescription[] : null;
+    if (!coalitions) {
+        return [];
+    }
 
-    return coalitions
+    const normalizedCoalitions = coalitions
         .map((coalition, coalitionIndex) => {
             const name = normalizeCoalitionName(coalition.name);
             const description = resolveCoalitionDescription(coalition, name);
@@ -206,8 +256,34 @@ export function normalizeCoalitions(data: WebCoalitions | undefined): CoalitionR
                 activeMembers: members.length - deletedMembers,
                 deletedMembers,
             } satisfies CoalitionRecord;
-        })
-        .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" }));
+        });
+
+    const knownCoalitionNames = new Set(normalizedCoalitions.map((coalition) => coalition.name.toLowerCase()));
+    const missingDefaultCoalitions = KNOWN_COALITION_DEFAULTS.flatMap((coalition) => {
+        if (knownCoalitionNames.has(coalition.name.toLowerCase())) {
+            return [];
+        }
+
+        return [{
+            key: `coalition:known:${coalition.name.toLowerCase()}`,
+            name: coalition.name,
+            description: coalition.description,
+            members: [],
+            allianceMembers: [],
+            guildMembers: [],
+            totalMembers: 0,
+            activeMembers: 0,
+            deletedMembers: 0,
+        } satisfies CoalitionRecord];
+    });
+
+    return [
+        ...normalizedCoalitions
+            .filter((coalition) => !isKnownCoalitionDefaultName(coalition.name))
+            .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: "base" })),
+        ...normalizedCoalitions.filter((coalition) => isKnownCoalitionDefaultName(coalition.name)),
+        ...missingDefaultCoalitions,
+    ];
 }
 
 export function getCoalitionMemberQueryMatch(member: CoalitionMemberRecord, query: string): CoalitionMemberQueryMatch {
@@ -269,4 +345,45 @@ export function filterCoalitions(
             visibleTotalMembers: visibleMembers.length,
         } satisfies CoalitionViewRecord];
     });
+}
+
+export function buildCoalitionCopyOutput(
+    coalitions: readonly Pick<CoalitionViewRecord, "name" | "visibleMembers">[],
+    options: {
+        mode: CoalitionCopyMode;
+        qualified?: boolean;
+        nameMode?: CoalitionCopyNameMode;
+    },
+): CoalitionCopyOutput {
+    const tokenValue = options.mode === "ids" ? "id" : "name";
+    const qualified = options.qualified ?? true;
+    const includeCoalitionNames = (options.nameMode ?? "flat") === "named";
+
+    const allRows = coalitions.map((coalition) => {
+        const rawTokens = coalition.visibleMembers
+            .map((member) => formatCoalitionMemberToken(member, { value: tokenValue, qualified }))
+            .filter(Boolean);
+
+        return {
+            coalitionName: coalition.name,
+            tokens: Array.from(new Set(rawTokens)),
+            skippedCount: coalition.visibleMembers.length - rawTokens.length,
+        } satisfies CoalitionCopyRow;
+    });
+
+    const rows = allRows.filter((row) => row.tokens.length > 0);
+
+    const tokenList = includeCoalitionNames
+        ? rows.flatMap((row) => row.tokens)
+        : Array.from(new Set(rows.flatMap((row) => row.tokens)));
+
+    return {
+        rows,
+        output: includeCoalitionNames
+            ? rows.map((row) => `${row.coalitionName}: ${row.tokens.join(",")}`).join("\n")
+            : tokenList.join(","),
+        tokenCount: tokenList.length,
+        coalitionCount: rows.length,
+        skippedCount: allRows.reduce((sum, row) => sum + row.skippedCount, 0),
+    };
 }

@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "react-data-grid/lib/styles.css";
 import {
   DataGrid,
@@ -11,8 +11,8 @@ import {
 import { JSONValue } from "@/lib/internaltypes";
 import { sortData } from "./sort";
 import { cn } from "@/lib/utils";
-import { ExportTable } from "./TableWithExports";
 import SelectionCellButton from "./actions/SelectionCellButton";
+import { getConfigColumnId } from "./table_util";
 
 // Types
 export type OrderIdx = {
@@ -22,10 +22,19 @@ export type OrderIdx = {
 
 export type ColumnType = 'string' | 'number' | 'boolean' | 'mixed';
 
+export type ConfigColumnSource = "placeholder" | "client";
+
+export type TableSelectionCopyConfig<IdT extends TableRowSelectionId = TableRowSelectionId> = {
+  label?: string;
+  serialize: (selectedIds: ReadonlySet<IdT>) => string;
+};
+
 export type ConfigColumns = {
   title: string;
   index: number;
   key?: string;
+  columnId?: string;
+  source?: ConfigColumnSource;
   render?: ObjectColumnRender;
   sorted?: ['asc' | 'desc', number];
   type?: ColumnType;
@@ -116,10 +125,35 @@ export type TableRowSelection<IdT extends TableRowSelectionId = TableRowSelectio
   onSelectedIdsChange: (selectedIds: Set<IdT>) => void;
   onVisibleIdsChange?: (ids: IdT[]) => void;
   getLabel?: (id: IdT, rowIdx: number) => string;
+  copySelection?: TableSelectionCopyConfig<IdT>;
   selectedRowClassName?: string;
   showRowNumber?: boolean;
   debugTagPrefix?: string;
 };
+
+function areSelectionIdsEqual(left: readonly TableRowSelectionId[], right: readonly TableRowSelectionId[]): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
+function areRenderedRowsEquivalent(left: readonly JSONValue[][], right: readonly JSONValue[][]): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((row, index) => row === right[index]);
+}
 
 function SelectionIndexCell({
   rowId,
@@ -166,7 +200,7 @@ interface ReactDataGridTableProps {
   setColumns: (columns: ConfigColumns[]) => void;
   setData: (data: JSONValue[][]) => void;
   setSort: (sort: OrderIdx | OrderIdx[] | undefined) => void;
-  showExports: boolean;
+  onColumnsReorderCommitted?: (sourceColumnId: string, targetColumnId: string, nextColumns: ConfigColumns[]) => void;
 }
 
 export function DataTable({
@@ -185,7 +219,7 @@ export function DataTable({
   setColumns,
   setData,
   setSort,
-  showExports,
+  onColumnsReorderCommitted,
 }: ReactDataGridTableProps) {
   const [viewportWidth, setViewportWidth] = useState<number>(() =>
     typeof window === "undefined" ? 1024 : window.innerWidth,
@@ -228,10 +262,6 @@ export function DataTable({
     return Array.isArray(sort) ? sort : [sort];
   }, [sort]);
 
-  useEffect(() => {
-    onRowsRendered?.(data);
-  }, [data, onRowsRendered]);
-
   const [lastSelectedRowIdx, setLastSelectedRowIdx] = useState<number | null>(null);
 
   const selectableRowIds = useMemo(
@@ -248,12 +278,32 @@ export function DataTable({
 
     return selectableRowIds.filter((id): id is TableRowSelectionId => id !== null && id !== undefined);
   }, [rowSelection, selectableRowIds]);
+  const lastVisibleSelectableRowIdsRef = useRef<readonly TableRowSelectionId[]>([]);
+  const lastRenderedRowsRef = useRef<readonly JSONValue[][]>([]);
+
+  useEffect(() => {
+    if (!onRowsRendered) {
+      return;
+    }
+
+    if (areRenderedRowsEquivalent(lastRenderedRowsRef.current as readonly JSONValue[][], data)) {
+      return;
+    }
+
+    lastRenderedRowsRef.current = data;
+    onRowsRendered(data);
+  }, [data, onRowsRendered]);
 
   useEffect(() => {
     if (!rowSelection?.onVisibleIdsChange) {
       return;
     }
 
+    if (areSelectionIdsEqual(lastVisibleSelectableRowIdsRef.current, visibleSelectableRowIds)) {
+      return;
+    }
+
+    lastVisibleSelectableRowIdsRef.current = visibleSelectableRowIds;
     rowSelection.onVisibleIdsChange(visibleSelectableRowIds);
   }, [rowSelection, visibleSelectableRowIds]);
 
@@ -407,15 +457,22 @@ export function DataTable({
     // If either index is not found, return
     if (sourceVisualIndex === -1 || targetVisualIndex === -1) return;
 
-    // Create a new array and swap the columns
+    // Move the dragged column to the target position rather than swapping.
     const newColumns = [...columnsInfo];
-    const sourceColumn = newColumns[sourceVisualIndex];
-    const targetColumn = newColumns[targetVisualIndex];
-    newColumns[sourceVisualIndex] = targetColumn;
-    newColumns[targetVisualIndex] = sourceColumn;
+    const [sourceColumn] = newColumns.splice(sourceVisualIndex, 1);
+    const targetColumn = columnsInfo[targetVisualIndex];
+    const adjustedTargetIndex = sourceVisualIndex < targetVisualIndex
+      ? targetVisualIndex - 1
+      : targetVisualIndex;
+    newColumns.splice(adjustedTargetIndex, 0, sourceColumn);
 
     setColumns(newColumns);
-  }, [columnsInfo, setColumns]);
+    const sourceColumnId = getConfigColumnId(sourceColumn);
+    const targetColumnId = getConfigColumnId(targetColumn);
+    if (sourceColumnId && targetColumnId) {
+      onColumnsReorderCommitted?.(sourceColumnId, targetColumnId, newColumns);
+    }
+  }, [columnsInfo, onColumnsReorderCommitted, setColumns]);
 
   // Sorting state using SortColumn[] type
   const [sortColumns, setSortColumns] = useState<SortColumn[] | undefined>(() => {
@@ -445,10 +502,6 @@ export function DataTable({
       setSort(undefined);
     }
   }, [data, columnsInfo, setColumns, setData, setSort, setSortColumns]);
-
-  const exportButton = useMemo(() => (
-    showExports && <ExportTable data={data} columns={columnsInfo} />
-  ), [showExports, data, columnsInfo]);
 
   const evenClass = useMemo(() => {
     return cn(
@@ -501,7 +554,6 @@ export function DataTable({
 
   return (
     <>
-      {exportButton}
       {dataGrid}
     </>
   );

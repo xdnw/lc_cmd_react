@@ -5,13 +5,24 @@ import { CopyToClipboardTextArea } from "../../components/ui/copytoclipboard";
 import { WebTable, WebTableError } from "../../lib/apitypes";
 import { useDialog } from "../../components/layout/DialogContext";
 import { Link } from "react-router-dom";
-import { getQueryString, createTableInfo, toSelAndModifierString } from "./table_util";
+import {
+    createTableInfo,
+    getConfigColumnId,
+    getQueryString,
+    formatColName,
+    normalizePlaceholderColumnExpression,
+    remapSortByColumnIds,
+    toPlaceholderColumnId,
+    toSelAndModifierString,
+    type PlaceholderType,
+} from "./table_util";
 import { useQueryClient, useSuspenseQuery, UseSuspenseQueryOptions } from "@tanstack/react-query";
 import { singleQueryOptions, suspenseQueryOptions } from "@/lib/queries";
 import { ClientColumnOverlay, ConfigColumns, DataTable, ObjectColumnRender, OrderIdx, TableRowSelection } from "./DataTable";
 import { DataGridHandle } from "react-data-grid";
 import { JSONValue } from "@/lib/internaltypes";
 import { GoogleSheets } from "./TableWithExports";
+import { TableToolbar, type TableColumnCustomization, type TableColumnCustomizationItem } from "./TableToolbar";
 import { useDeepState } from "@/utils/StateUtil";
 import { QueryResult } from "@/lib/BulkQuery";
 import Loading from "@/components/ui/loading";
@@ -49,26 +60,40 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     const table = useRef<DataGridHandle>(null);
     const { showDialog } = useDialog();
 
-    const [type, setType] = useDeepState<string | null>(load ? getTableProps().type : null);
-    const [selection, setSelection] = useDeepState<{ [key: string]: string }>(load ? getTableProps().selection : {});
-    const [columns, setColumns] = useDeepState<Map<string, string | null>>(load ? getTableProps().columns : new Map<string, string | null>());
-    const [sortState, setSortState] = useDeepState<OrderIdx | OrderIdx[] | undefined>(load ? getTableProps().sort : undefined);
-    const [clientColumns, setClientColumns] = useState<ClientColumnOverlay[]>(load ? (getTableProps().clientColumns ?? []) : []);
-    const [columnRenderers, setColumnRenderers] = useState<TableProps['columnRenderers']>(() => load ? getTableProps().columnRenderers : undefined);
-    const [rowClassName, setRowClassName] = useState<TableProps['rowClassName']>(() => load ? getTableProps().rowClassName : undefined);
-    const [indexCellRenderer, setIndexCellRenderer] = useState<TableProps['indexCellRenderer']>(() => load ? getTableProps().indexCellRenderer : undefined);
-    const [indexColumnWidth, setIndexColumnWidth] = useState<TableProps['indexColumnWidth']>(() => load ? getTableProps().indexColumnWidth : undefined);
-    const [onRowsRendered, setOnRowsRendered] = useState<TableProps['onRowsRendered']>(() => load ? getTableProps().onRowsRendered : undefined);
-    const [onColumnsLoaded, setOnColumnsLoaded] = useState<TableProps['onColumnsLoaded']>(() => load ? getTableProps().onColumnsLoaded : undefined);
-    const [rowSelection, setRowSelection] = useState<TableProps['rowSelection']>(() => load ? getTableProps().rowSelection : undefined);
+    const initialTablePropsRef = useRef<TableProps | null>(null);
+    if (initialTablePropsRef.current === null) {
+        initialTablePropsRef.current = getTableProps();
+    }
+    const initialTableProps = initialTablePropsRef.current;
 
-    useEffect(() => {
-        if (!load) return;
-        const props = getTableProps();
-        setType(props.type);
-        setSelection(props.selection);
-        setColumns(props.columns);
-        setSortState(props.sort);
+    const [type, setType] = useDeepState<string | null>(initialTableProps.type);
+    const [selection, setSelection] = useDeepState<{ [key: string]: string }>(initialTableProps.selection);
+    const [columns, setColumns] = useDeepState<Map<string, string | null>>(initialTableProps.columns);
+    const [sortState, setSortState] = useDeepState<OrderIdx | OrderIdx[] | undefined>(initialTableProps.sort);
+    const [clientColumns, setClientColumns] = useState<ClientColumnOverlay[]>(initialTableProps.clientColumns ?? []);
+    const [columnRenderers, setColumnRenderers] = useState<TableProps['columnRenderers']>(() => initialTableProps.columnRenderers);
+    const [rowClassName, setRowClassName] = useState<TableProps['rowClassName']>(() => initialTableProps.rowClassName);
+    const [indexCellRenderer, setIndexCellRenderer] = useState<TableProps['indexCellRenderer']>(() => initialTableProps.indexCellRenderer);
+    const [indexColumnWidth, setIndexColumnWidth] = useState<TableProps['indexColumnWidth']>(() => initialTableProps.indexColumnWidth);
+    const [onRowsRendered, setOnRowsRendered] = useState<TableProps['onRowsRendered']>(() => initialTableProps.onRowsRendered);
+    const [onColumnsLoaded, setOnColumnsLoaded] = useState<TableProps['onColumnsLoaded']>(() => initialTableProps.onColumnsLoaded);
+    const [rowSelection, setRowSelection] = useState<TableProps['rowSelection']>(() => initialTableProps.rowSelection);
+    const [columnOrder, setColumnOrder] = useState<string[] | undefined>(undefined);
+    const committedColumnsReorderRef = useRef<((nextColumns: ConfigColumns[]) => void) | null>(null);
+    const loadSourceSignatureRef = useRef<string | null>(null);
+
+    const getLoadSourceSignature = useCallback((props: TableProps) => JSON.stringify({
+        type: props.type,
+        selection: toSelAndModifierString(props.selection),
+        columns: Array.from(props.columns.entries()),
+        sort: props.sort,
+    }), []);
+
+    if (loadSourceSignatureRef.current === null) {
+        loadSourceSignatureRef.current = getLoadSourceSignature(initialTableProps);
+    }
+
+    const applyDynamicTableProps = useCallback((props: TableProps) => {
         setClientColumns(props.clientColumns ?? []);
         setColumnRenderers(props.columnRenderers);
         setRowClassName(() => props.rowClassName);
@@ -77,21 +102,47 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
         setOnRowsRendered(() => props.onRowsRendered);
         setOnColumnsLoaded(() => props.onColumnsLoaded);
         setRowSelection(() => props.rowSelection);
+    }, []);
+
+    const applyTableProps = useCallback((props: TableProps) => {
+        setType(props.type);
+        setSelection(props.selection);
+        setColumns(props.columns);
+        setSortState(props.sort);
+        applyDynamicTableProps(props);
+    }, [applyDynamicTableProps, setType, setSelection, setColumns, setSortState]);
+
+    const captureLiveTableProps = useCallback(() => {
+        const props = getTableProps();
+        applyTableProps(props);
+        return props;
+    }, [applyTableProps, getTableProps]);
+
+    useEffect(() => {
+        if (!load) return;
+        const props = getTableProps();
+        applyDynamicTableProps(props);
+
+        const nextSourceSignature = getLoadSourceSignature(props);
+        if (nextSourceSignature === loadSourceSignatureRef.current) {
+            return;
+        }
+
+        loadSourceSignatureRef.current = nextSourceSignature;
+        setType(props.type);
+        setSelection(props.selection);
+        setColumns(props.columns);
+        setSortState(props.sort);
+        setColumnOrder(undefined);
     }, [
+        applyDynamicTableProps,
+        getLoadSourceSignature,
         load,
         getTableProps,
-        setType,
-        setSelection,
         setColumns,
+        setSelection,
         setSortState,
-        setClientColumns,
-        setColumnRenderers,
-        setRowClassName,
-        setIndexCellRenderer,
-        setIndexColumnWidth,
-        setOnRowsRendered,
-        setOnColumnsLoaded,
-        setRowSelection,
+        setType,
     ]);
     const highlightRowOrColumn = useCallback((col?: number, row?: number) => {
         const tableElem = table.current?.element;
@@ -140,9 +191,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     }, [table]);
 
     const copy = useCallback(() => {
-        const current = load
-            ? { type, selection, columns, sort: sortState }
-            : getTableProps();
+        const current = { type, selection, columns, sort: sortState };
 
         if (!current.type) {
             showDialog("Failed to copy URL", "Table type is missing.", true);
@@ -162,12 +211,10 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
         }).catch((err) => {
             showDialog("Failed to copy URL to clipboard", err + "", true);
         });
-    }, [load, type, selection, columns, sortState, getTableProps, showDialog]);
+    }, [type, selection, columns, sortState, showDialog]);
 
     const exportsComponent = useMemo(() => {
-        const currentToolbarTable = load
-            ? { type, selection, columns }
-            : getTableProps();
+        const currentToolbarTable = { type, selection, columns };
 
         if (!currentToolbarTable.type || !currentToolbarTable.selection || !currentToolbarTable.columns) return null;
         return (
@@ -177,7 +224,19 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
                 columns={currentToolbarTable.columns}
             />
         );
-    }, [load, type, selection, columns, getTableProps]);
+    }, [type, selection, columns]);
+
+    const sourceSelection = useMemo(() => {
+        const selectionText = toSelAndModifierString(selection);
+        if (!selectionText) {
+            return undefined;
+        }
+
+        return {
+            value: selectionText,
+            label: "Copy source selection",
+        };
+    }, [selection]);
 
     const shareButton = useMemo(() => {
         return (
@@ -190,6 +249,10 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
             </Button>
         );
     }, [copy]);
+
+    const handleColumnsReorderCommitted = useCallback((_sourceColumnId: string, _targetColumnId: string, nextColumns: ConfigColumns[]) => {
+        committedColumnsReorderRef.current?.(nextColumns);
+    }, []);
 
     const highlightError = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
         const col = parseInt(e.currentTarget.dataset.col ?? "0") - 1;
@@ -211,15 +274,134 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
         showDialog(title, body);
     }, [showDialog, highlightError]);
 
-    const renderChildren = useCallback((errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, currentRowClassName?: TableProps['rowClassName'], currentIndexCellRenderer?: TableProps['indexCellRenderer'], currentIndexColumnWidth?: TableProps['indexColumnWidth'], currentOnRowsRendered?: TableProps['onRowsRendered'], currentRowSelection?: TableProps['rowSelection']) => {
+    const renderChildren = useCallback((errorsButton: ReactNode, data: JSONValue[][], tableColumnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, currentRowClassName?: TableProps['rowClassName'], currentIndexCellRenderer?: TableProps['indexCellRenderer'], currentIndexColumnWidth?: TableProps['indexColumnWidth'], currentOnRowsRendered?: TableProps['onRowsRendered'], currentRowSelection?: TableProps['rowSelection']) => {
+        const placeholderType = type as PlaceholderType;
+        const buildCustomizationItems = (columnsInfo: ConfigColumns[]): TableColumnCustomizationItem[] => columnsInfo
+            .map<TableColumnCustomizationItem | null>((column) => {
+                const columnId = getConfigColumnId(column);
+                if (!columnId) {
+                    return null;
+                }
+
+                const isPlaceholderColumn = column.source !== "client";
+                const rawTitle = isPlaceholderColumn
+                    ? (column.key ? (columns.get(column.key) ?? null) : null)
+                    : column.title;
+
+                return {
+                    id: columnId,
+                    source: isPlaceholderColumn ? "placeholder" : "client",
+                    title: column.title,
+                    rawTitle,
+                    value: column.key,
+                    valueEditable: isPlaceholderColumn,
+                    titleEditable: isPlaceholderColumn,
+                    removable: isPlaceholderColumn,
+                };
+            })
+            .filter((column): column is TableColumnCustomizationItem => Boolean(column));
+
+        const currentCustomizationItems = buildCustomizationItems(tableColumnsInfo);
+        const commitCustomization = (nextItems: TableColumnCustomizationItem[]) => {
+            const previousPlaceholderItems = currentCustomizationItems.filter((item) => item.source === "placeholder");
+            const nextPlaceholderItems = nextItems.filter((item) => item.source === "placeholder");
+            const nextPlaceholderDrafts = nextPlaceholderItems
+                .map((item) => {
+                    const normalizedValue = normalizePlaceholderColumnExpression(item.value ?? "");
+                    if (!normalizedValue) {
+                        return null;
+                    }
+
+                    const rawTitle = item.rawTitle?.trim() ?? "";
+                    const alias = rawTitle.length > 0 && rawTitle !== formatColName(normalizedValue)
+                        ? rawTitle
+                        : null;
+                    return {
+                        itemId: item.id,
+                        persistedId: toPlaceholderColumnId(normalizedValue),
+                        value: normalizedValue,
+                        alias,
+                    };
+                })
+                .filter((entry): entry is { itemId: string; persistedId: string; value: string; alias: string | null } => Boolean(entry));
+
+            const nextColumns = new Map<string, string | null>(nextPlaceholderDrafts.map((entry) => [entry.value, entry.alias]));
+            const previousPlaceholderKeys = Array.from(columns.keys());
+            const nextPlaceholderKeys = Array.from(nextColumns.keys());
+            const placeholderStructureChanged = previousPlaceholderKeys.length !== nextPlaceholderKeys.length
+                || previousPlaceholderKeys.some((key, index) => nextPlaceholderKeys[index] !== key);
+            const nextSort = remapSortByColumnIds(
+                sortState,
+                previousPlaceholderItems.map((item) => item.id),
+                nextPlaceholderItems.map((item) => item.id),
+            );
+            const persistedIdByDraftId = new Map(nextPlaceholderDrafts.map((entry) => [entry.itemId, entry.persistedId]));
+            const nextColumnOrder = nextItems.map((item) => {
+                if (item.source !== "placeholder") {
+                    return item.id;
+                }
+
+                return persistedIdByDraftId.get(item.id) ?? item.id;
+            });
+
+            setColumns(nextColumns);
+            setColumnOrder(nextColumnOrder);
+            setSortState(nextSort);
+
+            if (placeholderStructureChanged) {
+                setColumnRenderers(undefined);
+                return;
+            }
+
+            const currentColumnsById = new Map(tableColumnsInfo.map((column) => [getConfigColumnId(column), column]));
+            const nextColumnsInfo = nextItems
+                .map((item) => {
+                    const column = currentColumnsById.get(item.id);
+                    if (!column) {
+                        return null;
+                    }
+
+                    const nextTitle = item.source === "placeholder"
+                        ? (item.rawTitle?.trim() || formatColName(item.value ?? column.key ?? column.title))
+                        : column.title;
+
+                    return {
+                        ...column,
+                        title: nextTitle,
+                    } satisfies ConfigColumns;
+                })
+                .filter((column): column is ConfigColumns => Boolean(column));
+
+            setColumnsInfo(nextColumnsInfo);
+        };
+
+        const columnCustomization: TableColumnCustomization | undefined = load ? {
+            items: currentCustomizationItems,
+            composer: {
+                placeholderType,
+            },
+            onApply: commitCustomization,
+        } : undefined;
+        committedColumnsReorderRef.current = columnCustomization
+            ? (nextColumns: ConfigColumns[]) => {
+                commitCustomization(buildCustomizationItems(nextColumns));
+            }
+            : null;
+        const handleSetData = setData as (data: JSONValue[][]) => void;
+
         return <>
-            {exportsComponent}
-            {shareButton}
-            {errorsButton}
+            <TableToolbar
+                data={data}
+                columns={tableColumnsInfo}
+                sourceSelection={sourceSelection}
+                rowSelection={currentRowSelection}
+                columnCustomization={columnCustomization}
+                leadingActions={<>{exportsComponent}{shareButton}{errorsButton}</>}
+            />
             <DataTable
                 table={table}
                 data={data}
-                columnsInfo={columnsInfo}
+                columnsInfo={tableColumnsInfo}
                 sort={sortState}
                 searchSet={searchSet}
                 rowClassName={currentRowClassName}
@@ -228,14 +410,14 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
                 onRowsRendered={currentOnRowsRendered}
                 rowSelection={currentRowSelection}
                 visibleColumns={visibleColumns}
-                showExports={true}
 
                 setColumns={setColumnsInfo}
-                setData={setData as (data: JSONValue[][]) => void}
+                setData={handleSetData}
                 setSort={setSortState}
+                onColumnsReorderCommitted={columnCustomization ? handleColumnsReorderCommitted : undefined}
             />
         </>;
-    }, [exportsComponent, shareButton, sortState, setSortState]);
+    }, [columns, exportsComponent, handleColumnsReorderCommitted, load, setColumns, setColumnRenderers, setSortState, shareButton, sortState, sourceSelection, type]);
 
     if (load) {
         return <LoadTable
@@ -251,6 +433,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
             onRowsRendered={onRowsRendered}
             onColumnsLoaded={onColumnsLoaded}
             rowSelection={rowSelection}
+            columnOrder={columnOrder}
             showErrorsProvided={showErrorsProvided}
         >
             {renderChildren}
@@ -258,21 +441,29 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     } else {
         return <DeferTable
             table={table}
-            getTableProps={getTableProps}
+            getTableProps={captureLiveTableProps}
+            type={type ?? ""}
+            selection={selection}
+            columns={columns}
+            sort={sortState}
+            clientColumns={clientColumns}
+            columnRenderers={columnRenderers}
             setSortState={setSortState}
             showErrorsProvided={showErrorsProvided}
             rowClassName={rowClassName}
             indexCellRenderer={indexCellRenderer}
             indexColumnWidth={indexColumnWidth}
             onRowsRendered={onRowsRendered}
+            onColumnsLoaded={onColumnsLoaded}
             rowSelection={rowSelection}
+            columnOrder={columnOrder}
         >
             {renderChildren}
         </DeferTable>;
     }
 }
 
-function LoadTable({ type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, showErrorsProvided, children }: {
+function LoadTable({ type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, columnOrder, showErrorsProvided, children }: {
     type: string,
     selection: { [key: string]: string },
     columns: Map<string, string | null>,
@@ -285,6 +476,7 @@ function LoadTable({ type, selection, columns, sort, clientColumns, columnRender
     onRowsRendered?: TableProps['onRowsRendered'],
     onColumnsLoaded?: TableProps['onColumnsLoaded'],
     rowSelection?: TableProps['rowSelection'],
+    columnOrder?: string[],
     showErrorsProvided: (errors: WebTableError[]) => void,
     children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, rowClassName?: TableProps['rowClassName'], indexCellRenderer?: TableProps['indexCellRenderer'], indexColumnWidth?: TableProps['indexColumnWidth'], onRowsRendered?: TableProps['onRowsRendered'], rowSelection?: TableProps['rowSelection']) => ReactNode
 }) {
@@ -330,6 +522,7 @@ function LoadTable({ type, selection, columns, sort, clientColumns, columnRender
                     onRowsRendered={onRowsRendered}
                     onColumnsLoaded={onColumnsLoaded}
                     rowSelection={rowSelection}
+                    columnOrder={columnOrder}
                     showErrorsProvided={showErrorsProvided}
                     children={children}
                     tableQuery={tableQuery}
@@ -339,7 +532,7 @@ function LoadTable({ type, selection, columns, sort, clientColumns, columnRender
     );
 }
 
-function LoadTableContent({ type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, showErrorsProvided, children, tableQuery }: {
+function LoadTableContent({ type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, columnOrder, showErrorsProvided, children, tableQuery }: {
     type: string,
     selection: { [key: string]: string },
     columns: Map<string, string | null>,
@@ -352,6 +545,7 @@ function LoadTableContent({ type, selection, columns, sort, clientColumns, colum
     onRowsRendered?: TableProps['onRowsRendered'],
     onColumnsLoaded?: TableProps['onColumnsLoaded'],
     rowSelection?: TableProps['rowSelection'],
+    columnOrder?: string[],
     showErrorsProvided: (errors: WebTableError[]) => void,
     children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, rowClassName?: TableProps['rowClassName'], indexCellRenderer?: TableProps['indexCellRenderer'], indexColumnWidth?: TableProps['indexColumnWidth'], onRowsRendered?: TableProps['onRowsRendered'], rowSelection?: TableProps['rowSelection']) => ReactNode,
     tableQuery: { type: string; selection_str: string; columns: string[] },
@@ -375,16 +569,28 @@ function LoadTableContent({ type, selection, columns, sort, clientColumns, colum
     const webTable = queryData.data as WebTable;
     const initialTableInfo = useMemo(() => {
         try {
-            return createTableInfo(webTable, sort, columns, clientColumns ?? [], columnRenderers);
+            return createTableInfo(webTable, sort, columns, clientColumns ?? [], columnRenderers, columnOrder);
         } catch (e) {
             console.error(e);
             return undefined;
         }
-    }, [sort, columns, webTable, clientColumns, columnRenderers]);
+    }, [columnOrder, sort, columns, webTable, clientColumns, columnRenderers]);
 
     const [data, setData] = useState<JSONValue[][]>(initialTableInfo?.data as JSONValue[][]);
     const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>(initialTableInfo?.columnsInfo || []);
     const [errors, setErrors] = useState<WebTableError[]>(initialTableInfo?.errors || []);
+
+    useEffect(() => {
+        if (!initialTableInfo) {
+            return;
+        }
+
+        setData(initialTableInfo.data as JSONValue[][]);
+        setColumnsInfo(initialTableInfo.columnsInfo);
+        setErrors(initialTableInfo.errors);
+        setVisibleColumns(initialTableInfo.visibleColumns);
+        setSearchSet(initialTableInfo.searchSet);
+    }, [initialTableInfo, setData, setColumnsInfo, setErrors, setSearchSet, setVisibleColumns]);
 
     useEffect(() => {
         if (columnsInfo && columnsInfo.length > 0) {
@@ -465,17 +671,25 @@ ${process.env.BASE_PATH}custom_table?${getQueryString({
  * @constructor
  */
 function DeferTable(
-    { table, getTableProps, setSortState, showErrorsProvided, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, rowSelection, children }:
+    { table, getTableProps, type, selection, columns, sort, clientColumns, columnRenderers, setSortState, showErrorsProvided, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, columnOrder, children }:
         {
             table: React.RefObject<DataGridHandle | null>,
             getTableProps: () => TableProps,
+            type: string,
+            selection: { [key: string]: string },
+            columns: Map<string, string | null>,
+            sort: OrderIdx | OrderIdx[] | undefined,
+            clientColumns?: ClientColumnOverlay[],
+            columnRenderers?: TableProps['columnRenderers'],
             setSortState: (sort: OrderIdx | OrderIdx[] | undefined) => void,
             showErrorsProvided: (errors: WebTableError[]) => void,
             rowClassName?: TableProps['rowClassName'],
             indexCellRenderer?: TableProps['indexCellRenderer'],
             indexColumnWidth?: TableProps['indexColumnWidth'],
             onRowsRendered?: TableProps['onRowsRendered'],
+            onColumnsLoaded?: TableProps['onColumnsLoaded'],
             rowSelection?: TableProps['rowSelection'],
+            columnOrder?: string[],
             children: (errorsButton: ReactNode, data: JSONValue[][], columnsInfo: ConfigColumns[], searchSet: Set<number>, visibleColumns: number[], setColumnsInfo: (columnsInfo: ConfigColumns[]) => void, setData: (data: JSONValue[][]) => void, rowClassName?: TableProps['rowClassName'], indexCellRenderer?: TableProps['indexCellRenderer'], indexColumnWidth?: TableProps['indexColumnWidth'], onRowsRendered?: TableProps['onRowsRendered'], rowSelection?: TableProps['rowSelection']) => ReactNode
         }
 ) {
@@ -488,13 +702,29 @@ function DeferTable(
     const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>([]);
     const [errors, setErrors] = useState<WebTableError[]>([]);
     const [isFetching, setIsFetching] = useState(false);
+    const [lastWebTable, setLastWebTable] = useState<WebTable | null>(null);
+    const lastBackendSignatureRef = useRef<string | null>(null);
 
-    const onColumnsLoadedFn = getTableProps?.()?.onColumnsLoaded;
+    const activeTableProps = useMemo<TableProps>(() => ({
+        type,
+        selection,
+        columns,
+        sort,
+        clientColumns,
+        columnRenderers,
+        rowClassName,
+        indexCellRenderer,
+        indexColumnWidth,
+        onRowsRendered,
+        onColumnsLoaded,
+        rowSelection,
+    }), [type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection]);
+
     useEffect(() => {
         if (columnsInfo && columnsInfo.length > 0) {
-            onColumnsLoadedFn?.(columnsInfo);
+            onColumnsLoaded?.(columnsInfo);
         }
-    }, [columnsInfo, onColumnsLoadedFn]);
+    }, [columnsInfo, onColumnsLoaded]);
 
     const showErrors = useCallback(() => {
         if (errors.length > 0) {
@@ -534,41 +764,73 @@ function DeferTable(
         showDialog("Failed to update table", errorMessage, true);
     }, [showDialog]);
 
-    const onSuccess = useCallback((data: WebTable, sort: OrderIdx | OrderIdx[] | undefined, columns: Map<string, string | null>) => {
+    const applyWebTable = useCallback((webTable: WebTable, tableProps: TableProps) => {
         try {
-            const info: TableInfo = createTableInfo(data, sort, columns, getTableProps().clientColumns ?? [], getTableProps().columnRenderers);
+            const info: TableInfo = createTableInfo(
+                webTable,
+                tableProps.sort,
+                tableProps.columns,
+                tableProps.clientColumns ?? [],
+                tableProps.columnRenderers,
+                columnOrder,
+            );
             updateTable(info);
         } catch (e) {
             onErrorOrNull(e as (string | Error));
         }
-    }, [updateTable, onErrorOrNull, getTableProps]);
+    }, [columnOrder, updateTable, onErrorOrNull]);
 
-    const submit = useCallback(() => {
-        const { type, selection, columns, sort } = getTableProps();
+    const getBackendSignature = useCallback((tableProps: Pick<TableProps, 'type' | 'selection' | 'columns'>) => {
+        return JSON.stringify({
+            type: tableProps.type,
+            selection: toSelAndModifierString(tableProps.selection),
+            columns: Array.from(tableProps.columns.keys()),
+        });
+    }, []);
 
+    const fetchTable = useCallback((tableProps: TableProps) => {
         const params = {
-            type: type,
-            selection_str: toSelAndModifierString(selection),
-            columns: Array.from(columns.keys()),
+            type: tableProps.type,
+            selection_str: toSelAndModifierString(tableProps.selection),
+            columns: Array.from(tableProps.columns.keys()),
         } as { type?: string, selection_str?: string, columns?: string[] | string };
+        const backendSignature = getBackendSignature(tableProps);
 
-        console.log("Params", params);
-
-        // Call tanstack query refetch with params
-        // Fetch directly with the queryClient using the new params
         setIsFetching(true);
         queryClient.fetchQuery(singleQueryOptions(TABLE.endpoint, params, 0)).then(({ data }) => {
-            if (data) {
-                console.log("Data received from server", data);
-                onSuccess(data, sort, columns);
+            if (!data) {
+                onErrorOrNull("No data returned from server");
+                return;
             }
-            else onErrorOrNull("No data returned from server");
+
+            setLastWebTable(data);
+            lastBackendSignatureRef.current = backendSignature;
+            applyWebTable(data, tableProps);
         }).catch((error) => {
             onErrorOrNull(error);
         }).finally(() => {
             setIsFetching(false);
         });
-    }, [getTableProps, onSuccess, queryClient, onErrorOrNull]);
+    }, [applyWebTable, getBackendSignature, onErrorOrNull, queryClient]);
+
+    const submit = useCallback(() => {
+        fetchTable(getTableProps());
+    }, [fetchTable, getTableProps]);
+
+    useEffect(() => {
+        if (!lastWebTable) {
+            return;
+        }
+
+        const backendSignature = getBackendSignature(activeTableProps);
+        if (backendSignature === lastBackendSignatureRef.current) {
+            applyWebTable(lastWebTable, activeTableProps);
+            return;
+        }
+
+        fetchTable(activeTableProps);
+    }, [activeTableProps, applyWebTable, fetchTable, getBackendSignature, lastWebTable]);
+
     const label = "Generate Table";
 
     const submitButton = useMemo(() => {

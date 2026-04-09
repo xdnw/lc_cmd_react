@@ -760,6 +760,14 @@ function NationTable({
       setVisibleNationIds(nextVisibleIds.filter((nationId): nationId is number => typeof nationId === "number"));
     },
     getLabel: (nationId) => typeof nationId === "number" && selectedIds.has(nationId) ? `Deselect nation ${nationId}` : `Select nation ${nationId}`,
+    copySelection: {
+      label: "Copy selected nations",
+      serialize: (nextSelectedIds) => buildEntitySelection(
+        Array.from(nextSelectedIds)
+          .filter((nationId): nationId is number => typeof nationId === "number")
+          .sort((left, right) => left - right),
+      ),
+    },
     debugTagPrefix: "tax-expense-nation-select",
   }), [selectedIds, setSelectedIds]);
   const handleSelectVisible = useCallback(() => {
@@ -780,6 +788,7 @@ function NationTable({
     const nextColumns: ConfigColumns[] = [
       {
         title: "Nation",
+        key: "nation",
         index: 1,
         sortable: true,
         editable: false,
@@ -810,6 +819,7 @@ function NationTable({
     if (includeTaxIdColumn) {
       nextColumns.push({
         title: "Tax ID",
+        key: "tax_id",
         index: 2,
         sortable: true,
         editable: false,
@@ -824,6 +834,7 @@ function NationTable({
     nextColumns.push(
       {
         title: "Cities",
+        key: "cities",
         index: 3,
         sortable: true,
         editable: false,
@@ -840,6 +851,7 @@ function NationTable({
       },
       {
         title: "Projects",
+        key: "projects",
         index: 4,
         sortable: true,
         editable: false,
@@ -865,6 +877,7 @@ function NationTable({
       },
       {
         title: "Infra",
+        key: "infra",
         index: 6,
         sortable: true,
         editable: false,
@@ -885,6 +898,7 @@ function NationTable({
       },
       {
         title: "Land",
+        key: "land",
         index: 7,
         sortable: true,
         editable: false,
@@ -905,6 +919,7 @@ function NationTable({
       },
       {
         title: "Color",
+        key: "color",
         index: 8,
         sortable: true,
         editable: false,
@@ -918,6 +933,7 @@ function NationTable({
       nextColumns.push(
         {
           title: "Income",
+          key: "income",
           index: 9,
           sortable: true,
           editable: false,
@@ -930,6 +946,7 @@ function NationTable({
         },
         {
           title: "Expense",
+          key: "expense",
           index: 10,
           sortable: true,
           editable: false,
@@ -945,6 +962,7 @@ function NationTable({
 
     nextColumns.push({
       title: "Net",
+      key: "net",
       index: 11,
       sortable: true,
       editable: false,
@@ -1004,6 +1022,7 @@ function NationTable({
         rowClassName={highlightedRowClassName}
         showIndexColumn
         indexColumnWidth={68}
+        sourceSelection={{ value: nationSelection, label: "Copy source selection" }}
         rowSelection={rowSelection}
       />
     </div>

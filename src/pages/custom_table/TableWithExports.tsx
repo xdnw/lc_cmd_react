@@ -7,10 +7,15 @@ import { Button } from "@/components/ui/button";
 import { useDialog } from "@/components/layout/DialogContext";
 import LazyIcon from "@/components/ui/LazyIcon";
 import { JSONValue } from "@/lib/internaltypes";
-import { ConfigColumns } from "./DataTable";
+import type { ConfigColumns, TableRowSelection } from "./DataTable";
+import type { TableSourceSelectionCopy } from "./TableToolbar";
 import { useCallback, useMemo } from "react";
 
 const SHEET_CUSTOM_IMPORT_JSON_COMMAND: ["sheet_custom", "import_json"] = ["sheet_custom", "import_json"];
+
+function normalizeSelectionCopyText(text: string): string {
+    return text.replace(/,\s+/g, ",");
+}
 
 export function GoogleSheets({ type, selection, columns }: {
     readonly type: string
@@ -88,11 +93,21 @@ export function GoogleSheets({ type, selection, columns }: {
     );
 }
 
-export function ExportTable({ data, columns }: {
+export function ExportTable({ data, columns, sourceSelection, rowSelection }: {
     readonly data: JSONValue[][],
     readonly columns: ConfigColumns[],
+    readonly sourceSelection?: TableSourceSelectionCopy,
+    readonly rowSelection?: TableRowSelection,
 }) {
     const { showDialog } = useDialog();
+
+    const writeTextToClipboard = useCallback((text: string, label: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            showDialog("Copied to clipboard", `Copied ${label} to your clipboard.`, true);
+        }).catch((error) => {
+            showDialog("Copy failed", String(error), true);
+        });
+    }, [showDialog]);
 
     // Memoize click handlers to prevent recreation on each render
     const handleDownloadCSV = useCallback(() => {
@@ -110,6 +125,29 @@ export function ExportTable({ data, columns }: {
     const handleCopyTSV = useCallback(() => {
         showDialog(...downloadTableData(data, columns, true, ExportTypes.TSV));
     }, [showDialog, data, columns]);
+
+    const handleCopySourceSelection = useCallback(() => {
+        if (!sourceSelection?.value) {
+            return;
+        }
+
+        writeTextToClipboard(normalizeSelectionCopyText(sourceSelection.value), (sourceSelection.label ?? "the source selection").toLowerCase());
+    }, [sourceSelection, writeTextToClipboard]);
+
+    const handleCopySelectedRows = useCallback(() => {
+        if (!rowSelection?.copySelection) {
+            return;
+        }
+
+        const serializedSelection = rowSelection.copySelection.serialize(rowSelection.selectedIds);
+        if (!serializedSelection) {
+            return;
+        }
+
+        writeTextToClipboard(normalizeSelectionCopyText(serializedSelection), (rowSelection.copySelection.label ?? "the selected rows").toLowerCase());
+    }, [rowSelection, writeTextToClipboard]);
+
+    const hasSelectedRows = (rowSelection?.selectedIds.size ?? 0) > 0;
 
     // Memoize menu item contents to prevent recreation on each render
     const csvDownloadItem = useMemo(() => (
@@ -139,7 +177,7 @@ export function ExportTable({ data, columns }: {
     ), []);
 
     // Button label could also be memoized
-    const buttonLabel = useMemo(() => "Export", []);
+    const buttonLabel = useMemo(() => "Copy", []);
 
     return <span className="ms-1"><DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -158,6 +196,22 @@ export function ExportTable({ data, columns }: {
             <DropdownMenuItem className="cursor-pointer" onClick={handleCopyTSV}>
                 {tsvCopyItem}&nbsp;Copy TSV
             </DropdownMenuItem>
+            {sourceSelection?.value ? (
+                <DropdownMenuItem className="cursor-pointer" onClick={handleCopySourceSelection}>
+                    <kbd className="bg-accent rounded flex items-center space-x-1 px-1">
+                        <LazyIcon name="ClipboardIcon" className="h-4 w-4" />
+                    </kbd>
+                    &nbsp;{sourceSelection.label ?? "Copy source selection"}
+                </DropdownMenuItem>
+            ) : null}
+            {rowSelection?.copySelection ? (
+                <DropdownMenuItem className="cursor-pointer" onClick={handleCopySelectedRows} disabled={!hasSelectedRows}>
+                    <kbd className="bg-accent rounded flex items-center space-x-1 px-1">
+                        <LazyIcon name="ClipboardCheck" className="h-4 w-4" />
+                    </kbd>
+                    &nbsp;{rowSelection.copySelection.label ?? "Copy selected rows"}
+                </DropdownMenuItem>
+            ) : null}
         </DropdownMenuContent>
     </DropdownMenu>
     </span>

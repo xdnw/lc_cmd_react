@@ -3,15 +3,19 @@ import { DEFAULT_TABS } from "../../lib/layouts";
 import { WebTable, WebTableError } from '@/lib/apitypes';
 import { getRenderer, isHtmlRenderer } from '@/components/ui/renderers';
 import { ReactNode } from 'react';
-import { CM, STRIP_PREFIXES } from '@/utils/Command';
+import { CM, STRIP_PREFIXES, getTypeBreakdown, type TypeBreakdown } from '@/utils/Command';
 import { TableInfo } from './AbstractTable';
-import { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, OrderIdx } from "./DataTable";
+import type { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, OrderIdx } from "./DataTable";
+import type { TableColumnCustomizationItem } from "./TableToolbar";
 import { JSONValue } from "@/lib/internaltypes";
 import { sortData, toSortColumns } from "./sort";
 import { toSelAndModifierString } from "@/lib/selection";
 
 export type PlaceholderType = Parameters<typeof CM.placeholders>[0];
 export type TableUrlColumnInput = string | readonly [string, string];
+
+const PLACEHOLDER_COLUMN_ID_PREFIX = "placeholder:";
+const CLIENT_COLUMN_ID_PREFIX = "client:";
 
 type TableUrlColumnsInput = Map<string, string | null> | readonly TableUrlColumnInput[];
 
@@ -62,6 +66,7 @@ export function createTableInfo(
     columns: Map<string, string | null>,
     clientColumns: ClientColumnOverlay[] = [],
     columnRenderers?: Record<string, string | ObjectColumnRender>,
+    columnOrder?: readonly string[],
 ): TableInfo {
     const errors: WebTableError[] = newData.errors ?? [];
     const sortColumns = toSortColumns(sort);
@@ -78,6 +83,8 @@ export function createTableInfo(
             title: formatColName(col),
             index: index,
             key: columnKeys[index],
+            columnId: columnKeys[index] ? toPlaceholderColumnId(columnKeys[index]) : undefined,
+            source: "placeholder",
             // Explicit client renderer overrides backend renderer metadata when provided.
             render: overrideRenderer ?? backendRenderer,
         };
@@ -91,7 +98,7 @@ export function createTableInfo(
 
     const withClientColumns = applyClientColumns(data, columnsInfo, clientColumns);
     data = withClientColumns.data;
-    columnsInfo = withClientColumns.columnsInfo;
+    columnsInfo = applyColumnOrder(withClientColumns.columnsInfo, columnOrder);
 
     const visibleColumns = Array.from(Array(columnsInfo.length).keys());
     // searchSet
@@ -105,6 +112,251 @@ export function createTableInfo(
         searchSet: searchSet,
         sort: sort
     };
+}
+
+export function toPlaceholderColumnId(key: string): string {
+    return `${PLACEHOLDER_COLUMN_ID_PREFIX}${key}`;
+}
+
+export function toClientColumnId(id: string): string {
+    return `${CLIENT_COLUMN_ID_PREFIX}${id}`;
+}
+
+export function getConfigColumnId(column: ConfigColumns): string | undefined {
+    if (column.columnId) {
+        return column.columnId;
+    }
+
+    if (column.key) {
+        return toPlaceholderColumnId(column.key);
+    }
+
+    return undefined;
+}
+
+export function getStableConfigColumnId(column: ConfigColumns): string {
+    return getConfigColumnId(column) ?? `column:${column.index}`;
+}
+
+export function ensureConfigColumnIds(columnsInfo: ConfigColumns[]): ConfigColumns[] {
+    return columnsInfo.map((column) => {
+        const columnId = getStableConfigColumnId(column);
+        if (column.columnId === columnId) {
+            return column;
+        }
+
+        return {
+            ...column,
+            columnId,
+        };
+    });
+}
+
+export function createGenericColumnCustomizationItems(columnsInfo: readonly ConfigColumns[]): TableColumnCustomizationItem[] {
+    return columnsInfo.map<TableColumnCustomizationItem>((column) => ({
+        id: getStableConfigColumnId(column),
+        source: column.source ?? "column",
+        title: column.title,
+        rawTitle: column.title,
+        value: column.key,
+        titleEditable: true,
+        removable: true,
+    }));
+}
+
+export function applyGenericColumnCustomization(
+    columnsInfo: readonly ConfigColumns[],
+    items: readonly TableColumnCustomizationItem[],
+): ConfigColumns[] {
+    const currentColumnsById = new Map(columnsInfo.map((column) => [getStableConfigColumnId(column), column]));
+    const nextColumns = items
+        .map((item) => {
+            const column = currentColumnsById.get(item.id);
+            if (!column) {
+                return null;
+            }
+
+            const nextTitle = (item.rawTitle ?? item.title).trim();
+            return {
+                ...column,
+                title: nextTitle || column.title,
+            } satisfies ConfigColumns;
+        })
+        .filter((column): column is ConfigColumns => Boolean(column));
+
+    return ensureConfigColumnIds(nextColumns);
+}
+
+export function normalizePlaceholderColumnExpression(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return "";
+    }
+
+    if (trimmed.includes("{") || trimmed.includes("}")) {
+        return trimmed;
+    }
+
+    return `{${trimmed}}`;
+}
+
+export function getPlaceholderStringFunctionType(placeholderType: PlaceholderType): string {
+    return `TypedFunction<${placeholderType},String>`;
+}
+
+export function getExpressionBreakdown(type: string): TypeBreakdown {
+    return getTypeBreakdown(CM, type);
+}
+
+export function getPlaceholderStringFunctionBreakdown(placeholderType: PlaceholderType): TypeBreakdown {
+    return getExpressionBreakdown(getPlaceholderStringFunctionType(placeholderType));
+}
+
+export function applyColumnOrder(columnsInfo: ConfigColumns[], columnOrder?: readonly string[]): ConfigColumns[] {
+    if (!columnOrder || columnOrder.length === 0) {
+        return columnsInfo;
+    }
+
+    const columnsById = new Map<string, ConfigColumns>();
+    for (const column of columnsInfo) {
+        const columnId = getConfigColumnId(column);
+        if (!columnId) {
+            continue;
+        }
+        columnsById.set(columnId, column);
+    }
+
+    if (columnsById.size === 0) {
+        return columnsInfo;
+    }
+
+    const orderedColumns: ConfigColumns[] = [];
+    const usedColumnIds = new Set<string>();
+
+    for (const columnId of columnOrder) {
+        const column = columnsById.get(columnId);
+        if (!column) {
+            continue;
+        }
+
+        orderedColumns.push(column);
+        usedColumnIds.add(columnId);
+    }
+
+    for (const column of columnsInfo) {
+        const columnId = getConfigColumnId(column);
+        if (columnId && usedColumnIds.has(columnId)) {
+            continue;
+        }
+        orderedColumns.push(column);
+    }
+
+    return orderedColumns;
+}
+
+export function moveColumnOrderItem(columnOrder: readonly string[], sourceId: string, targetId: string): string[] {
+    const next = [...columnOrder];
+    const sourceIndex = next.indexOf(sourceId);
+    const targetIndex = next.indexOf(targetId);
+    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+        return next;
+    }
+
+    const [moved] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, moved);
+    return next;
+}
+
+export function remapSortByColumnIds(
+    sort: OrderIdx | OrderIdx[] | undefined,
+    previousColumnIds: readonly string[],
+    nextColumnIds: readonly string[],
+): OrderIdx | OrderIdx[] | undefined {
+    if (!sort) {
+        return undefined;
+    }
+
+    const previousIdByIndex = new Map<number, string>();
+    previousColumnIds.forEach((columnId, index) => {
+        previousIdByIndex.set(index, columnId);
+    });
+
+    const nextIndexById = new Map<string, number>();
+    nextColumnIds.forEach((columnId, index) => {
+        nextIndexById.set(columnId, index);
+    });
+
+    const sortItems = Array.isArray(sort) ? sort : [sort];
+    const nextSortItems = sortItems
+        .map((sortItem) => {
+            const columnId = previousIdByIndex.get(sortItem.idx);
+            if (!columnId) {
+                return null;
+            }
+
+            const nextIndex = nextIndexById.get(columnId);
+            if (nextIndex === undefined) {
+                return null;
+            }
+
+            return {
+                idx: nextIndex,
+                dir: sortItem.dir,
+            } satisfies OrderIdx;
+        })
+        .filter((sortItem): sortItem is OrderIdx => Boolean(sortItem));
+
+    if (nextSortItems.length === 0) {
+        return undefined;
+    }
+
+    if (Array.isArray(sort)) {
+        return nextSortItems;
+    }
+
+    return nextSortItems[0];
+}
+
+export function reorderColumnMap(columns: Map<string, string | null>, orderedColumnIds: readonly string[]): Map<string, string | null> {
+    if (orderedColumnIds.length === 0 || columns.size === 0) {
+        return columns;
+    }
+
+    const orderedEntries: Array<[string, string | null]> = [];
+    const usedKeys = new Set<string>();
+
+    for (const columnId of orderedColumnIds) {
+        if (!columnId.startsWith(PLACEHOLDER_COLUMN_ID_PREFIX)) {
+            continue;
+        }
+
+        const key = columnId.slice(PLACEHOLDER_COLUMN_ID_PREFIX.length);
+        if (!columns.has(key)) {
+            continue;
+        }
+
+        orderedEntries.push([key, columns.get(key) ?? null]);
+        usedKeys.add(key);
+    }
+
+    if (orderedEntries.length === 0) {
+        return columns;
+    }
+
+    for (const [key, value] of columns) {
+        if (usedKeys.has(key)) {
+            continue;
+        }
+        orderedEntries.push([key, value]);
+    }
+
+    return new Map(orderedEntries);
+}
+
+export function getColumnOrder(columnsInfo: readonly ConfigColumns[]): string[] {
+    return columnsInfo
+        .map((column) => getConfigColumnId(column))
+        .filter((columnId): columnId is string => Boolean(columnId));
 }
 
 export function getReactSlots(columnsInfo: ConfigColumns[]): { [key: number]: ((data: unknown, row: unknown, rowData: object[]) => ReactNode) } | undefined {
@@ -267,6 +519,9 @@ function applyClientColumns(
     const overlayColumns: ConfigColumns[] = clientColumns.map((overlay, index) => ({
         title: overlay.title,
         index: baseIndex + index,
+        key: overlay.id,
+        columnId: toClientColumnId(overlay.id),
+        source: "client",
         render: overlay.render,
         sortable: overlay.sortable ?? false,
         exportable: overlay.exportable ?? false,

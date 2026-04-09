@@ -3,13 +3,12 @@ import { Button } from "@/components/ui/button";
 import { VIRTUALCONFLICTS } from "@/lib/endpoints";
 import type { JSONValue } from "@/lib/internaltypes";
 import { bulkQueryOptions } from "@/lib/queries";
-import { DataTable, type ConfigColumns } from "@/pages/custom_table/DataTable";
+import { PreparedDataTable } from "@/pages/custom_table/PreparedDataTable";
+import type { ConfigColumns, TableRowSelection, TableRowSelectionId } from "@/pages/custom_table/DataTable";
 import BulkActionsToolbar from "@/pages/custom_table/actions/BulkActionsToolbar";
-import SelectionCellButton from "@/pages/custom_table/actions/SelectionCellButton";
 import { RENDERERS } from "@/components/ui/renderers";
 import { usePermission } from "@/utils/PermUtil";
-import { useIdSelection } from "@/utils/useIdSelection";
-import { DataGridHandle } from "react-data-grid";
+import { serializeIdSet, useIdSelection } from "@/utils/useIdSelection";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -38,35 +37,6 @@ function toQueryArgs(mode: Mode): { readonly [key: string]: string | string[] } 
         return { all: "true" };
     }
     return {};
-}
-
-function TemporaryConflictSelectButton({
-    rowKey,
-    rowIdx,
-    rowNumber,
-    selected,
-    onToggle,
-}: {
-    rowKey: string;
-    rowIdx: number;
-    rowNumber?: number;
-    selected: boolean;
-    onToggle: (rowKey: string, rowIdx: number, shiftKey: boolean) => void;
-}) {
-    const onCheckboxToggle = useCallback((_id: number | string, shiftKey: boolean) => {
-        onToggle(rowKey, rowIdx, shiftKey);
-    }, [onToggle, rowIdx, rowKey]);
-
-    return (
-        <SelectionCellButton
-            id={rowIdx + 1}
-            isSelected={selected}
-            onToggle={onCheckboxToggle}
-            label={selected ? `Deselect ${rowKey}` : `Select ${rowKey}`}
-            debugTag={`temporary-conflict-select-${rowKey}`}
-            rowNumber={rowNumber}
-        />
-    );
 }
 
 function buildColumns(
@@ -135,8 +105,6 @@ function buildColumns(
 
 export default function TemporaryConflicts() {
     const queryClient = useQueryClient();
-    const table = useRef<DataGridHandle>(null);
-    const searchSet = useMemo(() => new Set<number>(), []);
     const {
         selectedIds,
         count,
@@ -144,6 +112,7 @@ export default function TemporaryConflicts() {
         addMany,
         removeMany,
         setOne,
+        setSelectedIds,
         clear,
     } = useIdSelection<string>();
     const { session } = useSession();
@@ -154,7 +123,6 @@ export default function TemporaryConflicts() {
 
     const [mode, setMode] = useState<Mode>("mine");
     const [renderedRowKeys, setRenderedRowKeys] = useState<string[]>([]);
-    const [lastSelectedRowIdx, setLastSelectedRowIdx] = useState<number | null>(null);
     const temporaryConflictOpenersRef = useRef(new Map<string, () => void>());
     const { targetConflictId, autoOpenIfAvailable } = useConflictAutoOpen();
 
@@ -250,67 +218,36 @@ export default function TemporaryConflicts() {
         });
     }, [queryArgs, queryClient]);
 
-    const onToggleRowSelection = useCallback((rowKey: string, rowIdx: number, shiftKey: boolean) => {
-        const shouldSelect = !has(rowKey);
-
-        if (shiftKey && lastSelectedRowIdx !== null && renderedRowKeys.length > 0) {
-            const start = Math.max(0, Math.min(lastSelectedRowIdx, rowIdx));
-            const end = Math.min(renderedRowKeys.length - 1, Math.max(lastSelectedRowIdx, rowIdx));
-            const rangeIds = renderedRowKeys.slice(start, end + 1);
-            if (shouldSelect) {
-                addMany(rangeIds);
-            } else {
-                removeMany(rangeIds);
-            }
-            setLastSelectedRowIdx(rowIdx);
-            return;
-        }
-
-        setOne(rowKey, shouldSelect);
-        setLastSelectedRowIdx(rowIdx);
-    }, [addMany, has, lastSelectedRowIdx, removeMany, renderedRowKeys, setOne]);
-
     const selectAllVisible = useCallback(() => {
         addMany(renderedRowKeys);
     }, [addMany, renderedRowKeys]);
-
-    const indexCellRenderer = useCallback(({ row, rowIdx, rowNumber }: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => {
-        const rowKey = String(row[0] ?? "");
-        if (!rowKey) return String(rowNumber);
-
-        return (
-            <TemporaryConflictSelectButton
-                rowKey={rowKey}
-                rowIdx={rowIdx}
-                rowNumber={rowNumber}
-                selected={has(rowKey)}
-                onToggle={onToggleRowSelection}
-            />
-        );
-    }, [has, onToggleRowSelection]);
-
-    const rowClassName = useCallback((row: JSONValue[]) => {
-        const rowKey = String(row[0] ?? "");
-        if (!rowKey) return undefined;
-        return has(rowKey) ? "bg-blue-100/80 dark:bg-blue-900/30" : undefined;
-    }, [has]);
-
-    const onRowsRendered = useCallback((rowsValue: JSONValue[][]) => {
-        const ids = rowsValue
-            .map((row) => String(row[0] ?? ""))
-            .filter((id) => id.length > 0);
-        setRenderedRowKeys(ids);
-    }, []);
+    const rowSelection = useMemo<TableRowSelection>(() => ({
+        getRowId: (row: JSONValue[]) => {
+            const rowKey = String(row[0] ?? "");
+            return rowKey.length > 0 ? rowKey : null;
+        },
+        selectedIds,
+        onSelectedIdsChange: (nextSelectedIds: Set<TableRowSelectionId>) => {
+            setSelectedIds(new Set(Array.from(nextSelectedIds).filter((id): id is string => typeof id === "string")));
+        },
+        onVisibleIdsChange: (nextVisibleIds: TableRowSelectionId[]) => {
+            setRenderedRowKeys(nextVisibleIds.filter((id): id is string => typeof id === "string"));
+        },
+        getLabel: (id) => typeof id === "string" && selectedIds.has(id) ? `Deselect ${id}` : `Select ${id}`,
+        copySelection: {
+            label: "Copy selected temporary conflicts",
+            serialize: (nextSelectedIds) => serializeIdSet(new Set(Array.from(nextSelectedIds).filter((id): id is string => typeof id === "string"))),
+        },
+        debugTagPrefix: "temporary-conflict-select",
+    }), [selectedIds, setSelectedIds]);
 
     const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>(() => []);
     const setMineMode = useCallback(() => setMode("mine"), []);
     const setAllMode = useCallback(() => setMode("all"), []);
-    const onSetSort = useCallback(() => {
-    }, []);
 
     useEffect(() => {
-        setColumnsInfo(buildColumns(selectedIds, onToggleRowSelection, rowActions, canRunTableAction, canEdit || canEditMine, onActionSuccess, rowsByKey, registerConflictOpener));
-    }, [canEdit, canEditMine, canRunTableAction, onActionSuccess, onToggleRowSelection, registerConflictOpener, rowActions, rowsByKey, selectedIds]);
+        setColumnsInfo(buildColumns(selectedIds, () => undefined, rowActions, canRunTableAction, canEdit || canEditMine, onActionSuccess, rowsByKey, registerConflictOpener));
+    }, [canEdit, canEditMine, canRunTableAction, onActionSuccess, registerConflictOpener, rowActions, rowsByKey, selectedIds]);
 
     const permissionErrors = useMemo(() => {
         const errors: string[] = [];
@@ -372,20 +309,12 @@ export default function TemporaryConflicts() {
                 <div className="mb-2 text-xs text-muted-foreground">Loading temporary conflicts...</div>
             )}
 
-            <DataTable
-                table={table}
-                data={dataState}
+            <PreparedDataTable
                 columnsInfo={columnsInfo}
+                data={dataState}
                 sort={{ idx: 1, dir: "asc" }}
-                searchSet={searchSet}
-                rowClassName={rowClassName}
-                indexCellRenderer={indexCellRenderer}
                 indexColumnWidth={64}
-                onRowsRendered={onRowsRendered}
-                setColumns={setColumnsInfo}
-                setData={setDataState}
-                setSort={onSetSort}
-                showExports={true}
+                rowSelection={rowSelection}
             />
         </>
     );

@@ -3,12 +3,11 @@ import { Button } from "@/components/ui/button";
 import { PERMISSION, TABLE } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
 import type { JSONValue } from "@/lib/internaltypes";
-import type { ClientColumnOverlay, ConfigColumns } from "@/pages/custom_table/DataTable";
+import type { ClientColumnOverlay, ConfigColumns, TableRowSelection, TableRowSelectionId } from "@/pages/custom_table/DataTable";
 import BulkActionsToolbar from "@/pages/custom_table/actions/BulkActionsToolbar";
-import SelectionCellButton from "@/pages/custom_table/actions/SelectionCellButton";
 import { StaticTable } from "@/pages/custom_table/StaticTable";
 import { usePermission } from "@/utils/PermUtil";
-import { useIdSelection } from "@/utils/useIdSelection";
+import { serializeIdSet, useIdSelection } from "@/utils/useIdSelection";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -39,35 +38,6 @@ const editPermissionKey = CONFLICT_EDIT_PERMISSION_PATH.join(" ");
 const syncPermQuery = { command: syncPermissionKey };
 const editPermQuery = { command: editPermissionKey };
 
-function ConflictSelectButton({
-    id,
-    rowIdx,
-    rowNumber,
-    selected,
-    onToggle,
-}: {
-    id: number;
-    rowIdx: number;
-    rowNumber?: number;
-    selected: boolean;
-    onToggle: (id: number, rowIdx: number, shiftKey: boolean) => void;
-}) {
-    const onCheckboxToggle = useCallback((_id: number | string, shiftKey: boolean) => {
-        onToggle(id, rowIdx, shiftKey);
-    }, [id, onToggle, rowIdx]);
-
-    return (
-        <SelectionCellButton
-            id={id}
-            isSelected={selected}
-            onToggle={onCheckboxToggle}
-            label={selected ? `Deselect conflict ${id}` : `Select conflict ${id}`}
-            debugTag={`conflict-select-${id}`}
-            rowNumber={rowNumber}
-        />
-    );
-}
-
 export default function Conflicts() {
     const queryClient = useQueryClient();
 
@@ -89,7 +59,6 @@ export default function Conflicts() {
     const [reloadToken, setReloadToken] = useState(0);
     const columnsInfoRef = useRef<ConfigColumns[]>([]);
     const [renderedRowIds, setRenderedRowIds] = useState<number[]>([]);
-    const [lastSelectedRowIdx, setLastSelectedRowIdx] = useState<number | null>(null);
     const conflictOpenersRef = useRef(new Map<number, () => void>());
     const { targetConflictId, autoOpenIfAvailable } = useConflictAutoOpen();
 
@@ -112,33 +81,6 @@ export default function Conflicts() {
     const getColumnsInfo = useCallback(() => {
         return columnsInfoRef.current;
     }, []);
-
-    const onRowsRendered = useCallback((rows: JSONValue[][]) => {
-        const ids = rows
-            .map((row) => toConflictId(getConflictRawValue(row, "id")))
-            .filter((id): id is number => id !== null);
-        setRenderedRowIds(ids);
-    }, []);
-
-    const onToggleRowSelection = useCallback((id: number, rowIdx: number, shiftKey: boolean) => {
-        const shouldSelect = !selected.has(id);
-
-        if (shiftKey && lastSelectedRowIdx !== null && renderedRowIds.length > 0) {
-            const start = Math.max(0, Math.min(lastSelectedRowIdx, rowIdx));
-            const end = Math.min(renderedRowIds.length - 1, Math.max(lastSelectedRowIdx, rowIdx));
-            const rangeIds = renderedRowIds.slice(start, end + 1);
-            if (shouldSelect) {
-                selected.addMany(rangeIds);
-            } else {
-                selected.removeMany(rangeIds);
-            }
-            setLastSelectedRowIdx(rowIdx);
-            return;
-        }
-
-        selected.setOne(id, shouldSelect);
-        setLastSelectedRowIdx(rowIdx);
-    }, [lastSelectedRowIdx, renderedRowIds, selected]);
 
     const selectAllVisible = useCallback(() => {
         selected.addMany(renderedRowIds);
@@ -233,25 +175,24 @@ export default function Conflicts() {
         return [actionsColumn];
     }, [canEdit, canRunTableAction, getColumnsInfo, onActionSuccess, registerConflictOpener, rowActions, selected.selectedIds]);
 
-    const indexCellRenderer = useCallback(({ row, rowIdx, rowNumber }: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => {
-        const id = toConflictId(getConflictRawValue(row, "id"));
-        if (id === null) return String(rowNumber);
-        return (
-            <ConflictSelectButton
-                id={id}
-                rowIdx={rowIdx}
-                rowNumber={rowNumber}
-                selected={selected.has(id)}
-                onToggle={onToggleRowSelection}
-            />
-        );
-    }, [onToggleRowSelection, selected]);
-
-    const rowClassName = useCallback((row: JSONValue[]) => {
-        const id = toConflictId(getConflictRawValue(row, "id"));
-        if (!id) return undefined;
-        return selected.has(id) ? "bg-blue-100/80 dark:bg-blue-900/30" : undefined;
-    }, [selected]);
+    const rowSelection = useMemo<TableRowSelection>(() => ({
+        getRowId: (row: JSONValue[]) => {
+            return toConflictId(getConflictRawValue(row, "id"));
+        },
+        selectedIds: selected.selectedIds,
+        onSelectedIdsChange: (nextSelectedIds: Set<TableRowSelectionId>) => {
+            selected.setSelectedIds(new Set(Array.from(nextSelectedIds).filter((id): id is number => typeof id === "number")));
+        },
+        onVisibleIdsChange: (nextVisibleIds: TableRowSelectionId[]) => {
+            setRenderedRowIds(nextVisibleIds.filter((id): id is number => typeof id === "number"));
+        },
+        getLabel: (id) => typeof id === "number" && selected.selectedIds.has(id) ? `Deselect conflict ${id}` : `Select conflict ${id}`,
+        copySelection: {
+            label: "Copy selected conflicts",
+            serialize: (nextSelectedIds) => serializeIdSet(new Set(Array.from(nextSelectedIds).filter((id): id is number => typeof id === "number"))),
+        },
+        debugTagPrefix: "conflict-select",
+    }), [selected]);
 
     const permissionErrors = useMemo(() => {
         const errors: string[] = [];
@@ -302,11 +243,9 @@ export default function Conflicts() {
                 columns={conflictPlaceholderColumns.aliasedArray()}
                 columnRenderers={conflictColumnRenderers}
                 clientColumns={clientColumns}
-                rowClassName={rowClassName}
-                indexCellRenderer={indexCellRenderer}
                 indexColumnWidth={64}
                 onColumnsLoaded={onColumnsLoaded}
-                onRowsRendered={onRowsRendered}
+                rowSelection={rowSelection}
             />
         </>
     );

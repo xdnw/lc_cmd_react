@@ -27,14 +27,14 @@ import { getLayoutColumnConfig, LayoutConfigSchema, resolveLayoutColumnTemplate 
 import { DEFAULT_TABS } from "../../lib/layouts/defaultTabs";
 import CommandComponent from "../../components/cmd/CommandComponent";
 import { Input } from "@/components/ui/input";
-import { getQueryString } from "./table_util";
+import { getPlaceholderStringFunctionBreakdown, getQueryString, normalizePlaceholderColumnExpression, remapSortByColumnIds } from "./table_util";
 import { useDeepState } from "@/utils/StateUtil";
 import LazyIcon from '@/components/ui/LazyIcon';
 import { OrderIdx } from './DataTable';
 import { deepEqual } from '@/lib/utils';
 import ArgInput from '@/components/cmd/ArgInput';
 import { normalizeArgInitialValue } from '@/components/cmd/argInitialValueNormalization';
-import TypedInput from '@/components/cmd/TypedInput';
+import PlaceholderExpressionInput from '@/components/cmd/PlaceholderExpressionInput';
 import type { ShowDialogFn } from '@/lib/dialog';
 
 export interface PlaceholderTabsHandle {
@@ -238,37 +238,11 @@ export function ColumnsSection({
         const [movedColumn] = columnsArray.splice(from, 1);
         columnsArray.splice(to, 0, movedColumn);
         const newColumns = new Map(columnsArray);
-
-        // Update sort indices
-        let newSort;
-        if (Array.isArray(sort)) {
-            newSort = sort.map(sortItem => {
-                if (sortItem.idx === from) {
-                    return { ...sortItem, idx: to };
-                } else if (sortItem.idx === to) {
-                    return { ...sortItem, idx: from };
-                } else if (sortItem.idx > from && sortItem.idx <= to) {
-                    return { ...sortItem, idx: sortItem.idx - 1 };
-                } else if (sortItem.idx < from && sortItem.idx >= to) {
-                    return { ...sortItem, idx: sortItem.idx + 1 };
-                }
-                return sortItem;
-            });
-        } else if (sort) {
-            const singleSort = { ...sort };
-            if (singleSort.idx === from) {
-                singleSort.idx = to;
-            } else if (singleSort.idx === to) {
-                singleSort.idx = from;
-            } else if (singleSort.idx > from && singleSort.idx <= to) {
-                singleSort.idx = singleSort.idx - 1;
-            } else if (singleSort.idx < from && singleSort.idx >= to) {
-                singleSort.idx = singleSort.idx + 1;
-            }
-            newSort = singleSort;
-        } else {
-            newSort = undefined;
-        }
+        const newSort = remapSortByColumnIds(
+            sort,
+            Array.from(columns.keys()),
+            Array.from(newColumns.keys()),
+        );
 
         setColumns(newColumns);
         setSort(newSort);
@@ -336,10 +310,8 @@ export function ColumnsSection({
             const aliasSplit = val.split(";");
             if (!aliasSplit[0]) continue;
 
-            let columnKey = aliasSplit[0];
-            if (!columnKey.includes("{") && !columnKey.includes("}")) {
-                columnKey = "{" + columnKey + "}";
-            }
+            const columnKey = normalizePlaceholderColumnExpression(aliasSplit[0]);
+            if (!columnKey) continue;
 
             if (newColumns.has(columnKey) && newColumns.get(columnKey) === (aliasSplit[1] ?? null)) {
                 errors.push("Column `" + val + "` is already added");
@@ -408,26 +380,11 @@ export function ColumnsSection({
     const removeColumn = useCallback((colInfo: [string, string | null], index: number) => {
         const newColumns = new Map(columns);
         newColumns.delete(colInfo[0]);
-
-        let newSort = sort;
-        if (Array.isArray(sort)) {
-            newSort = sort
-                .filter(sortItem => sortItem.idx !== index)
-                .map(sortItem => ({
-                    ...sortItem,
-                    idx: sortItem.idx > index ? sortItem.idx - 1 : sortItem.idx
-                }));
-        } else if (sort) {
-            const singleSort = { ...sort };
-            if (singleSort.idx === index) {
-                singleSort.idx = 0;
-            } else if (singleSort.idx > index) {
-                singleSort.idx = singleSort.idx - 1;
-            }
-            newSort = singleSort;
-        } else {
-            newSort = undefined;
-        }
+        const newSort = remapSortByColumnIds(
+            sort,
+            Array.from(columns.keys()),
+            Array.from(newColumns.keys()),
+        );
 
         setColumns(newColumns);
         setSort(newSort);
@@ -727,23 +684,24 @@ function AddCustomColumn({ handleAddColumn, type }: {
         </>
     ), []);
 
+    const columnBreakdown = useMemo(() => getPlaceholderStringFunctionBreakdown(type), [type]);
+
     const inputField = useMemo(() => (
         <div className="grow">
-            <TypedInput
+            <PlaceholderExpressionInput
                 argName="column"
                 initialValue={inputValue}
-                placeholder={type}
-                type="String"
+                breakdown={columnBreakdown}
                 setOutputValue={commitInputValue}
-                compact
                 simpleInsertDelimiter={"\t"}
+                statusSlotMode="auto"
                 inputProps={{
                     onKeyDown: handleTypedInputKeyDown,
                     onPaste: handleTypedInputPaste,
                 }}
             />
         </div>
-    ), [commitInputValue, handleTypedInputKeyDown, handleTypedInputPaste, inputValue, type]);
+    ), [columnBreakdown, commitInputValue, handleTypedInputKeyDown, handleTypedInputPaste, inputValue]);
 
     const handleAddClick = useCallback(() => {
         if (inputValue.trim()) {

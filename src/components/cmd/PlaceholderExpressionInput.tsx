@@ -172,12 +172,24 @@ export default function PlaceholderExpressionInput({
     setOutputValue,
     breakdown,
     forceMountAll,
+    inputProps,
+    simpleInsertDelimiter,
+    pickerInline = false,
+    pickerButtonLabel = "Add simple",
+    pickerDescription,
+    statusSlotMode = "fixed",
 }: {
     argName: string;
     initialValue: string;
     setOutputValue: (name: string, value: string) => void;
     breakdown: TypeBreakdown;
     forceMountAll?: boolean;
+    inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+    simpleInsertDelimiter?: string;
+    pickerInline?: boolean;
+    pickerButtonLabel?: string;
+    pickerDescription?: string | false;
+    statusSlotMode?: "fixed" | "auto" | "hidden";
 }) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const controlRef = useRef<HTMLInputElement | null>(null);
@@ -360,7 +372,7 @@ export default function PlaceholderExpressionInput({
 
         const insertConfig = getSimpleInsertConfig(descriptor);
         const insertedValue = insertConfig.transform(placeholderValue);
-        const delimiter = insertConfig.delimiter;
+        const delimiter = simpleInsertDelimiter ?? insertConfig.delimiter;
         const nextValue = appendSimpleExpressionValue(value, insertedValue, delimiter);
         pendingSelectionRef.current = nextValue.length;
         setValue(nextValue);
@@ -368,7 +380,7 @@ export default function PlaceholderExpressionInput({
             setOutputValue(argName, nextValue);
         });
         updateCursor(nextValue.length);
-    }, [argName, descriptor, setOutputValue, setValue, updateCursor, value]);
+    }, [argName, descriptor, setOutputValue, setValue, simpleInsertDelimiter, updateCursor, value]);
 
     const showSuggestionPanel = shouldAnalyze && hasFocusWithin && hasPanelInteraction && (
         analysis.lazyOptionSource != null || analysis.suggestions.length > 0
@@ -431,6 +443,31 @@ export default function PlaceholderExpressionInput({
             applySuggestion(activeSuggestion ?? topSuggestion!);
         }
     }, [activeIndex, activeSuggestion, applySuggestion, dismissSuggestionPanel, moveActiveIndex, requestPanelInteraction, showSuggestionPanel, suggestionView.visibleSuggestions, topSuggestion, value]);
+
+    const handleInputKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+        handleKeyDown(event);
+        if (!event.defaultPrevented) {
+            inputProps?.onKeyDown?.(event);
+        }
+    }, [handleKeyDown, inputProps]);
+
+    const handleInputPaste = useCallback((event: React.ClipboardEvent<HTMLInputElement>) => {
+        inputProps?.onPaste?.(event);
+    }, [inputProps]);
+
+    const handleInputClick = useCallback((event: React.SyntheticEvent<HTMLInputElement>) => {
+        syncCursor(event);
+        inputProps?.onClick?.(event as React.MouseEvent<HTMLInputElement>);
+    }, [inputProps, syncCursor]);
+
+    const handleInputSelect = useCallback((event: React.SyntheticEvent<HTMLInputElement>) => {
+        syncCursor(event);
+        inputProps?.onSelect?.(event as React.SyntheticEvent<HTMLInputElement>);
+    }, [inputProps, syncCursor]);
+
+    const openSimplePicker = useCallback(() => {
+        setShowSimplePicker(true);
+    }, []);
 
     const handleFocusWithin = useCallback(() => {
         setHasFocusWithin((previous) => previous ? previous : true);
@@ -534,6 +571,53 @@ export default function PlaceholderExpressionInput({
         };
     }, [cursor, panelSearchValue, schedulePanelPositionUpdate, showSuggestionPanel, value]);
 
+    const pickerDescriptionContent = pickerDescription === false
+        ? null
+        : (
+            <span className="text-[11px] text-muted-foreground">
+                {pickerDescription ?? "Browse placeholder paths and append them to this expression."}
+            </span>
+        );
+    const simplePickerButton = canAddSimple && descriptor ? (
+        <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(pickerInline ? "h-7 px-2 text-[11px]" : "h-6 w-auto justify-between px-2 text-[11px]")}
+            onClick={openSimplePicker}
+        >
+            {pickerButtonLabel}
+        </Button>
+    ) : null;
+    const renderedInput = (
+        <Input
+            ref={assignInputRef}
+            type="text"
+            value={value}
+            onChange={handleChange}
+            onKeyDown={handleInputKeyDown}
+            onPaste={handleInputPaste}
+            onClick={handleInputClick}
+            onSelect={handleInputSelect}
+            spellCheck={false}
+            role={showSuggestionPanel ? "combobox" : undefined}
+            aria-autocomplete={showSuggestionPanel ? "list" : undefined}
+            aria-expanded={showSuggestionPanel ? suggestionView.visibleSuggestions > 0 : undefined}
+            aria-haspopup={showSuggestionPanel ? "listbox" : undefined}
+            aria-controls={showSuggestionPanel ? suggestionListboxId : undefined}
+            aria-activedescendant={showSuggestionPanel ? activeDescendantId : undefined}
+            {...PASSWORD_MANAGER_IGNORE_PROPS}
+            {...inputProps}
+            className={cn(
+                "h-6.5 bg-background px-2 text-xs font-mono",
+                (analysis.errors.length > 0 || sourceMessages.some((message) => message.kind === "error"))
+                    && "border-destructive focus-visible:ring-destructive/25",
+                inputProps?.className,
+            )}
+            placeholder={inputProps?.placeholder ?? placeholderText}
+        />
+    );
+
     return (
         <div
             ref={containerRef}
@@ -542,47 +626,21 @@ export default function PlaceholderExpressionInput({
             onBlurCapture={handleBlurWithin}
             {...{ [COMMAND_POPUP_OPEN_ATTR]: showSuggestionPanel ? "true" : "false" }}
         >
-            <div>
-                <Input
-                    ref={assignInputRef}
-                    type="text"
-                    value={value}
-                    onChange={handleChange}
-                    onKeyDown={handleKeyDown}
-                    onClick={syncCursor}
-                    onSelect={syncCursor}
-                    spellCheck={false}
-                    role={showSuggestionPanel ? "combobox" : undefined}
-                    aria-autocomplete={showSuggestionPanel ? "list" : undefined}
-                    aria-expanded={showSuggestionPanel ? suggestionView.visibleSuggestions > 0 : undefined}
-                    aria-haspopup={showSuggestionPanel ? "listbox" : undefined}
-                    aria-controls={showSuggestionPanel ? suggestionListboxId : undefined}
-                    aria-activedescendant={showSuggestionPanel ? activeDescendantId : undefined}
-                    {...PASSWORD_MANAGER_IGNORE_PROPS}
-                    className={cn(
-                        "h-6.5 bg-background px-2 text-xs font-mono",
-                        (analysis.errors.length > 0 || sourceMessages.some((message) => message.kind === "error"))
-                            && "border-destructive focus-visible:ring-destructive/25",
-                    )}
-                    placeholder={placeholderText}
-                />
-            </div>
-
-            {canAddSimple && descriptor && (
+            {pickerInline && simplePickerButton ? (
                 <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-6 w-auto justify-between px-2 text-[11px]"
-                        onClick={() => setShowSimplePicker(true)}
-                    >
-                        Add simple
-                    </Button>
-                    <span className="text-[11px] text-muted-foreground">
-                        Browse placeholder paths and append them to this expression.
-                    </span>
+                    <div className="min-w-0 flex-1">{renderedInput}</div>
+                    {simplePickerButton}
                 </div>
+            ) : (
+                <>
+                    <div>{renderedInput}</div>
+                    {simplePickerButton ? (
+                        <div className="flex items-center gap-2">
+                            {simplePickerButton}
+                            {pickerDescriptionContent}
+                        </div>
+                    ) : null}
+                </>
             )}
 
             {showSuggestionPanel && typeof document !== "undefined" && createPortal(
@@ -625,43 +683,43 @@ export default function PlaceholderExpressionInput({
                 />
             )}
 
-            <div className={STATUS_SLOT_HEIGHT_CLASS}>
-                {hasStatusContent ? (
-                    <div className="h-full space-y-1 overflow-y-auto text-[11px]">
-                        {analysis.hint && (
-                            <div>
-                                <div className="font-medium text-foreground">{analysis.hint.title}</div>
-                                {analysis.hint.detail && <div className="text-muted-foreground">{analysis.hint.detail}</div>}
-                            </div>
-                        )}
-                        {sourceMessages.length > 0 && (
-                            <div className="space-y-1">
-                                {sourceMessages.map((message) => (
-                                    <div
-                                        key={`${message.kind}:${message.text}`}
-                                        className={cn(
-                                            message.kind === "error" && "text-destructive",
-                                            message.kind === "warning" && "text-amber-700",
-                                            message.kind === "loading" && "text-muted-foreground",
-                                        )}
-                                    >
-                                        {message.text}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {analysis.errors.length > 0 && (
-                            <div className="space-y-1 text-destructive">
-                                {analysis.errors.slice(0, 4).map((error) => (
-                                    <div key={error}>{error}</div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div aria-hidden="true" className="h-full" />
-                )}
-            </div>
+            {statusSlotMode !== "hidden" ? (
+                <div className={cn(statusSlotMode === "fixed" ? STATUS_SLOT_HEIGHT_CLASS : undefined)}>
+                    {hasStatusContent ? (
+                        <div className={cn(statusSlotMode === "fixed" ? "h-full" : undefined, "space-y-1 overflow-y-auto text-[11px]")}>
+                            {analysis.hint && (
+                                <div>
+                                    <div className="font-medium text-foreground">{analysis.hint.title}</div>
+                                    {analysis.hint.detail && <div className="text-muted-foreground">{analysis.hint.detail}</div>}
+                                </div>
+                            )}
+                            {sourceMessages.length > 0 && (
+                                <div className="space-y-1">
+                                    {sourceMessages.map((message) => (
+                                        <div
+                                            key={`${message.kind}:${message.text}`}
+                                            className={cn(
+                                                message.kind === "error" && "text-destructive",
+                                                message.kind === "warning" && "text-amber-700",
+                                                message.kind === "loading" && "text-muted-foreground",
+                                            )}
+                                        >
+                                            {message.text}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {analysis.errors.length > 0 && (
+                                <div className="space-y-1 text-destructive">
+                                    {analysis.errors.map((error) => (
+                                        <div key={error}>{error}</div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : statusSlotMode === "fixed" ? <div className="h-full" /> : null}
+                </div>
+            ) : null}
         </div>
     );
 }

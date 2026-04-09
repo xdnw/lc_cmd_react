@@ -1,6 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
-// Generated using typescript-generator version 3.2.1263 on 2026-04-08 01:54:00.
+// Generated using typescript-generator version 3.2.1263 on 2026-04-10 05:48:07.
 
 export interface WebError {
     error: string;
@@ -505,6 +505,14 @@ export interface WebRoleAliases {
     allows_alliance: number[];
     requiresSettings: { [index: string]: number };
     discord_role_names: { [index: string]: string };
+}
+
+export interface WebSettingValidationCheapness {
+    is_cheap: { [index: string]: boolean };
+}
+
+export interface WebSettingValidationErrors {
+    errors: { [index: string]: string };
 }
 
 export interface WebAutoRoleRoles {

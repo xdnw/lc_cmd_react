@@ -65,6 +65,58 @@ function areColumnsEquivalent(left: ConfigColumns[], right: ConfigColumns[]): bo
   });
 }
 
+function areColumnIdListsEqual(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((columnId, index) => columnId === right[index]);
+}
+
+function mergeColumnsState(
+  current: ConfigColumns[],
+  next: ConfigColumns[],
+  previousSourceColumnIds: readonly string[],
+  nextSourceColumnIds: readonly string[],
+): ConfigColumns[] {
+  if (current.length === 0) {
+    return next;
+  }
+
+  const sourceStructureChanged = !areColumnIdListsEqual(previousSourceColumnIds, nextSourceColumnIds);
+  const nextById = new Map(next.map((column) => [getStableConfigColumnId(column), column]));
+  const mergedColumns: ConfigColumns[] = [];
+
+  for (const currentColumn of current) {
+    const columnId = getStableConfigColumnId(currentColumn);
+    const nextColumn = nextById.get(columnId);
+    if (!nextColumn) {
+      continue;
+    }
+
+    mergedColumns.push({
+      ...nextColumn,
+      // Preserve the user-facing heading while refreshing dynamic renderers and metadata.
+      title: currentColumn.title,
+    });
+    nextById.delete(columnId);
+  }
+
+  if (sourceStructureChanged && nextById.size > 0) {
+    for (const nextColumn of next) {
+      const columnId = getStableConfigColumnId(nextColumn);
+      if (!nextById.has(columnId)) {
+        continue;
+      }
+
+      mergedColumns.push(nextColumn);
+      nextById.delete(columnId);
+    }
+  }
+
+  return areColumnsEquivalent(current, mergedColumns) ? current : mergedColumns;
+}
+
 export function PreparedDataTable({
   columnsInfo,
   data,
@@ -100,6 +152,7 @@ export function PreparedDataTable({
   const [dataState, setDataState] = useState(data);
   const [columnsState, setColumnsState] = useState(() => ensureConfigColumnIds(columnsInfo));
   const [sortState, setSortState] = useState<OrderIdx | OrderIdx[] | undefined>(sort);
+  const sourceColumnIdsRef = useRef(ensureConfigColumnIds(columnsInfo).map((column) => getStableConfigColumnId(column)));
 
   useEffect(() => {
     setDataState((current) => areRowsEquivalent(current, data) ? current : data);
@@ -107,7 +160,10 @@ export function PreparedDataTable({
 
   useEffect(() => {
     const nextColumns = ensureConfigColumnIds(columnsInfo);
-    setColumnsState((current) => areColumnsEquivalent(current, nextColumns) ? current : nextColumns);
+    const nextSourceColumnIds = nextColumns.map((column) => getStableConfigColumnId(column));
+    const previousSourceColumnIds = sourceColumnIdsRef.current;
+    sourceColumnIdsRef.current = nextSourceColumnIds;
+    setColumnsState((current) => mergeColumnsState(current, nextColumns, previousSourceColumnIds, nextSourceColumnIds));
   }, [columnsInfo]);
 
   useEffect(() => {

@@ -26,7 +26,8 @@ import LoginPickerPage from "@/pages/login_picker";
 import { PreparedDataTable } from "@/pages/custom_table/PreparedDataTable";
 import type { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, TableRowSelection, TableRowSelectionId } from "@/pages/custom_table/DataTable";
 import PlaceholderTableDialogButton from "@/pages/custom_table/PlaceholderTableDialogButton";
-import type { TableUrlColumnInput } from "@/pages/custom_table/table_util";
+import type { TableColumnCustomization, TableColumnCustomizationItem } from "@/pages/custom_table/TableToolbar";
+import { formatColName, normalizePlaceholderColumnExpression, toPlaceholderColumnId, type TableUrlColumnInput } from "@/pages/custom_table/table_util";
 import { useIdSelection } from "@/utils/useIdSelection";
 
 import { TaxExpenseValueStrip } from "./TaxExpenseValueStrip";
@@ -89,20 +90,179 @@ type NationInspectionState = {
   nationMeta: TaxExpenseNationMeta | null;
 };
 
-const NATION_TABLE_INDEX = {
+const NATION_QUERY_INDEX = {
   nationId: 0,
   nationMarkup: 1,
-  currentTaxId: 2,
+  allianceMarkup: 2,
   cities: 3,
-  builtProjects: 4,
+  freeProjectSlots: 4,
   projectSlots: 5,
-  avgInfra: 6,
-  avgLand: 7,
-  color: 8,
-  incomeValue: 9,
-  expenseValue: 10,
-  netValue: 11,
+  builtProjects: 6,
+  avgInfra: 7,
+  avgLand: 8,
+  color: 9,
+  score: 10,
 } as const;
+
+const TAX_EXPENSE_NATION_VISIBLE_PLACEHOLDERS = [
+  { value: TAX_EXPENSE_NATION_TABLE_COLUMNS[1], title: "Nation", width: 220 },
+  { value: TAX_EXPENSE_NATION_TABLE_COLUMNS[3], title: "Cities", width: 84 },
+  { value: TAX_EXPENSE_NATION_TABLE_COLUMNS[6], title: "Projects", width: 96 },
+  { value: TAX_EXPENSE_NATION_TABLE_COLUMNS[7], title: "Infra", width: 96 },
+  { value: TAX_EXPENSE_NATION_TABLE_COLUMNS[8], title: "Land", width: 96 },
+  { value: TAX_EXPENSE_NATION_TABLE_COLUMNS[9], title: "Color", width: 74 },
+] as const;
+
+const TAX_EXPENSE_NATION_SUPPORT_PLACEHOLDER_SET = new Set<string>(TAX_EXPENSE_NATION_TABLE_COLUMNS);
+const TAX_EXPENSE_NATION_VISIBLE_PLACEHOLDER_ID_SET = new Set<string>(
+  TAX_EXPENSE_NATION_VISIBLE_PLACEHOLDERS.map((column) => toPlaceholderColumnId(column.value)),
+);
+const TAX_EXPENSE_NATION_TAX_ID_COLUMN_ID = "tax-expense:tax-id";
+const TAX_EXPENSE_NATION_INCOME_COLUMN_ID = "tax-expense:income";
+const TAX_EXPENSE_NATION_EXPENSE_COLUMN_ID = "tax-expense:expense";
+const TAX_EXPENSE_NATION_NET_COLUMN_ID = "tax-expense:net";
+
+type TaxExpenseNationTableCustomizationState = {
+  items: TableColumnCustomizationItem[] | null;
+};
+
+function createTaxExpenseNationDefaultItems(options: {
+  includeTaxIdColumn: boolean;
+  includeIncomeExpenseColumns: boolean;
+}): TableColumnCustomizationItem[] {
+  const items = TAX_EXPENSE_NATION_VISIBLE_PLACEHOLDERS.map<TableColumnCustomizationItem>((column) => ({
+    id: toPlaceholderColumnId(column.value),
+    source: "placeholder",
+    title: column.title,
+    rawTitle: column.title,
+    value: column.value,
+    titleEditable: true,
+    removable: true,
+  }));
+
+  if (options.includeTaxIdColumn) {
+    items.push({
+      id: TAX_EXPENSE_NATION_TAX_ID_COLUMN_ID,
+      source: "client",
+      title: "Tax ID",
+      rawTitle: "Tax ID",
+      titleEditable: true,
+      removable: true,
+    });
+  }
+
+  if (options.includeIncomeExpenseColumns) {
+    items.push(
+      {
+        id: TAX_EXPENSE_NATION_INCOME_COLUMN_ID,
+        source: "client",
+        title: "Income",
+        rawTitle: "Income",
+        titleEditable: true,
+        removable: true,
+      },
+      {
+        id: TAX_EXPENSE_NATION_EXPENSE_COLUMN_ID,
+        source: "client",
+        title: "Expense",
+        rawTitle: "Expense",
+        titleEditable: true,
+        removable: true,
+      },
+    );
+  }
+
+  items.push({
+    id: TAX_EXPENSE_NATION_NET_COLUMN_ID,
+    source: "client",
+    title: "Net",
+    rawTitle: "Net",
+    titleEditable: true,
+    removable: true,
+  });
+
+  return items;
+}
+
+function normalizeTaxExpenseNationCustomizationItems(
+  items: readonly TableColumnCustomizationItem[],
+  systemItems: readonly TableColumnCustomizationItem[],
+): TableColumnCustomizationItem[] {
+  const systemItemsById = new Map(systemItems.map((item) => [item.id, item]));
+  const normalizedItems: TableColumnCustomizationItem[] = [];
+  const seenIds = new Set<string>();
+
+  for (const item of items) {
+    const systemItem = systemItemsById.get(item.id);
+    if (systemItem) {
+      if (seenIds.has(systemItem.id)) {
+        continue;
+      }
+
+      seenIds.add(systemItem.id);
+      normalizedItems.push({
+        ...systemItem,
+        rawTitle: (item.rawTitle ?? item.title ?? systemItem.rawTitle ?? systemItem.title).trim() || systemItem.title,
+      });
+      continue;
+    }
+
+    const normalizedValue = normalizePlaceholderColumnExpression(item.value ?? "");
+    if (!normalizedValue) {
+      continue;
+    }
+
+    const customId = toPlaceholderColumnId(normalizedValue);
+    if (seenIds.has(customId)) {
+      continue;
+    }
+
+    const systemPlaceholderItem = systemItemsById.get(customId);
+    if (systemPlaceholderItem) {
+      seenIds.add(customId);
+      normalizedItems.push({
+        ...systemPlaceholderItem,
+        rawTitle: (item.rawTitle ?? item.title ?? systemPlaceholderItem.rawTitle ?? systemPlaceholderItem.title).trim() || systemPlaceholderItem.title,
+      });
+      continue;
+    }
+
+    const defaultTitle = formatColName(normalizedValue);
+    seenIds.add(customId);
+    normalizedItems.push({
+      id: customId,
+      source: "placeholder",
+      title: defaultTitle,
+      rawTitle: (item.rawTitle ?? item.title ?? defaultTitle).trim() || defaultTitle,
+      value: normalizedValue,
+      valueEditable: true,
+      titleEditable: true,
+      removable: true,
+    });
+  }
+
+  return normalizedItems;
+}
+
+function buildTaxExpenseNationFallbackRow(
+  nationId: number,
+  nationMeta: TaxExpenseNationMeta | null | undefined,
+  columnCount: number,
+): JSONValue[] {
+  const cells = Array.from({ length: columnCount }, () => null as JSONValue);
+  cells[NATION_QUERY_INDEX.nationId] = nationId;
+  cells[NATION_QUERY_INDEX.nationMarkup] = nationMeta?.nationMarkup ?? `[Nation #${nationId}](${buildNationUrl(nationId)})`;
+  cells[NATION_QUERY_INDEX.allianceMarkup] = nationMeta?.allianceMarkup ?? "";
+  cells[NATION_QUERY_INDEX.cities] = nationMeta?.cities ?? null;
+  cells[NATION_QUERY_INDEX.freeProjectSlots] = nationMeta?.freeProjectSlots ?? null;
+  cells[NATION_QUERY_INDEX.projectSlots] = nationMeta?.projectSlots ?? null;
+  cells[NATION_QUERY_INDEX.builtProjects] = nationMeta?.builtProjects ?? null;
+  cells[NATION_QUERY_INDEX.avgInfra] = nationMeta?.avgInfra ?? null;
+  cells[NATION_QUERY_INDEX.avgLand] = nationMeta?.avgLand ?? null;
+  cells[NATION_QUERY_INDEX.color] = nationMeta?.color ?? "-";
+  cells[NATION_QUERY_INDEX.score] = nationMeta?.score ?? null;
+  return cells;
+}
 
 const SUMMARY_FILTER_FIELDS = [
   "start",
@@ -199,6 +359,11 @@ function extractMarkupLabel(markup: string | null | undefined, fallback: string)
     .replace(/[*_`~]/g, "")
     .trim();
   return stripped || fallback;
+}
+
+function resolveCustomizationItemTitle(item: TableColumnCustomizationItem, fallback: string): string {
+  const title = (item.rawTitle ?? item.title).trim();
+  return title || fallback;
 }
 
 function TransactionResourceList({ resources }: { resources: readonly number[] }) {
@@ -660,13 +825,15 @@ function NationTable({
   section,
   inspection,
   onInspectNation,
-  resourcePrices,
+  customizationState,
+  onCustomizationChange,
 }: {
   datasetId: number;
   section: SummarySection;
   inspection: NationInspectionState | null;
   onInspectNation: (next: NationInspectionState) => void;
-  resourcePrices?: TaxExpenseResourcePriceMap;
+  customizationState: TaxExpenseNationTableCustomizationState;
+  onCustomizationChange: (next: TaxExpenseNationTableCustomizationState) => void;
 }) {
   const rowsQuery = useQuery({
     ...bulkQueryOptions(TAX_EXPENSE_BRACKET_ROWS.endpoint, buildSummaryBracketArgs(datasetId, section.taxId)),
@@ -678,18 +845,87 @@ function NationTable({
     [rowsQuery.data?.data?.rows],
   );
   const nationSelection = useMemo(() => buildEntitySelection(rows.map((row) => row.nationId)), [rows]);
+  const includeTaxIdColumn = section.taxId === TAX_EXPENSE_TOTAL_TAX_ID;
+  const hasIncomeExpenseColumns = useMemo(
+    () => rows.some((row) => typeof row.incomeValue === "number" || typeof row.expenseValue === "number"),
+    [rows],
+  );
+  const systemCustomizationItems = useMemo(
+    () => createTaxExpenseNationDefaultItems({
+      includeTaxIdColumn,
+      includeIncomeExpenseColumns: hasIncomeExpenseColumns,
+    }),
+    [hasIncomeExpenseColumns, includeTaxIdColumn],
+  );
+  const effectiveCustomizationItems = useMemo(
+    () => customizationState.items ?? systemCustomizationItems,
+    [customizationState.items, systemCustomizationItems],
+  );
+  const customPlaceholderItems = useMemo(
+    () => effectiveCustomizationItems.filter((item) => (
+      item.source === "placeholder"
+      && typeof item.value === "string"
+      && !TAX_EXPENSE_NATION_VISIBLE_PLACEHOLDER_ID_SET.has(item.id)
+    )),
+    [effectiveCustomizationItems],
+  );
+  const extraPlaceholderColumns = useMemo(() => {
+    const seen = new Set<string>();
+    const nextColumns: string[] = [];
+    for (const item of customPlaceholderItems) {
+      const normalizedValue = normalizePlaceholderColumnExpression(item.value ?? "");
+      if (!normalizedValue || seen.has(normalizedValue) || TAX_EXPENSE_NATION_SUPPORT_PLACEHOLDER_SET.has(normalizedValue)) {
+        continue;
+      }
+
+      seen.add(normalizedValue);
+      nextColumns.push(normalizedValue);
+    }
+
+    return nextColumns;
+  }, [customPlaceholderItems]);
+  const nationQueryColumns = useMemo(
+    () => [...TAX_EXPENSE_NATION_TABLE_COLUMNS, ...extraPlaceholderColumns],
+    [extraPlaceholderColumns],
+  );
   const nationInfoQuery = useQuery({
     ...bulkQueryOptions(TABLE.endpoint, {
       type: "DBNation",
       selection_str: nationSelection,
-      columns: [...TAX_EXPENSE_NATION_TABLE_COLUMNS],
+      columns: nationQueryColumns,
     }),
     enabled: rows.length > 0,
   });
+  const nationInfoTable = nationInfoQuery.data?.data as WebTable | null | undefined;
   const nationLookup = useMemo(
-    () => parseTaxExpenseNationTable(nationInfoQuery.data?.data as WebTable | null | undefined),
-    [nationInfoQuery.data?.data],
+    () => parseTaxExpenseNationTable(nationInfoTable),
+    [nationInfoTable],
   );
+  const nationTableRowsById = useMemo(() => {
+    const lookup = new Map<number, JSONValue[]>();
+    const tableRows = nationInfoTable?.cells?.slice(1) ?? [];
+    for (const row of tableRows) {
+      const nationId = getRowNumberValue(row as JSONValue[], NATION_QUERY_INDEX.nationId);
+      if (nationId === null) {
+        continue;
+      }
+
+      lookup.set(nationId, row as JSONValue[]);
+    }
+
+    return lookup;
+  }, [nationInfoTable?.cells]);
+  const rendererTypeByPlaceholderValue = useMemo(() => {
+    const nextRenderers = new Map<string, string>();
+    const rendererTypes = nationInfoTable?.renderers ?? [];
+    nationQueryColumns.forEach((column, index) => {
+      const rendererType = rendererTypes[index];
+      if (rendererType) {
+        nextRenderers.set(column, rendererType);
+      }
+    });
+    return nextRenderers;
+  }, [nationInfoTable?.renderers, nationQueryColumns]);
   const selected = useIdSelection<number>();
   const {
     addMany: addSelectedNationIds,
@@ -699,11 +935,6 @@ function NationTable({
     setSelectedIds,
   } = selected;
   const [visibleNationIds, setVisibleNationIds] = useState<number[]>([]);
-  const includeTaxIdColumn = section.taxId === TAX_EXPENSE_TOTAL_TAX_ID;
-  const hasIncomeExpenseColumns = useMemo(
-    () => rows.some((row) => typeof row.incomeValue === "number" || typeof row.expenseValue === "number"),
-    [rows],
-  );
   const selectedNationIds = useMemo(
     () => Array.from(selectedIds).sort((left, right) => left - right),
     [selectedIds],
@@ -712,23 +943,22 @@ function NationTable({
     () => buildEntitySelection(selectedNationIds),
     [selectedNationIds],
   );
+  const currentTaxIdIndex = nationQueryColumns.length;
+  const incomeValueIndex = currentTaxIdIndex + 1;
+  const expenseValueIndex = incomeValueIndex + 1;
+  const netValueIndex = expenseValueIndex + 1;
   const tableData = useMemo<JSONValue[][]>(() => rows.map((row) => {
-    const meta = nationLookup[row.nationId];
+    const meta = nationLookup[row.nationId] ?? null;
+    const queryRow = nationTableRowsById.get(row.nationId)
+      ?? buildTaxExpenseNationFallbackRow(row.nationId, meta, nationQueryColumns.length);
     return [
-      row.nationId,
-      meta?.nationMarkup ?? `[Nation #${row.nationId}](${buildNationUrl(row.nationId)})`,
+      ...queryRow,
       row.currentTaxId ?? null,
-      meta?.cities ?? null,
-      meta?.builtProjects ?? null,
-      meta?.projectSlots ?? null,
-      meta?.avgInfra ?? null,
-      meta?.avgLand ?? null,
-      meta?.color ?? "-",
       row.incomeValue ?? null,
       row.expenseValue ?? null,
       row.netValue,
     ] as JSONValue[];
-  }), [nationLookup, rows]);
+  }), [nationLookup, nationQueryColumns.length, nationTableRowsById, rows]);
 
   useEffect(() => {
     const availableNationIds = new Set(rows.map((row) => row.nationId));
@@ -750,7 +980,7 @@ function NationTable({
 
   const rowSelection = useMemo<TableRowSelection>(() => ({
     getRowId: (row: JSONValue[]) => {
-      return getRowNumberValue(row, NATION_TABLE_INDEX.nationId);
+      return getRowNumberValue(row, NATION_QUERY_INDEX.nationId);
     },
     selectedIds,
     onSelectedIdsChange: (nextSelectedIds: Set<TableRowSelectionId>) => {
@@ -777,50 +1007,176 @@ function NationTable({
     ? inspection.nationId
     : null;
   const highlightedRowClassName = useCallback((row: JSONValue[]) => {
-    const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId);
+    const nationId = getRowNumberValue(row, NATION_QUERY_INDEX.nationId);
     if (nationId === null || inspectedNationId === null || nationId !== inspectedNationId) {
       return undefined;
     }
 
     return "bg-blue-100/90 dark:bg-blue-800/30";
   }, [inspectedNationId]);
+  const handleApplyCustomization = useCallback((nextItems: TableColumnCustomizationItem[]) => {
+    onCustomizationChange({
+      items: normalizeTaxExpenseNationCustomizationItems(nextItems, systemCustomizationItems),
+    });
+  }, [onCustomizationChange, systemCustomizationItems]);
+  const columnCustomization = useMemo<TableColumnCustomization>(() => ({
+    items: effectiveCustomizationItems,
+    composer: {
+      placeholderType: "DBNation",
+    },
+    onApply: handleApplyCustomization,
+  }), [effectiveCustomizationItems, handleApplyCustomization]);
   const columns = useMemo<ConfigColumns[]>(() => {
-    const nextColumns: ConfigColumns[] = [
-      {
-        title: "Nation",
-        key: "nation",
-        index: 1,
-        sortable: true,
-        editable: false,
-        draggable: false,
-        width: 220,
-        render: {
-          display: (value, context) => {
-            const row = context?.row;
-            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId) ?? 0;
-            return (
-              <NationButtonCell
-                inspectionState={{
-                  datasetId,
-                  taxId: section.taxId,
-                  bracket: section.bracket,
-                  nationId,
-                  nationMeta: nationLookup[nationId] ?? null,
-                }}
-                nationMarkup={typeof value === "string" ? value : ""}
-                onOpenNation={onInspectNation}
-              />
-            );
-          },
+    const availableColumnsById = new Map<string, ConfigColumns>();
+
+    availableColumnsById.set(toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[1]), {
+      title: "Nation",
+      key: TAX_EXPENSE_NATION_TABLE_COLUMNS[1],
+      columnId: toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[1]),
+      source: "placeholder",
+      index: NATION_QUERY_INDEX.nationMarkup,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 220,
+      render: {
+        display: (value, context) => {
+          const row = context?.row;
+          const nationId = getRowNumberValue(row, NATION_QUERY_INDEX.nationId) ?? 0;
+          return (
+            <NationButtonCell
+              inspectionState={{
+                datasetId,
+                taxId: section.taxId,
+                bracket: section.bracket,
+                nationId,
+                nationMeta: nationLookup[nationId] ?? null,
+              }}
+              nationMarkup={typeof value === "string" ? value : ""}
+              onOpenNation={onInspectNation}
+            />
+          );
         },
       },
-    ];
+    });
+
+    availableColumnsById.set(toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[3]), {
+      title: "Cities",
+      key: TAX_EXPENSE_NATION_TABLE_COLUMNS[3],
+      columnId: toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[3]),
+      source: "placeholder",
+      index: NATION_QUERY_INDEX.cities,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 84,
+      render: {
+        display: (value, context) => {
+          const row = context?.row;
+          const nationId = getRowNumberValue(row, NATION_QUERY_INDEX.nationId) ?? 0;
+          const cities = typeof value === "number" ? value : getRowNumberValue(row, NATION_QUERY_INDEX.cities);
+          return <CityCostButton cities={cities} className="w-full justify-start" key={`city-${nationId}`}>{formatMetricNumber(cities)}</CityCostButton>;
+        },
+      },
+    });
+
+    availableColumnsById.set(toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[6]), {
+      title: "Projects",
+      key: TAX_EXPENSE_NATION_TABLE_COLUMNS[6],
+      columnId: toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[6]),
+      source: "placeholder",
+      index: NATION_QUERY_INDEX.builtProjects,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 96,
+      render: {
+        display: (_value, context) => {
+          const row = context?.row;
+          const nationId = getRowNumberValue(row, NATION_QUERY_INDEX.nationId);
+          const builtProjects = getRowNumberValue(row, NATION_QUERY_INDEX.builtProjects);
+          const projectSlots = getRowNumberValue(row, NATION_QUERY_INDEX.projectSlots);
+          if (nationId === null) {
+            return "-";
+          }
+
+          return (
+            <ProjectsButton nationId={nationId} className="w-full justify-start">
+              {formatProjectProgress({ builtProjects, projectSlots }) ?? "-"}
+            </ProjectsButton>
+          );
+        },
+      },
+    });
+
+    availableColumnsById.set(toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[7]), {
+      title: "Infra",
+      key: TAX_EXPENSE_NATION_TABLE_COLUMNS[7],
+      columnId: toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[7]),
+      source: "placeholder",
+      index: NATION_QUERY_INDEX.avgInfra,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 96,
+      render: {
+        display: (value, context) => {
+          const row = context?.row;
+          const nationId = getRowNumberValue(row, NATION_QUERY_INDEX.nationId) ?? 0;
+          const avgInfra = typeof value === "number" ? value : getRowNumberValue(row, NATION_QUERY_INDEX.avgInfra);
+          return (
+            <NationCityTableButton nationId={nationId} title="Nation Cities" className="w-full justify-start">
+              {formatMetricNumber(avgInfra, 1)}
+            </NationCityTableButton>
+          );
+        },
+      },
+    });
+
+    availableColumnsById.set(toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[8]), {
+      title: "Land",
+      key: TAX_EXPENSE_NATION_TABLE_COLUMNS[8],
+      columnId: toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[8]),
+      source: "placeholder",
+      index: NATION_QUERY_INDEX.avgLand,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 96,
+      render: {
+        display: (value, context) => {
+          const row = context?.row;
+          const nationId = getRowNumberValue(row, NATION_QUERY_INDEX.nationId) ?? 0;
+          const avgLand = typeof value === "number" ? value : getRowNumberValue(row, NATION_QUERY_INDEX.avgLand);
+          return (
+            <NationCityTableButton nationId={nationId} title="Nation Cities" className="w-full justify-start">
+              {formatMetricNumber(avgLand, 1)}
+            </NationCityTableButton>
+          );
+        },
+      },
+    });
+
+    availableColumnsById.set(toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[9]), {
+      title: "Color",
+      key: TAX_EXPENSE_NATION_TABLE_COLUMNS[9],
+      columnId: toPlaceholderColumnId(TAX_EXPENSE_NATION_TABLE_COLUMNS[9]),
+      source: "placeholder",
+      index: NATION_QUERY_INDEX.color,
+      sortable: true,
+      editable: false,
+      draggable: false,
+      width: 74,
+      render: COLOR_RENDERER,
+    });
 
     if (includeTaxIdColumn) {
-      nextColumns.push({
+      availableColumnsById.set(TAX_EXPENSE_NATION_TAX_ID_COLUMN_ID, {
         title: "Tax ID",
-        key: "tax_id",
-        index: 2,
+        key: TAX_EXPENSE_NATION_TAX_ID_COLUMN_ID,
+        columnId: TAX_EXPENSE_NATION_TAX_ID_COLUMN_ID,
+        source: "client",
+        index: currentTaxIdIndex,
         sortable: true,
         editable: false,
         draggable: false,
@@ -831,139 +1187,45 @@ function NationTable({
       });
     }
 
-    nextColumns.push(
-      {
-        title: "Cities",
-        key: "cities",
-        index: 3,
-        sortable: true,
-        editable: false,
-        draggable: false,
-        width: 84,
-        render: {
-          display: (value, context) => {
-            const row = context?.row;
-            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId) ?? 0;
-            const cities = typeof value === "number" ? value : getRowNumberValue(row, NATION_TABLE_INDEX.cities);
-            return <CityCostButton cities={cities} className="w-full justify-start" key={`city-${nationId}`}>{formatMetricNumber(cities)}</CityCostButton>;
-          },
-        },
-      },
-      {
-        title: "Projects",
-        key: "projects",
-        index: 4,
-        sortable: true,
-        editable: false,
-        draggable: false,
-        width: 96,
-        render: {
-          display: (_value, context) => {
-            const row = context?.row;
-            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId);
-            const builtProjects = getRowNumberValue(row, NATION_TABLE_INDEX.builtProjects);
-            const projectSlots = getRowNumberValue(row, NATION_TABLE_INDEX.projectSlots);
-            if (nationId === null) {
-              return "-";
-            }
-
-            return (
-              <ProjectsButton nationId={nationId} className="w-full justify-start">
-                {formatProjectProgress({ builtProjects, projectSlots }) ?? "-"}
-              </ProjectsButton>
-            );
-          },
-        },
-      },
-      {
-        title: "Infra",
-        key: "infra",
-        index: 6,
-        sortable: true,
-        editable: false,
-        draggable: false,
-        width: 96,
-        render: {
-          display: (value, context) => {
-            const row = context?.row;
-            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId) ?? 0;
-            const avgInfra = typeof value === "number" ? value : getRowNumberValue(row, NATION_TABLE_INDEX.avgInfra);
-            return (
-              <NationCityTableButton nationId={nationId} title="Nation Cities" className="w-full justify-start">
-                {formatMetricNumber(avgInfra, 1)}
-              </NationCityTableButton>
-            );
-          },
-        },
-      },
-      {
-        title: "Land",
-        key: "land",
-        index: 7,
-        sortable: true,
-        editable: false,
-        draggable: false,
-        width: 96,
-        render: {
-          display: (value, context) => {
-            const row = context?.row;
-            const nationId = getRowNumberValue(row, NATION_TABLE_INDEX.nationId) ?? 0;
-            const avgLand = typeof value === "number" ? value : getRowNumberValue(row, NATION_TABLE_INDEX.avgLand);
-            return (
-              <NationCityTableButton nationId={nationId} title="Nation Cities" className="w-full justify-start">
-                {formatMetricNumber(avgLand, 1)}
-              </NationCityTableButton>
-            );
-          },
-        },
-      },
-      {
-        title: "Color",
-        key: "color",
-        index: 8,
-        sortable: true,
-        editable: false,
-        draggable: false,
-        width: 74,
-        render: COLOR_RENDERER,
-      },
-    );
-
     if (hasIncomeExpenseColumns) {
-      nextColumns.push(
-        {
-          title: "Income",
-          key: "income",
-          index: 9,
-          sortable: true,
-          editable: false,
-          draggable: false,
-          width: 110,
-          render: {
-            display: (value) => typeof value === "number" ? formatMonetaryAmount(value) : "-",
-          },
-          cellClassName: "font-mono",
+      availableColumnsById.set(TAX_EXPENSE_NATION_INCOME_COLUMN_ID, {
+        title: "Income",
+        key: TAX_EXPENSE_NATION_INCOME_COLUMN_ID,
+        columnId: TAX_EXPENSE_NATION_INCOME_COLUMN_ID,
+        source: "client",
+        index: incomeValueIndex,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 110,
+        render: {
+          display: (value) => typeof value === "number" ? formatMonetaryAmount(value) : "-",
         },
-        {
-          title: "Expense",
-          key: "expense",
-          index: 10,
-          sortable: true,
-          editable: false,
-          draggable: false,
-          width: 110,
-          render: {
-            display: (value) => typeof value === "number" ? formatMonetaryAmount(value) : "-",
-          },
-          cellClassName: "font-mono",
+        cellClassName: "font-mono",
+      });
+      availableColumnsById.set(TAX_EXPENSE_NATION_EXPENSE_COLUMN_ID, {
+        title: "Expense",
+        key: TAX_EXPENSE_NATION_EXPENSE_COLUMN_ID,
+        columnId: TAX_EXPENSE_NATION_EXPENSE_COLUMN_ID,
+        source: "client",
+        index: expenseValueIndex,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 110,
+        render: {
+          display: (value) => typeof value === "number" ? formatMonetaryAmount(value) : "-",
         },
-      );
+        cellClassName: "font-mono",
+      });
     }
 
-    nextColumns.push({
+    availableColumnsById.set(TAX_EXPENSE_NATION_NET_COLUMN_ID, {
       title: "Net",
-      key: "net",
-      index: 11,
+      key: TAX_EXPENSE_NATION_NET_COLUMN_ID,
+      columnId: TAX_EXPENSE_NATION_NET_COLUMN_ID,
+      source: "client",
+      index: netValueIndex,
       sortable: true,
       editable: false,
       draggable: false,
@@ -974,8 +1236,55 @@ function NationTable({
       cellClassName: "font-mono",
     });
 
-    return nextColumns;
-  }, [datasetId, hasIncomeExpenseColumns, includeTaxIdColumn, nationLookup, onInspectNation, section.bracket, section.taxId]);
+    return effectiveCustomizationItems.map<ConfigColumns | null>((item) => {
+      const existingColumn = availableColumnsById.get(item.id);
+      if (existingColumn) {
+        return {
+          ...existingColumn,
+          title: resolveCustomizationItemTitle(item, existingColumn.title),
+        };
+      }
+
+      const normalizedValue = normalizePlaceholderColumnExpression(item.value ?? "");
+      if (!normalizedValue) {
+        return null;
+      }
+
+      const queryIndex = nationQueryColumns.indexOf(normalizedValue);
+      if (queryIndex < 0) {
+        return null;
+      }
+
+      const rendererType = rendererTypeByPlaceholderValue.get(normalizedValue);
+      return {
+        title: resolveCustomizationItemTitle(item, formatColName(normalizedValue)),
+        key: normalizedValue,
+        columnId: toPlaceholderColumnId(normalizedValue),
+        source: "placeholder",
+        index: queryIndex,
+        sortable: true,
+        editable: false,
+        draggable: false,
+        width: 140,
+        render: rendererType ? getRenderer(rendererType) : undefined,
+      } satisfies ConfigColumns;
+    }).filter((column): column is ConfigColumns => Boolean(column));
+  }, [
+    currentTaxIdIndex,
+    datasetId,
+    effectiveCustomizationItems,
+    expenseValueIndex,
+    hasIncomeExpenseColumns,
+    includeTaxIdColumn,
+    incomeValueIndex,
+    nationLookup,
+    nationQueryColumns,
+    netValueIndex,
+    onInspectNation,
+    rendererTypeByPlaceholderValue,
+    section.bracket,
+    section.taxId,
+  ]);
 
   if (rowsQuery.isLoading) {
     return (
@@ -1024,6 +1333,7 @@ function NationTable({
         indexColumnWidth={68}
         sourceSelection={{ value: nationSelection, label: "Copy source selection" }}
         rowSelection={rowSelection}
+        columnCustomization={columnCustomization}
       />
     </div>
   );
@@ -1038,6 +1348,8 @@ function SummaryPanel({
   resourcePrices,
   inspection,
   onInspectNation,
+  nationTableCustomization,
+  onNationTableCustomizationChange,
 }: {
   datasetId: number;
   section: SummarySection;
@@ -1047,12 +1359,17 @@ function SummaryPanel({
   resourcePrices?: TaxExpenseResourcePriceMap;
   inspection: NationInspectionState | null;
   onInspectNation: (next: NationInspectionState) => void;
+  nationTableCustomization: TaxExpenseNationTableCustomizationState;
+  onNationTableCustomizationChange: (taxId: number, next: TaxExpenseNationTableCustomizationState) => void;
 }) {
   const title = formatBracketTitle(section.taxId, section.bracket);
   const meta = formatBracketMeta(section.bracket);
   const handleToggleSection = useCallback(() => {
     toggleSection(section.taxId);
   }, [section.taxId, toggleSection]);
+  const handleNationTableCustomizationChange = useCallback((next: TaxExpenseNationTableCustomizationState) => {
+    onNationTableCustomizationChange(section.taxId, next);
+  }, [onNationTableCustomizationChange, section.taxId]);
 
   return (
     <section className="border border-border/60 bg-background/40">
@@ -1090,7 +1407,8 @@ function SummaryPanel({
               section={section}
               inspection={inspection}
               onInspectNation={onInspectNation}
-              resourcePrices={resourcePrices}
+              customizationState={nationTableCustomization}
+              onCustomizationChange={handleNationTableCustomizationChange}
             />
           )}
         </div>
@@ -1105,6 +1423,7 @@ export default function TaxExpensesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [displayMode, setDisplayMode] = useState<TaxExpenseDisplayMode>("value");
   const [inspection, setInspection] = useState<NationInspectionState | null>(null);
+  const [nationTableCustomizationByTaxId, setNationTableCustomizationByTaxId] = useState<Record<number, TaxExpenseNationTableCustomizationState>>({});
   const filters = useMemo(() => parseTaxExpenseSummaryFilters(searchParams), [searchParams]);
   const filtersSignature = useMemo(() => buildSummaryFilterSignature(filters), [filters]);
   const [openSectionIds, setOpenSectionIds] = useState<Set<number>>(() => new Set<number>());
@@ -1234,6 +1553,18 @@ export default function TaxExpensesPage() {
   const handleCloseInspection = useCallback(() => {
     setInspection(null);
   }, []);
+  const handleNationTableCustomizationChange = useCallback((taxId: number, next: TaxExpenseNationTableCustomizationState) => {
+    setNationTableCustomizationByTaxId((current) => {
+      if (current[taxId] === next) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [taxId]: next,
+      };
+    });
+  }, []);
   const handleSetValueDisplayMode = useCallback(() => {
     setDisplayMode("value");
   }, []);
@@ -1302,6 +1633,8 @@ export default function TaxExpensesPage() {
                   resourcePrices={resourcePrices}
                   inspection={inspection}
                   onInspectNation={handleInspectNation}
+                  nationTableCustomization={nationTableCustomizationByTaxId[section.taxId] ?? { items: null }}
+                  onNationTableCustomizationChange={handleNationTableCustomizationChange}
                 />
               ))}
             </div>

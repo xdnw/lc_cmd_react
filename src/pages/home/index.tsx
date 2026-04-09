@@ -2,6 +2,7 @@ import LoginPickerPage from "@/pages/login_picker";
 import { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button.tsx";
+import { buildWarsConflictsUrl } from "@/lib/warsFrontend";
 import versusImage from '@/assets/versus.jpg';
 import sheetImage from '@/assets/sheet.jpg';
 import graphImage from '@/assets/graph.png';
@@ -25,7 +26,7 @@ const _cardTemplates: {
         ad: false,
         desc: "Browse a variety of tables and graphs for our featured set of ongoing and historical alliance conflicts. Data is available to download in CSV format.",
         subtitle: "Alliance Conflicts",
-        invite: "https://wars.locutus.link/conflicts",
+        invite: buildWarsConflictsUrl(),
         label: "View Conflicts",
         bg: "#BB66CC",
     },

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { ConflictAlliances, ConflictPosts } from "@/lib/apitypes.d.ts";
 import { CONFLICTALLIANCES, CONFLICTPOSTS } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
+import { buildWarsConflictUrl } from "@/lib/warsFrontend";
 import type { ConfigColumns } from "@/pages/custom_table/DataTable";
 import CommandActionDialogContent from "@/pages/custom_table/actions/CommandActionDialogContent";
 import RowActionsDetailDialog from "@/pages/custom_table/actions/RowActionsDetailDialog";
@@ -243,6 +244,28 @@ export default function ConflictActionsDialogButton({
         const forumPostRemoveAction = getConflictForumPostRemoveAction(visibleActions);
 
         const detailFields = toRowActionsDetailFields(editableFields, canRunAction, openDialogByActionId);
+        const warsConflictUrl = buildWarsConflictUrl(row.id);
+        const headerActions = [
+            ...(syncAction ? [{
+                key: syncAction.id,
+                label: "Sync",
+                onClick: openDialogByActionId.get(syncAction.id),
+                disabled: !canRunAction(syncAction),
+            }] : []),
+            {
+                key: "wars-frontend",
+                content: (
+                    <a
+                        href={warsConflictUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-6 items-center text-sm text-primary underline-offset-4 hover:underline"
+                    >
+                        View in wars
+                    </a>
+                ),
+            },
+        ];
 
         const noPermission = visibleActions.length > 0 && visibleActions.every((a) => !canRunAction(a));
 
@@ -256,61 +279,56 @@ export default function ConflictActionsDialogButton({
             <>
                 {permissionBanner}
                 <RowActionsDetailDialog
-                headerActions={syncAction ? [{
-                    key: syncAction.id,
-                    label: "Sync",
-                    onClick: openDialogByActionId.get(syncAction.id),
-                    disabled: !canRunAction(syncAction),
-                }] : undefined}
-                fields={detailFields}
-                footerActions={footerActions.map((action) => {
-                    const disabled = !canRunAction(action);
-                    if (action.requiresDialog) {
+                    headerActions={headerActions}
+                    fields={detailFields}
+                    footerActions={footerActions.map((action) => {
+                        const disabled = !canRunAction(action);
+                        if (action.requiresDialog) {
+                            return {
+                                key: action.id,
+                                label: action.label,
+                                onClick: openDialogByActionId.get(action.id),
+                                disabled,
+                                variant: action.detailRole === "danger" ? "destructive" : "outline",
+                            } as const;
+                        }
+
                         return {
                             key: action.id,
-                            label: action.label,
-                            onClick: openDialogByActionId.get(action.id),
-                            disabled,
-                            variant: action.detailRole === "danger" ? "destructive" : "outline",
+                            content: (
+                                <CommandActionButton
+                                    command={action.command}
+                                    args={action.buildArgs({ row, selectedIds })}
+                                    label={action.label}
+                                    classes="!ms-0"
+                                    disabled={disabled}
+                                    showResultDialog={true}
+                                    onSuccess={onSuccessByActionId.get(action.id)}
+                                />
+                            ),
                         } as const;
-                    }
-
-                    return {
-                        key: action.id,
-                        content: (
-                            <CommandActionButton
-                                command={action.command}
-                                args={action.buildArgs({ row, selectedIds })}
-                                label={action.label}
-                                classes="!ms-0"
-                                disabled={disabled}
-                                showResultDialog={true}
-                                onSuccess={onSuccessByActionId.get(action.id)}
-                            />
-                        ),
-                    } as const;
-                })}
-                extraSections={[
-                    <AllianceSubMenu
-                        key="alliances"
-                        conflict={row}
-                        canEdit={canEdit}
-                        onActionSuccess={onAllianceActionSuccess}
-                        coalitionOneName={toPlainString(runtimeFormattedValues.c1Name) ?? row.c1Name}
-                        coalitionTwoName={toPlainString(runtimeFormattedValues.c2Name) ?? row.c2Name}
-                        openAddAllianceDialog={allianceAddAction ? openDialogByActionId.get(allianceAddAction.id) : undefined}
-                        openAddAllForNationDialog={allianceAddForNationAction ? openDialogByActionId.get(allianceAddForNationAction.id) : undefined}
-                        allianceRemoveAction={allianceRemoveAction}
-                    />,
-                    <ForumPostsSubMenu
-                        key="posts"
-                        conflict={row}
-                        canEdit={canEdit}
-                        onActionSuccess={onAllianceActionSuccess}
-                        openAddForumPostDialog={forumPostAddAction ? openDialogByActionId.get(forumPostAddAction.id) : undefined}
-                        forumPostRemoveAction={forumPostRemoveAction}
-                    />,
-                ]}
+                    })}
+                    extraSections={[
+                        <AllianceSubMenu
+                            key="alliances"
+                            conflict={row}
+                            canEdit={canEdit}
+                            onActionSuccess={onAllianceActionSuccess}
+                            coalitionOneName={toPlainString(runtimeFormattedValues.c1Name) ?? row.c1Name}
+                            coalitionTwoName={toPlainString(runtimeFormattedValues.c2Name) ?? row.c2Name}
+                            openAddAllianceDialog={allianceAddAction ? openDialogByActionId.get(allianceAddAction.id) : undefined}
+                            openAddAllForNationDialog={allianceAddForNationAction ? openDialogByActionId.get(allianceAddForNationAction.id) : undefined}
+                            allianceRemoveAction={allianceRemoveAction}
+                        />,
+                        <ForumPostsSubMenu
+                            key="posts"
+                            conflict={row}
+                            canEdit={canEdit}
+                            onActionSuccess={onAllianceActionSuccess}
+                            openAddForumPostDialog={forumPostAddAction ? openDialogByActionId.get(forumPostAddAction.id) : undefined}
+                            forumPostRemoveAction={forumPostRemoveAction}
+                        />,
+                    ]}
                 />
             </>
         );

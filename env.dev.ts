@@ -4,6 +4,7 @@ export default {
     'process.env.BACKEND_URL': 'http://localhost:80/',
     'process.env.API_URL': 'http://localhost:80/api/',
     'process.env.EXTERNAL_URL': 'http://localhost:5173/',
+    'process.env.WARS_FRONTEND_URL': 'https://wars.locutus.link',
     'process.env.APPLICATION': 'Locutus',
     'process.env.ADMIN_ID': '664156861033086987',
     'process.env.BOT_ID': '672237266940198960',

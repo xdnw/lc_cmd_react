@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { WebVirtualConflict } from "@/lib/apitypes.d.ts";
 import { VIRTUALCONFLICTINFO } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
+import { buildWarsConflictUrl } from "@/lib/warsFrontend";
 import CommandActionDialogContent from "@/pages/custom_table/actions/CommandActionDialogContent";
 import { isActionVisible } from "@/pages/custom_table/actions/models";
 import RowActionsDetailDialog from "@/pages/custom_table/actions/RowActionsDetailDialog";
@@ -169,15 +170,33 @@ function TemporaryConflictDetailsDialogContent({
     const forumPostRemoveAction = getTemporaryConflictForumPostRemoveAction(visibleActions);
 
     const detailFields = toRowActionsDetailFields(editableFields, canRunAction, openDialogByActionId);
+    const warsConflictId = info?.id?.trim() || row.commandConflictRef;
+    const warsConflictUrl = buildWarsConflictUrl(warsConflictId);
+    const headerActions = [
+        ...(syncAction ? [{
+            key: syncAction.id,
+            label: "Sync",
+            onClick: openDialogByActionId.get(syncAction.id),
+            disabled: !canRunAction(syncAction),
+        }] : []),
+        {
+            key: "wars-frontend",
+            content: (
+                <a
+                    href={warsConflictUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-6 items-center text-sm text-primary underline-offset-4 hover:underline"
+                >
+                    View in wars
+                </a>
+            ),
+        },
+    ];
 
     return (
         <RowActionsDetailDialog
-            headerActions={syncAction ? [{
-                key: syncAction.id,
-                label: "Sync",
-                onClick: openDialogByActionId.get(syncAction.id),
-                disabled: !canRunAction(syncAction),
-            }] : undefined}
+            headerActions={headerActions}
             fields={detailFields}
             footerActions={footerActions.map((action) => {
                 const disabled = !canRunAction(action);

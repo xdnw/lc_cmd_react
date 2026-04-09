@@ -5,11 +5,12 @@ import type { ReactNode } from "react";
 
 type RowActionsHeaderAction = {
     key: string;
-    label: string;
+    label?: string;
     onClick?: () => void;
     disabled?: boolean;
     variant?: "default" | "outline" | "destructive" | "secondary" | "ghost" | "link";
     className?: string;
+    content?: ReactNode;
 };
 
 type RowActionsFooterAction = {
@@ -82,16 +83,20 @@ export default function RowActionsDetailDialog({
             {headerActions && headerActions.length > 0 && (
                 <div className="flex items-start justify-end gap-2">
                     {headerActions.map((action) => (
-                        <Button
-                            key={action.key}
-                            variant={action.variant ?? "outline"}
-                            size="sm"
-                            onClick={action.onClick}
-                            disabled={action.disabled}
-                            className={cn("shrink-0", action.className)}
-                        >
-                            {action.label}
-                        </Button>
+                        action.content ? (
+                            <div key={action.key} className={cn("shrink-0", action.className)}>{action.content}</div>
+                        ) : (
+                            <Button
+                                key={action.key}
+                                variant={action.variant ?? "outline"}
+                                size="sm"
+                                onClick={action.onClick}
+                                disabled={action.disabled}
+                                className={cn("shrink-0", action.className)}
+                            >
+                                {action.label}
+                            </Button>
+                        )
                     ))}
                 </div>
             )}

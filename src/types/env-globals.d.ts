@@ -9,6 +9,7 @@ interface ProcessEnv {
     NODE_ENV?: string;
     REPOSITORY_URL?: string;
     TEST?: boolean | string;
+    WARS_FRONTEND_URL?: string;
     WIKI_URL?: string;
 }
 

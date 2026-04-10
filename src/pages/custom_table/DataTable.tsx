@@ -8,6 +8,8 @@ import {
   RenderCellProps,
   renderTextEditor
 } from "react-data-grid";
+import { useDialog } from "@/components/layout/DialogContext";
+import { CopyToClipboardTextArea } from "@/components/ui/copytoclipboard";
 import { JSONValue } from "@/lib/internaltypes";
 import { sortData } from "./sort";
 import { cn } from "@/lib/utils";
@@ -82,10 +84,21 @@ function formatTableCellText(value: JSONValue): string {
 }
 
 function TableTextCell({ text }: { text: string }) {
+  const { showDialog } = useDialog();
+
+  const handleInspect = useCallback(() => {
+    showDialog("Cell value", <CopyToClipboardTextArea text={text} className="max-w-full" />);
+  }, [showDialog, text]);
+
   return (
-    <span className="block overflow-hidden text-ellipsis whitespace-nowrap" title={text}>
+    <button
+      type="button"
+      className="block w-full overflow-hidden text-ellipsis whitespace-nowrap text-left hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      title={`${text}\nClick to inspect or copy.`}
+      onClick={handleInspect}
+    >
       {text}
-    </span>
+    </button>
   );
 }
 
@@ -189,6 +202,7 @@ interface ReactDataGridTableProps {
   columnsInfo: ConfigColumns[];
   data: JSONValue[][];
   sort?: OrderIdx | OrderIdx[];
+  tableHeight?: string;
   searchSet: Set<number>;
   rowClassName?: (row: JSONValue[], rowIdx: number) => string | undefined;
   showIndexColumn?: boolean;
@@ -208,6 +222,7 @@ export function DataTable({
   columnsInfo,
   data,
   sort,
+  tableHeight,
   searchSet,
   rowClassName,
   showIndexColumn = true,
@@ -337,14 +352,17 @@ export function DataTable({
     setLastSelectedRowIdx(rowIdx);
   }, [lastSelectedRowIdx, rowSelection, visibleSelectableRowIds]);
 
+  const isCheckboxOnlyIndexColumn = Boolean(rowSelection && rowSelection.showRowNumber === false && !indexCellRenderer);
+  const defaultIndexColumnWidth = isCheckboxOnlyIndexColumn ? 28 : 36;
+
   // Create column definitions for DataGrid
   const gridColumns: Column<JSONValue[]>[] = useMemo(() => {
     const gridCols: Column<JSONValue[]>[] = [];
     if (showIndexColumn) {
       gridCols.push({
-        key: "index", name: "#", width: columnsInfo.length === 0 ? undefined : (indexColumnWidth ?? 36), sortable: false,
-        cellClass: cn("ps-1", columnsInfo.length === 0 ? "w-full" : undefined),
-        headerCellClass: "ps-1 text-foreground bg-muted",
+        key: "index", name: isCheckboxOnlyIndexColumn ? "" : "#", width: columnsInfo.length === 0 ? undefined : (indexColumnWidth ?? defaultIndexColumnWidth), sortable: false,
+        cellClass: cn(isCheckboxOnlyIndexColumn ? "px-0" : "ps-1", columnsInfo.length === 0 ? "w-full" : undefined),
+        headerCellClass: cn(isCheckboxOnlyIndexColumn ? "px-0" : "ps-1", "text-foreground bg-muted"),
         renderCell:
           (props: RenderCellProps<JSONValue[], unknown>): ReactNode => {
             const rowIndex = props.rowIdx + 1;
@@ -434,7 +452,7 @@ export function DataTable({
     }
 
     return gridCols;
-  }, [visibleColumnsInfo, isMobile, hiddenColumnsInfo, columnsInfo.length, handleSelectionToggle, indexCellRenderer, indexColumnWidth, rowSelection, showIndexColumn]);
+  }, [visibleColumnsInfo, isMobile, hiddenColumnsInfo, columnsInfo.length, defaultIndexColumnWidth, handleSelectionToggle, indexCellRenderer, indexColumnWidth, isCheckboxOnlyIndexColumn, rowSelection, showIndexColumn]);
 
   const noRowsFallback = useMemo(() => {
     return <div className="flex items-center justify-center h-full text-xl text-center bg-background text-foreground w-full cursor-default">No data to display</div>;
@@ -531,12 +549,39 @@ export function DataTable({
     );
   }, [searchSet, rowSelection, evenClass, oddClass, rowClassName]);
 
+  const tableWrapperStyle = useMemo(() => {
+    if (!tableHeight) {
+      return undefined;
+    }
+
+    return {
+      height: tableHeight,
+      maxHeight: tableHeight,
+    };
+  }, [tableHeight]);
+
+  const dataGridStyle = useMemo(() => {
+    if (!tableHeight) {
+      return {
+        height: "70vh",
+        maxHeight: "70vh",
+        flex: "1 1 auto",
+      };
+    }
+
+    return {
+      height: "100%",
+      maxHeight: "100%",
+      flex: "1 1 auto",
+    };
+  }, [tableHeight]);
+
   const dataGrid = useMemo(() => {
-    return <div className="border border-border rounded-md overflow-x-auto overflow-y-hidden text-xs bg-background">
+    return <div className={cn("min-h-0 border border-border rounded-md overflow-x-auto overflow-y-hidden text-xs bg-background", tableHeight && "h-full")} style={tableWrapperStyle}>
       <DataGrid
         key={columnsInfo.length}
         className={`bg-transparent text-xs min-w-200`}
-        style={{ height: '70vh', maxHeight: '70vh', flex: '1 1 auto' }}
+        style={dataGridStyle}
         ref={table}
         columns={gridColumns}
         rows={data}
@@ -550,7 +595,7 @@ export function DataTable({
         onRowsChange={setData}
       />
     </div>;
-  }, [columnsInfo, data, sortColumns, handleSort, onColumnsReorder, table, gridColumns, noRowsFallback, rowClass, setData]);
+  }, [columnsInfo, data, dataGridStyle, gridColumns, handleSort, noRowsFallback, onColumnsReorder, rowClass, setData, table, tableHeight, tableWrapperStyle, sortColumns]);
 
   return (
     <>

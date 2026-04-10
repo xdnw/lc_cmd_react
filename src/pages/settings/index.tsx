@@ -35,6 +35,7 @@ import {
 } from "./settingsDomain";
 import { useGuildSettingsData } from "./useGuildSettingsData";
 import { useGuildSettingDialogs } from "./useGuildSettingDialogs";
+import SettingsValidationDialog from "./components/SettingsValidationDialog";
 import LoginPickerPage from "../login_picker";
 
 type SearchBarInputProps = NonNullable<ComponentProps<typeof SearchBar>["inputProps"]>;
@@ -51,6 +52,7 @@ function SettingsHeaderControls({
     onSearchKeyDown,
     searchHint,
     onBrowserStateChange,
+    onOpenValidationDialog,
 }: {
     browserState: SettingsBrowserState;
     counts: SettingsBrowserCounts;
@@ -63,6 +65,7 @@ function SettingsHeaderControls({
     onSearchKeyDown: KeyboardEventHandler<HTMLInputElement>;
     searchHint: ReactNode;
     onBrowserStateChange: Dispatch<SetStateAction<SettingsBrowserState>>;
+    onOpenValidationDialog: () => void;
 }) {
     const updateState = useCallback((updater: (currentState: SettingsBrowserState) => SettingsBrowserState) => {
         onBrowserStateChange((currentState) => updater(currentState));
@@ -196,9 +199,21 @@ function SettingsHeaderControls({
                         </div>
                     </div>
 
-                    <Button variant="outline" size="sm" className="shrink-0" asChild>
-                        <ContextPreservingLink to={viewTableTo}>View table</ContextPreservingLink>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={onOpenValidationDialog}
+                            disabled={counts.hasValueRows === 0}
+                        >
+                            Validate set settings
+                        </Button>
+                        <Button variant="outline" size="sm" className="shrink-0" asChild>
+                            <ContextPreservingLink to={viewTableTo}>View table</ContextPreservingLink>
+                        </Button>
+                    </div>
                 </div>
             </div>
 
@@ -374,6 +389,7 @@ export default function SettingsPage() {
     const [highlightedSettingKey, setHighlightedSettingKey] = useState<string | null>(null);
     const [pendingScrollIndex, setPendingScrollIndex] = useState<number | null>(null);
     const [pendingFocusSettingKey, setPendingFocusSettingKey] = useState<string | null>(searchState.focusSettingKey);
+    const [validationDialogOpen, setValidationDialogOpen] = useState(false);
     const {
         hasGuild,
         listQuery,
@@ -383,6 +399,13 @@ export default function SettingsPage() {
         viewTableTo,
     } = useGuildSettingsData();
     const { openEditDialog, openHelpDialog, openClearDialog } = useGuildSettingDialogs(refreshSingleSetting);
+    const validationRows = useMemo(
+        () => normalized.rows.filter((row) => row.value.hasValue),
+        [normalized.rows],
+    );
+    const openValidationDialog = useCallback(() => {
+        setValidationDialogOpen(true);
+    }, []);
 
     const browserResult = useMemo(
         () => deriveSettingsBrowserRows(normalized.rows, browserState),
@@ -655,6 +678,7 @@ export default function SettingsPage() {
                     onSearchKeyDown={settingsKeyboard.onSearchKeyDown}
                     searchHint="Arrow keys navigate, Enter edits, Delete clears the active setting."
                     onBrowserStateChange={setBrowserState}
+                    onOpenValidationDialog={openValidationDialog}
                 />
             ),
         } satisfies PageHeaderConfig;
@@ -667,6 +691,7 @@ export default function SettingsPage() {
         normalized.schemaErrors.length,
         normalized.unsupportedInputRows,
         hasGuild,
+        openValidationDialog,
         settingsKeyboard.onSearchKeyDown,
         settingsKeyboard.searchInputProps,
         viewTableTo,
@@ -778,6 +803,12 @@ export default function SettingsPage() {
                     )}
                 </div>
             </div>
+
+            <SettingsValidationDialog
+                open={validationDialogOpen}
+                onOpenChange={setValidationDialogOpen}
+                rows={validationRows}
+            />
         </div>
     );
 }

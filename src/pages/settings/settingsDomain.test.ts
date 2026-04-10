@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    ORDERED_GUILD_SETTING_KEYS,
     deriveSettingsSubsetModel,
     SETTINGS_CATEGORY_ITEM_HEIGHT,
     SETTINGS_ROW_ITEM_HEIGHT,
@@ -9,6 +10,8 @@ import {
     deriveSettingsBrowserRows,
     estimateSettingsItemHeight,
     flattenSettingsRows,
+    getGuildSettingKeyByOrdinal,
+    getGuildSettingOrdinal,
     hasVisibleSettingsSubgroup,
     normalizeGuildSettingRows,
     parseSettingsPageSearchParams,
@@ -150,6 +153,22 @@ describe("deriveSettingsSubsetModel", () => {
             "AUTONICK",
             "AUTOROLE_ALLIANCES",
         ]);
+    });
+});
+
+describe("guild setting ordinal helpers", () => {
+    it("round-trips ordered GuildSetting metadata between keys and ordinals", () => {
+        const firstSettingKey = ORDERED_GUILD_SETTING_KEYS[0];
+        const lastSettingKey = ORDERED_GUILD_SETTING_KEYS[ORDERED_GUILD_SETTING_KEYS.length - 1];
+
+        expect(getGuildSettingOrdinal(firstSettingKey)).toBe(0);
+        expect(getGuildSettingKeyByOrdinal(0)).toBe(firstSettingKey);
+
+        const lastOrdinal = ORDERED_GUILD_SETTING_KEYS.length - 1;
+        expect(getGuildSettingOrdinal(lastSettingKey)).toBe(lastOrdinal);
+        expect(getGuildSettingKeyByOrdinal(lastOrdinal)).toBe(lastSettingKey);
+        expect(getGuildSettingOrdinal("NOT_A_SETTING")).toBeNull();
+        expect(getGuildSettingKeyByOrdinal(-1)).toBeNull();
     });
 });
 

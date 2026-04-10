@@ -32,8 +32,14 @@ export default function SelectionCellButton({
         event.stopPropagation();
     }, [id, onToggle]);
 
+    const checkboxOnly = typeof rowNumber !== "number";
+
     return (
-        <label className={cn("inline-flex items-center gap-2", isSelected ? "text-blue-600" : undefined)}>
+        <label className={cn(
+            "inline-flex w-full items-center",
+            checkboxOnly ? "justify-center" : "gap-1.5",
+            isSelected ? "text-blue-600" : undefined,
+        )}>
             <Input
                 type="checkbox"
                 className="h-4 w-4"

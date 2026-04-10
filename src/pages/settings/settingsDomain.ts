@@ -236,6 +236,20 @@ function toSettingKey(value: string): SettingKey {
 
 export type SettingKey = typeof COMMANDS.options["GuildSetting<?>"]["options"][number];
 
+export const ORDERED_GUILD_SETTING_KEYS = COMMANDS.options["GuildSetting<?>"]["options"] as readonly SettingKey[];
+
+const GUILD_SETTING_ORDINAL_BY_KEY = new Map<string, number>(
+    ORDERED_GUILD_SETTING_KEYS.map((settingKey, ordinal) => [settingKey, ordinal]),
+);
+
+export function getGuildSettingOrdinal(settingKey: SettingKey | string): number | null {
+    return GUILD_SETTING_ORDINAL_BY_KEY.get(settingKey) ?? null;
+}
+
+export function getGuildSettingKeyByOrdinal(ordinal: number): SettingKey | null {
+    return ORDERED_GUILD_SETTING_KEYS[ordinal] ?? null;
+}
+
 export type SettingMetadata = {
     argType: string;
     category: GuildSettingCategory;

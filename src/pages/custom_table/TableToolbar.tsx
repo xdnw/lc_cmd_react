@@ -49,6 +49,7 @@ export type TableColumnCustomizationComposer = {
 
 export type TableColumnCustomization = {
   items: readonly TableColumnCustomizationItem[];
+  availableItems?: readonly TableColumnCustomizationItem[];
   composer?: TableColumnCustomizationComposer;
   onApply: (items: TableColumnCustomizationItem[]) => void;
 };
@@ -251,6 +252,53 @@ function EditingIndicator({
   );
 }
 
+function HiddenColumnCatalog({
+  items,
+  onAdd,
+}: {
+  items: readonly TableColumnCustomizationItem[];
+  onAdd: (itemId: string) => void;
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-1.5 border-t border-border/70 pt-2">
+      <div className="text-[11px] font-medium text-muted-foreground">Add columns</div>
+      <div className="flex flex-wrap gap-1">
+        {items.map((item) => (
+          <HiddenColumnCatalogButton key={item.id} item={item} onAdd={onAdd} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function HiddenColumnCatalogButton({
+  item,
+  onAdd,
+}: {
+  item: TableColumnCustomizationItem;
+  onAdd: (itemId: string) => void;
+}) {
+  const handleClick = useCallback(() => {
+    onAdd(item.id);
+  }, [item.id, onAdd]);
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 px-2 text-[11px]"
+      onClick={handleClick}
+    >
+      {getDisplayedTitle(item)}
+    </Button>
+  );
+}
+
 function TableColumnCustomizationDialog({
   customization,
   open,
@@ -308,6 +356,17 @@ function TableColumnCustomizationDialog({
     () => editingItemId ? draftItems.find((item) => item.id === editingItemId) ?? null : null,
     [draftItems, editingItemId],
   );
+  const availableItems = useMemo(
+    () => customization.availableItems ?? customization.items,
+    [customization.availableItems, customization.items],
+  );
+  const hiddenAvailableItems = useMemo(() => {
+    const visibleIds = new Set(draftItems.map((item) => item.id));
+    return availableItems
+      .filter((item) => !visibleIds.has(item.id))
+      .slice()
+      .sort((left, right) => getDisplayedTitle(left).localeCompare(getDisplayedTitle(right)));
+  }, [availableItems, draftItems]);
 
   const handleDragStart = useCallback((itemId: string) => {
     setDraggedItemId(itemId);
@@ -357,6 +416,28 @@ function TableColumnCustomizationDialog({
       };
     }));
   }, []);
+
+  const handleAddAvailableItem = useCallback((itemId: string) => {
+    const item = availableItems.find((entry) => entry.id === itemId);
+    if (!item) {
+      return;
+    }
+
+    setDraftItems((current) => {
+      if (current.some((entry) => entry.id === item.id)) {
+        return current;
+      }
+
+      return [
+        ...current,
+        {
+          ...item,
+          rawTitle: item.rawTitle ?? item.title,
+        },
+      ];
+    });
+    setComposerError(null);
+  }, [availableItems]);
 
   const handleComposerValueChange = useCallback((_name: string, value: string) => {
     setComposerValue(value);
@@ -471,6 +552,8 @@ function TableColumnCustomizationDialog({
               />
             ))}
           </ul>
+
+          <HiddenColumnCatalog items={hiddenAvailableItems} onAdd={handleAddAvailableItem} />
 
           {composerConfig && composerBreakdown ? (
             <section className="space-y-1.5 border-t border-border/70 pt-2">

@@ -132,6 +132,8 @@ export function PreparedDataTable({
   sourceSelection,
   columnCustomization,
   showCustomize = showExports,
+  toolbarLeadingActions,
+  fillAvailableHeight = false,
 }: {
   columnsInfo: ConfigColumns[];
   data: JSONValue[][];
@@ -147,24 +149,26 @@ export function PreparedDataTable({
   sourceSelection?: TableSourceSelectionCopy;
   columnCustomization?: TableColumnCustomization;
   showCustomize?: boolean;
+  toolbarLeadingActions?: ReactNode;
+  fillAvailableHeight?: boolean;
 }) {
   const table = useRef<DataGridHandle>(null);
   const [dataState, setDataState] = useState(data);
   const [columnsState, setColumnsState] = useState(() => ensureConfigColumnIds(columnsInfo));
   const [sortState, setSortState] = useState<OrderIdx | OrderIdx[] | undefined>(sort);
   const sourceColumnIdsRef = useRef(ensureConfigColumnIds(columnsInfo).map((column) => getStableConfigColumnId(column)));
+  const sourceColumnsInfo = useMemo(() => ensureConfigColumnIds(columnsInfo), [columnsInfo]);
 
   useEffect(() => {
     setDataState((current) => areRowsEquivalent(current, data) ? current : data);
   }, [data]);
 
   useEffect(() => {
-    const nextColumns = ensureConfigColumnIds(columnsInfo);
-    const nextSourceColumnIds = nextColumns.map((column) => getStableConfigColumnId(column));
+    const nextSourceColumnIds = sourceColumnsInfo.map((column) => getStableConfigColumnId(column));
     const previousSourceColumnIds = sourceColumnIdsRef.current;
     sourceColumnIdsRef.current = nextSourceColumnIds;
-    setColumnsState((current) => mergeColumnsState(current, nextColumns, previousSourceColumnIds, nextSourceColumnIds));
-  }, [columnsInfo]);
+    setColumnsState((current) => mergeColumnsState(current, sourceColumnsInfo, previousSourceColumnIds, nextSourceColumnIds));
+  }, [sourceColumnsInfo]);
 
   useEffect(() => {
     setSortState((current) => areSortsEquivalent(current, sort) ? current : sort);
@@ -176,14 +180,15 @@ export function PreparedDataTable({
     [highlightedRowIndexes],
   );
   const applyBasicCustomization = useCallback((items: TableColumnCustomizationItem[]) => {
-    const nextColumns = applyGenericColumnCustomization(columnsState, items);
+    const nextColumns = applyGenericColumnCustomization(columnsState, items, sourceColumnsInfo);
     setColumnsState((current) => areColumnsEquivalent(current, nextColumns) ? current : nextColumns);
-  }, [columnsState]);
+  }, [columnsState, sourceColumnsInfo]);
 
   const basicColumnCustomization = useMemo<TableColumnCustomization>(() => ({
     items: createGenericColumnCustomizationItems(columnsState),
+    availableItems: createGenericColumnCustomizationItems(sourceColumnsInfo),
     onApply: applyBasicCustomization,
-  }), [applyBasicCustomization, columnsState]);
+  }), [applyBasicCustomization, columnsState, sourceColumnsInfo]);
   const effectiveColumnCustomization = showCustomize
     ? (columnCustomization ?? basicColumnCustomization)
     : undefined;
@@ -207,34 +212,55 @@ export function PreparedDataTable({
   }, [effectiveColumnCustomization, getCustomizationItemsForColumns]);
   const columnsReorderHandler = effectiveColumnCustomization ? handleColumnsReorderCommitted : undefined;
 
+  const toolbarNode = (
+    <TableToolbar
+      data={dataState}
+      columns={columnsState}
+      showCopy={showExports}
+      sourceSelection={sourceSelection}
+      rowSelection={rowSelection}
+      columnCustomization={effectiveColumnCustomization}
+      leadingActions={toolbarLeadingActions}
+    />
+  );
+
+  const tableNode = (
+    <DataTable
+      table={table}
+      data={dataState}
+      columnsInfo={columnsState}
+      sort={sortState}
+      tableHeight={fillAvailableHeight ? "100%" : undefined}
+      searchSet={searchSet}
+      rowClassName={rowClassName}
+      showIndexColumn={showIndexColumn}
+      indexCellRenderer={indexCellRenderer}
+      indexColumnWidth={indexColumnWidth}
+      onRowsRendered={onRowsRendered}
+      rowSelection={rowSelection}
+      visibleColumns={visibleColumns}
+      setColumns={setColumnsState}
+      setData={setDataState}
+      setSort={setSortState}
+      onColumnsReorderCommitted={effectiveColumnCustomization ? columnsReorderHandler : undefined}
+    />
+  );
+
+  if (fillAvailableHeight) {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-2">
+        {toolbarNode}
+        <div className="min-h-0 flex-1">
+          {tableNode}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      <TableToolbar
-        data={dataState}
-        columns={columnsState}
-        showCopy={showExports}
-        sourceSelection={sourceSelection}
-        rowSelection={rowSelection}
-        columnCustomization={effectiveColumnCustomization}
-      />
-      <DataTable
-        table={table}
-        data={dataState}
-        columnsInfo={columnsState}
-        sort={sortState}
-        searchSet={searchSet}
-        rowClassName={rowClassName}
-        showIndexColumn={showIndexColumn}
-        indexCellRenderer={indexCellRenderer}
-        indexColumnWidth={indexColumnWidth}
-        onRowsRendered={onRowsRendered}
-        rowSelection={rowSelection}
-        visibleColumns={visibleColumns}
-        setColumns={setColumnsState}
-        setData={setDataState}
-        setSort={setSortState}
-        onColumnsReorderCommitted={effectiveColumnCustomization ? columnsReorderHandler : undefined}
-      />
+      {toolbarNode}
+      {tableNode}
     </>
   );
 }

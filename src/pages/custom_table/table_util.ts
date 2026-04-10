@@ -164,11 +164,42 @@ export function createGenericColumnCustomizationItems(columnsInfo: readonly Conf
     }));
 }
 
+export function normalizeGenericColumnCustomizationItems(
+    items: readonly TableColumnCustomizationItem[],
+    availableColumnsInfo: readonly ConfigColumns[],
+    defaultVisibleItems: readonly TableColumnCustomizationItem[],
+): TableColumnCustomizationItem[] {
+    const availableItems = createGenericColumnCustomizationItems(availableColumnsInfo);
+    const availableItemsById = new Map(availableItems.map((item) => [item.id, item]));
+    const normalizedItems: TableColumnCustomizationItem[] = [];
+    const seenIds = new Set<string>();
+
+    for (const item of items) {
+        const availableItem = availableItemsById.get(item.id);
+        if (!availableItem || seenIds.has(availableItem.id)) {
+            continue;
+        }
+
+        seenIds.add(availableItem.id);
+        normalizedItems.push({
+            ...availableItem,
+            rawTitle: (item.rawTitle ?? item.title ?? availableItem.rawTitle ?? availableItem.title).trim() || availableItem.title,
+        });
+    }
+
+    if (normalizedItems.length > 0) {
+        return normalizedItems;
+    }
+
+    return defaultVisibleItems.map((item) => ({ ...item }));
+}
+
 export function applyGenericColumnCustomization(
     columnsInfo: readonly ConfigColumns[],
     items: readonly TableColumnCustomizationItem[],
+    availableColumnsInfo: readonly ConfigColumns[] = columnsInfo,
 ): ConfigColumns[] {
-    const currentColumnsById = new Map(columnsInfo.map((column) => [getStableConfigColumnId(column), column]));
+    const currentColumnsById = new Map(availableColumnsInfo.map((column) => [getStableConfigColumnId(column), column]));
     const nextColumns = items
         .map((item) => {
             const column = currentColumnsById.get(item.id);

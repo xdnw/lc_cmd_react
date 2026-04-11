@@ -39,6 +39,8 @@ import {
 } from "./ConflictAssociationSections";
 import { buildActionDialogMaps, toRowActionsDetailFields } from "./conflictDialogWiring";
 
+const EMPTY_SELECTED_IDS = new Set<number>();
+
 function ForumPostsSubMenu({
     conflict,
     canEdit,
@@ -83,6 +85,9 @@ function ForumPostsSubMenu({
 function AllianceSubMenu({
     conflict,
     canEdit,
+    canAddAlliance,
+    canAddAllForNation,
+    canRemoveAlliance,
     onActionSuccess,
     coalitionOneName,
     coalitionTwoName,
@@ -92,6 +97,9 @@ function AllianceSubMenu({
 }: {
     conflict: ConflictRow;
     canEdit: boolean;
+    canAddAlliance: boolean;
+    canAddAllForNation: boolean;
+    canRemoveAlliance: boolean;
     onActionSuccess: () => void;
     coalitionOneName: string;
     coalitionTwoName: string;
@@ -122,6 +130,9 @@ function AllianceSubMenu({
     return (
         <ConflictAllianceSection
             canEdit={canEdit}
+            canAddAlliance={canAddAlliance}
+            canAddAllForNation={canAddAllForNation}
+            canRemoveAlliance={canRemoveAlliance}
             onActionSuccess={onAllianceRemoveSuccess}
             coalitionOneName={coalitionOneName}
             coalitionTwoName={coalitionTwoName}
@@ -141,6 +152,7 @@ export default function ConflictActionsDialogButton({
     row,
     rowLabel,
     selectedIds,
+    getSelectedIds,
     actions,
     canRunAction,
     canEdit,
@@ -151,7 +163,8 @@ export default function ConflictActionsDialogButton({
 }: {
     row: ConflictRow;
     rowLabel: string;
-    selectedIds: Set<number>;
+    selectedIds?: Set<number>;
+    getSelectedIds?: () => Set<number>;
     actions: readonly ConflictRowAction[];
     canRunAction: (action: ConflictRowAction) => boolean;
     canEdit: boolean;
@@ -162,6 +175,10 @@ export default function ConflictActionsDialogButton({
 }) {
     const { showDialog } = useDialog();
     const queryClient = useQueryClient();
+
+    const resolveSelectedIds = useCallback(() => {
+        return getSelectedIds?.() ?? selectedIds ?? EMPTY_SELECTED_IDS;
+    }, [getSelectedIds, selectedIds]);
 
     const onPopupActionSuccess = useCallback((actionId: string) => {
         onActionSuccess?.(actionId);
@@ -177,10 +194,6 @@ export default function ConflictActionsDialogButton({
         ]);
     }, [onActionSuccess, queryClient, row.id]);
 
-    const visibleActions = useMemo(() => {
-        return actions.filter((action) => isActionVisible(action, { row, selectedIds }));
-    }, [actions, row, selectedIds]);
-
     const onAllianceActionSuccess = useCallback(() => {
         onPopupActionSuccess("");
     }, [onPopupActionSuccess]);
@@ -192,6 +205,8 @@ export default function ConflictActionsDialogButton({
     }, [columnsInfo, getColumnsInfo]);
 
     const openDetailsClick = useCallback(() => {
+        const activeSelectedIds = resolveSelectedIds();
+        const visibleActions = actions.filter((action) => isActionVisible(action, { row, selectedIds: activeSelectedIds }));
         const runtimeColumnsInfo = resolveColumnsInfo();
         const runtimeFormattedValues: ConflictFormattedValues = {
             category: renderConflictCell(row, "category", runtimeColumnsInfo),
@@ -204,12 +219,12 @@ export default function ConflictActionsDialogButton({
         const openActionDialog = (action: ConflictRowAction) => {
             const actionWithPrefill = withConflictDialogArgs(action, {
                 row,
-                selectedIds,
+                selectedIds: activeSelectedIds,
                 formatted: runtimeFormattedValues,
                 columnsInfo: runtimeColumnsInfo,
             });
 
-            const context = { row, selectedIds };
+            const context = { row, selectedIds: activeSelectedIds };
             showDialog(action.label, (
                 actionWithPrefill.renderDialog
                     ? actionWithPrefill.renderDialog(context)
@@ -242,6 +257,9 @@ export default function ConflictActionsDialogButton({
         const allianceRemoveAction = getConflictAllianceRemoveAction(visibleActions);
         const forumPostAddAction = getConflictForumPostAddAction(visibleActions);
         const forumPostRemoveAction = getConflictForumPostRemoveAction(visibleActions);
+        const canAddAlliance = allianceAddAction ? canRunAction(allianceAddAction) : false;
+        const canAddAllForNation = allianceAddForNationAction ? canRunAction(allianceAddForNationAction) : false;
+        const canRemoveAlliance = allianceRemoveAction ? canRunAction(allianceRemoveAction) : false;
 
         const detailFields = toRowActionsDetailFields(editableFields, canRunAction, openDialogByActionId);
         const warsConflictUrl = buildWarsConflictUrl(row.id);
@@ -298,7 +316,7 @@ export default function ConflictActionsDialogButton({
                             content: (
                                 <CommandActionButton
                                     command={action.command}
-                                    args={action.buildArgs({ row, selectedIds })}
+                                    args={action.buildArgs({ row, selectedIds: activeSelectedIds })}
                                     label={action.label}
                                     classes="!ms-0"
                                     disabled={disabled}
@@ -313,6 +331,9 @@ export default function ConflictActionsDialogButton({
                             key="alliances"
                             conflict={row}
                             canEdit={canEdit}
+                            canAddAlliance={canAddAlliance}
+                            canAddAllForNation={canAddAllForNation}
+                            canRemoveAlliance={canRemoveAlliance}
                             onActionSuccess={onAllianceActionSuccess}
                             coalitionOneName={toPlainString(runtimeFormattedValues.c1Name) ?? row.c1Name}
                             coalitionTwoName={toPlainString(runtimeFormattedValues.c2Name) ?? row.c2Name}
@@ -340,10 +361,10 @@ export default function ConflictActionsDialogButton({
         onAllianceActionSuccess,
         onPopupActionSuccess,
         resolveColumnsInfo,
+        resolveSelectedIds,
         row,
-        selectedIds,
         showDialog,
-        visibleActions,
+        actions,
     ]);
 
     const openDetailsClickRef = useRef(openDetailsClick);

@@ -3,7 +3,7 @@ import { ClientColumnOverlay, ConfigColumns, ObjectColumnRender, OrderIdx, Table
 import { AbstractTableWithButtons, TableProps } from "./AbstractTable";
 import { JSONValue } from "@/lib/internaltypes";
 
-export function StaticTable({ type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection }: { type: string, selection: { [key: string]: string }, columns: (string | [string, string])[], sort?: OrderIdx | OrderIdx[] | undefined, clientColumns?: ClientColumnOverlay[], columnRenderers?: Record<string, string | ObjectColumnRender>, rowClassName?: (row: JSONValue[], rowIdx: number) => string | undefined, indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode, indexColumnWidth?: number, onRowsRendered?: (rows: JSONValue[][]) => void, onColumnsLoaded?: (columns: ConfigColumns[]) => void, rowSelection?: TableRowSelection }) {
+export function StaticTable({ type, selection, columns, sort, clientColumns, columnRenderers, transformTableInfo, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection }: { type: string, selection: { [key: string]: string }, columns: (string | [string, string])[], sort?: OrderIdx | OrderIdx[] | undefined, clientColumns?: ClientColumnOverlay[], columnRenderers?: Record<string, string | ObjectColumnRender>, transformTableInfo?: TableProps["transformTableInfo"], rowClassName?: (row: JSONValue[], rowIdx: number) => string | undefined, indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode, indexColumnWidth?: number, onRowsRendered?: (rows: JSONValue[][]) => void, onColumnsLoaded?: (columns: ConfigColumns[]) => void, rowSelection?: TableRowSelection }) {
     const getTableProps = useCallback((): TableProps => {
         return {
             type: type,
@@ -16,6 +16,7 @@ export function StaticTable({ type, selection, columns, sort, clientColumns, col
             sort: sort,
             clientColumns: clientColumns,
             columnRenderers,
+            transformTableInfo,
             rowClassName,
             indexCellRenderer,
             indexColumnWidth,
@@ -23,7 +24,7 @@ export function StaticTable({ type, selection, columns, sort, clientColumns, col
             onColumnsLoaded,
             rowSelection,
         };
-    }, [type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection]);
+    }, [type, selection, columns, sort, clientColumns, columnRenderers, transformTableInfo, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection]);
 
     return useMemo(() => (
         <AbstractTableWithButtons getTableProps={getTableProps} load={true} />

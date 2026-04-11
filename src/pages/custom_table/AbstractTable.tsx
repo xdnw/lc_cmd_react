@@ -30,7 +30,7 @@ import { renderEndpointFallback } from "@/components/api/bulkwrapper";
 import { ErrorBoundary } from "react-error-boundary";
 
 export type TableInfo = {
-    data: (string | number | number[])[][],
+    data: JSONValue[][],
     visibleColumns: number[],
     searchSet: Set<number>,
     columnsInfo: ConfigColumns[],
@@ -45,6 +45,7 @@ export type TableProps = {
     sort: OrderIdx | OrderIdx[] | undefined,
     clientColumns?: ClientColumnOverlay[],
     columnRenderers?: Record<string, string | ObjectColumnRender>,
+    transformTableInfo?: (info: TableInfo) => TableInfo,
     rowClassName?: (row: JSONValue[], rowIdx: number) => string | undefined,
     indexCellRenderer?: (context: { row: JSONValue[]; rowIdx: number; rowNumber: number }) => ReactNode,
     indexColumnWidth?: number,
@@ -72,6 +73,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     const [sortState, setSortState] = useDeepState<OrderIdx | OrderIdx[] | undefined>(initialTableProps.sort);
     const [clientColumns, setClientColumns] = useState<ClientColumnOverlay[]>(initialTableProps.clientColumns ?? []);
     const [columnRenderers, setColumnRenderers] = useState<TableProps['columnRenderers']>(() => initialTableProps.columnRenderers);
+    const [transformTableInfo, setTransformTableInfo] = useState<TableProps['transformTableInfo']>(() => initialTableProps.transformTableInfo);
     const [rowClassName, setRowClassName] = useState<TableProps['rowClassName']>(() => initialTableProps.rowClassName);
     const [indexCellRenderer, setIndexCellRenderer] = useState<TableProps['indexCellRenderer']>(() => initialTableProps.indexCellRenderer);
     const [indexColumnWidth, setIndexColumnWidth] = useState<TableProps['indexColumnWidth']>(() => initialTableProps.indexColumnWidth);
@@ -96,6 +98,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     const applyDynamicTableProps = useCallback((props: TableProps) => {
         setClientColumns(props.clientColumns ?? []);
         setColumnRenderers(props.columnRenderers);
+        setTransformTableInfo(() => props.transformTableInfo);
         setRowClassName(() => props.rowClassName);
         setIndexCellRenderer(() => props.indexCellRenderer);
         setIndexColumnWidth(props.indexColumnWidth);
@@ -427,6 +430,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
             sort={sortState}
             clientColumns={clientColumns}
             columnRenderers={columnRenderers}
+            transformTableInfo={transformTableInfo}
             rowClassName={rowClassName}
             indexCellRenderer={indexCellRenderer}
             indexColumnWidth={indexColumnWidth}
@@ -448,6 +452,7 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
             sort={sortState}
             clientColumns={clientColumns}
             columnRenderers={columnRenderers}
+            transformTableInfo={transformTableInfo}
             setSortState={setSortState}
             showErrorsProvided={showErrorsProvided}
             rowClassName={rowClassName}
@@ -463,13 +468,14 @@ export function AbstractTableWithButtons({ getTableProps, load }: {
     }
 }
 
-function LoadTable({ type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, columnOrder, showErrorsProvided, children }: {
+function LoadTable({ type, selection, columns, sort, clientColumns, columnRenderers, transformTableInfo, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, columnOrder, showErrorsProvided, children }: {
     type: string,
     selection: { [key: string]: string },
     columns: Map<string, string | null>,
     sort: OrderIdx | OrderIdx[] | undefined,
     clientColumns?: ClientColumnOverlay[],
     columnRenderers?: TableProps['columnRenderers'],
+    transformTableInfo?: TableProps['transformTableInfo'],
     rowClassName?: TableProps['rowClassName'],
     indexCellRenderer?: TableProps['indexCellRenderer'],
     indexColumnWidth?: TableProps['indexColumnWidth'],
@@ -516,6 +522,7 @@ function LoadTable({ type, selection, columns, sort, clientColumns, columnRender
                     sort={sort}
                     clientColumns={clientColumns}
                     columnRenderers={columnRenderers}
+                    transformTableInfo={transformTableInfo}
                     rowClassName={rowClassName}
                     indexCellRenderer={indexCellRenderer}
                     indexColumnWidth={indexColumnWidth}
@@ -532,13 +539,14 @@ function LoadTable({ type, selection, columns, sort, clientColumns, columnRender
     );
 }
 
-function LoadTableContent({ type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, columnOrder, showErrorsProvided, children, tableQuery }: {
+function LoadTableContent({ type, selection, columns, sort, clientColumns, columnRenderers, transformTableInfo, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, columnOrder, showErrorsProvided, children, tableQuery }: {
     type: string,
     selection: { [key: string]: string },
     columns: Map<string, string | null>,
     sort: OrderIdx | OrderIdx[] | undefined,
     clientColumns?: ClientColumnOverlay[],
     columnRenderers?: TableProps['columnRenderers'],
+    transformTableInfo?: TableProps['transformTableInfo'],
     rowClassName?: TableProps['rowClassName'],
     indexCellRenderer?: TableProps['indexCellRenderer'],
     indexColumnWidth?: TableProps['indexColumnWidth'],
@@ -569,12 +577,13 @@ function LoadTableContent({ type, selection, columns, sort, clientColumns, colum
     const webTable = queryData.data as WebTable;
     const initialTableInfo = useMemo(() => {
         try {
-            return createTableInfo(webTable, sort, columns, clientColumns ?? [], columnRenderers, columnOrder);
+            const baseInfo = createTableInfo(webTable, sort, columns, clientColumns ?? [], columnRenderers, columnOrder);
+            return transformTableInfo ? transformTableInfo(baseInfo) : baseInfo;
         } catch (e) {
             console.error(e);
             return undefined;
         }
-    }, [columnOrder, sort, columns, webTable, clientColumns, columnRenderers]);
+    }, [columnOrder, sort, columns, webTable, clientColumns, columnRenderers, transformTableInfo]);
 
     const [data, setData] = useState<JSONValue[][]>(initialTableInfo?.data as JSONValue[][]);
     const [columnsInfo, setColumnsInfo] = useState<ConfigColumns[]>(initialTableInfo?.columnsInfo || []);
@@ -671,7 +680,7 @@ ${process.env.BASE_PATH}custom_table?${getQueryString({
  * @constructor
  */
 function DeferTable(
-    { table, getTableProps, type, selection, columns, sort, clientColumns, columnRenderers, setSortState, showErrorsProvided, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, columnOrder, children }:
+    { table, getTableProps, type, selection, columns, sort, clientColumns, columnRenderers, transformTableInfo, setSortState, showErrorsProvided, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection, columnOrder, children }:
         {
             table: React.RefObject<DataGridHandle | null>,
             getTableProps: () => TableProps,
@@ -681,6 +690,7 @@ function DeferTable(
             sort: OrderIdx | OrderIdx[] | undefined,
             clientColumns?: ClientColumnOverlay[],
             columnRenderers?: TableProps['columnRenderers'],
+            transformTableInfo?: TableProps['transformTableInfo'],
             setSortState: (sort: OrderIdx | OrderIdx[] | undefined) => void,
             showErrorsProvided: (errors: WebTableError[]) => void,
             rowClassName?: TableProps['rowClassName'],
@@ -712,13 +722,14 @@ function DeferTable(
         sort,
         clientColumns,
         columnRenderers,
+        transformTableInfo,
         rowClassName,
         indexCellRenderer,
         indexColumnWidth,
         onRowsRendered,
         onColumnsLoaded,
         rowSelection,
-    }), [type, selection, columns, sort, clientColumns, columnRenderers, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection]);
+    }), [type, selection, columns, sort, clientColumns, columnRenderers, transformTableInfo, rowClassName, indexCellRenderer, indexColumnWidth, onRowsRendered, onColumnsLoaded, rowSelection]);
 
     useEffect(() => {
         if (columnsInfo && columnsInfo.length > 0) {
@@ -774,7 +785,7 @@ function DeferTable(
                 tableProps.columnRenderers,
                 columnOrder,
             );
-            updateTable(info);
+            updateTable(tableProps.transformTableInfo ? tableProps.transformTableInfo(info) : info);
         } catch (e) {
             onErrorOrNull(e as (string | Error));
         }

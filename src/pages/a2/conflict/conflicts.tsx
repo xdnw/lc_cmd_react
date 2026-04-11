@@ -4,12 +4,12 @@ import { PERMISSION, TABLE } from "@/lib/endpoints";
 import { bulkQueryOptions } from "@/lib/queries";
 import type { JSONValue } from "@/lib/internaltypes";
 import type { ClientColumnOverlay, ConfigColumns, TableRowSelection, TableRowSelectionId } from "@/pages/custom_table/DataTable";
+import type { TableInfo } from "@/pages/custom_table/AbstractTable";
 import BulkActionsToolbar from "@/pages/custom_table/actions/BulkActionsToolbar";
 import { StaticTable } from "@/pages/custom_table/StaticTable";
 import { usePermission } from "@/utils/PermUtil";
 import { serializeIdSet, useIdSelection } from "@/utils/useIdSelection";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConflictPageNav from "./ConflictPageNav";
 import ConflictActionsDialogButton from "./ConflictActionsDialogButton";
@@ -30,13 +30,18 @@ import {
     toConflictId,
     type ConflictRow,
 } from "./conflictTableSchema";
+import { compareConflictsByEndDateDesc, isConflictActionFrontendUngated } from "./conflictsPageRules";
 import { useConflictAutoOpen } from "./useConflictAutoOpen";
-import { COMMANDS } from "@/lib/commands";
 
 const syncPermissionKey = CONFLICT_SYNC_PERMISSION_PATH.join(" ");
 const editPermissionKey = CONFLICT_EDIT_PERMISSION_PATH.join(" ");
 const syncPermQuery = { command: syncPermissionKey };
 const editPermQuery = { command: editPermissionKey };
+const conflictTableQueryArgs = {
+    type: "Conflict",
+    selection_str: "*",
+    columns: conflictPlaceholderColumns.array(),
+} as const;
 
 export default function Conflicts() {
     const queryClient = useQueryClient();
@@ -45,28 +50,33 @@ export default function Conflicts() {
     // same synchronous context as LoadTable's useSuspenseQuery fetch.
     // Without this, useQuery (permissions) defers queryFn to a post-render
     // effect, which can miss the 200ms batch window when renders are heavy.
-    void queryClient.prefetchQuery(bulkQueryOptions(PERMISSION.endpoint, syncPermQuery));
-    void queryClient.prefetchQuery(bulkQueryOptions(PERMISSION.endpoint, editPermQuery));
-
     const { session } = useSession();
     const isLoggedIn = Boolean(session?.user_valid || session?.nation_valid || session?.registered);
+    if (isLoggedIn) {
+        void queryClient.prefetchQuery(bulkQueryOptions(PERMISSION.endpoint, syncPermQuery));
+        void queryClient.prefetchQuery(bulkQueryOptions(PERMISSION.endpoint, editPermQuery));
+    }
 
-    const { permission: syncPermission, isFetching: syncPermissionFetching, error: syncPermissionError } = usePermission(CONFLICT_SYNC_PERMISSION_PATH, { showDialogOnError: false });
-    const { permission: editPermission, isFetching: editPermissionFetching, error: editPermissionError } = usePermission(CONFLICT_EDIT_PERMISSION_PATH, { showDialogOnError: false });
+    const { permission: syncPermission, isFetching: syncPermissionFetching, error: syncPermissionError } = usePermission(CONFLICT_SYNC_PERMISSION_PATH, { showDialogOnError: false, enabled: isLoggedIn });
+    const { permission: editPermission, isFetching: editPermissionFetching, error: editPermissionError } = usePermission(CONFLICT_EDIT_PERMISSION_PATH, { showDialogOnError: false, enabled: isLoggedIn });
 
     const selected = useIdSelection<number>();
-
     const [reloadToken, setReloadToken] = useState(0);
-    const columnsInfoRef = useRef<ConfigColumns[]>([]);
     const [renderedRowIds, setRenderedRowIds] = useState<number[]>([]);
     const conflictOpenersRef = useRef(new Map<number, () => void>());
+    const selectedIdsRef = useRef(selected.selectedIds);
+    const columnsInfoRef = useRef<ConfigColumns[] | undefined>(undefined);
     const { targetConflictId, autoOpenIfAvailable } = useConflictAutoOpen();
 
-    const canSync = syncPermissionFetching || Boolean(syncPermission?.success);
-    const canEdit = editPermissionFetching || Boolean(editPermission?.success);
+    useEffect(() => {
+        selectedIdsRef.current = selected.selectedIds;
+    }, [selected.selectedIds]);
+
+    const canSync = isLoggedIn && (syncPermissionFetching || Boolean(syncPermission?.success));
+    const canEdit = isLoggedIn && (editPermissionFetching || Boolean(editPermission?.success));
 
     const refreshTable = useCallback(async () => {
-        await queryClient.invalidateQueries({ queryKey: [TABLE.endpoint.name] });
+        await queryClient.invalidateQueries({ queryKey: [TABLE.endpoint.name, conflictTableQueryArgs], exact: true });
         setReloadToken((value) => value + 1);
     }, [queryClient]);
 
@@ -74,28 +84,33 @@ export default function Conflicts() {
         await refreshTable();
     }, [refreshTable]);
 
-    const onColumnsLoaded = useCallback((columns: ConfigColumns[]) => {
-        columnsInfoRef.current = columns;
-    }, []);
-
     const getColumnsInfo = useCallback(() => {
         return columnsInfoRef.current;
+    }, []);
+
+    const getSelectedIds = useCallback(() => {
+        return selectedIdsRef.current;
     }, []);
 
     const selectAllVisible = useCallback(() => {
         selected.addMany(renderedRowIds);
     }, [renderedRowIds, selected]);
 
-    const resolveActionPermission = useCallback((permissionPath?: readonly string[]) => {
-        if (!permissionPath) return true;
-        const key = permissionPath.join(" ");
+    const resolveActionPermission = useCallback((action: ConflictRowAction | ConflictBulkAction) => {
+        if (isConflictActionFrontendUngated(action.id)) {
+            return true;
+        }
+
+        if (!action.permission) return true;
+
+        const key = action.permission.join(" ");
         if (key === syncPermissionKey) return canSync;
         if (key === editPermissionKey) return canEdit;
         return false;
     }, [canEdit, canSync]);
 
     const canRunTableAction = useCallback((action: ConflictRowAction | ConflictBulkAction) => {
-        return resolveActionPermission(action.permission);
+        return resolveActionPermission(action);
     }, [resolveActionPermission]);
 
     const bulkActions = useMemo(() => {
@@ -129,15 +144,6 @@ export default function Conflicts() {
         }
     }, [autoOpenIfAvailable, targetConflictId]);
 
-    useEffect(() => {
-        if (!targetConflictId) return;
-        autoOpenIfAvailable((targetId) => {
-            const id = toConflictId(targetId);
-            if (id === null) return undefined;
-            return conflictOpenersRef.current.get(id);
-        });
-    }, [autoOpenIfAvailable, targetConflictId]);
-
     const clientColumns = useMemo<ClientColumnOverlay[]>(() => {
         const actionsColumn: ClientColumnOverlay = {
             id: "actions",
@@ -158,7 +164,7 @@ export default function Conflicts() {
                             <ConflictActionsDialogButton
                                 row={value}
                                 rowLabel={value.name}
-                                selectedIds={selected.selectedIds}
+                                getSelectedIds={getSelectedIds}
                                 actions={rowActions}
                                 canRunAction={canRunTableAction}
                                 canEdit={canEdit}
@@ -173,7 +179,27 @@ export default function Conflicts() {
         };
 
         return [actionsColumn];
-    }, [canEdit, canRunTableAction, getColumnsInfo, onActionSuccess, registerConflictOpener, rowActions, selected.selectedIds]);
+    }, [canEdit, canRunTableAction, getColumnsInfo, getSelectedIds, onActionSuccess, registerConflictOpener, rowActions]);
+
+    const transformTableInfo = useCallback((info: TableInfo): TableInfo => {
+        return {
+            ...info,
+            data: [...(info.data as JSONValue[][])].sort(compareConflictsByEndDateDesc),
+        };
+    }, []);
+
+    const onColumnsLoaded = useCallback((columns: ConfigColumns[]) => {
+        columnsInfoRef.current = columns;
+    }, []);
+
+    useEffect(() => {
+        if (!targetConflictId) return;
+        autoOpenIfAvailable((targetId) => {
+            const id = toConflictId(targetId);
+            if (id === null) return undefined;
+            return conflictOpenersRef.current.get(id);
+        });
+    }, [autoOpenIfAvailable, targetConflictId]);
 
     const rowSelection = useMemo<TableRowSelection>(() => ({
         getRowId: (row: JSONValue[]) => {
@@ -195,23 +221,22 @@ export default function Conflicts() {
     }), [selected]);
 
     const permissionErrors = useMemo(() => {
+        if (!isLoggedIn) {
+            return [] as string[];
+        }
+
         const errors: string[] = [];
         if (syncPermissionError) errors.push(`Sync permission unavailable: ${syncPermissionError}`);
         if (editPermissionError) errors.push(`Edit permission unavailable: ${editPermissionError}`);
         return errors;
-    }, [editPermissionError, syncPermissionError]);
+    }, [editPermissionError, isLoggedIn, syncPermissionError]);
 
     return (
         <>
             <ConflictPageNav />
 
-            {(permissionErrors.length > 0 || !isLoggedIn) && (
+            {permissionErrors.length > 0 && (
                 <div className="mb-2 rounded border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-sm">
-                    {!isLoggedIn && (
-                        <div className="mb-1">
-                            You are not logged in. Some actions are disabled. <Link to="/login" className="underline">Login</Link>
-                        </div>
-                    )}
                     {permissionErrors.map((message) => (
                         <div key={message} className="text-amber-900 dark:text-amber-200">{message}</div>
                     ))}
@@ -243,6 +268,7 @@ export default function Conflicts() {
                 columns={conflictPlaceholderColumns.aliasedArray()}
                 columnRenderers={conflictColumnRenderers}
                 clientColumns={clientColumns}
+                transformTableInfo={transformTableInfo}
                 indexColumnWidth={64}
                 onColumnsLoaded={onColumnsLoaded}
                 rowSelection={rowSelection}

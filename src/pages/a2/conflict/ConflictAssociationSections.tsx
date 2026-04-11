@@ -224,6 +224,9 @@ export function ConflictForumPostsSection({
 
 export function ConflictAllianceSection({
     canEdit,
+    canAddAlliance,
+    canAddAllForNation,
+    canRemoveAlliance,
     onActionSuccess,
     coalitionOneName,
     coalitionTwoName,
@@ -237,6 +240,9 @@ export function ConflictAllianceSection({
     error,
 }: {
     canEdit: boolean;
+    canAddAlliance?: boolean;
+    canAddAllForNation?: boolean;
+    canRemoveAlliance?: boolean;
     onActionSuccess: () => void;
     coalitionOneName: string;
     coalitionTwoName: string;
@@ -250,6 +256,9 @@ export function ConflictAllianceSection({
     error?: string;
 }) {
     const [pendingRemovalKey, setPendingRemovalKey] = useState<string | null>(null);
+    const allowAddAlliance = canAddAlliance ?? canEdit;
+    const allowAddAllForNation = canAddAllForNation ?? canEdit;
+    const allowRemoveAlliance = canRemoveAlliance ?? canEdit;
 
     const entriesByCoalition = useMemo(() => {
         const grouped = new Map<0 | 1, ParsedAllianceEntry[]>();
@@ -291,8 +300,8 @@ export function ConflictAllianceSection({
             )}
             {isLoading && <div className="mb-2 text-xs text-muted-foreground">Loading alliances...</div>}
             <div className="flex flex-wrap gap-2 mb-2">
-                <Button variant="outline" size="sm" onClick={openAddAllianceDialog} disabled={!canEdit || !openAddAllianceDialog}>Add Alliance</Button>
-                <Button variant="outline" size="sm" onClick={openAddAllForNationDialog} disabled={!canEdit || !openAddAllForNationDialog}>Add All for Nation</Button>
+                <Button variant="outline" size="sm" onClick={openAddAllianceDialog} disabled={!allowAddAlliance || !openAddAllianceDialog}>Add Alliance</Button>
+                <Button variant="outline" size="sm" onClick={openAddAllForNationDialog} disabled={!allowAddAllForNation || !openAddAllForNationDialog}>Add All for Nation</Button>
             </div>
 
             <div className="mb-2">
@@ -324,7 +333,7 @@ export function ConflictAllianceSection({
                                                         command={allianceRemoveAction.command}
                                                         args={removeArgs}
                                                         label="Remove"
-                                                        disabled={!canEdit}
+                                                        disabled={!allowRemoveAlliance}
                                                         showResultDialog
                                                         onComplete={onConfirmRemoveComplete}
                                                         isConfirming={isConfirming}

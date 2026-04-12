@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useDialog } from "../../components/layout/DialogContext";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import EndpointWrapper from "@/components/api/bulkwrapper";
+import { DefinedEndpointArgValues, EndpointArgValues, normalizeEndpointArgValues } from "@/components/api/endpointArgValues";
 import { Button } from "@/components/ui/button.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { CommonEndpoint } from "@/lib/BulkQuery";
+import { bulkQueryOptions } from "@/lib/queries";
 import { useNavigate, useParams } from "react-router-dom";
 import { commafy, formatDuration, formatSi } from "@/utils/StringUtil.ts";
 import { COMMANDS } from "@/lib/commands.ts";
@@ -10,22 +15,24 @@ import QueryComponent from "../../components/cmd/QueryComponent";
 import { useSyncedState } from "../../utils/StateUtil";
 import Color from "../../components/renderer/Color";
 import { useSession } from "@/components/api/SessionContext";
-import { ApiFormInputs } from "@/components/api/apiform";
 import { cn } from "@/lib/utils";
 
-type RaidOption = {
-    endpoint: typeof RAID | typeof UNPROTECTED;
+type RaidEndpoint = typeof RAID | typeof UNPROTECTED;
+type EndpointDefaultValuesOf<TEndpoint> = TEndpoint extends CommonEndpoint<unknown, EndpointArgValues, infer B extends EndpointArgValues> ? B : never;
+type RaidQueryArgs = DefinedEndpointArgValues;
+
+type RaidOption<TEndpoint extends RaidEndpoint = RaidEndpoint> = {
+    endpoint: TEndpoint;
+    label: string;
     description: string;
-    default_values: { [key: string]: string | undefined };
+    defaultValues: EndpointDefaultValuesOf<TEndpoint>;
 };
 
-type RaidOptions = { [key: string]: RaidOption };
-type RaidOutputState = WebTargets | null;
-
-const RAID_OPTIONS: RaidOptions = {
+const RAID_OPTIONS = {
     app_7d: {
         endpoint: RAID,
-        default_values: {
+        label: "Applicants 7d",
+        defaultValues: {
             nations: "*,#position<=1",
             num_results: "25",
         },
@@ -33,7 +40,8 @@ const RAID_OPTIONS: RaidOptions = {
     },
     members: {
         endpoint: RAID,
-        default_values: {
+        label: "Members",
+        defaultValues: {
             nations: "*",
             num_results: "25"
         },
@@ -41,7 +49,8 @@ const RAID_OPTIONS: RaidOptions = {
     },
     beige: {
         endpoint: RAID,
-        default_values: {
+        label: "Beige",
+        defaultValues: {
             nations: "*",
             num_results: "25",
             beige_turns: "24"
@@ -50,7 +59,8 @@ const RAID_OPTIONS: RaidOptions = {
     },
     ground: {
         endpoint: RAID,
-        default_values: {
+        label: "Weak Ground",
+        defaultValues: {
             nations: "#tankpct<0.2,#soldierpct<0.4,*",
             num_results: "25",
             time_inactive: "0d",
@@ -60,7 +70,8 @@ const RAID_OPTIONS: RaidOptions = {
     },
     ground_2d: {
         endpoint: RAID,
-        default_values: {
+        label: "Weak Ground 2d",
+        defaultValues: {
             nations: "#tankpct<0.2,#soldierpct<0.4,*",
             num_results: "25",
             time_inactive: "2d",
@@ -70,7 +81,8 @@ const RAID_OPTIONS: RaidOptions = {
     },
     losing: {
         endpoint: RAID,
-        default_values: {
+        label: "Losing Wars",
+        defaultValues: {
             nations: "#def>0,#RelativeStrength<1,*",
             num_results: "25",
             time_inactive: "0d",
@@ -80,7 +92,8 @@ const RAID_OPTIONS: RaidOptions = {
     },
     unprotected: {
         endpoint: UNPROTECTED,
-        default_values: {
+        label: "Unprotected",
+        defaultValues: {
             nations: "*",
             num_results: "25",
             ignoreODP: "true",
@@ -89,18 +102,41 @@ const RAID_OPTIONS: RaidOptions = {
         },
         description: "Nations least likely to defend or have counters"
     }
-};
+} satisfies Record<string, RaidOption>;
+
+type RaidOptionKey = keyof typeof RAID_OPTIONS;
+
+const RAID_OPTION_KEYS = Object.keys(RAID_OPTIONS) as RaidOptionKey[];
+const DEFAULT_RAID_OPTION = RAID_OPTION_KEYS[0];
+
+function buildRaidQueryArgs(option: RaidOption, nation: string): RaidQueryArgs {
+    return normalizeEndpointArgValues(option.endpoint, {
+        ...option.defaultValues,
+        nation,
+    });
+}
 
 export default function RaidSection() {
 
     const { nation: nationParam } = useParams<{ nation: string }>();
     const { session } = useSession();
+    const queryClient = useQueryClient();
     const [nation, setNation] = useSyncedState<string | undefined>(nationParam ?? session?.nation_name);
     const [isNationPickerOpen, setIsNationPickerOpen] = useState(false);
-    const [raidOutput, setRaidOutput] = useState<RaidOutputState>(null);
-    const [desc, setDesc] = useState<string | null>(null);
+    const [selectedOptionKey, setSelectedOptionKey] = useState<RaidOptionKey>(DEFAULT_RAID_OPTION);
 
     const navigate = useNavigate();
+
+    const selectedOption = RAID_OPTIONS[selectedOptionKey];
+    const raidQueryArgsByKey = useMemo(() => {
+        if (!nation) {
+            return null;
+        }
+
+        return Object.fromEntries(
+            RAID_OPTION_KEYS.map((key) => [key, buildRaidQueryArgs(RAID_OPTIONS[key], nation)])
+        ) as Record<RaidOptionKey, RaidQueryArgs>;
+    }, [nation]);
 
     useEffect(() => {
         if (nationParam) {
@@ -127,11 +163,6 @@ export default function RaidSection() {
         navigate(`/raid/${newNation}`);
     }, [navigate, setNation]);
 
-    const dismiss = useCallback(() => {
-        setRaidOutput(null);
-        setDesc(null);
-    }, [setRaidOutput, setDesc]);
-
     const openNationPicker = useCallback(() => {
         setIsNationPickerOpen(true);
     }, []);
@@ -139,6 +170,28 @@ export default function RaidSection() {
     const closeNationPicker = useCallback(() => {
         setIsNationPickerOpen(false);
     }, []);
+
+    const handleSelectedOptionChange = useCallback((value: string) => {
+        if (value in RAID_OPTIONS) {
+            setSelectedOptionKey(value as RaidOptionKey);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!raidQueryArgsByKey) {
+            return;
+        }
+
+        // Warm every tab from the same normalized query map used by the renderer.
+        void Promise.allSettled(
+            RAID_OPTION_KEYS.map((key) => {
+                const option = RAID_OPTIONS[key];
+                return queryClient.prefetchQuery(
+                    bulkQueryOptions(option.endpoint.endpoint, raidQueryArgsByKey[key])
+                );
+            })
+        );
+    }, [queryClient, raidQueryArgsByKey]);
 
     return (
         <div className="mt-2 rounded-sm border border-light/10 bg-light/10 p-2">
@@ -174,35 +227,53 @@ export default function RaidSection() {
                 )}
 
                 <section>
-                    {nation ? (
-                        <div className="flex flex-wrap gap-2">
-                            {Object.entries(RAID_OPTIONS).map(([key, option]) => (
-                                <RaidButton
-                                    key={key}
-                                    label={key}
-                                    option={option}
-                                    endpoint={option.endpoint}
-                                    setDesc={setDesc}
-                                    setRaidOutput={setRaidOutput}
-                                    nation={nation}
-                                    loading={false}
-                                />
-                            ))}
-                        </div>
+                    {nation && raidQueryArgsByKey ? (
+                        <Tabs
+                            value={selectedOptionKey}
+                            onValueChange={handleSelectedOptionChange}
+                            preloadStrategy="none"
+                        >
+                            <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+                                {RAID_OPTION_KEYS.map((key) => {
+                                    const option = RAID_OPTIONS[key];
+
+                                    return (
+                                        <TabsTrigger
+                                            key={key}
+                                            value={key}
+                                            className="border border-primary/20 bg-black/10 text-primary/80 data-[state=active]:border-primary/40 data-[state=active]:bg-background data-[state=active]:text-foreground"
+                                        >
+                                            {option.label}
+                                        </TabsTrigger>
+                                    );
+                                })}
+                            </TabsList>
+
+                            <div className="mt-2 rounded-sm border border-primary/15 bg-primary/5 px-2 py-1 text-sm text-primary/90">
+                                {selectedOption.description}
+                            </div>
+
+                            {RAID_OPTION_KEYS.map((key) => {
+                                const option = RAID_OPTIONS[key];
+
+                                return (
+                                    <TabsContent key={key} value={key} className="mt-2">
+                                        <EndpointWrapper<WebTargets, RaidQueryArgs, RaidQueryArgs>
+                                            endpoint={option.endpoint}
+                                            args={raidQueryArgsByKey[key]}
+                                        >
+                                            {({ data }) => <RaidOutput output={data} />}
+                                        </EndpointWrapper>
+                                    </TabsContent>
+                                );
+                            })}
+                        </Tabs>
                     ) : (
                         <div className="rounded-sm border border-dashed border-light/20 px-2 py-1 text-sm text-muted-foreground">
                             Select a nation first to enable raid searches.
                         </div>
                     )}
                 </section>
-
-                {desc && (
-                    <div className="rounded-sm border border-primary/15 bg-primary/5 px-2 py-1 text-sm text-primary/90">
-                        {desc}
-                    </div>
-                )}
-
-                <RaidOutput output={raidOutput} dismiss={dismiss} />
             </div>
         </div>
     );
@@ -235,55 +306,15 @@ export function PickNation({
     );
 }
 
-export function RaidButton({ option, label, endpoint, setRaidOutput, loading, setDesc, nation }: {
-    option: RaidOption,
-    label: string,
-    endpoint: typeof RAID | typeof UNPROTECTED,
-    setRaidOutput: (value: RaidOutputState) => void,
-    loading: boolean,
-    setDesc: (value: string) => void,
-    nation: string
-}) {
-    const { showDialog } = useDialog();
-    const optionData = { ...option.default_values as { [key: string]: string }, nation };
-
-    const handleResponse = useCallback(({ data }: { data: WebTargets }) => {
-        setDesc(option.description);
-        setRaidOutput(data);
-    }, [option, setDesc, setRaidOutput]);
-
-    const handleError = useCallback((error: Error) => {
-        setRaidOutput(null);
-        showDialog("Error", error.message, true);
-    }, [setRaidOutput, showDialog]);
-
-    const classes = cn("border-primary/20 capitalize", { "cursor-wait disabled text-muted": loading });
-
-    return <ApiFormInputs
-        endpoint={endpoint}
-        default_values={optionData}
-        label={label}
-        handle_response={handleResponse}
-        handle_error={handleError}
-        classes={classes}
-    />
-}
-
 const ranks: string[] = ((COMMANDS.options.Rank.options)).map((o) => o === "REMOVE" ? "" : o);
 
-export function RaidOutput({ output, dismiss }: { output: RaidOutputState, dismiss: () => void }) {
-    if (!output) return <></>
-
+export function RaidOutput({ output }: { output: WebTargets }) {
     const targets = output;
     const rows = [targets.self, ...targets.targets];
     const now = Date.now();
 
     return (
         <div className="rounded-sm border border-light/10 bg-black/10 p-2">
-            <div className="mb-2 flex items-center justify-end">
-                <Button onClick={dismiss} variant="outline" size="sm">Dismiss</Button>
-            </div>
-
             <div className="overflow-x-auto">
                 <table className="w-full min-w-225 table-auto text-sm">
                     <thead className="text-left">

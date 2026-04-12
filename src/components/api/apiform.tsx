@@ -9,15 +9,17 @@ import { CommonEndpoint, QueryResult } from "../../lib/BulkQuery";
 import { useDeepMemo } from "./bulkwrapper";
 import { Argument } from "@/utils/Command";
 import ArgInput from "../cmd/ArgInput";
-import { normalizeArgInitialValue } from "../cmd/argInitialValueNormalization";
 import { ArgDescComponent } from "../cmd/CommandComponent";
 import ArgFieldShell from "../cmd/field/ArgFieldShell";
+import {
+    EndpointArgValues,
+    filterDefinedEndpointArgValues,
+    normalizeEndpointArgValues,
+} from "./endpointArgValues";
 import { singleQueryOptions } from "@/lib/queries";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Loading from "../ui/loading";
 import { useStoreWithEqualityFn } from "zustand/traditional";
-
-type EndpointArgValues = { [key: string]: string | string[] | undefined };
 
 const MemoizedArgInput = React.memo(({ arg, setOutputValue, initialValue, compact = false }: {
     arg: Argument,
@@ -56,21 +58,11 @@ function useEndpointArgumentConfig<T, A extends EndpointArgValues, B extends End
     showArguments?: (keyof A)[];
     includeDefaultArguments?: boolean;
 }) {
-    const stableDefaults = useDeepMemo(defaultValues
-        ? (Object.fromEntries(Object.entries(defaultValues).filter(([_, value]) => value !== undefined)) as { [k: string]: string | string[] })
-        : {});
+    const stableDefaults = useDeepMemo(filterDefinedEndpointArgValues(defaultValues));
 
     const normalizedDefaults = useMemo(() => {
-        return Object.fromEntries(Object.entries(stableDefaults).flatMap(([key, value]) => {
-            const arg = endpoint.endpoint.args[key];
-            if (typeof value !== "string" || !arg) {
-                return [[key, value]];
-            }
-
-            const normalizedValue = normalizeArgInitialValue(arg.getTypeBreakdown(), value, { isOptional: arg.arg.optional });
-            return normalizedValue ? [[key, normalizedValue]] : [];
-        })) as { [k: string]: string | string[] };
-    }, [endpoint.endpoint.args, stableDefaults]);
+        return normalizeEndpointArgValues(endpoint, stableDefaults);
+    }, [endpoint, stableDefaults]);
 
     const required = useMemo(() => {
         const req: string[] = [];

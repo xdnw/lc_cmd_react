@@ -1,0 +1,1 @@
+const l="https://wars.locutus.link";function s(t="https://wars.locutus.link"){const n=t?.trim();return(n&&n.length>0?n:l).replace(/\/+$/,"")}function i(t="https://wars.locutus.link"){return`${s(t)}/conflicts`}function o(t,n="https://wars.locutus.link"){const r=new URLSearchParams({id:String(t)});return`${s(n)}/conflict?${r.toString()}`}export{o as a,i as b};

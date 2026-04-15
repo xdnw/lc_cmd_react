@@ -1,0 +1,1 @@
+import{c as e}from"./createLucideIcon-CsPBjuDi.js";import"./index-CtQBK6di.js";import"./command-utils-9pNdqGSR.js";import"./command-meta-ENRhT-71.js";const c=[["path",{d:"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2",key:"975kel"}],["circle",{cx:"12",cy:"7",r:"4",key:"17ys0d"}]],i=e("user",c);export{c as __iconNode,i as default};

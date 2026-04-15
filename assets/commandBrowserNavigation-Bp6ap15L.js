@@ -1,0 +1,1 @@
+import{aG as e}from"./index-CtQBK6di.js";const s="/commands",o="/";function t(r){const a=e(r);return a.size>0?`?${a.toString()}`:""}function n(r){return{pathname:s,search:t(r)}}export{o as C,s as a,n as c};

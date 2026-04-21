@@ -1,1 +1,0 @@
-import{c}from"./createLucideIcon-CsPBjuDi.js";import"./index-CtQBK6di.js";import"./command-utils-9pNdqGSR.js";import"./command-meta-ENRhT-71.js";const o=[["path",{d:"M20 6 9 17l-5-5",key:"1gmf2c"}]],m=c("check",o);export{o as __iconNode,m as default};

@@ -1,0 +1,1 @@
+import{c as o}from"./createLucideIcon-CG5zytJ5.js";import"./index-CVQSd5Fu.js";import"./command-utils-C1NXByR_.js";import"./command-meta-eEZ_D6EA.js";const t=[["path",{d:"m9 18 6-6-6-6",key:"mthhwq"}]],h=o("chevron-right",t);export{t as __iconNode,h as default};

@@ -1,0 +1,1 @@
+import{c as t}from"./createLucideIcon-CG5zytJ5.js";import"./index-CVQSd5Fu.js";import"./command-utils-C1NXByR_.js";import"./command-meta-eEZ_D6EA.js";const c=[["circle",{cx:"12",cy:"12",r:"4",key:"4exip2"}],["path",{d:"M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8",key:"7n84p3"}]],a=t("at-sign",c);export{c as __iconNode,a as default};

@@ -1,0 +1,1 @@
+import{c as o}from"./createLucideIcon-CG5zytJ5.js";import"./index-CVQSd5Fu.js";import"./command-utils-C1NXByR_.js";import"./command-meta-eEZ_D6EA.js";const t=[["path",{d:"M12 15V3",key:"m9g1x1"}],["path",{d:"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",key:"ih7n3h"}],["path",{d:"m7 10 5 5 5-5",key:"brsn70"}]],p=o("download",t);export{t as __iconNode,p as default};

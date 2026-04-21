@@ -1,0 +1,1 @@
+import{c as o}from"./createLucideIcon-CG5zytJ5.js";import"./index-CVQSd5Fu.js";import"./command-utils-C1NXByR_.js";import"./command-meta-eEZ_D6EA.js";const t=[["path",{d:"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",key:"10ikf1"}]],p=o("play",t);export{t as __iconNode,p as default};

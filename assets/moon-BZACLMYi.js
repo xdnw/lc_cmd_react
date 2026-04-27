@@ -1,0 +1,1 @@
+import{c as o}from"./createLucideIcon-B0NRsr7u.js";import"./index-BO_GZab0.js";import"./command-utils-D6q3PcJ_.js";import"./command-meta-CJcUK03H.js";const t=[["path",{d:"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401",key:"kfwtm"}]],r=o("moon",t);export{t as __iconNode,r as default};

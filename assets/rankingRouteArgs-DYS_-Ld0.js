@@ -1,0 +1,1 @@
+function o(e){return e.split(/(?=[A-Z])/).map(r=>r.charAt(0).toUpperCase()+r.slice(1)).join(" ").trim()}function n(e,r){return Object.fromEntries(Object.entries(r).filter(([t,i])=>i!==void 0&&t.toLowerCase()in e.argsLower).map(([t,i])=>[e.argsLower[t.toLowerCase()],i]))}export{n as f,o as h};

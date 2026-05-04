@@ -1,1 +1,0 @@
-import{c as o}from"./createLucideIcon-D-cAlnrZ.js";import"./index-DviBOB-m.js";import"./command-utils-Bkj5AnaQ.js";import"./command-meta-VqsV1ZdI.js";const r=[["path",{d:"m6 9 6 6 6-6",key:"qrunsl"}]],i=o("chevron-down",r);export{r as __iconNode,i as default};

@@ -1,0 +1,1 @@
+import{q as o,n as s}from"./button-CZlZWSaF.js";function c(){return o(s())}function u(n){const a=new URLSearchParams;return Object.entries(n).forEach(([t,r])=>{if(r!==void 0){if(Array.isArray(r)){r.forEach(e=>a.append(t,e));return}a.append(t,r)}}),a.toString()}export{u as b,c as r};

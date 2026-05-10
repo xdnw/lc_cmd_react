@@ -1,0 +1,1 @@
+import{c as o}from"./createLucideIcon-ZhFaKBgP.js";import"./index-DPF_Xiga.js";import"./command-utils-Bkj5AnaQ.js";import"./command-meta-VqsV1ZdI.js";const t=[["path",{d:"m16 17 5-5-5-5",key:"1bji2h"}],["path",{d:"M21 12H9",key:"dn1m92"}],["path",{d:"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4",key:"1uf3rs"}]],c=o("log-out",t);export{t as __iconNode,c as default};

@@ -1,1 +1,0 @@
-import{c as t}from"./createLucideIcon-AgRGU0RD.js";import"./index-CXf5y8sK.js";import"./command-utils-Bkj5AnaQ.js";import"./command-meta-VqsV1ZdI.js";const o=[["path",{d:"m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7",key:"132q7q"}],["rect",{x:"2",y:"4",width:"20",height:"16",rx:"2",key:"izxlao"}]],c=t("mail",o);export{o as __iconNode,c as default};
